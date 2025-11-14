@@ -27,11 +27,11 @@ from ..schema.unified_listing import (
 
 class AIEnhancer:
     """
-    Dual-AI enhancer using both OpenAI and Anthropic.
+    Dual-AI enhancer using both Anthropic Claude and OpenAI.
 
     Strategy:
-    - OpenAI GPT-4 Vision: Photo analysis and initial description
-    - Anthropic Claude: Enhanced copywriting and SEO optimization
+    - Step 1: Claude analyzes photos and creates initial listing (details, SEO, keywords)
+    - Step 2: GPT-4 Vision verifies and refines to ensure label and description accuracy
     - Combined: Best of both for maximum listing quality
     """
 
@@ -78,15 +78,137 @@ class AIEnhancer:
         }
         return mime_types.get(ext, "image/jpeg")
 
-    def analyze_photos_openai(self, photos: List[Photo]) -> Dict[str, Any]:
+    def analyze_photos_claude(self, photos: List[Photo], target_platform: str = "general") -> Dict[str, Any]:
         """
-        Analyze photos using OpenAI GPT-4 Vision.
+        Initial photo analysis using Claude Vision (Step 1).
+        Creates comprehensive listing with details, SEO, and keywords.
+
+        Args:
+            photos: List of photos to analyze
+            target_platform: Target platform for optimization
 
         Returns:
-            Dictionary with photo analysis, suggested title, description, keywords
+            Dictionary with initial analysis, title, description, keywords, etc.
+        """
+        if not self.use_anthropic:
+            return {}
+
+        # Prepare images for vision analysis
+        image_contents = []
+        for photo in photos[:4]:  # Limit to 4 photos to save tokens
+            image_dict = {"type": "image"}
+
+            if photo.local_path:
+                image_b64 = self._encode_image_to_base64(photo.local_path)
+                mime_type = self._get_image_mime_type(photo.local_path)
+                image_dict["source"] = {
+                    "type": "base64",
+                    "media_type": mime_type,
+                    "data": image_b64,
+                }
+            elif photo.url:
+                image_dict["source"] = {
+                    "type": "url",
+                    "url": photo.url,
+                }
+
+            image_contents.append(image_dict)
+
+        # Platform-specific context
+        platform_context = {
+            "ebay": "eBay (focus on detailed specs, trust-building language, and search keywords)",
+            "mercari": "Mercari (casual, mobile-friendly, highlight condition and value)",
+            "general": "general e-commerce",
+        }
+        context = platform_context.get(target_platform.lower(), "general e-commerce")
+
+        # Build comprehensive analysis prompt
+        prompt = f"""Analyze these product images and create a comprehensive listing for {context}.
+
+Provide:
+1. **Item Title**: Compelling, keyword-rich title (under 80 characters)
+2. **Detailed Description**: 2-3 paragraphs covering features, condition, and value proposition
+3. **SEO Keywords**: 15-20 relevant search keywords
+4. **Search Terms**: Alternative phrases buyers might use
+5. **Category**: Suggested category (e.g., "Electronics > Cameras")
+6. **Item Specifics**: Brand, model, size, color, material if visible
+7. **Condition Notes**: Specific observations about condition
+8. **Key Features**: Bullet points of notable selling points
+
+Format as JSON:
+{{
+  "title": "...",
+  "description": "...",
+  "keywords": ["...", "..."],
+  "search_terms": ["...", "..."],
+  "category": "...",
+  "brand": "...",
+  "model": "...",
+  "color": "...",
+  "condition_notes": "...",
+  "features": ["...", "..."]
+}}"""
+
+        headers = {
+            "x-api-key": self.anthropic_api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
+
+        # Build message with images
+        content = [{"type": "text", "text": prompt}]
+        content.extend(image_contents)
+
+        payload = {
+            "model": "claude-3-5-sonnet-20241022",
+            "max_tokens": 2000,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": content,
+                }
+            ],
+        }
+
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers=headers,
+            json=payload,
+        )
+
+        if response.status_code == 200:
+            result = response.json()
+            content_text = result["content"][0]["text"]
+
+            # Parse JSON response
+            import json
+            try:
+                if "```json" in content_text:
+                    content_text = content_text.split("```json")[1].split("```")[0].strip()
+                elif "```" in content_text:
+                    content_text = content_text.split("```")[1].split("```")[0].strip()
+
+                analysis = json.loads(content_text)
+                return analysis
+            except json.JSONDecodeError:
+                return {"raw_response": content_text}
+        else:
+            raise Exception(f"Claude API error: {response.text}")
+
+    def verify_with_gpt4_vision(self, photos: List[Photo], claude_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Verify and refine listing using GPT-4 Vision (Step 2).
+        Double-checks Claude's analysis to ensure accuracy of label and description.
+
+        Args:
+            photos: List of photos to verify
+            claude_data: Initial data from Claude analysis
+
+        Returns:
+            Dictionary with verified/refined data
         """
         if not self.use_openai:
-            return {}
+            return claude_data
 
         # Prepare images for vision analysis
         image_contents = []
@@ -106,25 +228,32 @@ class AIEnhancer:
                     "image_url": {"url": photo.url}
                 })
 
-        # Build prompt
-        prompt = """Analyze these product images and provide:
+        # Build verification prompt with Claude's initial data
+        prompt = f"""Review these product images and verify the following listing details created by another AI.
 
-1. **Item Description**: Detailed description of the item (2-3 paragraphs)
-2. **Title**: Concise, keyword-rich title (under 80 characters)
-3. **Keywords**: 10-15 relevant search keywords
-4. **Category**: Suggested category (e.g., "Electronics > Cameras", "Clothing > Women's > Dresses")
-5. **Condition Details**: Specific condition observations (flaws, wear, etc.)
-6. **Key Features**: Bullet points of notable features or selling points
+**Current Title**: {claude_data.get('title', 'N/A')}
+**Current Description**: {claude_data.get('description', 'N/A')}
+**Suggested Keywords**: {', '.join(claude_data.get('keywords', []))}
+**Category**: {claude_data.get('category', 'N/A')}
+**Brand/Model**: {claude_data.get('brand', 'N/A')} / {claude_data.get('model', 'N/A')}
 
-Format your response as JSON:
-{
-  "description": "...",
+Your task: Verify accuracy and refine if needed. Focus on:
+1. Is the title accurate and optimized?
+2. Is the description factually correct based on what you see?
+3. Are there any missing important details?
+4. Any corrections needed for brand, model, or specifics?
+
+Provide refined/corrected data as JSON:
+{{
   "title": "...",
+  "description": "...",
   "keywords": ["...", "..."],
   "category": "...",
-  "condition_notes": "...",
-  "features": ["...", "..."]
-}"""
+  "brand": "...",
+  "model": "...",
+  "corrections_made": ["list any corrections"],
+  "verified": true
+}}"""
 
         messages = [
             {
@@ -146,7 +275,7 @@ Format your response as JSON:
             "model": "gpt-4o",  # GPT-4 Vision
             "messages": messages,
             "max_tokens": 1500,
-            "temperature": 0.7,
+            "temperature": 0.3,  # Lower temperature for verification accuracy
         }
 
         response = requests.post(
@@ -168,104 +297,20 @@ Format your response as JSON:
                 elif "```" in content:
                     content = content.split("```")[1].split("```")[0].strip()
 
-                analysis = json.loads(content)
-                return analysis
+                verified_data = json.loads(content)
+
+                # Merge verified data with original claude_data (keep search_terms from Claude if not provided)
+                final_data = {**claude_data, **verified_data}
+
+                return final_data
             except json.JSONDecodeError:
-                # Fallback if JSON parsing fails
-                return {"raw_response": content}
+                # If parsing fails, return Claude's data as-is
+                return claude_data
         else:
-            raise Exception(f"OpenAI API error: {response.text}")
+            # If API call fails, return Claude's data
+            print(f"GPT-4 Vision verification failed: {response.text}")
+            return claude_data
 
-    def enhance_with_claude(
-        self,
-        initial_data: Dict[str, Any],
-        target_platform: str = "general",
-    ) -> Dict[str, Any]:
-        """
-        Enhance listing copy using Anthropic Claude.
-
-        Args:
-            initial_data: Initial data from photo analysis
-            target_platform: Target platform (ebay, mercari, general)
-
-        Returns:
-            Enhanced description, title, and SEO data
-        """
-        if not self.use_anthropic:
-            return initial_data
-
-        # Build enhancement prompt
-        platform_context = {
-            "ebay": "eBay (focus on detailed specs, trust-building, and search keywords)",
-            "mercari": "Mercari (casual, mobile-friendly, highlight condition and value)",
-            "general": "general e-commerce",
-        }
-
-        context = platform_context.get(target_platform.lower(), "general e-commerce")
-
-        prompt = f"""You are an expert e-commerce copywriter. Enhance this listing for {context}.
-
-Initial data:
-- Title: {initial_data.get('title', '')}
-- Description: {initial_data.get('description', '')}
-- Keywords: {', '.join(initial_data.get('keywords', []))}
-- Features: {', '.join(initial_data.get('features', []))}
-
-Please provide:
-1. **Optimized Title**: Compelling, keyword-rich (80 chars max)
-2. **Enhanced Description**: Professional, persuasive, highlights value
-3. **SEO Keywords**: Top 15 keywords for search optimization
-4. **Search Terms**: Alternative search phrases buyers might use
-
-Format as JSON:
-{{
-  "title": "...",
-  "description": "...",
-  "keywords": ["...", "..."],
-  "search_terms": ["...", "..."]
-}}"""
-
-        headers = {
-            "x-api-key": self.anthropic_api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        }
-
-        payload = {
-            "model": "claude-3-5-sonnet-20241022",
-            "max_tokens": 2000,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
-        }
-
-        response = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers=headers,
-            json=payload,
-        )
-
-        if response.status_code == 200:
-            result = response.json()
-            content = result["content"][0]["text"]
-
-            # Parse JSON response
-            import json
-            try:
-                if "```json" in content:
-                    content = content.split("```json")[1].split("```")[0].strip()
-                elif "```" in content:
-                    content = content.split("```")[1].split("```")[0].strip()
-
-                enhanced = json.loads(content)
-                return enhanced
-            except json.JSONDecodeError:
-                return {"raw_response": content}
-        else:
-            raise Exception(f"Anthropic API error: {response.text}")
 
     def enhance_listing(
         self,
@@ -274,7 +319,10 @@ Format as JSON:
         force: bool = False,
     ) -> UnifiedListing:
         """
-        Complete AI enhancement workflow.
+        Complete AI enhancement workflow with two-step process.
+
+        Step 1: Claude analyzes photos and creates initial listing
+        Step 2: GPT-4 Vision verifies and refines for accuracy
 
         Args:
             listing: UnifiedListing to enhance
@@ -288,57 +336,70 @@ Format as JSON:
             # Already enhanced, skip
             return listing
 
-        # Step 1: Analyze photos with OpenAI (if available)
-        openai_analysis = {}
-        if self.use_openai and listing.photos:
+        # Step 1: Claude analyzes photos first (initial comprehensive analysis)
+        claude_analysis = {}
+        if self.use_anthropic and listing.photos:
             try:
-                openai_analysis = self.analyze_photos_openai(listing.photos)
+                print("🤖 Step 1: Claude analyzing photos...")
+                claude_analysis = self.analyze_photos_claude(listing.photos, target_platform)
             except Exception as e:
-                print(f"OpenAI analysis failed: {e}")
+                print(f"❌ Claude analysis failed: {e}")
 
-        # Step 2: Enhance with Claude (if available)
-        enhanced_data = openai_analysis
-        if self.use_anthropic:
+        # Step 2: GPT-4 Vision verifies and refines Claude's analysis
+        final_data = claude_analysis
+        if self.use_openai and listing.photos and claude_analysis:
             try:
-                enhanced_data = self.enhance_with_claude(openai_analysis, target_platform)
+                print("🔍 Step 2: GPT-4 Vision verifying accuracy...")
+                final_data = self.verify_with_gpt4_vision(listing.photos, claude_analysis)
             except Exception as e:
-                print(f"Claude enhancement failed: {e}")
+                print(f"⚠️  GPT-4 Vision verification failed (using Claude data): {e}")
+                final_data = claude_analysis
 
         # Step 3: Apply enhancements to listing
-        if enhanced_data:
+        if final_data:
             # Update description if provided
-            if enhanced_data.get("description"):
-                listing.description = enhanced_data["description"]
+            if final_data.get("description"):
+                listing.description = final_data["description"]
 
             # Update title if provided
-            if enhanced_data.get("title"):
-                listing.title = enhanced_data["title"]
+            if final_data.get("title"):
+                listing.title = final_data["title"]
 
             # Update SEO data
-            if enhanced_data.get("keywords"):
-                listing.seo_data.keywords = enhanced_data["keywords"]
+            if final_data.get("keywords"):
+                listing.seo_data.keywords = final_data["keywords"]
 
-            if enhanced_data.get("search_terms"):
-                listing.seo_data.search_terms = enhanced_data["search_terms"]
+            if final_data.get("search_terms"):
+                listing.seo_data.search_terms = final_data["search_terms"]
 
             # Update category if suggested
-            if enhanced_data.get("category"):
-                category_parts = enhanced_data["category"].split(" > ")
+            if final_data.get("category"):
+                category_parts = final_data["category"].split(" > ")
                 if not listing.category:
                     listing.category = Category(
                         primary=category_parts[0],
                         subcategory=category_parts[1] if len(category_parts) > 1 else None,
                     )
 
+            # Update item specifics if provided
+            if final_data.get("brand"):
+                listing.item_specifics.brand = final_data["brand"]
+            if final_data.get("model"):
+                listing.item_specifics.model = final_data["model"]
+            if final_data.get("color"):
+                listing.item_specifics.color = final_data["color"]
+
             # Mark as AI enhanced
             listing.ai_enhanced = True
             listing.ai_enhancement_timestamp = datetime.now()
-            listing.ai_provider = []
-            if self.use_openai:
-                listing.ai_provider.append("OpenAI")
+
+            # Track which AI providers were used (Claude first, then GPT-4)
+            providers = []
             if self.use_anthropic:
-                listing.ai_provider.append("Anthropic")
-            listing.ai_provider = " + ".join(listing.ai_provider)
+                providers.append("Claude (analysis)")
+            if self.use_openai:
+                providers.append("GPT-4 Vision (verification)")
+            listing.ai_provider = " → ".join(providers)
 
         return listing
 

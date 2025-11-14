@@ -9,8 +9,8 @@ AI Cross-Poster is a powerful Python library that streamlines the process of cre
 
 ## ✨ Features
 
-- **📸 AI Photo Analysis**: Automatically analyze product photos to extract details, condition, and features
-- **✍️ Dual-AI Enhancement**: Combine OpenAI GPT-4 Vision and Anthropic Claude for maximum listing quality
+- **📸 AI Photo Analysis**: Two-step AI process - Claude analyzes first, GPT-4 Vision verifies for accuracy
+- **✍️ Dual-AI Enhancement**: Claude creates comprehensive listings, GPT-4 Vision ensures label and description accuracy
 - **🔄 Cross-Platform Publishing**: Publish to eBay and Mercari from a single unified schema
 - **🎯 SEO Optimization**: Auto-generate keywords, search terms, and optimize titles for maximum visibility
 - **⚡ Batch Processing**: Create and publish multiple listings efficiently
@@ -28,8 +28,8 @@ AI Cross-Poster is a powerful Python library that streamlines the process of cre
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                  AI Listing Enhancer                        │
-│  • OpenAI GPT-4 Vision (photo analysis)                     │
-│  • Anthropic Claude (copywriting & SEO)                     │
+│  • Step 1: Claude analyzes photos (details, SEO, keywords)  │
+│  • Step 2: GPT-4 Vision verifies (accuracy check)           │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ▼

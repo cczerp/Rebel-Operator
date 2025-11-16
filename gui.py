@@ -1026,14 +1026,32 @@ Return ONLY the description text, no JSON, no formatting, just the description."
                 success_count = result["success_count"]
                 total = result["total_platforms"]
 
-                self.after(0, lambda: self.update_status(f"✅ Posted to {success_count}/{total} platforms"))
-                self.after(0, lambda: messagebox.showinfo(
-                    "Success!",
-                    f"Posted to {success_count}/{total} platforms!\n\nListing ID: {result['listing_id']}"
-                ))
+                # Build detailed result message
+                result_msg = f"Posted to {success_count}/{total} platforms\n\n"
 
-                # Clear form
-                self.after(0, self.clear_listing_form)
+                # Show success/failure for each platform
+                for platform, platform_result in result.get("results", {}).items():
+                    if platform_result.success:
+                        result_msg += f"✅ {platform.upper()}: Success\n"
+                        if platform_result.listing_url:
+                            result_msg += f"   URL: {platform_result.listing_url}\n"
+                    else:
+                        result_msg += f"❌ {platform.upper()}: Failed\n"
+                        result_msg += f"   Error: {platform_result.error}\n"
+
+                result_msg += f"\nListing ID: {result['listing_id']}"
+
+                self.after(0, lambda: self.update_status(f"Posted to {success_count}/{total} platforms"))
+
+                # Show appropriate dialog based on success
+                if success_count > 0:
+                    self.after(0, lambda msg=result_msg: messagebox.showinfo("Posting Results", msg))
+                else:
+                    self.after(0, lambda msg=result_msg: messagebox.showerror("Posting Failed", msg))
+
+                # Clear form if at least one succeeded
+                if success_count > 0:
+                    self.after(0, self.clear_listing_form)
 
             except Exception as e:
                 self.after(0, lambda: messagebox.showerror("Error", f"Failed to post: {e}"))
@@ -1474,11 +1492,28 @@ Return ONLY the description text, no JSON, no formatting, just the description."
                 success_count = result["success_count"]
                 total = result["total_platforms"]
 
-                self.after(0, lambda: self.update_status(f"✅ Posted to {success_count}/{total} platforms"))
-                self.after(0, lambda: messagebox.showinfo(
-                    "Success!",
-                    f"Posted draft to {success_count}/{total} platforms!\n\nListing ID: {result['listing_id']}"
-                ))
+                # Build detailed result message
+                result_msg = f"Posted to {success_count}/{total} platforms\n\n"
+
+                # Show success/failure for each platform
+                for platform, platform_result in result.get("results", {}).items():
+                    if platform_result.success:
+                        result_msg += f"✅ {platform.upper()}: Success\n"
+                        if platform_result.listing_url:
+                            result_msg += f"   URL: {platform_result.listing_url}\n"
+                    else:
+                        result_msg += f"❌ {platform.upper()}: Failed\n"
+                        result_msg += f"   Error: {platform_result.error}\n"
+
+                result_msg += f"\nListing ID: {result['listing_id']}"
+
+                self.after(0, lambda: self.update_status(f"Posted to {success_count}/{total} platforms"))
+
+                # Show appropriate dialog based on success
+                if success_count > 0:
+                    self.after(0, lambda msg=result_msg: messagebox.showinfo("Posting Results", msg))
+                else:
+                    self.after(0, lambda msg=result_msg: messagebox.showerror("Posting Failed", msg))
 
                 # Refresh drafts list
                 self.after(0, self.refresh_drafts)

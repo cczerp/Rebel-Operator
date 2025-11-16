@@ -194,6 +194,19 @@ class MercariAutomationAdapter:
     This is a fallback for regular Mercari sellers without Shops API access.
     """
 
+    # Mercari condition mappings (same as Shops adapter)
+    CONDITION_MAP = {
+        ListingCondition.NEW: "new",
+        ListingCondition.NEW_WITH_TAGS: "new",
+        ListingCondition.NEW_WITHOUT_TAGS: "new",
+        ListingCondition.LIKE_NEW: "like_new",
+        ListingCondition.EXCELLENT: "excellent",
+        ListingCondition.GOOD: "good",
+        ListingCondition.FAIR: "fair",
+        ListingCondition.POOR: "poor",
+        ListingCondition.FOR_PARTS: "poor",
+    }
+
     def __init__(
         self,
         email: str,
@@ -255,7 +268,8 @@ class MercariAutomationAdapter:
 
         # Click submit
         self.page.click('button[type="submit"]')
-        self.page.wait_for_url("https://www.mercari.com/", timeout=10000)
+        # Increased timeout to 60 seconds for slow connections
+        self.page.wait_for_url("https://www.mercari.com/", timeout=60000)
         self._human_delay(1000, 2000)
 
     def publish_listing(self, listing: UnifiedListing) -> Dict[str, str]:
@@ -347,8 +361,8 @@ class MercariAutomationAdapter:
             self._human_delay(1000, 2000)
             self.page.click('button:has-text("List")')
 
-            # Wait for success and get listing URL
-            self.page.wait_for_url("**/item/**", timeout=15000)
+            # Wait for success and get listing URL (increased timeout to 60 seconds)
+            self.page.wait_for_url("**/item/**", timeout=60000)
             listing_url = self.page.url
 
             # Extract listing ID from URL

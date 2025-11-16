@@ -89,9 +89,9 @@ class AIListerGUI(ctk.CTk):
         )
         header.pack(pady=20)
 
-        # Tabview
-        self.tabview = ctk.CTkTabview(self, width=1150, height=650)
-        self.tabview.pack(pady=10, padx=20)
+        # Tabview (expands to fill window)
+        self.tabview = ctk.CTkTabview(self, width=1150)
+        self.tabview.pack(pady=10, padx=20, fill="both", expand=True)
 
         # Create tabs
         self.tabview.add("📦 Create Listing")

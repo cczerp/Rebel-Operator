@@ -25,7 +25,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
-from src.schema import UnifiedListing, Photo, Price, ListingCondition, Shipping, ItemSpecifics
 from src.database import get_db
 import csv
 from io import StringIO, BytesIO
@@ -601,6 +600,7 @@ def analyze_photos():
 
     try:
         from src.ai.gemini_classifier import GeminiClassifier
+        from src.schema import Photo
 
         # Create photo objects
         photo_objects = [

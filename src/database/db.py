@@ -172,6 +172,9 @@ class Database:
             ON notifications(is_read)
         """)
 
+        # Run migrations
+        self._run_migrations()
+
         self.conn.commit()
 
         # Run migrations for existing databases
@@ -206,6 +209,7 @@ class Database:
             print("Running migration: Adding cancel_scheduled_at column to platform_listings table")
             cursor.execute("ALTER TABLE platform_listings ADD COLUMN cancel_scheduled_at TIMESTAMP")
             self.conn.commit()
+
 
     # ========================================================================
     # COLLECTIBLES METHODS

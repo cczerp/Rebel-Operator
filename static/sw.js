@@ -1,4 +1,4 @@
-// Service Worker for ResellGenius PWA
+// Service Worker for ResellGenie PWA
 const CACHE_NAME = 'resellgenius-v1';
 const urlsToCache = [
   '/',
@@ -99,6 +99,6 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification('ResellGenius', options)
+    self.registration.showNotification('ResellGenie', options)
   );
 });

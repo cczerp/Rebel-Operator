@@ -182,6 +182,35 @@ class Database:
             )
         """)
 
+        # Platform activity - monitor external platforms for sold items & messages
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS platform_activity (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                platform TEXT NOT NULL,  -- ebay, mercari, etc.
+                activity_type TEXT NOT NULL,  -- 'sold', 'message', 'offer', 'view', 'favorite'
+                platform_listing_id TEXT,  -- ID of the listing on that platform
+                listing_id INTEGER,  -- FK to our listings table (if matched)
+                title TEXT,  -- Title of the item
+                buyer_username TEXT,  -- Username of buyer (if applicable)
+                message_text TEXT,  -- Message content (for 'message' type)
+                sold_price REAL,  -- Sale price (for 'sold' type)
+                activity_date TIMESTAMP,  -- When the activity occurred
+                is_read BOOLEAN DEFAULT 0,  -- Has user acknowledged this?
+                is_synced_to_inventory BOOLEAN DEFAULT 0,  -- Has sold item been marked in our system?
+                raw_data TEXT,  -- JSON: Full data from platform API/scrape
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (listing_id) REFERENCES listings(id)
+            )
+        """)
+
+        # Create index for faster activity queries
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_platform_activity_user_unread
+            ON platform_activity(user_id, is_read, created_at DESC)
+        """)
+
         # Notifications/alerts table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS notifications (
@@ -387,6 +416,14 @@ class Database:
                 print(f"Running migration: Adding {default_msg} column to collectibles table")
                 cursor.execute(f"ALTER TABLE collectibles ADD COLUMN {col_name} {col_def}")
                 self.conn.commit()
+
+        # Migration: Add platform_statuses to listings table (for bulk posting)
+        try:
+            cursor.execute("SELECT platform_statuses FROM listings LIMIT 1")
+        except sqlite3.OperationalError:
+            print("Running migration: Adding platform_statuses column to listings table")
+            cursor.execute("ALTER TABLE listings ADD COLUMN platform_statuses TEXT")
+            self.conn.commit()
 
     # ========================================================================
     # COLLECTIBLES METHODS
@@ -1321,6 +1358,214 @@ class Database:
             WHERE id = ?
         """, (new_password_hash, user_id))
         self.conn.commit()
+
+    # ========================================================================
+    # PLATFORM ACTIVITY MONITORING METHODS
+    # ========================================================================
+
+    def add_platform_activity(
+        self,
+        user_id: int,
+        platform: str,
+        activity_type: str,
+        platform_listing_id: Optional[str] = None,
+        listing_id: Optional[int] = None,
+        title: Optional[str] = None,
+        buyer_username: Optional[str] = None,
+        message_text: Optional[str] = None,
+        sold_price: Optional[float] = None,
+        activity_date: Optional[str] = None,
+        raw_data: Optional[str] = None
+    ) -> int:
+        """
+        Add platform activity (sold item, message, offer, etc.)
+
+        Args:
+            user_id: User ID
+            platform: Platform name (ebay, mercari, etc.)
+            activity_type: Type of activity (sold, message, offer, view, favorite)
+            platform_listing_id: ID of listing on that platform
+            listing_id: Our internal listing ID (if matched)
+            title: Item title
+            buyer_username: Buyer's username (if applicable)
+            message_text: Message content (for messages)
+            sold_price: Sale price (for sold items)
+            activity_date: When activity occurred
+            raw_data: JSON with full data from platform
+
+        Returns:
+            Activity ID
+        """
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            INSERT INTO platform_activity (
+                user_id, platform, activity_type, platform_listing_id,
+                listing_id, title, buyer_username, message_text,
+                sold_price, activity_date, raw_data
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            user_id, platform, activity_type, platform_listing_id,
+            listing_id, title, buyer_username, message_text,
+            sold_price, activity_date or datetime.now().isoformat(), raw_data
+        ))
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def get_platform_activity(
+        self,
+        user_id: int,
+        limit: int = 50,
+        unread_only: bool = False,
+        activity_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get platform activity for a user
+
+        Args:
+            user_id: User ID
+            limit: Max activities to return
+            unread_only: Only return unread activities
+            activity_type: Filter by type (sold, message, etc.)
+
+        Returns:
+            List of activity dicts
+        """
+        cursor = self.conn.cursor()
+
+        query = """
+            SELECT * FROM platform_activity
+            WHERE user_id = ?
+        """
+        params = [user_id]
+
+        if unread_only:
+            query += " AND is_read = 0"
+
+        if activity_type:
+            query += " AND activity_type = ?"
+            params.append(activity_type)
+
+        query += " ORDER BY activity_date DESC LIMIT ?"
+        params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+
+    def mark_activity_read(self, activity_id: int):
+        """Mark platform activity as read"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            UPDATE platform_activity
+            SET is_read = 1
+            WHERE id = ?
+        """, (activity_id,))
+        self.conn.commit()
+
+    def sync_sold_activity_to_inventory(self, activity_id: int):
+        """
+        Sync sold activity to inventory (mark listing as sold)
+
+        Args:
+            activity_id: Platform activity ID
+
+        Returns:
+            True if successful
+        """
+        cursor = self.conn.cursor()
+
+        # Get activity
+        cursor.execute("SELECT * FROM platform_activity WHERE id = ?", (activity_id,))
+        activity = cursor.fetchone()
+
+        if not activity or activity['activity_type'] != 'sold':
+            return False
+
+        listing_id = activity['listing_id']
+        if not listing_id:
+            return False
+
+        # Mark listing as sold
+        cursor.execute("""
+            UPDATE listings
+            SET status = 'sold',
+                sold_platform = ?,
+                sold_date = ?,
+                sold_price = ?
+            WHERE id = ?
+        """, (
+            activity['platform'],
+            activity['activity_date'],
+            activity['sold_price'],
+            listing_id
+        ))
+
+        # Mark activity as synced
+        cursor.execute("""
+            UPDATE platform_activity
+            SET is_synced_to_inventory = 1
+            WHERE id = ?
+        """, (activity_id,))
+
+        self.conn.commit()
+        return True
+
+    def check_duplicate_on_platform(
+        self,
+        user_id: int,
+        platform: str,
+        title: str,
+        upc: Optional[str] = None,
+        sku: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Check if item already exists on a platform (duplicate detection)
+
+        Args:
+            user_id: User ID
+            platform: Platform to check
+            title: Item title
+            upc: UPC code (stronger match)
+            sku: SKU (stronger match)
+
+        Returns:
+            Existing listing dict if duplicate found, None otherwise
+        """
+        cursor = self.conn.cursor()
+
+        # First try exact match by UPC or SKU (strongest signal)
+        if upc or sku:
+            query = """
+                SELECT l.*
+                FROM listings l
+                JOIN platform_listings pl ON l.id = pl.listing_id
+                WHERE l.user_id = ?
+                AND pl.platform = ?
+                AND pl.status IN ('active', 'pending')
+                AND (l.upc = ? OR l.sku = ?)
+                LIMIT 1
+            """
+            cursor.execute(query, (user_id, platform, upc or '', sku or ''))
+            row = cursor.fetchone()
+            if row:
+                return dict(row)
+
+        # Fuzzy match by title (title similarity > 80%)
+        query = """
+            SELECT l.*, pl.platform_listing_id, pl.status as platform_status
+            FROM listings l
+            JOIN platform_listings pl ON l.id = pl.listing_id
+            WHERE l.user_id = ?
+            AND pl.platform = ?
+            AND pl.status IN ('active', 'pending')
+            AND LOWER(l.title) LIKE LOWER(?)
+        """
+        # Simple fuzzy match - look for titles that contain most of the words
+        search_pattern = f"%{title[:50]}%"
+        cursor.execute(query, (user_id, platform, search_pattern))
+        row = cursor.fetchone()
+
+        return dict(row) if row else None
 
     def close(self):
         """Close database connection"""

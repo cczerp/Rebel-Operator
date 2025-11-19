@@ -371,6 +371,132 @@ class Database:
             ON storage_items(storage_id)
         """))
 
+        # ========================================
+        # CARD COLLECTION SYSTEM (Standalone Collection Manager)
+        # ========================================
+
+        # Card collections - unified card data for all card types
+        cursor.execute(self._sql("""
+            CREATE TABLE IF NOT EXISTS card_collections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+
+                -- Universal Fields (all cards)
+                card_uuid TEXT UNIQUE NOT NULL,  -- Internal unique ID
+                card_type TEXT NOT NULL,  -- 'pokemon', 'mtg', 'yugioh', 'sports_nfl', 'sports_nba', 'sports_mlb', etc.
+                title TEXT NOT NULL,  -- Full card name/title
+                card_number TEXT,  -- Card number in set
+                quantity INTEGER DEFAULT 1,
+
+                -- Organization Fields
+                organization_mode TEXT,  -- Current organization: 'by_set', 'by_year', 'by_sport', 'by_brand', 'by_game', 'by_rarity', 'by_number', 'by_grading', 'by_value', 'by_binder', 'custom'
+                primary_category TEXT,  -- Auto-assigned based on organization mode
+                custom_categories TEXT,  -- JSON array of custom tags
+
+                -- Physical Location (optional link to storage)
+                storage_location TEXT,  -- Free-form location (Binder A Page 1, Box 3, etc.)
+                storage_item_id INTEGER,  -- Optional FK to storage_items
+
+                -- TCG Fields (Pokémon, MTG, Yu-Gi-Oh, etc.)
+                game_name TEXT,  -- 'Pokemon', 'Magic: The Gathering', 'Yu-Gi-Oh!', etc.
+                set_name TEXT,  -- Set name
+                set_code TEXT,  -- Set abbreviation/code
+                set_symbol TEXT,  -- Set symbol description
+                rarity TEXT,  -- Common, Uncommon, Rare, Ultra Rare, Secret Rare, etc.
+                card_subtype TEXT,  -- Trainer, Energy, Creature Type, Spell Type, etc.
+                format_legality TEXT,  -- JSON: Standard, Expanded, Legacy, Modern, Vintage, etc.
+
+                -- Sports Card Fields (NFL, NBA, MLB, etc.)
+                sport TEXT,  -- 'NFL', 'NBA', 'MLB', 'NHL', etc.
+                year INTEGER,  -- Card year
+                brand TEXT,  -- Topps, Panini, Upper Deck, etc.
+                series TEXT,  -- Series/product line
+                player_name TEXT,  -- Player name (for sports cards)
+                team TEXT,  -- Team name
+                is_rookie_card BOOLEAN DEFAULT 0,  -- RC flag
+                parallel_color TEXT,  -- Parallel/variant color
+                insert_series TEXT,  -- Insert/special series
+
+                -- Grading & Value
+                grading_company TEXT,  -- PSA, BGS, CGC, etc.
+                grading_score REAL,  -- 9.5, 10, etc.
+                grading_serial TEXT,  -- Grading serial number
+                estimated_value REAL,  -- Current estimated value (optional)
+                value_tier TEXT,  -- 'under_10', '10_50', '50_100', '100_500', 'over_500'
+                purchase_price REAL,  -- What you paid (optional)
+
+                -- Photos & Notes
+                photos TEXT,  -- JSON array of photo paths
+                notes TEXT,  -- User notes
+
+                -- Metadata
+                ai_identified BOOLEAN DEFAULT 0,  -- Was this auto-identified by AI?
+                ai_confidence REAL,  -- Confidence score
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (storage_item_id) REFERENCES storage_items(id)
+            )
+        """))
+
+        # Organization presets - saved organization modes per user
+        cursor.execute(self._sql("""
+            CREATE TABLE IF NOT EXISTS card_organization_presets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                preset_name TEXT NOT NULL,  -- 'My Pokemon Sets', 'NFL by Year', etc.
+                card_type_filter TEXT,  -- Filter by card type (optional)
+                organization_mode TEXT NOT NULL,  -- 'by_set', 'by_year', etc.
+                sort_order TEXT,  -- 'asc' or 'desc'
+                filters TEXT,  -- JSON: Additional filters
+                is_active BOOLEAN DEFAULT 0,  -- Currently active preset
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                UNIQUE(user_id, preset_name)
+            )
+        """))
+
+        # Custom categories - user-defined categories/tags
+        cursor.execute(self._sql("""
+            CREATE TABLE IF NOT EXISTS card_custom_categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                category_name TEXT NOT NULL,  -- 'Trade', 'Keep', 'Sell', 'Duplicates', etc.
+                category_color TEXT,  -- Hex color for UI
+                category_icon TEXT,  -- Icon name
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                UNIQUE(user_id, category_name)
+            )
+        """))
+
+        # Card collection indexes
+        cursor.execute(self._sql("""
+            CREATE INDEX IF NOT EXISTS idx_card_collections_user
+            ON card_collections(user_id, created_at DESC)
+        """))
+
+        cursor.execute(self._sql("""
+            CREATE INDEX IF NOT EXISTS idx_card_collections_type
+            ON card_collections(card_type)
+        """))
+
+        cursor.execute(self._sql("""
+            CREATE INDEX IF NOT EXISTS idx_card_collections_org_mode
+            ON card_collections(organization_mode, primary_category)
+        """))
+
+        cursor.execute(self._sql("""
+            CREATE INDEX IF NOT EXISTS idx_card_collections_set
+            ON card_collections(set_code, card_number)
+        """))
+
+        cursor.execute(self._sql("""
+            CREATE INDEX IF NOT EXISTS idx_card_collections_sport_year
+            ON card_collections(sport, year, brand)
+        """))
+
         # Notifications/alerts table
         cursor.execute(self._sql("""
             CREATE TABLE IF NOT EXISTS notifications (

@@ -28,6 +28,8 @@ from dotenv import load_dotenv
 from src.database import get_db
 import csv
 from io import StringIO, BytesIO
+from PIL import Image
+import base64
 
 # Load environment
 load_dotenv()
@@ -636,6 +638,85 @@ def upload_photos():
         'count': len(photo_paths),
         'paths': photo_paths
     })
+
+
+@app.route('/api/edit-photo', methods=['POST'])
+def edit_photo():
+    """
+    Edit a photo - crop, remove background, resize
+    FREE feature that competitors charge heavily for!
+    """
+    try:
+        data = request.get_json()
+
+        if not data or 'image' not in data or 'operation' not in data:
+            return jsonify({'error': 'Missing image or operation'}), 400
+
+        # Decode base64 image
+        image_data = data['image']
+        if image_data.startswith('data:image'):
+            # Remove data URL prefix
+            image_data = image_data.split(',')[1]
+
+        image_bytes = base64.b64decode(image_data)
+        img = Image.open(BytesIO(image_bytes))
+
+        operation = data['operation']
+
+        if operation == 'crop':
+            # Crop image with provided coordinates
+            crop_data = data.get('crop', {})
+            x = int(crop_data.get('x', 0))
+            y = int(crop_data.get('y', 0))
+            width = int(crop_data.get('width', img.width))
+            height = int(crop_data.get('height', img.height))
+
+            img = img.crop((x, y, x + width, y + height))
+
+        elif operation == 'remove-bg':
+            # Remove background using rembg (FREE!)
+            from rembg import remove
+
+            # Convert PIL Image to bytes
+            img_byte_arr = BytesIO()
+            img.save(img_byte_arr, format='PNG')
+            img_byte_arr = img_byte_arr.getvalue()
+
+            # Remove background
+            output = remove(img_byte_arr)
+
+            # Convert back to PIL Image
+            img = Image.open(BytesIO(output))
+
+        elif operation == 'resize':
+            # Resize/enlarge image
+            new_width = int(data.get('width', img.width))
+            new_height = int(data.get('height', img.height))
+            img = img.resize((new_width, new_height), Image.LANCZOS)
+
+        else:
+            return jsonify({'error': f'Unknown operation: {operation}'}), 400
+
+        # Save edited image to temp location
+        filename = secure_filename(f"edited_{uuid.uuid4()}.png")
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        img.save(filepath, 'PNG')
+
+        # Convert to base64 for preview
+        img_byte_arr = BytesIO()
+        img.save(img_byte_arr, format='PNG')
+        img_byte_arr = img_byte_arr.getvalue()
+        img_base64 = base64.b64encode(img_byte_arr).decode('utf-8')
+
+        return jsonify({
+            'success': True,
+            'image': f'data:image/png;base64,{img_base64}',
+            'filepath': filepath
+        })
+
+    except Exception as e:
+        print(f"Error editing photo: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/analyze', methods=['POST'])

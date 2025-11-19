@@ -178,6 +178,47 @@
         {% endif %}
     </div>
 </form>
+
+<!-- Photo Editor Modal -->
+<div id="photoEditorModal" class="photo-editor-modal">
+    <div class="photo-editor-container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4><i class="fas fa-magic"></i> Edit Photo (FREE!)</h4>
+            <button class="btn btn-outline-danger" onclick="closePhotoEditor()">
+                <i class="fas fa-times"></i> Close
+            </button>
+        </div>
+
+        <div class="text-center mb-3">
+            <img id="photoEditorImage" class="photo-editor-image" src="">
+        </div>
+
+        <div class="photo-editor-toolbar">
+            <button class="btn btn-primary" onclick="enableCrop()">
+                <i class="fas fa-crop"></i> Crop
+            </button>
+            <button class="btn btn-success" id="cropBtn" onclick="applyCrop()" style="display:none;">
+                <i class="fas fa-check"></i> Apply Crop
+            </button>
+            <button class="btn btn-danger" id="cancelCropBtn" onclick="cancelCrop()" style="display:none;">
+                <i class="fas fa-times"></i> Cancel Crop
+            </button>
+            <button class="btn btn-warning" onclick="removeBackground()">
+                <i class="fas fa-magic"></i> Remove Background
+            </button>
+            <button class="btn btn-info" onclick="enlargePhoto()">
+                <i class="fas fa-search-plus"></i> Enlarge (2x)
+            </button>
+            <button class="btn btn-secondary" onclick="resetPhoto()">
+                <i class="fas fa-undo"></i> Reset
+            </button>
+        </div>
+
+        <div class="alert alert-info mt-3">
+            <i class="fas fa-gift"></i> <strong>FREE Feature!</strong> Other apps charge $5-20/month for background removal. We give it to you free!
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -216,6 +257,14 @@ async function handlePhotoSelect(e) {
                 const img = document.createElement('img');
                 img.src = URL.createObjectURL(files[i]);
                 img.className = 'photo-preview';
+                img.title = 'Click to edit photo';
+
+                // Make photo clickable to open editor
+                const photoIndex = uploadedPhotos.length - data.paths.length + i;
+                img.onclick = function() {
+                    openPhotoEditor(photoIndex, this.src);
+                };
+
                 previewDiv.appendChild(img);
             }
 
@@ -234,6 +283,236 @@ async function handlePhotoSelect(e) {
     e.target.value = '';
 }
 
+// ========================================
+// PHOTO EDITOR FUNCTIONS (FREE!)
+// ========================================
+let cropper = null;
+let currentEditingPhotoIndex = null;
+let currentEditingPhotoSrc = null;
+let originalPhotoSrc = null;
+
+function openPhotoEditor(photoIndex, photoSrc) {
+    currentEditingPhotoIndex = photoIndex;
+    currentEditingPhotoSrc = photoSrc;
+    originalPhotoSrc = photoSrc;
+
+    const modal = document.getElementById('photoEditorModal');
+    const img = document.getElementById('photoEditorImage');
+
+    img.src = photoSrc;
+    modal.classList.add('show');
+
+    // Destroy existing cropper if any
+    if (cropper) {
+        cropper.destroy();
+        cropper = null;
+    }
+
+    // Reset buttons
+    document.getElementById('cropBtn').style.display = 'none';
+    document.getElementById('cancelCropBtn').style.display = 'none';
+}
+
+function closePhotoEditor() {
+    const modal = document.getElementById('photoEditorModal');
+    modal.classList.remove('show');
+
+    if (cropper) {
+        cropper.destroy();
+        cropper = null;
+    }
+}
+
+function enableCrop() {
+    const img = document.getElementById('photoEditorImage');
+
+    if (cropper) {
+        cropper.destroy();
+    }
+
+    cropper = new Cropper(img, {
+        aspectRatio: NaN, // Free aspect ratio
+        viewMode: 1,
+        responsive: true,
+        autoCropArea: 0.8,
+        background: false,
+        ready: function() {
+            showAlert('Drag to select crop area', 'info');
+        }
+    });
+
+    // Show crop action buttons
+    document.getElementById('cropBtn').style.display = 'inline-block';
+    document.getElementById('cancelCropBtn').style.display = 'inline-block';
+}
+
+async function applyCrop() {
+    if (!cropper) return;
+
+    showLoading();
+
+    try {
+        const canvas = cropper.getCroppedCanvas();
+        const croppedImage = canvas.toDataURL('image/png');
+
+        // Get crop coordinates for API call
+        const cropData = cropper.getData();
+
+        const response = await fetch('/api/edit-photo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                image: currentEditingPhotoSrc,
+                operation: 'crop',
+                crop: {
+                    x: Math.round(cropData.x),
+                    y: Math.round(cropData.y),
+                    width: Math.round(cropData.width),
+                    height: Math.round(cropData.height)
+                }
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Update the photo
+            updatePhotoAfterEdit(data.image, data.filepath);
+            showAlert('Photo cropped successfully!', 'success');
+
+            // Cleanup cropper
+            cropper.destroy();
+            cropper = null;
+            document.getElementById('cropBtn').style.display = 'none';
+            document.getElementById('cancelCropBtn').style.display = 'none';
+        } else {
+            showAlert('Crop failed: ' + data.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Crop failed: ' + error, 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+function cancelCrop() {
+    if (cropper) {
+        cropper.destroy();
+        cropper = null;
+    }
+
+    document.getElementById('cropBtn').style.display = 'none';
+    document.getElementById('cancelCropBtn').style.display = 'none';
+}
+
+async function removeBackground() {
+    if (!currentEditingPhotoSrc) return;
+
+    showLoading();
+    showAlert('Removing background... This may take 5-10 seconds', 'info');
+
+    try {
+        const response = await fetch('/api/edit-photo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                image: currentEditingPhotoSrc,
+                operation: 'remove-bg'
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            updatePhotoAfterEdit(data.image, data.filepath);
+            showAlert('Background removed! (FREE feature worth $5-20/mo)', 'success');
+        } else {
+            showAlert('Background removal failed: ' + data.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Background removal failed: ' + error, 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function enlargePhoto() {
+    if (!currentEditingPhotoSrc) return;
+
+    showLoading();
+
+    try {
+        // Get current image dimensions
+        const img = document.getElementById('photoEditorImage');
+        const currentWidth = img.naturalWidth;
+        const currentHeight = img.naturalHeight;
+
+        const response = await fetch('/api/edit-photo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                image: currentEditingPhotoSrc,
+                operation: 'resize',
+                width: currentWidth * 2,
+                height: currentHeight * 2
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            updatePhotoAfterEdit(data.image, data.filepath);
+            showAlert('Photo enlarged to 2x size!', 'success');
+        } else {
+            showAlert('Enlarge failed: ' + data.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Enlarge failed: ' + error, 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+function resetPhoto() {
+    if (!originalPhotoSrc) return;
+
+    const img = document.getElementById('photoEditorImage');
+    img.src = originalPhotoSrc;
+    currentEditingPhotoSrc = originalPhotoSrc;
+
+    // Update the preview thumbnail
+    const previews = document.querySelectorAll('.photo-preview');
+    if (previews[currentEditingPhotoIndex]) {
+        previews[currentEditingPhotoIndex].src = originalPhotoSrc;
+    }
+
+    if (cropper) {
+        cropper.destroy();
+        cropper = null;
+    }
+
+    showAlert('Photo reset to original', 'info');
+}
+
+function updatePhotoAfterEdit(newImageData, newFilepath) {
+    // Update the modal image
+    const img = document.getElementById('photoEditorImage');
+    img.src = newImageData;
+    currentEditingPhotoSrc = newImageData;
+
+    // Update the preview thumbnail
+    const previews = document.querySelectorAll('.photo-preview');
+    if (previews[currentEditingPhotoIndex]) {
+        previews[currentEditingPhotoIndex].src = newImageData;
+    }
+
+    // Update the uploaded photos array with new filepath
+    if (newFilepath) {
+        uploadedPhotos[currentEditingPhotoIndex] = newFilepath;
+    }
+}
+
+// ========================================
 // AI Analysis
 document.getElementById('analyzeBtn').addEventListener('click', async function() {
     showLoading();
@@ -448,11 +727,20 @@ async function loadDraftData() {
                 const previewDiv = document.getElementById('photoPreview');
                 previewDiv.innerHTML = '';
 
-                for (let photoPath of listing.photos) {
+                for (let i = 0; i < listing.photos.length; i++) {
+                    const photoPath = listing.photos[i];
                     const img = document.createElement('img');
                     // Convert server path to URL
                     img.src = '/' + photoPath;
                     img.className = 'photo-preview';
+                    img.title = 'Click to edit photo';
+
+                    // Make photo clickable to open editor
+                    const photoIndex = i;
+                    img.onclick = function() {
+                        openPhotoEditor(photoIndex, this.src);
+                    };
+
                     img.onerror = function() {
                         // Fallback: try different path formats
                         this.src = '/data/draft_photos/' + listing.listing_uuid + '/' + photoPath.split('/').pop();

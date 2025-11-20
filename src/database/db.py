@@ -11,6 +11,27 @@ from typing import Optional, List, Dict, Any
 import json
 
 
+class CursorWrapper:
+    """Wrapper for database cursors to add custom attributes"""
+    
+    def __init__(self, cursor, is_postgres=False):
+        self._cursor = cursor
+        self._last_insert_id = None
+        self._is_postgres = is_postgres
+    
+    def __getattr__(self, name):
+        """Delegate all other attributes to the wrapped cursor"""
+        return getattr(self._cursor, name)
+    
+    @property
+    def lastrowid(self):
+        """Get last insert ID (works for both SQLite and PostgreSQL)"""
+        if self._is_postgres:
+            return self._last_insert_id or 0
+        else:
+            return self._cursor.lastrowid
+
+
 class Database:
     """Main database handler for AI Cross-Poster"""
 
@@ -51,13 +72,15 @@ class Database:
     def _get_cursor(self):
         """Get appropriate cursor for database type with auto-converting execute"""
         if self.is_postgres:
-            cursor = self.conn.cursor(cursor_factory=self.cursor_factory)
+            raw_cursor = self.conn.cursor(cursor_factory=self.cursor_factory)
         else:
-            cursor = self.conn.cursor()
+            raw_cursor = self.conn.cursor()
+
+        # Wrap cursor to allow custom attributes
+        cursor = CursorWrapper(raw_cursor, self.is_postgres)
 
         # Wrap execute to auto-convert SQL and handle RETURNING for lastrowid
-        original_execute = cursor.execute
-        cursor._last_insert_id = None
+        original_execute = raw_cursor.execute
 
         def converting_execute(sql, params=None):
             converted_sql = sql.replace('?', '%s') if self.is_postgres else sql
@@ -74,7 +97,7 @@ class Database:
             # Fetch the RETURNING id for PostgreSQL
             if self.is_postgres and 'RETURNING' in converted_sql.upper():
                 try:
-                    row = cursor.fetchone()
+                    row = raw_cursor.fetchone()
                     if row:
                         cursor._last_insert_id = row.get('id') if isinstance(row, dict) else row[0]
                 except:
@@ -83,10 +106,6 @@ class Database:
             return result
 
         cursor.execute = converting_execute
-
-        # Add lastrowid property for PostgreSQL compatibility
-        if self.is_postgres:
-            cursor.__class__.lastrowid = property(lambda self: self._last_insert_id or 0)
 
         return cursor
 

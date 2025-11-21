@@ -1,4 +1,3 @@
-
 """
 routes_cards.py
 All card-collection related endpoints

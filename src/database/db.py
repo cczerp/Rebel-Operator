@@ -18,27 +18,72 @@ class Database:
     def __init__(self, db_path: str = None):
         """Initialize PostgreSQL database connection"""
         # Get DATABASE_URL from environment
-        database_url = os.getenv('DATABASE_URL')
-        
-        if not database_url:
+        self.database_url = os.getenv('DATABASE_URL')
+
+        if not self.database_url:
             raise ValueError(
                 "DATABASE_URL environment variable is required. "
                 "Set it to your PostgreSQL connection string:\n"
                 "postgresql://user:password@host:5432/database"
             )
 
-        print("🐘 Connecting to PostgreSQL database...")
-        self.conn = psycopg2.connect(database_url)
         self.cursor_factory = psycopg2.extras.RealDictCursor
+        self.conn = None
+
+        # Establish initial connection
+        self._connect()
 
         # Create tables
         self._create_tables()
-        
+
         # Seed initial data
         self._seed_data()
 
+    def _connect(self):
+        """Establish or re-establish PostgreSQL connection"""
+        try:
+            if self.conn:
+                try:
+                    self.conn.close()
+                except:
+                    pass
+
+            print("🐘 Connecting to PostgreSQL database...")
+            self.conn = psycopg2.connect(
+                self.database_url,
+                connect_timeout=10,
+                keepalives=1,
+                keepalives_idle=30,
+                keepalives_interval=10,
+                keepalives_count=5
+            )
+            self.conn.autocommit = False
+
+        except Exception as e:
+            print(f"❌ Failed to connect to PostgreSQL: {e}")
+            raise
+
+    def _ensure_connection(self):
+        """Ensure database connection is alive, reconnect if needed"""
+        try:
+            # Test if connection is alive
+            if self.conn is None or self.conn.closed:
+                print("⚠️  Connection lost, reconnecting...")
+                self._connect()
+                return
+
+            # Test with a simple query
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.close()
+
+        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+            print(f"⚠️  Connection error detected: {e}, reconnecting...")
+            self._connect()
+
     def _get_cursor(self):
         """Get PostgreSQL cursor with RealDictCursor for dict-like row access"""
+        self._ensure_connection()
         return self.conn.cursor(cursor_factory=self.cursor_factory)
 
     def _create_tables(self):

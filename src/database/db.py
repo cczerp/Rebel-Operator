@@ -33,6 +33,38 @@ class Database:
         # Establish initial connection
         self._connect()
 
+        # Ensure OAuth columns exist (automatic migration)
+        self._ensure_oauth_columns()
+
+    def _ensure_oauth_columns(self):
+        """Ensure OAuth-related columns exist in users table (automatic migration)"""
+        try:
+            cursor = self._get_cursor()
+
+            # Add supabase_uid column if it doesn't exist
+            cursor.execute("""
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS supabase_uid TEXT;
+            """)
+
+            # Add oauth_provider column if it doesn't exist
+            cursor.execute("""
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS oauth_provider TEXT;
+            """)
+
+            # Make password_hash nullable for OAuth users
+            cursor.execute("""
+                ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+            """)
+
+            self.conn.commit()
+            cursor.close()
+            print("✅ OAuth columns migration complete")
+
+        except Exception as e:
+            if self.conn:
+                self.conn.rollback()
+            print(f"Note: OAuth columns migration: {e}")
+
     def _connect(self):
         """Establish or re-establish PostgreSQL connection"""
         try:

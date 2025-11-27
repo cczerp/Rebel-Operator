@@ -58,7 +58,10 @@ def get_google_oauth_url() -> Optional[str]:
     try:
         supabase = get_supabase_client()
         if not supabase:
+            print("Error: Could not create Supabase client")
             return None
+
+        print(f"Attempting to generate OAuth URL for redirect: {redirect_url}")
 
         # Use sign_in_with_oauth which handles PKCE properly
         response = supabase.auth.sign_in_with_oauth({
@@ -68,10 +71,23 @@ def get_google_oauth_url() -> Optional[str]:
             }
         })
 
-        # Return the OAuth URL
-        return response.url if hasattr(response, 'url') else None
+        print(f"OAuth response type: {type(response)}")
+        print(f"OAuth response: {response}")
+
+        # Try different ways to get the URL
+        if hasattr(response, 'url'):
+            print(f"Found URL via .url attribute: {response.url}")
+            return response.url
+        elif isinstance(response, dict) and 'url' in response:
+            print(f"Found URL in dict: {response['url']}")
+            return response['url']
+        else:
+            print(f"Could not find URL in response. Available attributes: {dir(response) if hasattr(response, '__dir__') else 'N/A'}")
+            return None
     except Exception as e:
         print(f"Error generating OAuth URL: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 

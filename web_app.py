@@ -287,6 +287,23 @@ def settings():
 # ============================================================================
 
 if __name__ == '__main__':
+    # Initialize worker system
+    from src.workers.worker_manager import WorkerManager, sync_listing_handler, feed_sync_handler
+    from src.workers.scheduler import Scheduler
+    
+    worker_manager = WorkerManager(num_workers=2)
+    scheduler = Scheduler()
+    
+    # Register job handlers
+    worker_manager.register_worker('sync_listing', sync_listing_handler)
+    worker_manager.register_worker('feed_sync', feed_sync_handler)
+    
+    # Start workers and scheduler
+    worker_manager.start()
+    scheduler.start()
+    
+    print("Worker system initialized and started")
+    
     port = int(os.getenv('PORT', 5000))
     debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     app.run(host='0.0.0.0', port=port, debug=debug)

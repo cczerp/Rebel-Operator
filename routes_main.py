@@ -1411,3 +1411,146 @@ def api_export_csv():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# FEED GENERATION ENDPOINT
+# -------------------------------------------------------------------------
+
+@main_bp.route('/api/generate-feed', methods=['POST'])
+@login_required
+def api_generate_feed():
+    """Generate product feed for catalog platforms (Facebook, Google Shopping, Pinterest)"""
+    try:
+        import io
+        from flask import make_response
+        from ..src.adapters.all_platforms import FacebookShopsAdapter, GoogleShoppingAdapter, PinterestAdapter
+        from ..src.schema.unified_listing import UnifiedListing, Price, ListingCondition, Photo
+
+        data = request.get_json()
+        platform = data.get('platform', 'facebook')
+        format_type = data.get('format', 'csv')  # csv, xml, json
+
+        # Get active listings for the user
+        listings_data = db.get_active_listings(current_user.id)
+        
+        if not listings_data:
+            return jsonify({"error": "No active listings found"}), 404
+
+        # Convert to UnifiedListing objects
+        listings = []
+        for listing_data in listings_data:
+            try:
+                # Convert price to Price object
+                price_obj = Price(amount=float(listing_data['price']))
+
+                # Convert condition to ListingCondition enum
+                condition_str = listing_data.get('condition', 'good').lower()
+                condition_enum = ListingCondition.GOOD  # default
+                if condition_str == 'new':
+                    condition_enum = ListingCondition.NEW
+                elif condition_str == 'like_new':
+                    condition_enum = ListingCondition.LIKE_NEW
+                elif condition_str == 'excellent':
+                    condition_enum = ListingCondition.EXCELLENT
+                elif condition_str == 'fair':
+                    condition_enum = ListingCondition.FAIR
+                elif condition_str == 'poor':
+                    condition_enum = ListingCondition.POOR
+
+                # Convert photos from JSON string to List[Photo]
+                photos = []
+                if listing_data.get('photos'):
+                    try:
+                        import json
+                        photos_data = json.loads(listing_data['photos'])
+                        for i, photo_url in enumerate(photos_data):
+                            photos.append(Photo(url=photo_url, order=i, is_primary=(i == 0)))
+                    except (json.JSONDecodeError, TypeError):
+                        # If photos is not valid JSON, skip
+                        pass
+
+                listing = UnifiedListing(
+                    title=listing_data['title'],
+                    description=listing_data.get('description', ''),
+                    price=price_obj,
+                    condition=condition_enum,
+                    photos=photos
+                )
+                listings.append(listing)
+            except Exception as e:
+                print(f"Error converting listing {listing_data.get('id')}: {e}")
+                continue
+
+        # Initialize the appropriate adapter
+        adapter = None
+        if platform == 'facebook':
+            adapter = FacebookShopsAdapter()
+        elif platform == 'google':
+            adapter = GoogleShoppingAdapter()
+        elif platform == 'pinterest':
+            adapter = PinterestAdapter()
+        else:
+            return jsonify({"error": f"Unsupported platform: {platform}"}), 400
+
+        # Generate the feed
+        feed_path = adapter.generate_feed(listings, format_type)
+        
+        # Read the feed file and return it
+        with open(feed_path, 'r', encoding='utf-8') as f:
+            feed_content = f.read()
+
+        # Create response
+        response = make_response(feed_content)
+        
+        # Set appropriate content type
+        if format_type == 'xml':
+            response.headers['Content-Type'] = 'application/xml'
+            extension = 'xml'
+        elif format_type == 'json':
+            response.headers['Content-Type'] = 'application/json'
+            extension = 'json'
+        else:
+            response.headers['Content-Type'] = 'text/csv'
+            extension = 'csv'
+            
+        response.headers['Content-Disposition'] = f'attachment; filename={platform}_feed.{extension}'
+
+        return response
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route('/api/schedule-feed-sync', methods=['POST'])
+@login_required
+def api_schedule_feed_sync():
+    """Schedule automatic feed sync for catalog platforms"""
+    try:
+        from ..src.workers.scheduler import Scheduler
+        
+        data = request.get_json()
+        platforms = data.get('platforms', ['facebook', 'google', 'pinterest'])
+        interval_hours = data.get('interval_hours', 6)  # Default 6 hours
+        
+        # Get or create scheduler instance
+        # TODO: This should be a singleton/global instance
+        scheduler = Scheduler()
+        scheduler.start()
+        
+        # Schedule feed sync for current user
+        job_id = scheduler.schedule_feed_sync(
+            user_id=current_user.id,
+            platforms=platforms,
+            interval_hours=interval_hours
+        )
+        
+        return jsonify({
+            "status": "scheduled",
+            "job_id": job_id,
+            "platforms": platforms,
+            "interval_hours": interval_hours,
+            "message": f"Feed sync scheduled every {interval_hours} hours for platforms: {', '.join(platforms)}"
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

@@ -1038,6 +1038,17 @@ class Database:
             """, (limit,))
         return [dict(row) for row in cursor.fetchall()]
 
+    def get_active_listings(self, user_id: int, limit: int = 1000) -> List[Dict]:
+        """Get all active listings for a user"""
+        cursor = self._get_cursor()
+        cursor.execute("""
+            SELECT * FROM listings
+            WHERE status = 'active' AND user_id = %s
+            ORDER BY created_at DESC
+            LIMIT %s
+        """, (user_id, limit))
+        return [dict(row) for row in cursor.fetchall()]
+
     def update_listing_status(self, listing_id: int, status: str):
         """Update listing status"""
         cursor = self._get_cursor()

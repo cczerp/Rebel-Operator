@@ -37,6 +37,13 @@ python-jose[cryptography]>=3.3.0  # JWT creation and validation
 # Cloud Storage
 cloudinary>=1.41.0  # Photo storage (FREE tier: 25GB)
 
+# PDF Generation
+reportlab>=4.0.0  # PDF generation for packing slips, labels, invoices
+
+# Billing & Payments
+stripe>=7.0.0  # Stripe integration for subscriptions
+
 # Development dependencies
 pytest>=7.4.0
 pytest-cov>=4.1.0
+flask-testing>=1.0.0

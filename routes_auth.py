@@ -335,6 +335,7 @@ def login_google():
     redirect_url = os.getenv("SUPABASE_REDIRECT_URL", "").strip()
 
     if not redirect_url:
+<<<<<<< Updated upstream
         # Try RENDER_EXTERNAL_URL (for Render deployments)
         render_url = os.getenv("RENDER_EXTERNAL_URL", "").strip()
         if render_url:
@@ -373,6 +374,19 @@ def login_google():
             os.environ["SUPABASE_REDIRECT_URL"] = original_redirect
         elif "SUPABASE_REDIRECT_URL" in os.environ:
             del os.environ["SUPABASE_REDIRECT_URL"]
+=======
+        # Construct from current request
+        base_url = f"{flask_request.scheme}://{flask_request.host}"
+        redirect_url = f"{base_url}/auth/callback"
+    
+    oauth_url = get_google_oauth_url(redirect_override=redirect_url)
+    
+    if not oauth_url:
+        flash("Google login is not configured. Please contact support.", "error")
+        return redirect(url_for('auth.login'))
+    
+    return redirect(oauth_url)
+>>>>>>> Stashed changes
 
 
 @auth_bp.route('/auth/callback')

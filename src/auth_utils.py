@@ -111,7 +111,7 @@ def get_google_oauth_url(session_storage: dict = None, redirect_override: Option
         return None
 
 
-def exchange_code_for_session(auth_code: str, code_verifier: str = None) -> Optional[Dict]:
+def exchange_code_for_session(auth_code: str, code_verifier: str = None, redirect_uri: str = None parameter) -> Optional[Dict]: 
     """
     Exchange OAuth code for user session using PKCE.
 
@@ -145,8 +145,9 @@ def exchange_code_for_session(auth_code: str, code_verifier: str = None) -> Opti
             "Content-Type": "application/json"
         }
         payload = {
-            "auth_code": auth_code,
-            "code_verifier": code_verifier
+            "code": auth_code,
+            "code_verifier": code_verifier,
+            "redirect_uri": redirect_uri
         }
 
         print(f"Making direct request to: {url}")

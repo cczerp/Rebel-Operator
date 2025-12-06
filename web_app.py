@@ -96,6 +96,9 @@ print(f"   - Use Signer: True", flush=True)
 # Ensure upload folder exists
 Path(app.config['UPLOAD_FOLDER']).mkdir(parents=True, exist_ok=True)
 
+# Ensure draft photos folder exists (for unauthenticated users)
+Path('./data/draft_photos').mkdir(parents=True, exist_ok=True)
+
 # Lazy database initialization - don't create at import time
 db = None
 
@@ -257,6 +260,13 @@ def index():
         return render_template('index.html')
     else:
         return render_template('index.html')
+
+@app.route('/data/<path:filename>')
+def serve_data_files(filename):
+    """Serve uploaded files from data directory"""
+    from flask import send_from_directory
+    import os
+    return send_from_directory(os.path.join(os.getcwd(), 'data'), filename)
 
 @app.route('/create')
 def create_listing():

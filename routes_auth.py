@@ -464,6 +464,17 @@ def auth_callback():
         # Log all query parameters for debugging
         print(f"🔍 [CALLBACK] Query params received: {dict(request.args)}", flush=True)
 
+        # Reconstruct redirect URL exactly as used during OAuth initiation
+        redirect_url = os.getenv("SUPABASE_REDIRECT_URL", "").strip()
+        if not redirect_url:
+            render_url = os.getenv("RENDER_EXTERNAL_URL", "").strip()
+            if render_url:
+                redirect_url = f"{render_url}/auth/callback"
+            else:
+                base_url = f"{request.scheme}://{request.host}"
+                redirect_url = f"{base_url}/auth/callback"
+        print(f"🔍 [CALLBACK] Using redirect URL for token exchange: {redirect_url}", flush=True)
+
         # Get authorization code from query params
         code = request.args.get("code")
         print(f"🔍 [CALLBACK] Authorization code present: {bool(code)}", flush=True)
@@ -520,7 +531,7 @@ def auth_callback():
             print(f"🧹 [CALLBACK] Cleaned up code_verifier from session", flush=True)
 
         # Exchange code for session
-        session_data = exchange_code_for_session(code, code_verifier)
+        session_data = exchange_code_for_session(code, code_verifier, redirect_url)
 
         if not session_data or session_data.get("error"):
             error_msg = session_data.get("error") if session_data else "Unknown error"

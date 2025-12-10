@@ -411,11 +411,13 @@ def login_google():
         print(f"🔍 [LOGIN_GOOGLE] Session before OAuth: {dict(session)}", flush=True)
 
         # Pass session to store code verifier for PKCE and redirect_override for custom URL
-        oauth_url = get_google_oauth_url(session_storage=session, redirect_override=redirect_url)
+        oauth_result = get_google_oauth_url(session_storage=session, redirect_override=redirect_url)
 
-        if not oauth_url:
+        if not oauth_result:
             flash("Failed to generate Google OAuth URL. Please check Supabase configuration.", "error")
             return redirect(url_for('auth.login'))
+
+        oauth_url, state = oauth_result
 
         # CRITICAL: Mark session as modified to ensure it's saved
         # This is important for multi-worker environments
@@ -492,41 +494,48 @@ def auth_callback():
 
         print(f"✅ [CALLBACK] Authorization code received (length: {len(code)})", flush=True)
 
-        # Retrieve code verifier from session (for PKCE)
-        print(f"🔍 [CALLBACK] Attempting to retrieve code_verifier from session...", flush=True)
-        print(f"🔍 [CALLBACK] Current session data: {dict(session)}", flush=True)
-
-        code_verifier = session.get('oauth_code_verifier')
+        # Retrieve code verifier from state parameter (for PKCE)
+        print(f"🔍 [CALLBACK] Attempting to retrieve code_verifier...", flush=True)
         
-        # If not in session, try to extract from redirect query parameter (cv)
-        if not code_verifier:
-            cv = request.args.get('cv')
-            if cv:
-                try:
-                    import base64
-                    padding = 4 - (len(cv) % 4)
-                    if padding != 4:
-                        cv += '=' * padding
-                    code_verifier = base64.urlsafe_b64decode(cv).decode()
-                    print(f"✅ [CALLBACK] Extracted code verifier from redirect query param: {code_verifier[:10]}...", flush=True)
-                except Exception as e:
-                    print(f"⚠️  [CALLBACK] Failed to decode cv param: {e}", flush=True)
-                    code_verifier = None
+        state = request.args.get('state')
+        code_verifier = None
+        verifier_source = None
 
-            if not code_verifier:
-                print(f"❌ [CALLBACK ERROR] No code verifier found in session OR redirect param!", flush=True)
-                print(f"❌ [CALLBACK ERROR] This indicates PKCE verifier was not preserved across the OAuth round trip", flush=True)
-                print(f"❌ [CALLBACK ERROR] Possible causes:", flush=True)
-                print(f"   1. Multi-worker Gunicorn without shared session storage", flush=True)
-                print(f"   2. FLASK_SECRET_KEY changed or not set", flush=True)
-                print(f"   3. Session cookie not being sent/received", flush=True)
-                # Continue without verifier - Supabase requires it for PKCE
-                print(f"⚠️  [CALLBACK] Attempting OAuth exchange WITHOUT code_verifier (will likely fail)", flush=True)
+        # Primary: Load from filesystem using state
+        if state:
+            from pathlib import Path
+            state_file = Path('./data/oauth_state') / f"{state}.txt"
+            if state_file.exists():
+                try:
+                    code_verifier = state_file.read_text()
+                    verifier_source = 'filesystem'
+                    print(f"✅ [CALLBACK] Retrieved code verifier from filesystem: {code_verifier[:10]}...", flush=True)
+                    # Clean up state file immediately
+                    state_file.unlink()
+                    print(f"🧹 [CALLBACK] Deleted state file: {state_file}", flush=True)
+                except Exception as e:
+                    print(f"⚠️  [CALLBACK] Failed to read state file: {e}", flush=True)
+            else:
+                print(f"⚠️  [CALLBACK] State file not found: {state_file}", flush=True)
         else:
-            print(f"✅ [CALLBACK] Retrieved code verifier from session: {code_verifier[:10]}...", flush=True)
-            # Clean up the session
-            session.pop('oauth_code_verifier', None)
-            print(f"🧹 [CALLBACK] Cleaned up code_verifier from session", flush=True)
+            print(f"⚠️  [CALLBACK] No state parameter in callback", flush=True)
+
+        # Fallback: Check session (single-worker deployments)
+        if not code_verifier:
+            print(f"🔍 [CALLBACK] Checking session fallback...", flush=True)
+            print(f"🔍 [CALLBACK] Current session data: {dict(session)}", flush=True)
+            code_verifier = session.get('oauth_code_verifier')
+            if code_verifier:
+                verifier_source = 'session'
+                print(f"✅ [CALLBACK] Retrieved code verifier from session: {code_verifier[:10]}...", flush=True)
+                session.pop('oauth_code_verifier', None)
+            else:
+                print(f"❌ [CALLBACK ERROR] No code verifier found in filesystem or session!", flush=True)
+                print(f"❌ [CALLBACK ERROR] State: {state}, Session keys: {list(session.keys())}", flush=True)
+                print(f"⚠️  [CALLBACK] Attempting OAuth exchange WITHOUT code_verifier (will fail)", flush=True)
+
+        if code_verifier:
+            print(f"✅ [CALLBACK] Using code verifier from {verifier_source}: {code_verifier[:10]}...", flush=True)
 
         # Exchange code for session
         session_data = exchange_code_for_session(code, code_verifier, redirect_url)

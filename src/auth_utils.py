@@ -80,34 +80,42 @@ def get_google_oauth_url(session_storage: dict = None, redirect_override: Option
         code_verifier, code_challenge = generate_pkce_pair()
         print(f"Generated PKCE code verifier and challenge")
 
-        # Generate random state to link verifier across workers
-        state = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip('=')
+        # Generate random flow_id to link verifier across workers (avoid 'state' which Supabase owns)
+        flow_id = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip('=')
 
         # Store code verifier in session as fallback for single-worker deployments
         if session_storage is not None:
             session_storage['oauth_code_verifier'] = code_verifier
+            session_storage['oauth_flow_id'] = flow_id
             print(f"Stored code verifier in session: {code_verifier[:10]}...")
 
-        # Store verifier in filesystem keyed by state (survives multi-worker)
+        # Store verifier in filesystem keyed by flow_id (survives multi-worker)
         from pathlib import Path
         state_dir = Path('./data/oauth_state')
         state_dir.mkdir(parents=True, exist_ok=True)
-        state_file = state_dir / f"{state}.txt"
+        state_file = state_dir / f"{flow_id}.txt"
         state_file.write_text(code_verifier)
         print(f"Stored code verifier in filesystem: {state_file}")
 
-        # Construct OAuth URL with state parameter
-        from urllib.parse import urlencode
+        # Append flow_id to redirect_to URL so it survives the OAuth round-trip
+        from urllib.parse import urlencode, urlparse, parse_qs, urlunparse
+        parsed = urlparse(redirect_url)
+        query_dict = parse_qs(parsed.query)
+        query_dict['flow_id'] = [flow_id]
+        new_query = urlencode(query_dict, doseq=True)
+        redirect_with_flow = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
+
+        # Construct OAuth URL (let Supabase manage its own 'state' parameter)
         params = {
             'provider': 'google',
-            'redirect_to': redirect_url,
+            'redirect_to': redirect_with_flow,
             'code_challenge': code_challenge,
             'code_challenge_method': 's256'
         }
-        oauth_url = f"{supabase_url}/auth/v1/authorize?{urlencode(params)}&state={state}"
+        oauth_url = f"{supabase_url}/auth/v1/authorize?{urlencode(params)}"
 
-        print(f"Generated OAuth URL with PKCE and state: {state[:10]}...")
-        return oauth_url, state
+        print(f"Generated OAuth URL with PKCE and flow_id: {flow_id[:10]}...")
+        return oauth_url, flow_id
 
     except Exception as e:
         print(f"Error generating OAuth URL: {e}")

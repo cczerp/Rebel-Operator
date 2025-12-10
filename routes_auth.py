@@ -417,14 +417,14 @@ def login_google():
             flash("Failed to generate Google OAuth URL. Please check Supabase configuration.", "error")
             return redirect(url_for('auth.login'))
 
-        oauth_url, state = oauth_result
+        oauth_url, flow_id = oauth_result
 
         # CRITICAL: Mark session as modified to ensure it's saved
         # This is important for multi-worker environments
         session.modified = True
         print(f"🔍 [LOGIN_GOOGLE] Session after OAuth URL generation: {dict(session)}", flush=True)
         print(f"✅ [LOGIN_GOOGLE] Session marked as modified", flush=True)
-        print(f"✅ [LOGIN_GOOGLE] OAuth URL generated successfully", flush=True)
+        print(f"✅ [LOGIN_GOOGLE] OAuth URL generated with flow_id: {flow_id[:10]}...", flush=True)
         print(f"🚀 [LOGIN_GOOGLE] Redirecting to: {oauth_url[:100]}...", flush=True)
         return redirect(oauth_url)
     except Exception as e:
@@ -494,17 +494,17 @@ def auth_callback():
 
         print(f"✅ [CALLBACK] Authorization code received (length: {len(code)})", flush=True)
 
-        # Retrieve code verifier from state parameter (for PKCE)
+        # Retrieve code verifier using flow_id parameter (for PKCE)
         print(f"🔍 [CALLBACK] Attempting to retrieve code_verifier...", flush=True)
         
-        state = request.args.get('state')
+        flow_id = request.args.get('flow_id')
         code_verifier = None
         verifier_source = None
 
-        # Primary: Load from filesystem using state
-        if state:
+        # Primary: Load from filesystem using flow_id
+        if flow_id:
             from pathlib import Path
-            state_file = Path('./data/oauth_state') / f"{state}.txt"
+            state_file = Path('./data/oauth_state') / f"{flow_id}.txt"
             if state_file.exists():
                 try:
                     code_verifier = state_file.read_text()
@@ -518,7 +518,7 @@ def auth_callback():
             else:
                 print(f"⚠️  [CALLBACK] State file not found: {state_file}", flush=True)
         else:
-            print(f"⚠️  [CALLBACK] No state parameter in callback", flush=True)
+            print(f"⚠️  [CALLBACK] No flow_id parameter in callback", flush=True)
 
         # Fallback: Check session (single-worker deployments)
         if not code_verifier:
@@ -529,9 +529,10 @@ def auth_callback():
                 verifier_source = 'session'
                 print(f"✅ [CALLBACK] Retrieved code verifier from session: {code_verifier[:10]}...", flush=True)
                 session.pop('oauth_code_verifier', None)
+                session.pop('oauth_flow_id', None)
             else:
                 print(f"❌ [CALLBACK ERROR] No code verifier found in filesystem or session!", flush=True)
-                print(f"❌ [CALLBACK ERROR] State: {state}, Session keys: {list(session.keys())}", flush=True)
+                print(f"❌ [CALLBACK ERROR] flow_id: {flow_id}, Session keys: {list(session.keys())}", flush=True)
                 print(f"⚠️  [CALLBACK] Attempting OAuth exchange WITHOUT code_verifier (will fail)", flush=True)
 
         if code_verifier:

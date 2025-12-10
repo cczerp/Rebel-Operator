@@ -230,43 +230,49 @@ class Database:
             pass
 
     def _get_cursor(self, retries=3):
-        """Get PostgreSQL cursor from self.conn - returns cursor only (not tuple)"""
+        """Get PostgreSQL cursor from pool - returns (cursor, conn) tuple"""
         for attempt in range(retries):
+            conn = None
             try:
-                # Ensure we have a valid connection
-                if self.conn is None or self.conn.closed:
-                    self._get_connection_from_pool()
+                # Get a fresh connection from the pool for this operation
+                conn = self.pool.getconn()
+                if conn.closed:
+                    # Connection is closed, return it to pool and get a new one
+                    self.pool.putconn(conn, close=True)
+                    conn = self.pool.getconn()
 
-                # Return cursor for use
-                cursor = self.conn.cursor(cursor_factory=self.cursor_factory)
-                return cursor
+                # Test connection with simple query
+                test_cursor = conn.cursor()
+                test_cursor.execute("SELECT 1")
+                test_cursor.close()
+                
+                # Connection is good, return cursor and connection tuple
+                cursor = conn.cursor(cursor_factory=self.cursor_factory)
+                return cursor, conn
+                
             except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
-                print(f"⚠️  Connection error (attempt {attempt + 1}/{retries}): {e}")
-                # Connection error - force close and get a new connection
-                if self.conn:
+                print(f"⚠️  Database connection error (attempt {attempt + 1}/{retries}): {e}")
+                # Connection error - return bad connection to pool (will be closed)
+                if conn:
                     try:
-                        # Return bad connection to pool (will be closed)
-                        self.pool.putconn(self.conn, close=True)
+                        self.pool.putconn(conn, close=True)
                     except:
                         pass
-                    self.conn = None
 
                 if attempt < retries - 1:
                     # Wait before retrying (exponential backoff)
                     wait_time = 0.5 * (2 ** attempt)
                     time.sleep(wait_time)
-                    # Force get a fresh connection for next attempt
-                    try:
-                        self._get_connection_from_pool()
-                        print(f"✅ Got fresh connection from pool")
-                    except Exception as conn_err:
-                        print(f"❌ Failed to get connection: {conn_err}")
-                        pass
                 else:
                     print(f"❌ Failed after {retries} attempts")
                     raise
             except Exception as e:
                 print(f"❌ Unexpected error in _get_cursor: {e}")
+                if conn:
+                    try:
+                        self.pool.putconn(conn, close=True)
+                    except:
+                        pass
                 raise
     
     def _return_connection(self, conn, commit=True, error=False):

@@ -486,20 +486,38 @@ def auth_callback():
         print(f"🔍 [CALLBACK] Current session data: {dict(session)}", flush=True)
 
         code_verifier = session.get('oauth_code_verifier')
-        if code_verifier:
+        
+        # If not in session, try to extract from state parameter (multi-worker fix)
+        if not code_verifier:
+            state = request.args.get('state')
+            if state:
+                try:
+                    import base64
+                    # Decode the state parameter to get the code verifier
+                    # Add padding if needed
+                    padding = 4 - (len(state) % 4)
+                    if padding != 4:
+                        state += '=' * padding
+                    code_verifier = base64.urlsafe_b64decode(state).decode()
+                    print(f"✅ [CALLBACK] Extracted code verifier from state parameter: {code_verifier[:10]}...", flush=True)
+                except Exception as e:
+                    print(f"⚠️  [CALLBACK] Failed to decode state parameter: {e}", flush=True)
+                    code_verifier = None
+            
+            if not code_verifier:
+                print(f"❌ [CALLBACK ERROR] No code verifier found in session OR state!", flush=True)
+                print(f"❌ [CALLBACK ERROR] This indicates PKCE session was LOST between /login/google and /auth/callback", flush=True)
+                print(f"❌ [CALLBACK ERROR] Possible causes:", flush=True)
+                print(f"   1. Multi-worker Gunicorn without shared session storage", flush=True)
+                print(f"   2. FLASK_SECRET_KEY changed or not set", flush=True)
+                print(f"   3. Session cookie not being sent/received", flush=True)
+                # Continue without verifier - Supabase requires it for PKCE
+                print(f"⚠️  [CALLBACK] Attempting OAuth exchange WITHOUT code_verifier (will likely fail)", flush=True)
+        else:
             print(f"✅ [CALLBACK] Retrieved code verifier from session: {code_verifier[:10]}...", flush=True)
             # Clean up the session
             session.pop('oauth_code_verifier', None)
             print(f"🧹 [CALLBACK] Cleaned up code_verifier from session", flush=True)
-        else:
-            print(f"❌ [CALLBACK ERROR] No code verifier found in session!", flush=True)
-            print(f"❌ [CALLBACK ERROR] This indicates session was LOST between /login/google and /auth/callback", flush=True)
-            print(f"❌ [CALLBACK ERROR] Possible causes:", flush=True)
-            print(f"   1. Multi-worker Gunicorn without shared session storage", flush=True)
-            print(f"   2. FLASK_SECRET_KEY changed or not set", flush=True)
-            print(f"   3. Session cookie not being sent/received", flush=True)
-            # Continue without verifier - some OAuth providers may not require it
-            print(f"⚠️  [CALLBACK] Attempting OAuth exchange WITHOUT code_verifier (may fail)", flush=True)
 
         # Exchange code for session
         session_data = exchange_code_for_session(code, code_verifier)

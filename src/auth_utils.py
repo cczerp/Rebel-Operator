@@ -51,9 +51,12 @@ def get_supabase_client() -> Optional[Client]:
 def get_google_oauth_url(session_storage: dict = None, redirect_override: Optional[str] = None) -> Optional[str]:
     """
     Generate Google OAuth URL via Supabase using PKCE flow.
+    
+    CRITICAL: This now encodes the code_verifier in the state parameter
+    to work around Flask session issues in multi-worker deployments.
 
     Args:
-        session_storage: Dictionary to store the code verifier (Flask session)
+        session_storage: Dictionary to store the code verifier (Flask session) - deprecated
         redirect_override: Optional custom redirect URL to use instead of environment variable
 
     Returns:
@@ -84,12 +87,15 @@ def get_google_oauth_url(session_storage: dict = None, redirect_override: Option
         code_verifier, code_challenge = generate_pkce_pair()
         print(f"Generated PKCE code verifier and challenge")
 
-        # Store code verifier in session for later use
+        # CRITICAL: Encode code_verifier in base64 and add to state parameter
+        # This works around Flask session not being shared across Gunicorn workers
+        code_verifier_encoded = base64.urlsafe_b64encode(code_verifier.encode()).decode().rstrip('=')
+        state = code_verifier_encoded
+
+        # Store code verifier in session as fallback for single-worker deployments
         if session_storage is not None:
             session_storage['oauth_code_verifier'] = code_verifier
             print(f"Stored code verifier in session: {code_verifier[:10]}...")
-        else:
-            print(f"Warning: No session storage provided, PKCE will fail")
 
         # Construct OAuth URL manually with our PKCE parameters
         from urllib.parse import urlencode
@@ -97,11 +103,12 @@ def get_google_oauth_url(session_storage: dict = None, redirect_override: Option
             'provider': 'google',
             'redirect_to': redirect_url,
             'code_challenge': code_challenge,
-            'code_challenge_method': 's256'
+            'code_challenge_method': 's256',
+            'state': state  # Encode verifier in state for multi-worker support
         }
         oauth_url = f"{supabase_url}/auth/v1/authorize?{urlencode(params)}"
 
-        print(f"Generated OAuth URL with PKCE")
+        print(f"Generated OAuth URL with PKCE and encoded state")
         return oauth_url
 
     except Exception as e:

@@ -34,15 +34,21 @@ def _get_connection_pool():
         
         # Supabase pooler REQUIRES SSL - cannot use sslmode=disable
         # Add aggressive timeouts to prevent hanging queries
+        # URL-encode the options parameter since it contains = signs
+        from urllib.parse import quote
+
         if '?' not in connection_params:
-            connection_params += '?sslmode=require&connect_timeout=5&options=-c statement_timeout=10000'
+            # URL-encode: -c statement_timeout=10000
+            options_encoded = quote('-c statement_timeout=10000')
+            connection_params += f'?sslmode=require&connect_timeout=5&options={options_encoded}'
         else:
             if 'sslmode=' not in connection_params:
                 connection_params += '&sslmode=require'
             if 'connect_timeout=' not in connection_params:
                 connection_params += '&connect_timeout=5'
             if 'statement_timeout' not in connection_params:
-                connection_params += '&options=-c statement_timeout=10000'
+                options_encoded = quote('-c statement_timeout=10000')
+                connection_params += f'&options={options_encoded}'
         
         # Create connection pool with conservative settings
         # Small pool size to avoid overwhelming Supabase pooler

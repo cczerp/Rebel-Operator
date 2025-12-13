@@ -50,20 +50,21 @@ def _get_connection_pool():
                 options_encoded = quote('-c statement_timeout=10000')
                 connection_params += f'&options={options_encoded}'
         
-        # Create connection pool with conservative settings
-        # Small pool size to avoid overwhelming Supabase pooler
+        # Create connection pool with MINIMAL settings for Render free tier
+        # Render: 512 MB RAM + Gunicorn workers = need tiny pool
+        # 1 worker * 2 connections = 2 total connections (safe for free tier)
         print("🔌 Creating PostgreSQL connection pool...", flush=True)
         _connection_pool = psycopg2.pool.ThreadedConnectionPool(
             minconn=1,  # Minimum connections in pool
-            maxconn=5,  # Maximum connections (reduced - pooler has limits)
+            maxconn=2,  # CRITICAL: Tiny pool for Render free tier (512 MB RAM)
             dsn=connection_params,
             connect_timeout=5,
             keepalives=1,
-            keepalives_idle=10,
-            keepalives_interval=5,
+            keepalives_idle=30,  # Increased to reduce keepalive overhead
+            keepalives_interval=10,  # Increased to reduce keepalive overhead
             keepalives_count=3
         )
-        print("✅ Connection pool created", flush=True)
+        print("✅ Connection pool created (maxconn=2 for Render free tier)", flush=True)
     
     return _connection_pool
 
@@ -72,14 +73,17 @@ class Database:
     """Main database handler for AI Cross-Poster - PostgreSQL only with connection pooling"""
 
     def __init__(self, db_path: str = None):
-        """Initialize Database instance - uses global connection pool"""
+        """Initialize Database instance - uses global connection pool
+
+        OPTIMIZED: Lazy connection initialization
+        Don't grab connection until first query - reduces overhead
+        """
         self.cursor_factory = psycopg2.extras.RealDictCursor
         self.pool = _get_connection_pool()
 
-        # Get a dedicated connection from the pool for this Database instance
-        # This connection will be held for the lifetime of the Database object
+        # Connection will be grabbed lazily on first query
+        # This reduces overhead for Database instances that never query
         self.conn = None
-        self._get_connection_from_pool()
 
         # Mark OAuth migration as not checked yet
         self._oauth_columns_checked = False
@@ -207,7 +211,11 @@ class Database:
                 return  # Non-critical, continue
 
     def _get_connection_from_pool(self):
-        """Get a connection from pool and store it as self.conn"""
+        """Get a connection from pool and store it as self.conn
+
+        OPTIMIZED: Minimal validation to reduce overhead
+        Connection testing happens in _get_cursor only when actually needed
+        """
         try:
             # If we already have a connection, return the old one to pool first
             if self.conn is not None and not self.conn.closed:
@@ -219,28 +227,13 @@ class Database:
             # Get fresh connection from pool
             self.conn = self.pool.getconn()
 
-            # Validate connection before using it
-            # Stale connections from Supabase cause SSL errors
+            # ONLY check if connection object itself is closed
+            # Don't test with SELECT 1 - that's expensive and causes issues
             if self.conn.closed:
                 # Connection is closed, mark it as bad and get a new one
+                print(f"⚠️  Connection was closed, getting fresh one", flush=True)
                 self.pool.putconn(self.conn, close=True)
                 self.conn = self.pool.getconn()
-
-            # Test if connection is actually alive by running a simple query
-            try:
-                cursor = self.conn.cursor()
-                cursor.execute("SELECT 1")
-                cursor.close()
-            except Exception as test_error:
-                # Connection is bad (SSL error, etc), close it and get a fresh one
-                print(f"⚠️  Connection validation failed, getting fresh connection: {test_error}", flush=True)
-                try:
-                    self.pool.putconn(self.conn, close=True)
-                except:
-                    pass
-                self.conn = self.pool.getconn()
-
-            print(f"✅ Connection acquired from pool", flush=True)
 
         except Exception as e:
             print(f"❌ Failed to get connection from pool: {e}", flush=True)
@@ -255,9 +248,12 @@ class Database:
             # Ignore errors - connection might be in bad state
             pass
 
-    def _get_cursor(self, retries=3, timeout=10):
+    def _get_cursor(self, retries=2, timeout=10):
         """Get PostgreSQL cursor using instance connection (self.conn)
-        
+
+        OPTIMIZED: No pre-testing with SELECT 1 - just create cursor and handle errors
+        This reduces overhead and prevents SSL connection issues from excessive queries
+
         Returns just a cursor object. Uses self.conn for the connection.
         Call self.conn.commit() or self.conn.rollback() when done.
         """
@@ -267,20 +263,21 @@ class Database:
                 # Ensure we have a valid connection in self.conn
                 if self.conn is None or self.conn.closed:
                     self._get_connection_from_pool()
-                
-                # Test connection with simple query
-                test_cursor = self.conn.cursor()
-                test_cursor.execute("SELECT 1")
-                test_cursor.close()
-                
-                # Connection is good, return cursor
+
+                # Just create and return cursor - no pre-testing
+                # If connection is bad, the actual query will fail and we'll retry
                 cursor = self.conn.cursor(cursor_factory=self.cursor_factory)
                 return cursor
-                
+
             except (psycopg2.OperationalError, psycopg2.InterfaceError, socket.timeout) as e:
                 print(f"⚠️  Database connection error (attempt {attempt + 1}/{retries}): {e}")
                 # Connection error - get a fresh connection
                 try:
+                    if self.conn:
+                        try:
+                            self.pool.putconn(self.conn, close=True)
+                        except:
+                            pass
                     self._get_connection_from_pool()
                 except Exception as reconnect_error:
                     if attempt >= retries - 1:
@@ -288,10 +285,8 @@ class Database:
                         raise
 
                 if attempt < retries - 1:
-                    # Wait before retrying (exponential backoff)
-                    wait_time = 0.5 * (2 ** attempt)
-                    print(f"Retrying in {wait_time}s...")
-                    time.sleep(wait_time)
+                    # Short wait before retrying
+                    time.sleep(0.5)
                 else:
                     print(f"❌ Failed after {retries} attempts")
                     raise

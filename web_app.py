@@ -155,15 +155,35 @@ Path(app.config['UPLOAD_FOLDER']).mkdir(parents=True, exist_ok=True)
 # Ensure draft photos folder exists (for unauthenticated users)
 Path('./data/draft_photos').mkdir(parents=True, exist_ok=True)
 
-# Lazy database initialization - don't create at import time
-db = None
-
+# Per-request database instance using Flask's g object
+# This ensures connections are properly returned to pool after each request
 def get_db_instance():
-    """Get database instance, creating it only when first needed"""
-    global db
-    if db is None:
-        db = get_db()
-    return db
+    """Get per-request database instance from Flask's g object
+
+    CRITICAL FIX: Use per-request Database instances instead of singleton
+    This ensures connections are properly returned to pool after each request,
+    preventing SSL connection errors on Render
+    """
+    from flask import g
+    if 'db' not in g:
+        from src.database import Database
+        g.db = Database()
+    return g.db
+
+@app.teardown_appcontext
+def close_db_connection(exception=None):
+    """Close database connection at end of request
+
+    CRITICAL FIX: Return connections to pool after each request
+    Without this, connections leak and cause SSL errors on Render
+    """
+    from flask import g
+    db = g.pop('db', None)
+    if db is not None:
+        try:
+            db.close()
+        except Exception as e:
+            print(f"⚠️  Error closing database connection: {e}", flush=True)
 
 # Initialize notification manager (optional)
 notification_manager = None

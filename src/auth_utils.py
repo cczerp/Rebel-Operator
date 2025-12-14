@@ -278,6 +278,10 @@ def get_google_oauth_url(session_storage: dict = None, redirect_override: Option
         })
 
         oauth_url = response.url
+
+        # CRITICAL: Strip any whitespace/newlines to prevent HTTP header errors
+        oauth_url = oauth_url.strip() if oauth_url else ""
+
         print(f"[OAUTH] Generated OAuth URL using Supabase client with PKCE")
         print(f"[OAUTH] Redirect URL: {redirect_url}")
         print(f"[OAUTH] OAuth URL: {oauth_url[:150]}...")

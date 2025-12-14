@@ -582,6 +582,10 @@ def login_google():
 
         oauth_url, flow_id, state = oauth_result
 
+        # CRITICAL: Strip newlines from OAuth URL to prevent header errors
+        # Environment variables or Supabase response may contain newlines
+        oauth_url = oauth_url.strip() if oauth_url else ""
+
         # CRITICAL: Mark session as modified to ensure it's saved to Redis
         # This is important for Redis-backed sessions
         session.modified = True

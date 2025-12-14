@@ -38,10 +38,6 @@ psycopg2-binary>=2.9.9  # PostgreSQL adapter
 
 # Authentication (Supabase OAuth)
 supabase==2.10.0  # Supabase Python client (pinned to working version)
-httpx>=0.25.0  # HTTP client for OAuth token exchange
-supabase>=2.3.0  # Supabase Python client
-gotrue
-supabase-py
 pyjwt>=2.8.0  # JWT token handling
 passlib[bcrypt]>=1.7.4  # Password hashing
 python-jose[cryptography]>=3.3.0  # JWT creation and validation

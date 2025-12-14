@@ -1,26 +1,107 @@
 # ResellGenie - Production Deployment Guide
 
-**IMPORTANT:** Render's free tier uses ephemeral storage. This guide shows how to set up **persistent storage** for photos and data.
+## 🚨 CRITICAL: Deployment Failing After 50+ Commits
+
+**Root Cause:** REDIS_URL is REQUIRED but not configured in Render.
+
+The app **exits immediately on startup** when REDIS_URL is missing (see web_app.py:69-76):
+```python
+if not redis_url:
+    print("⚠️  WARNING: REDIS_URL not set!")
+    sys.exit(1)  # ← App crashes here!
+```
+
+**Fix:** Follow Step 1 below to add REDIS_URL.
 
 ---
 
-## 🚨 The Problem
+## Why Login Has Been Broken
 
-On Render's free tier:
-- ❌ All files get deleted on every deployment
-- ❌ Database resets when service restarts
-- ❌ Photos disappear
-- ❌ User data is lost
+Your login system requires **3 services** working together:
+1. **Redis (Upstash)** - Session storage & OAuth PKCE verifiers
+2. **Supabase** - Google OAuth authentication
+3. **PostgreSQL** - User data storage
+
+If ANY of these are missing/misconfigured, login fails.
+
+---
 
 ## ✅ The Solution
 
 Use **managed services** for persistence:
-1. **PostgreSQL** for database (FREE on Render)
-2. **Cloudinary** for photos (FREE tier: 25GB, 25k transformations/month)
+1. **Upstash Redis** for sessions (FREE tier: 10k commands/day)
+2. **PostgreSQL** for database (FREE on Render)
+3. **Supabase** for Google OAuth (FREE)
+4. **Cloudinary** for photos (FREE tier: 25GB)
 
 ---
 
-## Step 1: Set Up PostgreSQL Database
+## Step 1: Set Up Upstash Redis (CRITICAL - App won't start without this!)
+
+### Create Free Redis Instance:
+
+1. Go to https://upstash.com/
+2. Sign up for free account
+3. Click **"Create Database"**
+4. **Name:** `resellgenie-sessions`
+5. **Region:** Choose closest to your Render region
+6. **Type:** Regional (free tier)
+7. Click **"Create"**
+
+### Copy Redis URL:
+
+1. After creation, click on your database
+2. Scroll to **"REST API"** section
+3. Look for connection string format: `rediss://default:PASSWORD@HOST:6379`
+4. **IMPORTANT:** Use the `rediss://` URL (with double 's' for TLS)
+5. Go to Render → Your Web Service → **Environment**
+6. Add:
+   ```
+   REDIS_URL=rediss://default:YOUR_PASSWORD@YOUR_HOST.upstash.io:6379
+   ```
+
+---
+
+## Step 2: Set Up Supabase for Google OAuth
+
+### Create Supabase Project:
+
+1. Go to https://app.supabase.com/
+2. Sign up / Log in
+3. Click **"New Project"**
+4. **Name:** `resellgenie`
+5. **Database Password:** (save this)
+6. **Region:** Same as Render
+7. Click **"Create new project"**
+
+### Enable Google OAuth:
+
+1. In Supabase Dashboard → **Authentication** → **Providers**
+2. Find **Google** and click to expand
+3. Toggle **"Enable Google provider"** ON
+4. **Authorized redirect URLs:** Add your Render app URL:
+   ```
+   https://your-app.onrender.com/auth/callback
+   ```
+5. Click **"Save"**
+
+### Get Supabase Credentials:
+
+1. In Supabase Dashboard → **Settings** → **API**
+2. Copy:
+   - **Project URL** → This is your `SUPABASE_URL`
+   - **anon/public key** → This is your `SUPABASE_ANON_KEY`
+3. Go to Render → Your Web Service → **Environment**
+4. Add:
+   ```
+   SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+   SUPABASE_ANON_KEY=YOUR_ANON_KEY_HERE
+   SUPABASE_REDIRECT_URL=https://your-app.onrender.com/auth/callback
+   ```
+
+---
+
+## Step 3: Set Up PostgreSQL Database
 
 ### In Render Dashboard:
 
@@ -32,20 +113,21 @@ Use **managed services** for persistence:
 6. **Plan:** **Free** (good for development)
 7. Click **"Create Database"**
 
-### Copy Database URL:
+### Link Database to Web Service:
 
-1. After creation, go to database **Info** tab
-2. Copy the **Internal Database URL** (looks like `postgresql://user:pass@host/db`)
-3. Go to your **Web Service** → **Environment**
-4. Add new environment variable:
-   ```
-   DATABASE_URL=postgresql://user:pass@host/db
-   ```
-5. **Save** and redeploy
+The updated `render.yaml` now includes:
+```yaml
+- key: DATABASE_URL
+  fromDatabase:
+    name: resellgenie-db
+    property: connectionString
+```
+
+This auto-injects DATABASE_URL - no manual setup needed!
 
 ---
 
-## Step 2: Set Up Cloudinary for Photos
+## Step 4: Set Up Cloudinary for Photos
 
 ### Sign Up for Free:
 
@@ -80,55 +162,123 @@ USE_LOCAL_STORAGE=false
 
 ---
 
-## Step 3: Update Environment Variables
+## Step 5: Configure Email (For Registration)
 
-### Complete Environment Variables List:
+### Get Gmail App Password:
 
-In Render → Your Web Service → **Environment**, you should have:
+1. Go to https://myaccount.google.com/apppasswords
+2. Sign in to your Google account
+3. **App name:** `ResellGenie`
+4. Click **"Create"**
+5. Copy the 16-character password
 
-```bash
-# Database (PostgreSQL)
-DATABASE_URL=postgresql://user:pass@host/db
+### Add to Render:
 
-# Cloud Storage (Cloudinary)
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
-USE_LOCAL_STORAGE=false
-
-# AI APIs
-GEMINI_API_KEY=your_gemini_key
-
-# Flask
-FLASK_SECRET_KEY=auto_generated_by_render
-
-# Email Notifications
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=lyak.resell.genie@gmail.com
-SMTP_PASSWORD=your_gmail_app_password
-NOTIFICATION_FROM_EMAIL=lyak.resell.genie@gmail.com
+```
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-16-char-app-password
+MAIL_DEFAULT_SENDER=your-email@gmail.com
 ```
 
 ---
 
-## Step 4: Deploy!
+## Step 6: Complete Environment Variables Checklist
 
-1. Click **"Manual Deploy"** → **"Clear build cache & deploy"**
-2. Watch the logs for:
+In Render → Your Web Service → **Environment**, verify you have:
+
+### ✅ CRITICAL (App won't start without these):
+- `REDIS_URL` - From Upstash Redis
+- `SECRET_KEY` - Auto-generated by Render (render.yaml)
+- `DATABASE_URL` - Auto-injected from PostgreSQL (render.yaml)
+
+### ✅ REQUIRED (For login to work):
+- `SUPABASE_URL` - From Supabase project
+- `SUPABASE_ANON_KEY` - From Supabase project
+- `SUPABASE_REDIRECT_URL` - Your Render app URL + `/auth/callback`
+
+### ✅ OPTIONAL (For features):
+- `GEMINI_API_KEY` - For AI description generation
+- `MAIL_USERNAME` - For email verification
+- `MAIL_PASSWORD` - Gmail app password
+- `MAIL_DEFAULT_SENDER` - Your email
+- `CLOUDINARY_CLOUD_NAME` - For photo storage
+- `CLOUDINARY_API_KEY` - Cloudinary API key
+- `CLOUDINARY_API_SECRET` - Cloudinary secret
+
+---
+
+## Step 7: Deploy!
+
+### First Deploy (After Setting Up Services):
+
+1. **Commit changes** to git:
+   ```bash
+   git add render.yaml .env.example DEPLOYMENT.md
+   git commit -m "Fix deployment: Add REDIS_URL and all required env vars"
+   git push origin main
    ```
-   ✅ PostgreSQL connected
-   ✅ Cloudinary configured for photo storage
+
+2. Render will auto-deploy if `autoDeploy: true` in render.yaml
+
+3. **Watch the deployment logs** for these success messages:
    ```
+   ✅ Environment loaded
+   ✅ Flask secret key configured
+   ✅ Redis connection successful
+   ✅ Database connected successfully
+   ✅ Blueprints initialized
+   ✅ Flask app initialized and ready to serve requests
+   ```
+
+### If Deployment Fails:
+
+Check logs for specific errors:
+- `❌ REDIS_URL not set` → Add REDIS_URL to environment
+- `❌ Failed to connect to Redis` → Verify Redis URL is correct
+- `❌ FATAL ERROR during initialization` → Check DATABASE_URL
+- `❌ Supabase client not configured` → Add Supabase env vars
+
+---
+
+## 🎉 Verifying Login Works
+
+### Test Google OAuth Login:
+
+1. Go to your deployed app: `https://your-app.onrender.com`
+2. Click **"Login"**
+3. Click **"Sign in with Google"**
+4. Authorize with your Google account
+5. You should be redirected back and logged in!
+
+### Success Indicators in Logs:
+
+```
+🟢 [LOGIN_GOOGLE] Starting OAuth flow
+✅ [LOGIN_GOOGLE] OAuth URL generated with flow_id
+🔵 [CALLBACK] OAuth callback handler STARTED
+✅ [CALLBACK] Token exchange successful
+✅ [CALLBACK] User object created
+🎉 [CALLBACK] OAuth login successful
+```
+
+### If Login Still Fails:
+
+1. Check SUPABASE_REDIRECT_URL exactly matches your app URL
+2. Verify Supabase has Google OAuth enabled
+3. Enable debug mode: Set `DEBUG_SESSIONS=true` in Render
+4. Check Render logs for specific error messages
 
 ---
 
 ## 🎉 You're Done!
 
-Now your data is **persistent**:
-- ✅ Photos stored in Cloudinary (won't disappear)
-- ✅ Database in PostgreSQL (survives restarts)
-- ✅ No more data loss!
+Now your app is **fully functional**:
+- ✅ App starts successfully on Render
+- ✅ Google OAuth login works
+- ✅ Sessions persist in Redis
+- ✅ User data stored in PostgreSQL
+- ✅ Photos stored in Cloudinary
+- ✅ No more deployment failures!
 
 ---
 
@@ -189,19 +339,73 @@ python web_app.py
 
 ---
 
-## Troubleshooting
+## Troubleshooting Common Issues
 
-### Photos not uploading:
+### App Crashes Immediately on Startup
+
+**Error:** `⚠️  WARNING: REDIS_URL not set!`
+**Fix:** Add REDIS_URL to Render environment variables (see Step 1)
+
+### Google Login Button Does Nothing
+
+**Error:** `Google OAuth Error: SUPABASE_URL or SUPABASE_ANON_KEY not configured`
+**Fix:** Add Supabase credentials to Render (see Step 2)
+
+### Login Succeeds but Session Lost After Refresh
+
+**Causes:**
+1. Redis connection issue - verify REDIS_URL is correct
+2. SECRET_KEY missing - ensure Render generated it
+3. Cookie security issues - check SUPABASE_REDIRECT_URL matches your domain
+
+**Fix:** Check Render logs for Redis connection errors
+
+### OAuth Callback Fails with "Invalid state"
+
+**Cause:** Session not persisting between OAuth redirect
+**Fix:**
+1. Verify REDIS_URL is working (check Upstash dashboard for activity)
+2. Ensure SECRET_KEY is set and consistent
+3. Check that cookies are being sent (browser dev tools)
+
+### Database Connection SSL Errors
+
+**Error:** `SSL connection has been closed unexpectedly`
+**Fix:**
+- Per-request database connections are handled automatically
+- Check DATABASE_URL has `?sslmode=require` parameter
+- Verify PostgreSQL database is in same region as web service
+
+### Photos not uploading
+
 - Check `USE_LOCAL_STORAGE=false` is set
 - Verify Cloudinary credentials are correct
 - Check Render logs for error messages
 
-### Database connection errors:
-- Verify `DATABASE_URL` is set correctly
-- Ensure database and web service are in same region
-- Check database is running (Render dashboard)
+### Data disappeared after deployment
 
-### Data disappeared after deployment:
 - Make sure you followed ALL steps above
 - Check environment variables are saved
 - Verify Cloudinary is configured (`USE_LOCAL_STORAGE=false`)
+
+---
+
+## 50+ Commits of Login Fixes - What Went Wrong?
+
+Looking at your git history, here's what you tried:
+
+1. **Commits 1-10:** Cookie-based sessions (failed - lost on refresh)
+2. **Commits 11-20:** Switched to Redis sessions (good idea!)
+3. **Commits 21-30:** Fixed SSL connection pooling
+4. **Commits 31-40:** Fixed session persistence
+5. **Commits 41-50:** Fixed OAuth newlines, PKCE flow
+
+**The Missing Piece:** REDIS_URL was never added to render.yaml!
+
+The app has been trying to use Redis sessions but couldn't connect because the environment variable wasn't configured. This caused:
+- Immediate startup failures
+- Session loss
+- OAuth PKCE failures
+- Database connection issues (cascading failures)
+
+**This commit fixes it** by adding ALL required environment variables to render.yaml.

@@ -203,5 +203,4 @@ class MercariAdapter(CSVAdapter):
             Configured MercariAdapter
         """
         # Mercari doesn't need API credentials - it's CSV only
-        return cls(output_dir=output_dir)</content>
-<parameter name="filePath">c:\Users\Dragon\Desktop\projettccs\resell-rebel\src\adapters\mercari_adapter.py
+        return cls(output_dir=output_dir)

@@ -1896,39 +1896,49 @@ class Database:
                     pass
 
     def get_user_by_supabase_uid(self, supabase_uid: str) -> Optional[Dict]:
-        """Get user by Supabase UID - single attempt, fail fast for user_loader"""
-        cursor = None
-        try:
-            if not supabase_uid:
+        """Get user by Supabase UID - with retry for SSL errors"""
+        max_retries = 2  # Quick retries for login flow
+        for attempt in range(max_retries):
+            cursor = None
+            try:
+                if not supabase_uid:
+                    return None
+
+                cursor = self._get_cursor()
+                cursor.execute("SELECT * FROM users WHERE supabase_uid = %s", (str(supabase_uid),))
+                row = cursor.fetchone()
+
+                if row:
+                    result = dict(row)
+                    # Ensure IDs are returned as strings
+                    result['id'] = str(result['id'])
+                    if result.get('supabase_uid'):
+                        result['supabase_uid'] = str(result['supabase_uid'])
+                    self._commit_read()  # Close transaction after read
+                    return result
+                self._commit_read()  # Close transaction even if no result
                 return None
-
-            cursor = self._get_cursor()
-            cursor.execute("SELECT * FROM users WHERE supabase_uid = %s", (str(supabase_uid),))
-            row = cursor.fetchone()
-
-            if row:
-                result = dict(row)
-                # Ensure IDs are returned as strings
-                result['id'] = str(result['id'])
-                if result.get('supabase_uid'):
-                    result['supabase_uid'] = str(result['supabase_uid'])
-                self._commit_read()  # Close transaction after read
-                return result
-            self._commit_read()  # Close transaction even if no result
-            return None
-        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
-            # Fail fast for user_loader - don't retry, just return None
-            print(f"⚠️  Database connection error in get_user_by_supabase_uid (fail fast): {e}")
-            return None
-        except Exception as e:
-            print(f"Error in get_user_by_supabase_uid: {e}")
-            return None
-        finally:
-            if cursor:
-                try:
-                    cursor.close()
-                except:
-                    pass
+            except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+                if attempt < max_retries - 1:
+                    print(f"⚠️  Database connection error in get_user_by_supabase_uid (attempt {attempt + 1}/{max_retries}), retrying...")
+                    try:
+                        self._get_connection_from_pool()  # Get fresh connection
+                    except:
+                        pass
+                    time.sleep(0.1)  # Quick retry
+                else:
+                    print(f"❌ Database error in get_user_by_supabase_uid after {max_retries} attempts: {e}")
+                    return None
+            except Exception as e:
+                print(f"Error in get_user_by_supabase_uid: {e}")
+                return None
+            finally:
+                if cursor:
+                    try:
+                        cursor.close()
+                    except:
+                        pass
+        return None
 
     def get_user_by_username(self, username: str) -> Optional[Dict]:
         """Get user by username with retry logic"""
@@ -2104,38 +2114,8 @@ class Database:
                     pass
 
     # OAuth-specific methods
-    def get_user_by_supabase_uid(self, supabase_uid: str) -> Optional[Dict]:
-        """Get user by Supabase UID (for OAuth) - with auto-reconnect"""
-        max_retries = 3
-        for attempt in range(max_retries):
-            cursor = None
-            try:
-                cursor = self._get_cursor()
-                cursor.execute("SELECT * FROM users WHERE supabase_uid = %s", (supabase_uid,))
-                row = cursor.fetchone()
-                result = dict(row) if row else None
-                self._commit_read()  # Close transaction after read
-                return result
-            except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
-                if attempt < max_retries - 1:
-                    print(f"⚠️  Database connection error in get_user_by_supabase_uid (attempt {attempt + 1}/{max_retries}), retrying...")
-                    time.sleep(0.5 * (attempt + 1))
-                    try:
-                        self._get_connection_from_pool()  # Force reconnect
-                    except:
-                        pass
-                else:
-                    print(f"❌ Failed to get user by supabase_uid after {max_retries} attempts: {e}")
-                    return None
-            except Exception as e:
-                print(f"Unexpected error in get_user_by_supabase_uid: {e}")
-                return None
-            finally:
-                if cursor:
-                    try:
-                        cursor.close()
-                    except:
-                        pass
+    # NOTE: get_user_by_supabase_uid is defined earlier (line ~1898) with fail-fast logic for user_loader
+    # Duplicate removed to prevent method override
 
     def create_oauth_user(self, username: str, email: str, supabase_uid: str, oauth_provider: str) -> str:
         """Create a new OAuth user (no password) - returns UUID string - with auto-reconnect"""

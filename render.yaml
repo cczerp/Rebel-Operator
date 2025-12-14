@@ -16,19 +16,56 @@ services:
       mountPath: /opt/render/project/src/data
       sizeGB: 1
     envVars:
+      # Flask Configuration
       - key: FLASK_SECRET_KEY
         generateValue: true
+      - key: SECRET_KEY
+        generateValue: true  # Alternative name for FLASK_SECRET_KEY (web_app.py checks both)
       - key: FLASK_ENV
         value: production
+      
+      # Redis Configuration (CRITICAL for sessions)
+      - key: REDIS_URL
+        sync: false  # Upstash Redis URL for session storage
+      
+      # Database Configuration
+      - key: DATABASE_URL
+        sync: false  # PostgreSQL connection string
+      
+      # Supabase Configuration (for Google OAuth)
+      - key: SUPABASE_URL
+        sync: false  # https://your-project.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false  # Supabase anonymous key
+      - key: SUPABASE_REDIRECT_URL
+        sync: false  # Optional: OAuth callback URL (defaults to RENDER_EXTERNAL_URL/auth/callback)
+      
+      # AI API Keys
       - key: GEMINI_API_KEY
         sync: false
+      
+      # Email Configuration (Flask-Mail)
+      - key: MAIL_SERVER
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: 587
+      - key: MAIL_USE_TLS
+        value: true
+      - key: MAIL_USERNAME
+        sync: false  # Email address for sending
+      - key: MAIL_PASSWORD
+        sync: false  # App password for email
+      - key: MAIL_DEFAULT_SENDER
+        sync: false  # Optional: defaults to MAIL_USERNAME
+      
+      # Legacy SMTP variables (deprecated, kept for backwards compatibility)
       - key: SMTP_HOST
         value: smtp.gmail.com
-      - key: SMTP_PORT
+      - key: MAIL_PORT
         value: 587
-      - key: SMTP_USERNAME
+      - key: MAIL_USERNAME
         sync: false
-      - key: SMTP_PASSWORD
+      - key: MAIL_PASSWORD
         sync: false
-      - key: NOTIFICATION_FROM_EMAIL
+      - key: MAIL_DEFAULT_SENDER
         sync: false

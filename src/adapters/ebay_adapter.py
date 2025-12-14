@@ -149,5 +149,4 @@ class EbayAdapter:
             # TODO: Implement actual eBay API delete call
             return {"success": True}
         except Exception as e:
-            return {"success": False, "error": str(e)}</content>
-<parameter name="filePath">c:\Users\Dragon\Desktop\projettccs\resell-rebel\src\adapters\ebay_adapter.py
+            return {"success": False, "error": str(e)}

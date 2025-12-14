@@ -813,7 +813,7 @@ def auth_callback():
                 local_user.get('is_active', True),
                 local_user.get('tier', 'FREE')
             )
-            print(f"✅ [CALLBACK] User object created for: {local_user['username']} (ID: {user_identifier[:20]}...)", flush=True)
+            print(f"✅ [CALLBACK] User object created for: {local_user['username']} (ID: {str(user_identifier)[:20]}...)", flush=True)
 
             # Log user in
             print(f"🔐 [CALLBACK] Calling login_user()...", flush=True)

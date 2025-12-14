@@ -20,7 +20,7 @@ services:
       - key: FLASK_SECRET_KEY
         generateValue: true
       - key: SECRET_KEY
-        sync: false  # Alternative name for FLASK_SECRET_KEY (web_app.py checks both)
+        generateValue: true  # Alternative name for FLASK_SECRET_KEY (web_app.py checks both)
       - key: FLASK_ENV
         value: production
       

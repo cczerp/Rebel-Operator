@@ -341,17 +341,19 @@ from routes_main import main_bp, init_routes as init_main
 
 # Initialize blueprints with database instance and User class
 # Database is created lazily on first blueprint init
+# Must be done within app context since get_db_instance() uses Flask's g object
 try:
     print("🔌 Initializing database connection...", flush=True)
-    db_instance = get_db_instance()
-    print("✅ Database connected successfully", flush=True)
+    with app.app_context():
+        db_instance = get_db_instance()
+        print("✅ Database connected successfully", flush=True)
 
-    print("📝 Initializing route blueprints...", flush=True)
-    init_auth(db_instance, User)
-    init_admin(db_instance)
-    init_cards(db_instance)
-    init_main(db_instance)
-    print("✅ Blueprints initialized", flush=True)
+        print("📝 Initializing route blueprints...", flush=True)
+        init_auth(db_instance, User)
+        init_admin(db_instance)
+        init_cards(db_instance)
+        init_main(db_instance)
+        print("✅ Blueprints initialized", flush=True)
 except Exception as e:
     print(f"❌ FATAL ERROR during initialization: {e}", flush=True)
     import traceback

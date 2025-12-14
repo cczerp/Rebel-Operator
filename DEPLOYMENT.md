@@ -103,27 +103,49 @@ Use **managed services** for persistence:
 
 ## Step 3: Set Up PostgreSQL Database
 
-### In Render Dashboard:
+### Option A: Use Supabase PostgreSQL (Recommended if already using Supabase)
+
+**CRITICAL:** If using Supabase PostgreSQL, you MUST use the **Connection Pooler**, not the direct connection!
+
+1. **Get Pooler URL from Supabase:**
+   - Go to https://app.supabase.com/ → Your Project
+   - Navigate to **Settings** → **Database**
+   - Scroll to **"Connection Pooling"** section
+   - Copy the **Session mode** connection string
+   - It should look like:
+     ```
+     postgresql://postgres.PROJECT_REF:[PASSWORD]@aws-0-region.pooler.supabase.com:6543/postgres
+     ```
+   - **Note the port: 6543** (pooler), NOT 5432 (direct)
+
+2. **Add to Render Environment:**
+   - Go to Render Dashboard → Your Web Service → **Environment**
+   - Add or update:
+     ```
+     DATABASE_URL=postgresql://postgres.PROJECT_REF:[PASSWORD]@aws-0-region.pooler.supabase.com:6543/postgres
+     ```
+
+**Why Connection Pooler?**
+- Direct connection (port 5432): Limited to ~10 connections, causes SSL timeout errors
+- Pooler connection (port 6543): Uses pgBouncer, handles thousands of connections efficiently
+- **Without pooler, you'll get:** `SSL connection has been closed unexpectedly`
+
+### Option B: Use Render PostgreSQL (Alternative)
 
 1. Click **"New +"** → **"PostgreSQL"**
 2. **Name:** `resellgenie-db`
 3. **Database:** `resellgenie` (or any name)
-4. **User:** (auto-generated)
-5. **Region:** Same as your web service
-6. **Plan:** **Free** (good for development)
-7. Click **"Create Database"**
+4. **Region:** Same as your web service
+5. **Plan:** **Free** (1GB storage, 90 days retention)
+6. Click **"Create Database"**
 
-### Link Database to Web Service:
+7. **Link to Web Service:**
+   - The `render.yaml` includes auto-injection config
+   - DATABASE_URL will be set automatically
 
-The updated `render.yaml` now includes:
-```yaml
-- key: DATABASE_URL
-  fromDatabase:
-    name: resellgenie-db
-    property: connectionString
-```
-
-This auto-injects DATABASE_URL - no manual setup needed!
+**Comparison:**
+- **Supabase:** Better free tier (500MB persistent), requires pooler
+- **Render:** Simpler setup (no pooler needed), 1GB but 90-day limit on free tier
 
 ---
 
@@ -371,10 +393,25 @@ python web_app.py
 ### Database Connection SSL Errors
 
 **Error:** `SSL connection has been closed unexpectedly`
+
+**Root Cause:** Using Supabase **direct connection** instead of **connection pooler**
+
 **Fix:**
-- Per-request database connections are handled automatically
-- Check DATABASE_URL has `?sslmode=require` parameter
-- Verify PostgreSQL database is in same region as web service
+1. Check your DATABASE_URL in Render → Environment
+2. If it contains `:5432/postgres` → You're using direct connection (wrong!)
+3. If it contains `:6543/postgres` → You're using pooler (correct!)
+
+**To fix:**
+- Go to Supabase → Settings → Database → Connection Pooling
+- Copy the **Session mode** connection string (port 6543)
+- Update DATABASE_URL in Render with the pooler URL
+- Redeploy
+
+**Why this happens:**
+- Supabase direct connection: Limited to ~10 concurrent connections
+- Your app creates connection pool (2 connections max)
+- But Supabase closes idle connections quickly → SSL timeout
+- **Solution:** Use pgBouncer pooler (port 6543) which handles this properly
 
 ### Photos not uploading
 

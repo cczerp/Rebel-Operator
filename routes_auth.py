@@ -20,6 +20,11 @@ def init_routes(database, user_class):
     db = database
     User = user_class
 
+def _ensure_db_initialized():
+    """Helper function to ensure db is initialized before use."""
+    if db is None or User is None:
+        raise RuntimeError("Database not initialized. Routes must be initialized via init_routes() first.")
+
 
 # =============================================================================
 # LOGIN PAGE
@@ -32,6 +37,7 @@ def login():
         return render_template('login.html')
 
     try:
+        _ensure_db_initialized()
         # POST — authenticate user with Supabase
         data = request.form
         email = data.get('email')
@@ -88,31 +94,26 @@ def login():
                 print(f"[LOGIN ERROR] Failed to create user in PostgreSQL: {create_error}")
                 import traceback
                 traceback.print_exc()
-                # Fall back to Supabase-only user (may cause session issues)
-                user_data = None
+                flash("Failed to create user account. Please contact support.", "error")
+                return render_template('login.html')
+
+        # Ensure user_data exists - fail if not
+        if not user_data:
+            print(f"[LOGIN ERROR] User data not available after creation attempt", flush=True)
+            flash("Failed to retrieve user account. Please contact support.", "error")
+            return render_template('login.html')
 
         # Create User object for Flask-Login
         # IMPORTANT: User.id must be supabase_uid for session persistence
-        if user_data:
-            print(f"[LOGIN] Loading user from PostgreSQL", flush=True)
-            user = User(
-                user_data['supabase_uid'],  # Use Supabase UID as Flask-Login ID
-                user_data['username'],
-                user_data['email'],
-                user_data.get('is_admin', False),
-                user_data.get('is_active', True),
-                user_data.get('tier', 'FREE')
-            )
-        else:
-            print(f"[LOGIN WARNING] Using Supabase-only user (session may not persist)", flush=True)
-            user = User(
-                supabase_uid,      # Supabase UID
-                username,          # Username from email
-                user_email,        # Email from Supabase
-                False,             # is_admin (default)
-                True,              # is_active (default)
-                'FREE'             # tier (default)
-            )
+        print(f"[LOGIN] Loading user from PostgreSQL", flush=True)
+        user = User(
+            user_data['supabase_uid'],  # Use Supabase UID as Flask-Login ID
+            user_data['username'],
+            user_data['email'],
+            user_data.get('is_admin', False),
+            user_data.get('is_active', True),
+            user_data.get('tier', 'FREE')
+        )
 
         print(f"[LOGIN] Logging in user: {user.email} (Supabase UID: {user.id})")
         
@@ -141,6 +142,12 @@ def login():
 def register():
     """Register a new user."""
     if request.method == 'GET':
+        return render_template('register.html')
+
+    try:
+        _ensure_db_initialized()
+    except RuntimeError as e:
+        flash("Service temporarily unavailable. Please try again later.", "error")
         return render_template('register.html')
 
     data = request.form
@@ -218,6 +225,13 @@ def register():
 @login_required
 def logout():
     """Log out the current user."""
+    try:
+        _ensure_db_initialized()
+    except RuntimeError:
+        # If db not initialized, just log out without logging activity
+        logout_user()
+        return redirect(url_for('auth.login'))
+
     db.log_activity(
         action="logout",
         user_id=current_user.id,
@@ -258,64 +272,94 @@ def api_check_session():
 
 @auth_bp.route('/api/auth/login', methods=['POST'])
 def api_login():
-    """Login through fetch/XHR with JSON."""
-    data = request.json or {}
+    """Login through fetch/XHR with JSON - using Supabase email/password auth."""
+    try:
+        _ensure_db_initialized()
+    except RuntimeError:
+        return jsonify({"error": "Service temporarily unavailable"}), 503
 
-    username = data.get("username")
+    data = request.json or {}
+    email = data.get("email") or data.get("username")  # Support both email and username for backwards compatibility
     password = data.get("password")
 
-    if not username or not password:
+    if not email or not password:
         return jsonify({"error": "Missing credentials"}), 400
 
-    user_data = db.get_user_by_username(username)
-    if not user_data:
-        return jsonify({"error": "User not found"}), 404
+    try:
+        # Use Supabase client to sign in (unified with /login route)
+        from src.auth_utils import get_supabase_client
+        supabase = get_supabase_client()
 
-    # Check if user has a password (OAuth users may not have password_hash)
-    password_hash = user_data.get('password_hash')
-    if not password_hash:
-        return jsonify({"error": "This account uses Google sign-in. Please use the 'Sign in with Google' button."}), 400
+        if not supabase:
+            return jsonify({"error": "Authentication service unavailable"}), 503
 
-    if not check_password_hash(password_hash, password):
-        return jsonify({"error": "Invalid password"}), 401
+        # Attempt to sign in with Supabase
+        response = supabase.auth.sign_in_with_password({
+            "email": email,
+            "password": password
+        })
 
-    # Ensure id is UUID string
-    user_id_str = str(user_data['id']) if user_data.get('id') else None
-    if not user_id_str:
-        return jsonify({"error": "Invalid user data"}), 500
-    
-    user = User(
-        user_id_str,
-        user_data['username'],
-        user_data['email'],
-        user_data.get('is_admin', False),
-        user_data.get('is_active', True),
-        user_data.get('tier', 'FREE')
-    )
-    
-    # CRITICAL: Mark session as permanent for Flask-Login persistence
-    session.permanent = True
-    
-    login_user(user, remember=True)
+        if not response or not response.user:
+            return jsonify({"error": "Invalid email or password"}), 401
 
-    db.log_activity(
-        action="api_login",
-        user_id=user_id_str,
-        resource_type="user",
-        resource_id=None,
-        ip_address=request.remote_addr,
-        user_agent=request.headers.get("User-Agent")
-    )
+        # Get Supabase user data
+        supabase_uid = str(response.user.id)
+        user_email = response.user.email
+        username = user_email.split('@')[0]  # Generate username from email
 
-    return jsonify({
-        "success": True,
-        "user": {
-            "id": user.id,
-            "username": user.username,
-            "email": user.email,
-            "is_admin": user.is_admin
-        }
-    })
+        # Ensure user exists in PostgreSQL with supabase_uid
+        user_data = db.get_user_by_supabase_uid(supabase_uid)
+
+        if not user_data:
+            try:
+                # Create user in PostgreSQL with Supabase UID
+                db.create_user_with_id(supabase_uid, username, user_email, password_hash=None)
+                user_data = db.get_user_by_supabase_uid(supabase_uid)
+            except Exception as create_error:
+                print(f"[API_LOGIN ERROR] Failed to create user in PostgreSQL: {create_error}")
+                return jsonify({"error": "Failed to create user account"}), 500
+
+        if not user_data:
+            return jsonify({"error": "Failed to retrieve user account"}), 500
+
+        # Create User object for Flask-Login
+        user = User(
+            user_data['supabase_uid'],  # Use Supabase UID as Flask-Login ID
+            user_data['username'],
+            user_data['email'],
+            user_data.get('is_admin', False),
+            user_data.get('is_active', True),
+            user_data.get('tier', 'FREE')
+        )
+
+        # CRITICAL: Mark session as permanent for Flask-Login persistence
+        session.permanent = True
+        login_user(user, remember=True)
+
+        db.log_activity(
+            action="api_login",
+            user_id=user_data['supabase_uid'],
+            resource_type="user",
+            resource_id=None,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get("User-Agent")
+        )
+
+        return jsonify({
+            "success": True,
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "is_admin": user.is_admin
+            }
+        })
+
+    except Exception as e:
+        print(f"[API_LOGIN ERROR] {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Authentication failed"}), 401
 
 
 # =============================================================================
@@ -338,6 +382,12 @@ def api_logout():
 def forgot_password():
     """Show password reset form OR handle reset requests."""
     if request.method == 'GET':
+        return render_template('forgot_password.html')
+
+    try:
+        _ensure_db_initialized()
+    except RuntimeError:
+        flash("Service temporarily unavailable. Please try again later.", "error")
         return render_template('forgot_password.html')
 
     email = request.form.get("email")
@@ -402,6 +452,12 @@ def verify_email(token):
         flash("Invalid verification link.", "error")
         return redirect(url_for('auth.login'))
     
+    try:
+        _ensure_db_initialized()
+    except RuntimeError:
+        flash("Service temporarily unavailable. Please try again later.", "error")
+        return redirect(url_for('auth.login'))
+    
     # Verify email using token
     success = db.verify_email(token)
     
@@ -417,6 +473,12 @@ def verify_email(token):
 def resend_verification():
     """Resend verification email."""
     if request.method == 'GET':
+        return render_template('resend_verification.html')
+    
+    try:
+        _ensure_db_initialized()
+    except RuntimeError:
+        flash("Service temporarily unavailable. Please try again later.", "error")
         return render_template('resend_verification.html')
     
     email = request.form.get('email')
@@ -745,6 +807,7 @@ def auth_callback():
 
         # Find or create user in local database
         try:
+            _ensure_db_initialized()
             print(f"🔍 [CALLBACK] Looking up user by supabase_uid: {supabase_uid}", flush=True)
             local_user = db.get_user_by_supabase_uid(supabase_uid)
 

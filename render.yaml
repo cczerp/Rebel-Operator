@@ -61,11 +61,11 @@ services:
       # Legacy SMTP variables (deprecated, kept for backwards compatibility)
       - key: SMTP_HOST
         value: smtp.gmail.com
-      - key: SMTP_PORT
+      - key: MAIL_PORT
         value: 587
-      - key: SMTP_USERNAME
+      - key: MAIL_USERNAME
         sync: false
-      - key: SMTP_PASSWORD
+      - key: MAIL_PASSWORD
         sync: false
-      - key: NOTIFICATION_FROM_EMAIL
+      - key: MAIL_DEFAULT_SENDER
         sync: false

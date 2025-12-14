@@ -794,23 +794,26 @@ def auth_callback():
                 flash("Failed to retrieve user account. Please try again.", "error")
                 return redirect(url_for('auth.login'))
 
-            # Create Flask-Login User object - ensure id is UUID string
+            # Create Flask-Login User object
+            # IMPORTANT: User.id should be supabase_uid for consistency with email/password login
             print(f"🔍 [CALLBACK] Creating Flask-Login User object", flush=True)
-            user_id_str = str(local_user['id']) if local_user.get('id') else None
-            if not user_id_str:
+            
+            # Prefer supabase_uid as User.id (for consistency), fallback to regular id
+            user_identifier = local_user.get('supabase_uid') or str(local_user['id'])
+            if not user_identifier:
                 print(f"❌ [CALLBACK] Invalid user ID", flush=True)
                 flash("Invalid user data. Please try again.", "error")
                 return redirect(url_for('auth.login'))
 
             user = User(
-                user_id_str,
+                user_identifier,  # Use supabase_uid if available, otherwise id
                 local_user['username'],
                 local_user['email'],
                 local_user.get('is_admin', False),
                 local_user.get('is_active', True),
                 local_user.get('tier', 'FREE')
             )
-            print(f"✅ [CALLBACK] User object created for: {local_user['username']}", flush=True)
+            print(f"✅ [CALLBACK] User object created for: {local_user['username']} (ID: {str(user_identifier)[:20]}...)", flush=True)
 
             # Log user in
             print(f"🔐 [CALLBACK] Calling login_user()...", flush=True)

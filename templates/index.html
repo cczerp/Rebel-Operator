@@ -4,7 +4,6 @@
 
 {% block content %}
 
-<div data-guest-content style="{% if not is_guest %}display: none;{% endif %}">
 {% if is_guest %}
 <!-- HERO SECTION - Full Width Gradient -->
 <div class="hero-section">
@@ -200,11 +199,8 @@
         </div>
     </div>
 </div>
-{% endif %}
-</div>
 
-<div data-auth-content style="{% if is_guest %}display: none;{% endif %}">
-{% if not is_guest %}
+{% else %}
 <!-- Logged-in User Dashboard - REDESIGNED -->
 <div class="hero-section" style="margin-top: -24px;">
     <div class="container text-center py-4">
@@ -310,70 +306,28 @@
     </div>
 </div>
 {% endif %}
-</div>
 
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// Check authentication status on page load and update UI dynamically
-async function checkAuthStatus() {
+// Simple auth check - only reload if there's a mismatch (handles cached pages)
+// Wait a bit after page load to avoid interfering with login redirects
+setTimeout(async function() {
     try {
         const response = await fetch('/api/auth/session');
         const data = await response.json();
-        
         const isAuthenticated = data.authenticated === true;
-        const guestContent = document.querySelector('[data-guest-content]');
-        const authContent = document.querySelector('[data-auth-content]');
+        const serverSaysGuest = {{ 'true' if is_guest else 'false' }};
         
-        console.log('[AUTH CHECK] Authenticated:', isAuthenticated);
-        console.log('[AUTH CHECK] Guest content found:', !!guestContent);
-        console.log('[AUTH CHECK] Auth content found:', !!authContent);
-        
-        if (isAuthenticated) {
-            // User is logged in - show authenticated content, hide guest content
-            if (guestContent) {
-                guestContent.style.display = 'none';
-                console.log('[AUTH CHECK] Hiding guest content');
-            }
-            if (authContent) {
-                authContent.style.display = 'block';
-                console.log('[AUTH CHECK] Showing auth content');
-            }
-        } else {
-            // User is not logged in - show guest content, hide authenticated content
-            if (guestContent) {
-                guestContent.style.display = 'block';
-                console.log('[AUTH CHECK] Showing guest content');
-            }
-            if (authContent) {
-                authContent.style.display = 'none';
-                console.log('[AUTH CHECK] Hiding auth content');
-            }
+        // Only reload if there's a clear mismatch (user logged in but page shows guest, or vice versa)
+        if (isAuthenticated !== !serverSaysGuest) {
+            console.log('[AUTH] Mismatch detected, reloading page...');
+            window.location.reload();
         }
     } catch (error) {
-        console.error('[AUTH CHECK] Error checking auth status:', error);
-        // On error, default to showing guest content
-        const guestContent = document.querySelector('[data-guest-content]');
-        const authContent = document.querySelector('[data-auth-content]');
-        if (guestContent) guestContent.style.display = 'block';
-        if (authContent) authContent.style.display = 'none';
+        console.error('[AUTH] Error checking status:', error);
     }
-}
-
-// Run on page load
-document.addEventListener('DOMContentLoaded', function() {
-    checkAuthStatus();
-    
-    // Also check periodically in case auth status changes (e.g., after login)
-    setInterval(checkAuthStatus, 2000); // Check every 2 seconds
-});
-
-// Also check when page becomes visible (user might have logged in in another tab)
-document.addEventListener('visibilitychange', function() {
-    if (!document.hidden) {
-        checkAuthStatus();
-    }
-});
+}, 1000); // Wait 1 second after page load
 </script>
 {% endblock %}

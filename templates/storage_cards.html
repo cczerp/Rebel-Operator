@@ -17,7 +17,7 @@
 
 <!-- Card Categories Reference -->
 <div class="card mb-4">
-    <div class="card-header bg-info text-white">
+    <div class="card-header" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">
         <i class="fas fa-info-circle"></i> Card Categories
     </div>
     <div class="card-body">
@@ -48,7 +48,7 @@
 
 <!-- Create New Bin -->
 <div class="card mb-4">
-    <div class="card-header bg-primary text-white">
+    <div class="card-header" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;">
         <i class="fas fa-plus-circle"></i> Create New Bin
     </div>
     <div class="card-body">
@@ -74,7 +74,7 @@
     {% if bins %}
         {% for bin in bins %}
         <div class="card mb-3" id="bin-{{ bin.id }}">
-            <div class="card-header bg-success text-white">
+            <div class="card-header" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;">
                 <div class="d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-box"></i> Bin {{ bin.bin_name }}
@@ -82,7 +82,7 @@
                         <small>({{ bin.description }})</small>
                         {% endif %}
                     </h5>
-                    <button class="btn btn-sm btn-light" onclick="toggleSections({{ bin.id }})">
+                    <button class="btn btn-sm" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white; border: none;" onclick="toggleSections({{ bin.id }})">
                         <i class="fas fa-chevron-down"></i> Sections
                     </button>
                 </div>
@@ -110,7 +110,7 @@
                 </div>
 
                 <!-- Add Card Form -->
-                <div class="border p-3 mt-3 bg-success bg-opacity-10">
+                <div class="border p-3 mt-3" style="background: rgba(220, 38, 38, 0.1);">
                     <h6>Add Card to Bin {{ bin.bin_name }}</h6>
                     <div class="mb-2">
                         <label class="form-label">Section</label>
@@ -290,7 +290,8 @@ async function loadSections(binId) {
             sectionsListDiv.innerHTML = '<h6>Sections:</h6>';
             sections.forEach(section => {
                 const badge = document.createElement('span');
-                badge.className = 'badge bg-success me-2';
+                badge.className = 'badge me-2';
+                badge.style.cssText = 'background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;';
                 badge.textContent = section;
                 sectionsListDiv.appendChild(badge);
             });

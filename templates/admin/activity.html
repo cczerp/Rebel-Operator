@@ -43,11 +43,11 @@
                             </td>
                             <td>
                                 <span class="badge
-                                    {% if log.action == 'login' %}bg-success
-                                    {% elif log.action == 'logout' %}bg-secondary
-                                    {% elif log.action == 'register' %}bg-primary
-                                    {% elif 'delete' in log.action %}bg-danger
-                                    {% else %}bg-info
+                                    {% if log.action == 'login' %}style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;"
+                                    {% elif log.action == 'logout' %}style="background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%); color: var(--off-white-text);"
+                                    {% elif log.action == 'register' %}style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;"
+                                    {% elif 'delete' in log.action %}style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;"
+                                    {% else %}style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;"
                                     {% endif %}">
                                     {{ log.action }}
                                 </span>

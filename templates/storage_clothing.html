@@ -17,7 +17,7 @@
 
 <!-- Create New Bin -->
 <div class="card mb-4">
-    <div class="card-header bg-primary text-white">
+    <div class="card-header" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;">
         <i class="fas fa-plus-circle"></i> Create New Bin
     </div>
     <div class="card-body">
@@ -78,7 +78,7 @@
                 </div>
 
                 <!-- Add Item Form -->
-                <div class="border p-3 mt-3 bg-info bg-opacity-10">
+                <div class="border p-3 mt-3" style="background: rgba(71, 85, 105, 0.1);">
                     <h6>Add Item to Bin {{ bin.bin_name }}</h6>
                     <div class="mb-2">
                         <label class="form-label">Compartment</label>
@@ -247,7 +247,8 @@ async function loadSections(binId) {
             sectionsListDiv.innerHTML = '<h6>Compartments:</h6>';
             sections.forEach(section => {
                 const badge = document.createElement('span');
-                badge.className = 'badge bg-secondary me-2';
+                badge.className = 'badge me-2';
+                badge.style.cssText = 'background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%); color: var(--off-white-text);';
                 badge.textContent = section;
                 sectionsListDiv.appendChild(badge);
             });

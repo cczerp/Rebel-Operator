@@ -13,12 +13,21 @@
 
     <style>
         :root {
-            --primary: #4CAF50;
-            --secondary: #2196F3;
+            --red-primary: #DC2626;
+            --red-primary-dark: #991B1B;
+            --red-primary-light: #EF4444;
+            --charcoal: #1F2937;
+            --charcoal-light: #374151;
+            --charcoal-dark: #111827;
+            --steel-blue-grey: #475569;
+            --steel-blue-grey-light: #64748B;
+            --steel-blue-grey-dark: #334155;
+            --off-white: #F9FAFB;
+            --off-white-text: #E5E7EB;
         }
 
         body {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            background: linear-gradient(135deg, var(--charcoal-dark) 0%, var(--charcoal) 50%, var(--charcoal-light) 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -27,13 +36,14 @@
         }
 
         .register-card {
-            background: white;
+            background: linear-gradient(145deg, var(--charcoal-light) 0%, var(--charcoal) 100%);
             border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
             padding: 40px;
             max-width: 400px;
             width: 90%;
             margin: 20px auto;
+            border: 1px solid rgba(220, 38, 38, 0.2);
         }
 
         .register-header {
@@ -43,7 +53,7 @@
 
         .register-header i {
             font-size: 60px;
-            color: var(--primary);
+            color: var(--red-primary);
             margin-bottom: 10px;
         }
 
@@ -51,51 +61,106 @@
             font-size: 28px;
             font-weight: bold;
             margin-bottom: 5px;
+            color: var(--off-white);
         }
 
         .register-header p {
-            color: #666;
+            color: var(--off-white-text);
             font-size: 14px;
         }
 
         .btn-primary {
-            background: var(--primary);
-            border-color: var(--primary);
+            background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%);
+            border: none;
+            color: white;
             width: 100%;
             padding: 12px;
             font-size: 16px;
-            font-weight: bold;
+            font-weight: 600;
+            position: relative;
+            box-shadow: 
+                0 2px 4px rgba(0, 0, 0, 0.15),
+                0 4px 8px rgba(220, 38, 38, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.25) 20%, 
+                rgba(255, 255, 255, 0.3) 50%, 
+                rgba(255, 255, 255, 0.25) 80%, 
+                transparent
+            );
         }
 
         .btn-primary:hover {
-            background: #45a049;
-            border-color: #45a049;
+            background: linear-gradient(180deg, var(--red-primary-light) 0%, var(--red-primary) 100%);
+            transform: translateY(-2px);
+            box-shadow: 
+                0 4px 8px rgba(0, 0, 0, 0.2),
+                0 8px 16px rgba(220, 38, 38, 0.35),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-primary:active {
+            background: linear-gradient(180deg, var(--red-primary-dark) 0%, #7F1D1D 100%);
+            transform: translateY(0px) scale(0.98);
+            box-shadow: 
+                0 1px 2px rgba(0, 0, 0, 0.2),
+                0 2px 4px rgba(220, 38, 38, 0.25),
+                inset 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .form-control {
             padding: 12px;
             border-radius: 10px;
+            background: var(--charcoal-dark);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--off-white);
         }
 
         .form-control:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 0.2rem rgba(76, 175, 80, 0.25);
+            border-color: var(--red-primary);
+            box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.25);
+            background: var(--charcoal-dark);
+            color: var(--off-white);
+        }
+
+        .form-label {
+            color: var(--off-white-text);
+        }
+
+        .input-group-text {
+            background: var(--charcoal-dark);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--off-white-text);
         }
 
         .login-link {
             text-align: center;
             margin-top: 20px;
-            color: #666;
+            color: var(--off-white-text);
         }
 
         .login-link a {
-            color: var(--primary);
+            color: var(--red-primary);
             text-decoration: none;
             font-weight: bold;
         }
 
         .login-link a:hover {
             text-decoration: underline;
+            color: var(--red-primary-light);
         }
 
         .password-strength {

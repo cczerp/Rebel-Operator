@@ -9,10 +9,10 @@
 <div class="card mb-3">
     <div class="card-body">
         <div class="d-grid gap-2">
-            <a href="/api/export-csv" class="btn" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white; border: none;">
+            <a href="/api/export-csv" class="btn btn-utility">
                 <i class="fas fa-download"></i> Export to CSV
             </a>
-            <button class="btn btn-primary" onclick="document.getElementById('csvFile').click()">
+            <button class="btn btn-utility" onclick="document.getElementById('csvFile').click()">
                 <i class="fas fa-upload"></i> Import CSV (Update Storage Locations)
             </button>
             <input type="file" id="csvFile" accept=".csv" style="display:none;" onchange="importCSV(this)">
@@ -49,7 +49,7 @@
                     <i class="far fa-clock"></i> {{ draft.created_at }}
                 </small>
                 <div class="btn-group btn-group-sm">
-                    <button class="btn" onclick="postDraft({{ draft.id }})" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white; border: none;">
+                    <button class="btn btn-secondary" onclick="postDraft({{ draft.id }})">
                         <i class="fas fa-rocket"></i> Post
                     </button>
                     <a href="{{ url_for('create_listing', draft_id=draft.id) }}" class="btn btn-outline-primary">

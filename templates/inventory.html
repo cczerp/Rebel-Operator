@@ -62,7 +62,7 @@
         </div>
         <div class="row mt-3">
             <div class="col-12">
-                <button class="btn btn-primary me-2" onclick="applyFilters()">
+                <button class="btn btn-secondary me-2" onclick="applyFilters()">
                     <i class="fas fa-filter"></i> Apply Filters
                 </button>
                 <button class="btn btn-outline-secondary" onclick="clearFilters()">
@@ -95,10 +95,10 @@
             <div class="col-md-6">
                 <label class="form-label">&nbsp;</label>
                 <div>
-                    <button class="btn btn-primary me-2" onclick="applyBulkUpdate()">
+                    <button class="btn btn-utility me-2" onclick="applyBulkUpdate()">
                         <i class="fas fa-check"></i> Apply Changes
                     </button>
-                    <button class="btn btn-primary me-2" onclick="bulkDelete()">
+                    <button class="btn btn-utility me-2" onclick="bulkDelete()">
                         <i class="fas fa-trash"></i> Delete Selected
                     </button>
                     <button class="btn btn-secondary" onclick="clearSelection()">
@@ -187,7 +187,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="editItem()">Edit</button>
+                <button type="button" class="btn btn-secondary" onclick="editItem()">Edit</button>
             </div>
         </div>
     </div>
@@ -355,7 +355,7 @@ function renderTable(listings) {
                         <button class="btn btn-secondary btn-sm" onclick="viewItem(${item.id})">
                             <i class="fas fa-eye"></i>
                         </button>
-                        <button class="btn btn-primary btn-sm" onclick="editItem(${item.id})">
+                        <button class="btn btn-secondary btn-sm" onclick="editItem(${item.id})">
                             <i class="fas fa-edit"></i> Edit
                         </button>
                     </div>

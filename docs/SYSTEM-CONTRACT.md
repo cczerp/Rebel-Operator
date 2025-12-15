@@ -1,3 +1,35 @@
+## GLOBAL ENFORCEMENT (NON-NEGOTIABLE)
+
+This file is a binding system contract.
+
+Any implementation that:
+- styles a single button in isolation
+- changes a page without updating all affected pages
+- relies on frontend state for auth display
+- introduces a new color, elevation, or button style
+- partially applies these rules
+
+is considered INVALID and must be reverted.
+
+All UI or auth changes must be applied:
+- globally
+- consistently
+- in a single coherent pass
+
+Incremental or piecemeal changes are forbidden.
+
+### Landing Page Auth Rule (Critical)
+
+The landing page MUST render login state exclusively from `current_user.is_authenticated`
+on the server-rendered template.
+
+- No frontend auth checks
+- No cached flags
+- No JavaScript-derived session state
+
+If the landing page disagrees with other pages about auth state, the landing page is wrong.
+
+
 # SYSTEM CONTRACT — AUTH + UI
 
 ## AUTHENTICATION (IMMUTABLE)
@@ -17,6 +49,42 @@
 - No DB connections stored on self
 
 If any invariant is violated, login instability is expected.
+
+### Light Mode / Dark Mode Relationship (IMMUTABLE)
+
+Light mode and dark mode share the SAME color palette.
+They differ by surface brightness, contrast, and lighting — not hue shifts.
+
+Dark mode:
+- May be very dark
+- Uses charcoal-dark and steel-dark extensively
+- Emphasizes depth, shadow, and material weight
+- Is allowed to feel heavy and industrial
+
+Light mode:
+- Must be significantly lighter than dark mode
+- Uses charcoal-light and steel-light surfaces
+- Must increase contrast and separation between sections
+- Must NOT look like “dark mode minus 2 shades”
+
+If light mode feels heavy, muddy, or dim:
+- It is incorrect
+
+Light mode should feel like the same materials under brighter lighting,
+not like a weak inversion of dark mode.
+
+
+### Brand Red Calibration (IMMUTABLE)
+
+Brand red must feel deliberate and weighty, not bright or plastic.
+
+- Red should lean toward deep crimson / scarlet
+- Avoid bright utility reds and notification-style reds
+- Red may be darker in both modes
+- Light mode red must remain restrained, not neon
+
+Red is used sparingly for primary actions only.
+Its power comes from contrast and depth, not brightness.
 
 ## UI SYSTEM (IMMUTABLE)
 
@@ -110,7 +178,7 @@ These are roles, not suggestions.
   - Secondary CTAs: Inventory, Storage (steel)
 - Do not use `is_guest` or other derived variables. Use `current_user.is_authenticated` directly in templates.
 
-## NAVIGATION RESTRUCTURE (REQUIRED)
+## NAVIGATION (REQUIRED)
 
 **Bottom navigation must be reduced to: Home, Create, Account.**
 

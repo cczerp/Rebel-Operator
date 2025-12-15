@@ -32,7 +32,7 @@
             --steel-blue-grey: #475569;    /* Functional UI surfaces and secondary actions */
             --steel-blue-grey-light: #64748B; /* Lighter steel for hover */
             --steel-blue-grey-dark: #334155;   /* Darker steel for pressed */
-            --off-white: #F9FAFB;          /* Accent only (text, icons, outlines), never a surface */
+            --off-white: #F9FAFB;          /* Accent + light canvas */
             --off-white-text: #E5E7EB;     /* Off-white for text on dark backgrounds */
             
             /* Legacy compatibility (mapped to new system) */
@@ -47,20 +47,20 @@
             --danger: #DC2626;
             --warning: #475569;  /* Warning uses steel blue-grey */
 
-            /* Light mode colors - Charcoal foundation */
-            --bg-primary: #1F2937;         /* Charcoal canvas */
-            --bg-secondary: #111827;       /* Darker charcoal for depth */
-            --bg-tertiary: #374151;       /* Lighter charcoal for cards */
-            --text-primary: #F9FAFB;      /* Off-white text */
-            --text-secondary: #E5E7EB;    /* Off-white secondary text */
-            --text-tertiary: #9CA3AF;     /* Muted text */
-            --border-color: rgba(255,255,255,0.1);
-            --card-bg: #374151;           /* Steel blue-grey for functional surfaces */
-            --card-shadow: rgba(0,0,0,0.3);
+            /* Light mode surfaces (brighter, same palette) */
+            --bg-primary: var(--off-white);            /* Canvas */
+            --bg-secondary: var(--off-white-text);     /* Sub-surface */
+            --bg-tertiary: var(--steel-blue-grey-light); /* Cards / panels */
+            --text-primary: var(--charcoal);           
+            --text-secondary: var(--steel-blue-grey);  
+            --text-tertiary: var(--charcoal-light);    
+            --border-color: rgba(31, 41, 55, 0.08);     /* Charcoal at low opacity */
+            --card-bg: var(--steel-blue-grey-light);    
+            --card-shadow: rgba(0,0,0,0.12);
         }
 
         [data-theme="dark"] {
-            /* Dark mode uses same charcoal foundation, just slightly adjusted */
+            /* Dark mode stays heavy/industrial */
             --bg-primary: #111827;
             --bg-secondary: #0A0F1A;
             --bg-tertiary: #1F2937;
@@ -110,7 +110,7 @@
 
         body {
             padding-bottom: 80px; /* Space for bottom nav */
-            background: var(--bg-secondary);
+            background: var(--bg-primary);
             color: var(--text-primary);
             transition: background-color 0.3s ease, color 0.3s ease;
         }
@@ -224,7 +224,7 @@
 
         /* Primary AI Button (Red) - Material depth with elevation */
         .btn-primary {
-            background: linear-gradient(180deg, #DC2626 0%, #991B1B 100%);
+            background: linear-gradient(180deg, var(--red-primary-dark) 0%, var(--red-primary) 100%);
             border: none;
             color: white;
             font-weight: 600;
@@ -259,7 +259,7 @@
 
         .btn-primary:hover {
             /* Elevated state: brighter base, higher shadow */
-            background: linear-gradient(180deg, #EF4444 0%, #DC2626 100%);
+            background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-light) 100%);
             transform: translateY(-2px);
             /* Increased elevation: deeper shadows */
             box-shadow: 
@@ -282,7 +282,7 @@
 
         .btn-primary:active {
             /* Pressed state: compressed, darker material */
-            background: linear-gradient(180deg, #991B1B 0%, #7F1D1D 100%);
+            background: linear-gradient(180deg, var(--red-primary-dark) 0%, #7F1D1D 100%);
             transform: translateY(0px) scale(0.98);
             /* Reduced elevation: flatter shadow */
             box-shadow: 
@@ -298,7 +298,7 @@
         /* Primary action buttons (Post Now, etc.) - same material depth as .btn-primary */
         .btn-success.btn-lg,
         .btn-success#postNowBtn {
-            background: linear-gradient(180deg, #DC2626 0%, #991B1B 100%);
+            background: linear-gradient(180deg, var(--red-primary-dark) 0%, var(--red-primary) 100%);
             border: none;
             color: white;
             font-weight: 600;
@@ -332,7 +332,7 @@
 
         .btn-success.btn-lg:hover,
         .btn-success#postNowBtn:hover {
-            background: linear-gradient(180deg, #EF4444 0%, #DC2626 100%);
+            background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-light) 100%);
             transform: translateY(-2px);
             box-shadow: 
                 0 4px 8px rgba(0, 0, 0, 0.2),
@@ -354,7 +354,7 @@
 
         .btn-success.btn-lg:active,
         .btn-success#postNowBtn:active {
-            background: linear-gradient(180deg, #991B1B 0%, #7F1D1D 100%);
+            background: linear-gradient(180deg, var(--red-primary-dark) 0%, #7F1D1D 100%);
             transform: translateY(0px) scale(0.98);
             box-shadow: 
                 0 1px 2px rgba(0, 0, 0, 0.2),
@@ -801,7 +801,7 @@
         }
 
         .btn-hero {
-            background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%);
+            background: linear-gradient(180deg, var(--red-primary-dark) 0%, var(--red-primary) 100%);
             color: white;
             font-weight: 700;
             padding: 14px 32px;
@@ -834,7 +834,7 @@
         }
 
         .btn-hero:hover {
-            background: linear-gradient(180deg, var(--red-primary-light) 0%, var(--red-primary) 100%);
+            background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-light) 100%);
             transform: translateY(-2px);
             box-shadow: 
                 0 4px 8px rgba(0, 0, 0, 0.2),

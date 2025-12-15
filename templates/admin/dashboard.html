@@ -108,7 +108,7 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <span class="badge bg-secondary">{{ log.action }}</span>
+                                <span class="badge" style="background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%); color: var(--off-white-text);">{{ log.action }}</span>
                             </td>
                             <td>
                                 {% if log.resource_type %}
@@ -162,9 +162,9 @@
                             <td>{{ user.email }}</td>
                             <td>
                                 {% if user.is_active %}
-                                <span class="badge bg-success">Active</span>
+                                <span class="badge" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;">Active</span>
                                 {% else %}
-                                <span class="badge bg-secondary">Inactive</span>
+                                <span class="badge" style="background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%); color: var(--off-white-text);">Inactive</span>
                                 {% endif %}
                             </td>
                             <td>{{ user.created_at }}</td>

@@ -9,7 +9,7 @@
 <div class="card mb-3">
     <div class="card-body">
         <div class="d-grid gap-2">
-            <a href="/api/export-csv" class="btn btn-success">
+            <a href="/api/export-csv" class="btn" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white; border: none;">
                 <i class="fas fa-download"></i> Export to CSV
             </a>
             <button class="btn btn-primary" onclick="document.getElementById('csvFile').click()">
@@ -49,7 +49,7 @@
                     <i class="far fa-clock"></i> {{ draft.created_at }}
                 </small>
                 <div class="btn-group btn-group-sm">
-                    <button class="btn btn-success" onclick="postDraft({{ draft.id }})">
+                    <button class="btn" onclick="postDraft({{ draft.id }})" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white; border: none;">
                         <i class="fas fa-rocket"></i> Post
                     </button>
                     <a href="{{ url_for('create_listing', draft_id=draft.id) }}" class="btn btn-outline-primary">
@@ -81,7 +81,7 @@ function postDraft(id) {
     // Show platform selection modal
     let html = '<div class="modal fade" id="postDraftModal" tabindex="-1">';
     html += '<div class="modal-dialog"><div class="modal-content">';
-    html += '<div class="modal-header bg-success text-white">';
+    html += '<div class="modal-header" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;">';
     html += '<h5 class="modal-title"><i class="fas fa-rocket"></i> Post Listing</h5>';
     html += '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>';
     html += '</div><div class="modal-body">';
@@ -138,7 +138,7 @@ function postDraft(id) {
 
     html += '</div><div class="modal-footer">';
     html += '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>';
-    html += `<button type="button" class="btn btn-success" onclick="confirmPostDraft(${id})">`;
+    html += `<button type="button" class="btn" onclick="confirmPostDraft(${id})" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white; border: none;">`;
     html += '<i class="fas fa-rocket"></i> Post</button>';
     html += '</div></div></div></div>';
 
@@ -246,7 +246,7 @@ async function confirmPostDraft(id) {
 function showCSVDownloads(csvFiles) {
     let html = '<div class="modal fade" id="csvDownloadModal" tabindex="-1">';
     html += '<div class="modal-dialog modal-lg"><div class="modal-content">';
-    html += '<div class="modal-header bg-success text-white">';
+    html += '<div class="modal-header" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;">';
     html += '<h5 class="modal-title"><i class="fas fa-file-csv"></i> CSV Files Ready</h5>';
     html += '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>';
     html += '</div><div class="modal-body">';
@@ -256,9 +256,9 @@ function showCSVDownloads(csvFiles) {
             html += `<div class="alert alert-danger">${fileInfo.platform_name}: ${fileInfo.error}</div>`;
         } else {
             html += `<div class="card mb-3">`;
-            html += `<div class="card-header bg-primary text-white"><h6 class="mb-0">${fileInfo.platform_name}</h6></div>`;
+            html += `<div class="card-header" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;"><h6 class="mb-0">${fileInfo.platform_name}</h6></div>`;
             html += `<div class="card-body">`;
-            html += `<a href="${fileInfo.download_url}" class="btn btn-success mb-2" download>`;
+            html += `<a href="${fileInfo.download_url}" class="btn mb-2" download style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white; border: none;">`;
             html += `<i class="fas fa-download"></i> Download CSV</a>`;
             if (fileInfo.instructions) {
                 html += `<div class="alert alert-info"><strong>Instructions:</strong><ol class="mb-0">`;
@@ -282,7 +282,7 @@ function showCSVDownloads(csvFiles) {
 function showAPIResults(apiResults) {
     let html = '<div class="modal fade" id="apiResultsModal" tabindex="-1">';
     html += '<div class="modal-dialog modal-lg"><div class="modal-content">';
-    html += '<div class="modal-header bg-info text-white">';
+    html += '<div class="modal-header" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">';
     html += '<h5 class="modal-title"><i class="fas fa-robot"></i> API Results</h5>';
     html += '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>';
     html += '</div><div class="modal-body">';

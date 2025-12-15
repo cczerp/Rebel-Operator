@@ -99,6 +99,48 @@ These are roles, not suggestions.
 **If any part of the UI violates this hierarchy, it is considered incorrect.**
 
 
+## AUTH BEHAVIOR (REQUIRED)
+
+**The landing page must render based on `current_user`, not frontend state.**
+
+- If the user is authenticated (`current_user.is_authenticated`), the landing page must NOT show marketing CTAs.
+- Logged-in landing page should show workflow entry points only:
+  - Personalized greeting (username)
+  - Primary CTA: Create Listing (red)
+  - Secondary CTAs: Inventory, Storage (steel)
+- Do not use `is_guest` or other derived variables. Use `current_user.is_authenticated` directly in templates.
+
+## NAVIGATION RESTRUCTURE (REQUIRED)
+
+**Bottom navigation must be reduced to: Home, Create, Account.**
+
+- Move Listings, Inventory, Storage, Invoicing, Alerts into Account menu.
+- Add a quick link under Account for "Website Credentials" (links to Settings/Credentials page).
+
+## CREATE PAGE BUTTON HIERARCHY (REQUIRED)
+
+**Button hierarchy must be strictly enforced:**
+
+1. **Post Now** = primary red (one per page)
+   - Must use `.btn-primary` or `.btn-success.btn-lg` with red gradient
+   - Only one primary action button per page
+
+2. **Save Draft** = utility (dark steel / charcoal)
+   - Must use `.btn-secondary`, `.btn-outline-primary`, or `.btn-utility`
+   - Charcoal gradient background with subtle edge highlight
+
+3. **View Drafts** = secondary / subtle
+   - Must use `.btn-secondary` or `.btn-sm` with steel/charcoal styling
+   - Lower visual weight than Save Draft
+
+## COLOR ENFORCEMENT
+
+**Buttons must follow the red → steel → utility hierarchy.**
+
+- No page may have multiple buttons competing at the same visual level.
+- Do not apply color changes to single buttons in isolation.
+- Apply changes consistently across all pages in one pass.
+
 ## ENFORCEMENT
 
 This file is the source of truth.

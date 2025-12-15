@@ -4,7 +4,7 @@
 
 {% block content %}
 
-{% if is_guest %}
+{% if not current_user.is_authenticated %}
 <!-- HERO SECTION - Full Width Gradient -->
 <div class="hero-section">
     <div class="container text-center py-5">

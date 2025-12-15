@@ -543,6 +543,7 @@ async function handlePhotoSelect(e) {
             const analyzeBtn = document.getElementById('analyzeBtn');
             analyzeBtn.disabled = false;
             analyzeBtn.title = 'Click to analyze photos with AI';
+            analyzeBtn.classList.add('ai-ready');
             console.log('[UPLOAD] Enabled analyze button');
             showAlert(`${data.count} photo(s) added! Total: ${uploadedPhotos.length}`, 'success');
         } else {
@@ -936,6 +937,7 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
             enhancedBtn.disabled = false;
             enhancedBtn.classList.remove('btn-outline-warning');
             enhancedBtn.classList.add('btn-hero-outline');
+            enhancedBtn.classList.add('ai-ready');
             enhancedBtn.title = 'Click for detailed card analysis';
 
             showAlert('Card detected and analyzed!', 'success');
@@ -1024,6 +1026,7 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
                     enhancedBtn.disabled = false;
                     enhancedBtn.classList.remove('btn-outline-warning');
                     enhancedBtn.classList.add('btn-hero-outline');
+                    enhancedBtn.classList.add('ai-ready');
                     enhancedBtn.title = 'Click for detailed collectible analysis';
                 }
                 // Don't enable enhanced analyzer if no collectible detected
@@ -1780,6 +1783,7 @@ async function loadDraftData() {
                 const analyzeBtn = document.getElementById('analyzeBtn');
                 analyzeBtn.disabled = false;
                 analyzeBtn.title = 'Click to analyze photos with AI';
+                analyzeBtn.classList.add('ai-ready');
             }
 
             showAlert('Draft loaded for editing', 'info');

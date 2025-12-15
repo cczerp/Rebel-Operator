@@ -77,30 +77,54 @@ def login():
         user_email = response.user.email
         username = user_email.split('@')[0]  # Generate username from email
 
-        # CRITICAL: Ensure user exists in PostgreSQL with supabase_uid for session persistence
-        # Flask-Login will store supabase_uid in session, user_loader must find it
-        print(f"[LOGIN] Checking if user exists in PostgreSQL (by supabase_uid)...", flush=True)
+        # Find or create user in local database
+        print(f"[LOGIN] Looking up user by supabase_uid: {supabase_uid}", flush=True)
         user_data = db.get_user_by_supabase_uid(supabase_uid)
 
         if not user_data:
-            print(f"[LOGIN] User not found in PostgreSQL, creating user record...", flush=True)
-            try:
-                # Create user in PostgreSQL with Supabase UID
-                # Note: We don't store password hash since Supabase handles auth
-                db.create_user_with_id(supabase_uid, username, user_email, password_hash=None)
-                print(f"[LOGIN] User created in PostgreSQL with supabase_uid", flush=True)
-                user_data = db.get_user_by_supabase_uid(supabase_uid)
-            except Exception as create_error:
-                print(f"[LOGIN ERROR] Failed to create user in PostgreSQL: {create_error}")
-                import traceback
-                traceback.print_exc()
-                flash("Failed to create user account. Please contact support.", "error")
-                return render_template('login.html')
+            print(f"⚠️  [LOGIN] User not found by supabase_uid, checking email: {user_email}", flush=True)
+            # Check if email already exists (user may have registered with password)
+            user_data = db.get_user_by_email(user_email)
 
-        # Ensure user_data exists - fail if not
+            if user_data:
+                print(f"✅ [LOGIN] Found existing user by email, linking to Supabase", flush=True)
+                # Link existing account to Supabase
+                try:
+                    db.link_supabase_account(user_data['id'], supabase_uid, 'supabase')
+                    print(f"✅ [LOGIN] Successfully linked account", flush=True)
+                    # Re-fetch user data to get updated supabase_uid
+                    user_data = db.get_user_by_supabase_uid(supabase_uid)
+                except Exception as e:
+                    print(f"❌ [LOGIN] Error linking Supabase account: {e}", flush=True)
+                    import traceback
+                    traceback.print_exc()
+            else:
+                print(f"⚠️  [LOGIN] No existing user found, creating new user", flush=True)
+                # Create new user
+                # Ensure username is unique
+                base_username = username
+                counter = 1
+                while db.get_user_by_username(username):
+                    username = f"{base_username}{counter}"
+                    counter += 1
+
+                print(f"🔍 [LOGIN] Creating user with username: {username}", flush=True)
+                try:
+                    user_id = db.create_user_with_id(supabase_uid, username, user_email, password_hash=None)
+                    print(f"✅ [LOGIN] Created user with ID: {user_id}", flush=True)
+                    user_data = db.get_user_by_supabase_uid(supabase_uid)
+                    print(f"✅ [LOGIN] Retrieved created user from database", flush=True)
+                except Exception as e:
+                    print(f"❌ [LOGIN] Error creating user: {e}", flush=True)
+                    import traceback
+                    traceback.print_exc()
+                    flash("Failed to create user account. Please try again.", "error")
+                    return render_template('login.html')
+        else:
+            print(f"✅ [LOGIN] Found existing user by supabase_uid: {user_data.get('username')}", flush=True)
+
         if not user_data:
-            print(f"[LOGIN ERROR] User data not available after creation attempt", flush=True)
-            flash("Failed to retrieve user account. Please contact support.", "error")
+            flash("Failed to retrieve user account. Please try again.", "error")
             return render_template('login.html')
 
         # Create User object for Flask-Login

@@ -5,6 +5,8 @@ All SQLite code removed - PostgreSQL only
 
 import os
 import time
+import contextlib
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -69,6 +71,62 @@ def _get_connection_pool():
     return _connection_pool
 
 
+# Thread-local storage for current cursor context
+_thread_local = threading.local()
+
+class _ManagedCursor:
+    """Cursor wrapper that manages connection lifecycle.
+    
+    This allows _get_cursor() to work without storing connections on self.
+    The connection is automatically returned to pool when cursor is closed.
+    """
+    def __init__(self, conn, cursor, pool, db_instance):
+        self.conn = conn
+        self.cursor = cursor
+        self.pool = pool
+        self.db_instance = db_instance
+        self._closed = False
+        # Register as current cursor in thread-local storage
+        _thread_local.current_cursor = self
+    
+    def __getattr__(self, name):
+        """Delegate all attribute access to underlying cursor"""
+        return getattr(self.cursor, name)
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        return False
+    
+    def close(self):
+        """Close cursor and return connection to pool"""
+        if self._closed:
+            return
+        self._closed = True
+        # Unregister from thread-local storage
+        if hasattr(_thread_local, 'current_cursor') and _thread_local.current_cursor is self:
+            _thread_local.current_cursor = None
+        try:
+            if self.cursor:
+                self.cursor.close()
+        except:
+            pass
+        # CRITICAL: Always return connection to pool
+        if self.conn is not None:
+            try:
+                if not self.conn.closed:
+                    self.pool.putconn(self.conn)
+                else:
+                    self.pool.putconn(self.conn, close=True)
+            except Exception:
+                try:
+                    self.conn.close()
+                except:
+                    pass
+
+
 class Database:
     """Main database handler for AI Cross-Poster - PostgreSQL only with connection pooling"""
 
@@ -81,40 +139,70 @@ class Database:
         self.cursor_factory = psycopg2.extras.RealDictCursor
         self.pool = _get_connection_pool()
 
-        # Connection will be grabbed lazily on first query
-        # This reduces overhead for Database instances that never query
-        self.conn = None
-
         # Mark OAuth migration as not checked yet
         self._oauth_columns_checked = False
+    
+    @property
+    def conn(self):
+        """Property to access connection from current managed cursor.
+        
+        This provides backward compatibility for code that uses self.conn.commit().
+        The connection is accessed from the thread-local current cursor, NOT stored on self.
+        """
+        current_cursor = getattr(_thread_local, 'current_cursor', None)
+        if current_cursor and current_cursor.db_instance is self:
+            return current_cursor.conn
+        # Return None if no current cursor (old code should handle this)
+        return None
 
     def close(self):
-        """Return connection to pool - should be called when done with Database instance"""
-        if self.conn is not None:
-            try:
-                if not self.conn.closed:
-                    # Rollback any pending transactions
-                    try:
-                        self.conn.rollback()
-                    except:
-                        pass
-                # Return connection to pool
-                self.pool.putconn(self.conn)
-            except Exception as e:
-                # If we can't return to pool, try to close it
-                try:
-                    self.conn.close()
-                except:
-                    pass
-            finally:
-                self.conn = None
+        """No-op - connections are no longer stored on self"""
+        pass
 
     def __del__(self):
-        """Cleanup - return connection to pool when Database instance is garbage collected"""
+        """Cleanup - no connections stored on self"""
+        pass
+
+    @contextlib.contextmanager
+    def _get_connection(self):
+        """Context manager for getting and returning connections from pool.
+        
+        CRITICAL: Every getconn() must have a matching putconn() - no exceptions.
+        Never store pooled connections on self.
+        """
+        conn = None
         try:
-            self.close()
-        except:
-            pass
+            conn = self.pool.getconn()
+            if conn.closed:
+                # Connection is closed, mark it as bad and get a new one
+                try:
+                    self.pool.putconn(conn, close=True)
+                except:
+                    pass
+                conn = self.pool.getconn()
+            yield conn
+        except Exception as e:
+            # On error, rollback before returning to pool
+            if conn and not conn.closed:
+                try:
+                    conn.rollback()
+                except:
+                    pass
+            raise
+        finally:
+            # CRITICAL: Always return connection to pool
+            if conn is not None:
+                try:
+                    if not conn.closed:
+                        self.pool.putconn(conn)
+                    else:
+                        self.pool.putconn(conn, close=True)
+                except Exception as e:
+                    # If we can't return to pool, try to close it
+                    try:
+                        conn.close()
+                    except:
+                        pass
 
     def _ensure_oauth_columns(self):
         """Ensure OAuth-related columns exist in users table (automatic migration)"""
@@ -123,47 +211,35 @@ class Database:
 
         while retry_count < max_retries:
             try:
-                cursor = self._get_cursor()
+                with self._get_connection() as conn:
+                    cursor = conn.cursor(cursor_factory=self.cursor_factory)
+                    try:
+                        # Add supabase_uid column if it doesn't exist
+                        cursor.execute("""
+                            ALTER TABLE users ADD COLUMN IF NOT EXISTS supabase_uid TEXT;
+                        """)
 
-                # Add supabase_uid column if it doesn't exist
-                cursor.execute("""
-                    ALTER TABLE users ADD COLUMN IF NOT EXISTS supabase_uid TEXT;
-                """)
+                        # Add oauth_provider column if it doesn't exist
+                        cursor.execute("""
+                            ALTER TABLE users ADD COLUMN IF NOT EXISTS oauth_provider TEXT;
+                        """)
 
-                # Add oauth_provider column if it doesn't exist
-                cursor.execute("""
-                    ALTER TABLE users ADD COLUMN IF NOT EXISTS oauth_provider TEXT;
-                """)
+                        # Make password_hash nullable for OAuth users
+                        cursor.execute("""
+                            ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+                        """)
 
-                # Make password_hash nullable for OAuth users
-                cursor.execute("""
-                    ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
-                """)
-
-                self.conn.commit()
-                if cursor:
-                    cursor.close()
-                self._oauth_columns_checked = True  # Mark as checked
-                print("✅ OAuth columns migration complete")
-                return  # Success, exit
+                        conn.commit()
+                        self._oauth_columns_checked = True  # Mark as checked
+                        print("✅ OAuth columns migration complete")
+                        return  # Success, exit
+                    finally:
+                        cursor.close()
 
             except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
-                # Connection errors - retry with reconnection
-                if cursor:
-                    try:
-                        cursor.close()
-                    except:
-                        pass
                 retry_count += 1
                 if retry_count == 1:  # Only log first attempt to reduce noise
                     print(f"⚠️  Migration connection error: {type(e).__name__}")
-
-                # Try to rollback if connection still exists
-                try:
-                    if self.conn and not self.conn.closed:
-                        self.conn.rollback()
-                except:
-                    pass
 
                 # Fast retry for startup
                 if retry_count < max_retries:
@@ -171,126 +247,94 @@ class Database:
                     if retry_count < 2:  # Only log first retry
                         print(f"⏳ Retrying migration in {wait_time:.1f}s... (attempt {retry_count}/{max_retries})")
                     time.sleep(wait_time)
-
-                    # Reconnect before retrying
-                    try:
-                        if self.conn and not self.conn.closed:
-                            # Return connection to pool and get a new one
-                            self.pool.putconn(self.conn, close=True)
-                            self.conn = None
-                    except:
-                        pass
-                    try:
-                        self._get_connection_from_pool()
-                        time.sleep(0.2)  # Let connection stabilize
-                    except Exception as conn_err:
-                        if retry_count >= max_retries - 1:  # Only log if this is final attempt
-                            print(f"⚠️  Migration reconnection failed: {conn_err}")
-                            print(f"⚠️  Skipping OAuth migration - will retry on next request")
-                        return
                 else:
                     # Don't block - migration can happen later on first actual query
                     # Mark as attempted so we don't spam retries
                     self._oauth_columns_checked = True
+                    print(f"⚠️  Skipping OAuth migration - will retry on next request")
                     return
 
             except Exception as e:
-                # Other errors - try to rollback and log
-                if cursor:
-                    try:
-                        cursor.close()
-                    except:
-                        pass
-                try:
-                    if self.conn and not self.conn.closed:
-                        self.conn.rollback()
-                except:
-                    pass
                 # Don't log non-critical migration errors during startup
                 # print(f"Note: OAuth columns migration: {e}")
                 return  # Non-critical, continue
 
+    # DEPRECATED: These methods are kept for backward compatibility
+    # They now use _get_connection() internally and do NOT store connections on self
+    
     def _get_connection_from_pool(self):
-        """Get a connection from pool and store it as self.conn
-
-        OPTIMIZED: Minimal validation to reduce overhead
-        Connection testing happens in _get_cursor only when actually needed
+        """DEPRECATED: Use _get_connection() context manager instead.
+        
+        This method is a no-op now. Connections are managed via _get_cursor() wrapper.
         """
-        try:
-            # If we already have a connection, return the old one to pool first
-            if self.conn is not None and not self.conn.closed:
-                try:
-                    self.pool.putconn(self.conn)
-                except:
-                    pass
-
-            # Get fresh connection from pool
-            self.conn = self.pool.getconn()
-
-            # ONLY check if connection object itself is closed
-            # Don't test with SELECT 1 - that's expensive and causes issues
-            if self.conn.closed:
-                # Connection is closed, mark it as bad and get a new one
-                print(f"⚠️  Connection was closed, getting fresh one", flush=True)
-                self.pool.putconn(self.conn, close=True)
-                self.conn = self.pool.getconn()
-
-        except Exception as e:
-            print(f"❌ Failed to get connection from pool: {e}", flush=True)
-            raise
+        import warnings
+        warnings.warn(
+            "_get_connection_from_pool() is deprecated. Use _get_connection() context manager instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        # No-op - connections are managed by _ManagedCursor now
+        pass
 
     def _commit_read(self):
-        """Commit or rollback after read operations to close transaction"""
-        try:
-            if self.conn and not self.conn.closed:
-                self.conn.rollback()  # Use rollback for reads (safer than commit)
-        except Exception as e:
-            # Ignore errors - connection might be in bad state
-            pass
+        """DEPRECATED: Connections should be managed via _get_connection() context manager"""
+        # No-op - connections are managed by _ManagedCursor now
+        pass
 
     def _get_cursor(self, retries=2, timeout=10):
-        """Get PostgreSQL cursor using instance connection (self.conn)
-
-        OPTIMIZED: No pre-testing with SELECT 1 - just create cursor and handle errors
-        This reduces overhead and prevents SSL connection issues from excessive queries
-
-        Returns just a cursor object. Uses self.conn for the connection.
-        Call self.conn.commit() or self.conn.rollback() when done.
+        """Get cursor with automatic connection management.
+        
+        Returns a _ManagedCursor that automatically returns the connection to pool
+        when closed. This method does NOT store connections on self.
+        
+        DEPRECATED: Prefer using _get_connection() context manager directly.
         """
+        import warnings
+        warnings.warn(
+            "_get_cursor() is deprecated. Use _get_connection() context manager instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         import socket
         for attempt in range(retries):
+            conn = None
             try:
-                # Ensure we have a valid connection in self.conn
-                if self.conn is None or self.conn.closed:
-                    self._get_connection_from_pool()
-
-                # Just create and return cursor - no pre-testing
-                # If connection is bad, the actual query will fail and we'll retry
-                cursor = self.conn.cursor(cursor_factory=self.cursor_factory)
-                return cursor
-
+                # Get connection from pool - NOT stored on self
+                conn = self.pool.getconn()
+                if conn.closed:
+                    try:
+                        self.pool.putconn(conn, close=True)
+                    except:
+                        pass
+                    conn = self.pool.getconn()
+                
+                # Create cursor
+                cursor = conn.cursor(cursor_factory=self.cursor_factory)
+                # Return managed cursor that will return connection to pool when closed
+                return _ManagedCursor(conn, cursor, self.pool, self)
+                
             except (psycopg2.OperationalError, psycopg2.InterfaceError, socket.timeout) as e:
                 print(f"⚠️  Database connection error (attempt {attempt + 1}/{retries}): {e}")
-                # Connection error - get a fresh connection
-                try:
-                    if self.conn:
-                        try:
-                            self.pool.putconn(self.conn, close=True)
-                        except:
-                            pass
-                    self._get_connection_from_pool()
-                except Exception as reconnect_error:
-                    if attempt >= retries - 1:
-                        print(f"❌ Failed to reconnect after {retries} attempts")
-                        raise
-
+                # Return bad connection to pool
+                if conn is not None:
+                    try:
+                        self.pool.putconn(conn, close=True)
+                    except:
+                        pass
+                    conn = None
+                
                 if attempt < retries - 1:
-                    # Short wait before retrying
                     time.sleep(0.5)
                 else:
                     print(f"❌ Failed after {retries} attempts")
                     raise
             except Exception as e:
+                # Return connection to pool on any error
+                if conn is not None:
+                    try:
+                        self.pool.putconn(conn, close=True)
+                    except:
+                        pass
                 print(f"❌ Unexpected error in _get_cursor: {e}")
                 import traceback
                 traceback.print_exc()
@@ -1824,107 +1868,84 @@ class Database:
     def create_user(self, username: str, email: str, password_hash: str):
         """Create a new user - returns UUID"""
         import uuid
-        cursor = None
-        try:
-            cursor = self._get_cursor()
-            user_uuid = uuid.uuid4()
-            cursor.execute("""
-                INSERT INTO users (id, username, email, password_hash)
-                VALUES (%s, %s, %s, %s)
-                RETURNING id
-            """, (str(user_uuid), username, email, password_hash))
-            result = cursor.fetchone()
-            self.conn.commit()  # Commit the transaction
-            return str(result['id'])  # Return UUID as string
-        except Exception as e:
-            if self.conn:
-                try:
-                    self.conn.rollback()
-                except:
-                    pass
-            raise
-        finally:
-            if cursor:
-                try:
-                    cursor.close()
-                except:
-                    pass
+        with self._get_connection() as conn:
+            cursor = conn.cursor(cursor_factory=self.cursor_factory)
+            try:
+                user_uuid = uuid.uuid4()
+                cursor.execute("""
+                    INSERT INTO users (id, username, email, password_hash)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING id
+                """, (str(user_uuid), username, email, password_hash))
+                result = cursor.fetchone()
+                conn.commit()  # Commit the transaction
+                return str(result['id'])  # Return UUID as string
+            finally:
+                cursor.close()
 
     def create_user_with_id(self, user_id: str, username: str, email: str, password_hash: str = None):
         """Create a new user with a specific Supabase UID (for Supabase OAuth users) - returns Supabase UID"""
-        cursor = None
-        try:
-            cursor = self._get_cursor()
-            # Check if user already exists by supabase_uid
-            cursor.execute("SELECT id FROM users WHERE supabase_uid = %s", (str(user_id),))
-            existing = cursor.fetchone()
+        with self._get_connection() as conn:
+            cursor = conn.cursor(cursor_factory=self.cursor_factory)
+            try:
+                # Check if user already exists by supabase_uid
+                cursor.execute("SELECT id FROM users WHERE supabase_uid = %s", (str(user_id),))
+                existing = cursor.fetchone()
 
-            if existing:
-                # Update existing user
-                cursor.execute("""
-                    UPDATE users
-                    SET username = %s,
-                        email = %s,
-                        updated_at = CURRENT_TIMESTAMP,
-                        last_login = CURRENT_TIMESTAMP
-                    WHERE supabase_uid = %s
-                    RETURNING supabase_uid
-                """, (username, email, str(user_id)))
-            else:
-                # Insert new user with supabase_uid
-                cursor.execute("""
-                    INSERT INTO users (supabase_uid, username, email, password_hash, oauth_provider)
-                    VALUES (%s, %s, %s, %s, 'supabase')
-                    RETURNING supabase_uid
-                """, (str(user_id), username, email, password_hash))
+                if existing:
+                    # Update existing user
+                    cursor.execute("""
+                        UPDATE users
+                        SET username = %s,
+                            email = %s,
+                            updated_at = CURRENT_TIMESTAMP,
+                            last_login = CURRENT_TIMESTAMP
+                        WHERE supabase_uid = %s
+                        RETURNING supabase_uid
+                    """, (username, email, str(user_id)))
+                else:
+                    # Insert new user with supabase_uid
+                    cursor.execute("""
+                        INSERT INTO users (supabase_uid, username, email, password_hash, oauth_provider)
+                        VALUES (%s, %s, %s, %s, 'supabase')
+                        RETURNING supabase_uid
+                    """, (str(user_id), username, email, password_hash))
 
-            result = cursor.fetchone()
-            self.conn.commit()  # Commit the transaction
-            return str(result['supabase_uid'])  # Return Supabase UID as string
-        except Exception as e:
-            if self.conn:
-                try:
-                    self.conn.rollback()
-                except:
-                    pass
-            raise
-        finally:
-            if cursor:
-                try:
-                    cursor.close()
-                except:
-                    pass
+                result = cursor.fetchone()
+                conn.commit()  # Commit the transaction
+                return str(result['supabase_uid'])  # Return Supabase UID as string
+            finally:
+                cursor.close()
 
     def get_user_by_supabase_uid(self, supabase_uid: str) -> Optional[Dict]:
         """Get user by Supabase UID - with retry for SSL errors"""
+        if not supabase_uid:
+            return None
+            
         max_retries = 2  # Quick retries for login flow
         for attempt in range(max_retries):
-            cursor = None
             try:
-                if not supabase_uid:
-                    return None
-
-                cursor = self._get_cursor()
-                cursor.execute("SELECT * FROM users WHERE supabase_uid = %s", (str(supabase_uid),))
-                row = cursor.fetchone()
-
-                if row:
-                    result = dict(row)
-                    # Ensure IDs are returned as strings
-                    result['id'] = str(result['id'])
-                    if result.get('supabase_uid'):
-                        result['supabase_uid'] = str(result['supabase_uid'])
-                    self._commit_read()  # Close transaction after read
-                    return result
-                self._commit_read()  # Close transaction even if no result
-                return None
+                with self._get_connection() as conn:
+                    cursor = conn.cursor(cursor_factory=self.cursor_factory)
+                    try:
+                        cursor.execute("SELECT * FROM users WHERE supabase_uid = %s", (str(supabase_uid),))
+                        row = cursor.fetchone()
+                        
+                        if row:
+                            result = dict(row)
+                            # Ensure IDs are returned as strings
+                            result['id'] = str(result['id'])
+                            if result.get('supabase_uid'):
+                                result['supabase_uid'] = str(result['supabase_uid'])
+                            conn.rollback()  # Close transaction after read
+                            return result
+                        conn.rollback()  # Close transaction even if no result
+                        return None
+                    finally:
+                        cursor.close()
             except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
                 if attempt < max_retries - 1:
                     print(f"⚠️  Database connection error in get_user_by_supabase_uid (attempt {attempt + 1}/{max_retries}), retrying...")
-                    try:
-                        self._get_connection_from_pool()  # Get fresh connection
-                    except:
-                        pass
                     time.sleep(0.1)  # Quick retry
                 else:
                     print(f"❌ Database error in get_user_by_supabase_uid after {max_retries} attempts: {e}")
@@ -1932,34 +1953,26 @@ class Database:
             except Exception as e:
                 print(f"Error in get_user_by_supabase_uid: {e}")
                 return None
-            finally:
-                if cursor:
-                    try:
-                        cursor.close()
-                    except:
-                        pass
         return None
 
     def get_user_by_username(self, username: str) -> Optional[Dict]:
         """Get user by username with retry logic"""
         max_retries = 3
         for attempt in range(max_retries):
-            cursor = None
             try:
-                cursor = self._get_cursor()
-                cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
-                row = cursor.fetchone()
-                result = dict(row) if row else None
-                self._commit_read()  # Close transaction after read
-                return result
+                with self._get_connection() as conn:
+                    cursor = conn.cursor(cursor_factory=self.cursor_factory)
+                    try:
+                        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+                        row = cursor.fetchone()
+                        result = dict(row) if row else None
+                        conn.rollback()  # Close transaction after read
+                        return result
+                    finally:
+                        cursor.close()
             except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
                 print(f"⚠️  Database connection error in get_user_by_username (attempt {attempt + 1}/{max_retries}): {e}")
-                # Force a fresh connection on retry
                 if attempt < max_retries - 1:
-                    try:
-                        self._get_connection_from_pool()
-                    except Exception as reconnect_error:
-                        print(f"Failed to reconnect: {reconnect_error}")
                     time.sleep(0.5 * (attempt + 1))
                 else:
                     print(f"❌ Failed to get user by username after {max_retries} attempts")
@@ -1969,33 +1982,26 @@ class Database:
                 import traceback
                 traceback.print_exc()
                 return None
-            finally:
-                if cursor:
-                    try:
-                        cursor.close()
-                    except:
-                        pass
+        return None
 
     def get_user_by_email(self, email: str) -> Optional[Dict]:
         """Get user by email with retry logic"""
         max_retries = 3
         for attempt in range(max_retries):
-            cursor = None
             try:
-                cursor = self._get_cursor()
-                cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
-                row = cursor.fetchone()
-                result = dict(row) if row else None
-                self._commit_read()  # Close transaction after read
-                return result
+                with self._get_connection() as conn:
+                    cursor = conn.cursor(cursor_factory=self.cursor_factory)
+                    try:
+                        cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+                        row = cursor.fetchone()
+                        result = dict(row) if row else None
+                        conn.rollback()  # Close transaction after read
+                        return result
+                    finally:
+                        cursor.close()
             except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
                 print(f"⚠️  Database connection error in get_user_by_email (attempt {attempt + 1}/{max_retries}): {e}")
-                # Force a fresh connection on retry
                 if attempt < max_retries - 1:
-                    try:
-                        self._get_connection_from_pool()
-                    except Exception as reconnect_error:
-                        print(f"Failed to reconnect: {reconnect_error}")
                     time.sleep(0.5 * (attempt + 1))
                 else:
                     print(f"❌ Failed to get user by email after {max_retries} attempts")
@@ -2005,44 +2011,37 @@ class Database:
                 import traceback
                 traceback.print_exc()
                 return None
-            finally:
-                if cursor:
-                    try:
-                        cursor.close()
-                    except:
-                        pass
+        return None
 
     def get_user_by_id(self, user_id) -> Optional[Dict]:
         """Get user by ID (UUID) with retry logic for connection issues"""
+        # Ensure user_id is a string UUID
+        user_id_str = str(user_id) if user_id else None
+        if not user_id_str:
+            return None
+
         max_retries = 3
         for attempt in range(max_retries):
-            cursor = None
             try:
-                # Ensure user_id is a string UUID
-                user_id_str = str(user_id) if user_id else None
-                if not user_id_str:
-                    return None
+                with self._get_connection() as conn:
+                    cursor = conn.cursor(cursor_factory=self.cursor_factory)
+                    try:
+                        cursor.execute("SELECT * FROM users WHERE id::text = %s", (user_id_str,))
+                        row = cursor.fetchone()
 
-                cursor = self._get_cursor()
-                cursor.execute("SELECT * FROM users WHERE id::text = %s", (user_id_str,))
-                row = cursor.fetchone()
-
-                if row:
-                    result = dict(row)
-                    # Ensure id is returned as string UUID
-                    result['id'] = str(result['id'])
-                    self._commit_read()  # Close transaction after read
-                    return result
-                self._commit_read()  # Close transaction even if no result
-                return None
+                        if row:
+                            result = dict(row)
+                            # Ensure id is returned as string UUID
+                            result['id'] = str(result['id'])
+                            conn.rollback()  # Close transaction after read
+                            return result
+                        conn.rollback()  # Close transaction even if no result
+                        return None
+                    finally:
+                        cursor.close()
             except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
                 print(f"⚠️  Database connection error in get_user_by_id (attempt {attempt + 1}/{max_retries}): {e}")
-                # Force a fresh connection on retry
                 if attempt < max_retries - 1:
-                    try:
-                        self._get_connection_from_pool()
-                    except Exception as reconnect_error:
-                        print(f"Failed to reconnect: {reconnect_error}")
                     time.sleep(0.5 * (attempt + 1))
                 else:
                     print(f"❌ Failed to get user after {max_retries} attempts")
@@ -2055,12 +2054,7 @@ class Database:
                 import traceback
                 traceback.print_exc()
                 return None
-            finally:
-                if cursor:
-                    try:
-                        cursor.close()
-                    except:
-                        pass
+        return None
 
     def update_last_login(self, user_id):
         """Update user's last login timestamp - user_id is UUID"""
@@ -2122,71 +2116,48 @@ class Database:
         import uuid
         max_retries = 3
         for attempt in range(max_retries):
-            cursor = None
             try:
-                cursor = self._get_cursor()
-                user_uuid = uuid.uuid4()
-                cursor.execute("""
-                    INSERT INTO users (id, username, email, supabase_uid, oauth_provider, email_verified)
-                    VALUES (%s, %s, %s, %s, %s, TRUE)
-                    RETURNING id
-                """, (str(user_uuid), username, email, supabase_uid, oauth_provider))
-                result = cursor.fetchone()
-                self.conn.commit()  # Commit the transaction
-                return str(result['id'])
+                with self._get_connection() as conn:
+                    cursor = conn.cursor(cursor_factory=self.cursor_factory)
+                    try:
+                        user_uuid = uuid.uuid4()
+                        cursor.execute("""
+                            INSERT INTO users (id, username, email, supabase_uid, oauth_provider, email_verified)
+                            VALUES (%s, %s, %s, %s, %s, TRUE)
+                            RETURNING id
+                        """, (str(user_uuid), username, email, supabase_uid, oauth_provider))
+                        result = cursor.fetchone()
+                        conn.commit()  # Commit the transaction
+                        return str(result['id'])
+                    finally:
+                        cursor.close()
             except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
                 if attempt < max_retries - 1:
                     print(f"⚠️  Database connection error in create_oauth_user (attempt {attempt + 1}/{max_retries}), retrying...")
                     time.sleep(0.5 * (attempt + 1))
-                    try:
-                        self._get_connection_from_pool()  # Force reconnect
-                    except:
-                        pass
                 else:
                     print(f"❌ Failed to create OAuth user after {max_retries} attempts: {e}")
                     raise
             except Exception as e:
                 print(f"Unexpected error in create_oauth_user: {e}")
-                if self.conn:
-                    try:
-                        self.conn.rollback()
-                    except:
-                        pass
                 raise
-            finally:
-                if cursor:
-                    try:
-                        cursor.close()
-                    except:
-                        pass
 
     def link_supabase_account(self, user_id: str, supabase_uid: str, oauth_provider: str):
         """Link an existing user account to Supabase OAuth - user_id is UUID"""
-        cursor = None
-        try:
-            cursor = self._get_cursor()
-            user_id_str = str(user_id)
-            cursor.execute("""
-                UPDATE users
-                SET supabase_uid = %s,
-                    oauth_provider = %s,
-                    email_verified = TRUE
-                WHERE id::text = %s
-            """, (supabase_uid, oauth_provider, user_id_str))
-            self.conn.commit()  # Commit the transaction
-        except Exception as e:
-            if self.conn:
-                try:
-                    self.conn.rollback()
-                except:
-                    pass
-            raise
-        finally:
-            if cursor:
-                try:
-                    cursor.close()
-                except:
-                    pass
+        with self._get_connection() as conn:
+            cursor = conn.cursor(cursor_factory=self.cursor_factory)
+            try:
+                user_id_str = str(user_id)
+                cursor.execute("""
+                    UPDATE users
+                    SET supabase_uid = %s,
+                        oauth_provider = %s,
+                        email_verified = TRUE
+                    WHERE id::text = %s
+                """, (supabase_uid, oauth_provider, user_id_str))
+                conn.commit()  # Commit the transaction
+            finally:
+                cursor.close()
 
     # ========================================================================
     # MARKETPLACE CREDENTIALS METHODS
@@ -2276,38 +2247,30 @@ class Database:
         user_agent: Optional[str] = None,
     ):
         """Log a user activity - user_id is UUID string"""
-        cursor = None
         try:
-            cursor = self._get_cursor()
-            user_id_uuid = None
-            if user_id:
-                user_id_uuid = str(user_id)
-            cursor.execute("""
-                INSERT INTO activity_logs (
-                    user_id, action, resource_type, resource_id, details,
-                    ip_address, user_agent
-                ) VALUES (%s::uuid, %s, %s, %s, %s, %s, %s)
-            """, (
-                user_id_uuid,
-                action, resource_type, resource_id,
-                json.dumps(details) if details else None,
-                ip_address, user_agent
-            ))
-            self.conn.commit()  # Commit write operation
+            with self._get_connection() as conn:
+                cursor = conn.cursor(cursor_factory=self.cursor_factory)
+                try:
+                    user_id_uuid = None
+                    if user_id:
+                        user_id_uuid = str(user_id)
+                    cursor.execute("""
+                        INSERT INTO activity_logs (
+                            user_id, action, resource_type, resource_id, details,
+                            ip_address, user_agent
+                        ) VALUES (%s::uuid, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        user_id_uuid,
+                        action, resource_type, resource_id,
+                        json.dumps(details) if details else None,
+                        ip_address, user_agent
+                    ))
+                    conn.commit()  # Commit write operation
+                finally:
+                    cursor.close()
         except Exception as e:
             # Silently skip activity logging if it fails
             print(f"⚠️  Activity logging skipped: {e}")
-            try:
-                if self.conn and not self.conn.closed:
-                    self.conn.rollback()
-            except:
-                pass
-        finally:
-            if cursor:
-                try:
-                    cursor.close()
-                except:
-                    pass
 
     def get_activity_logs(
         self,

@@ -104,10 +104,18 @@ def login():
             return render_template('login.html')
 
         # Create User object for Flask-Login
-        # IMPORTANT: User.id must be supabase_uid for session persistence
+        # IMPORTANT: User.id should be supabase_uid for consistency, fallback to regular id
         print(f"[LOGIN] Loading user from PostgreSQL", flush=True)
+        
+        # Prefer supabase_uid as User.id (for consistency), fallback to regular id
+        user_identifier = user_data.get('supabase_uid') or str(user_data.get('id', ''))
+        if not user_identifier:
+            print(f"[LOGIN ERROR] Invalid user data - no supabase_uid or id", flush=True)
+            flash("Invalid user data. Please contact support.", "error")
+            return render_template('login.html')
+        
         user = User(
-            user_data['supabase_uid'],  # Use Supabase UID as Flask-Login ID
+            user_identifier,  # Use supabase_uid if available, otherwise id
             user_data['username'],
             user_data['email'],
             user_data.get('is_admin', False),
@@ -115,7 +123,8 @@ def login():
             user_data.get('tier', 'FREE')
         )
 
-        print(f"[LOGIN] Logging in user: {user.email} (Supabase UID: {user.id})")
+        print(f"[LOGIN] Logging in user: {user.email} (User ID: {user.id})")
+        print(f"[LOGIN] User ID type: {type(user.id)}, value: {user.id}", flush=True)
         
         # CRITICAL: Mark session as permanent for Flask-Login persistence
         session.permanent = True
@@ -123,6 +132,8 @@ def login():
         login_user(user, remember=True)
         print(f"[LOGIN] ✅ Login successful for {user.email}", flush=True)
         print(f"[LOGIN] Session marked as permanent, cookies will persist", flush=True)
+        print(f"[LOGIN] User ID stored in session: {user.id}", flush=True)
+        print(f"[LOGIN] Session keys after login: {list(session.keys())}", flush=True)
 
         return redirect(url_for('index'))
 
@@ -323,8 +334,13 @@ def api_login():
             return jsonify({"error": "Failed to retrieve user account"}), 500
 
         # Create User object for Flask-Login
+        # Prefer supabase_uid as User.id (for consistency), fallback to regular id
+        user_identifier = user_data.get('supabase_uid') or str(user_data.get('id', ''))
+        if not user_identifier:
+            return jsonify({"error": "Invalid user data"}), 500
+        
         user = User(
-            user_data['supabase_uid'],  # Use Supabase UID as Flask-Login ID
+            user_identifier,  # Use supabase_uid if available, otherwise id
             user_data['username'],
             user_data['email'],
             user_data.get('is_admin', False),
@@ -334,11 +350,13 @@ def api_login():
 
         # CRITICAL: Mark session as permanent for Flask-Login persistence
         session.permanent = True
+        print(f"[API_LOGIN] Logging in user: {user.email} (User ID: {user.id})", flush=True)
         login_user(user, remember=True)
+        print(f"[API_LOGIN] ✅ Login successful, User ID stored in session: {user.id}", flush=True)
 
         db.log_activity(
             action="api_login",
-            user_id=user_data['supabase_uid'],
+            user_id=user_identifier,  # Use the same identifier used for User.id
             resource_type="user",
             resource_id=None,
             ip_address=request.remote_addr,
@@ -884,6 +902,7 @@ def auth_callback():
 
             # Log user in
             print(f"🔐 [CALLBACK] Calling login_user()...", flush=True)
+            print(f"🔐 [CALLBACK] User ID to store: {user_identifier} (type: {type(user_identifier)})", flush=True)
             
             # CRITICAL: Mark session as permanent for Flask-Login persistence
             session.permanent = True
@@ -891,13 +910,15 @@ def auth_callback():
             login_user(user, remember=True)
             print(f"✅ [CALLBACK] login_user() completed successfully", flush=True)
             print(f"✅ [CALLBACK] Session marked as permanent, cookies will persist", flush=True)
+            print(f"✅ [CALLBACK] User ID stored in session: {user.id}", flush=True)
+            print(f"✅ [CALLBACK] Session keys after login: {list(session.keys())}", flush=True)
 
             # Log activity (with error handling)
             try:
                 print(f"📝 [CALLBACK] Logging activity...", flush=True)
                 db.log_activity(
                     action="google_login",
-                    user_id=user_id_str,
+                    user_id=user_identifier,  # Use the same identifier used for User.id
                     resource_type="user",
                     resource_id=None,
                     ip_address=request.remote_addr,

@@ -249,16 +249,32 @@ class User(UserMixin):
     @staticmethod
     def get(user_id):
         """Get user by Supabase UID from PostgreSQL"""
+        if not user_id:
+            return None
+            
+        user_id_str = str(user_id)
+        
         # Try to get by supabase_uid first (new users)
-        user_data = get_db_instance().get_user_by_supabase_uid(user_id)
+        user_data = get_db_instance().get_user_by_supabase_uid(user_id_str)
 
         # Fall back to get_user_by_id for legacy users (old users with just id)
         if not user_data:
-            user_data = get_db_instance().get_user_by_id(user_id)
+            user_data = get_db_instance().get_user_by_id(user_id_str)
 
         if user_data:
             # Use supabase_uid as the User.id if available, otherwise use id
-            user_identifier = user_data.get('supabase_uid') or user_data['id']
+            # Ensure we convert to string and handle None/empty values
+            supabase_uid = user_data.get('supabase_uid')
+            regular_id = user_data.get('id')
+            
+            if supabase_uid:
+                user_identifier = str(supabase_uid)
+            elif regular_id:
+                user_identifier = str(regular_id)
+            else:
+                print(f"[User.get] ERROR: User data has neither supabase_uid nor id for user_id: {user_id_str}")
+                return None
+                
             return User(
                 user_identifier,
                 user_data['username'],
@@ -290,25 +306,42 @@ def load_user(user_id):
             print(f"[USER_LOADER] No user_id provided", flush=True)
             return None
 
-        print(f"[USER_LOADER] Loading user with Supabase UID: {user_id_str}", flush=True)
+        print(f"[USER_LOADER] Loading user with ID: {user_id_str}", flush=True)
         print(f"[USER_LOADER] Session keys: {list(flask_session.keys())}", flush=True)
         print(f"[USER_LOADER] Session permanent: {flask_session.permanent}", flush=True)
+        
+        # Get database instance with error handling
+        try:
+            db_instance = get_db_instance()
+            if not db_instance:
+                print(f"[USER_LOADER ERROR] Database instance not available", flush=True)
+                return None
+        except Exception as db_error:
+            print(f"[USER_LOADER ERROR] Failed to get database instance: {db_error}", flush=True)
+            import traceback
+            traceback.print_exc()
+            return None
         
         user = User.get(user_id_str)
 
         if user:
-            print(f"[USER_LOADER] ✅ Successfully loaded user: {user.username}", flush=True)
+            print(f"[USER_LOADER] ✅ Successfully loaded user: {user.username} (ID: {user.id})", flush=True)
         else:
             print(f"[USER_LOADER] ❌ User not found for ID: {user_id_str}", flush=True)
+            print(f"[USER_LOADER] This may indicate a session mismatch - user_id in session doesn't match database", flush=True)
 
         return user
     except (ValueError, TypeError) as e:
-        print(f"[USER_LOADER ERROR] Invalid user_id: {e}")
+        print(f"[USER_LOADER ERROR] Invalid user_id: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
         return None
     except Exception as e:
         # Database errors (SSL connection failures, etc.) should not crash the app
         # Just log and return None, which tells Flask-Login the user is not authenticated
-        print(f"[USER_LOADER ERROR] Error loading user (returning None): {e}")
+        print(f"[USER_LOADER ERROR] Error loading user (returning None): {e}", flush=True)
+        import traceback
+        traceback.print_exc()
         return None
 
 # ============================================================================

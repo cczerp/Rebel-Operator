@@ -150,12 +150,8 @@ def login():
         print(f"[LOGIN] Logging in user: {user.email} (User ID: {user.id})")
         print(f"[LOGIN] User ID type: {type(user.id)}, value: {user.id}", flush=True)
         
-        # CRITICAL: Mark session as permanent for Flask-Login persistence
-        session.permanent = True
-        
-        login_user(user, remember=True)
+        login_user(user, remember=False)
         print(f"[LOGIN] ✅ Login successful for {user.email}", flush=True)
-        print(f"[LOGIN] Session marked as permanent, cookies will persist", flush=True)
         print(f"[LOGIN] User ID stored in session: {user.id}", flush=True)
         print(f"[LOGIN] Session keys after login: {list(session.keys())}", flush=True)
 
@@ -265,6 +261,7 @@ def logout():
     except RuntimeError:
         # If db not initialized, just log out without logging activity
         logout_user()
+        session.clear()
         return redirect(url_for('auth.login'))
 
     db.log_activity(
@@ -277,6 +274,7 @@ def logout():
     )
 
     logout_user()
+    session.clear()
     return redirect(url_for('auth.login'))
 
 
@@ -372,10 +370,8 @@ def api_login():
             user_data.get('tier', 'FREE')
         )
 
-        # CRITICAL: Mark session as permanent for Flask-Login persistence
-        session.permanent = True
         print(f"[API_LOGIN] Logging in user: {user.email} (User ID: {user.id})", flush=True)
-        login_user(user, remember=True)
+        login_user(user, remember=False)
         print(f"[API_LOGIN] ✅ Login successful, User ID stored in session: {user.id}", flush=True)
 
         db.log_activity(
@@ -928,12 +924,8 @@ def auth_callback():
             print(f"🔐 [CALLBACK] Calling login_user()...", flush=True)
             print(f"🔐 [CALLBACK] User ID to store: {user_identifier} (type: {type(user_identifier)})", flush=True)
             
-            # CRITICAL: Mark session as permanent for Flask-Login persistence
-            session.permanent = True
-            
-            login_user(user, remember=True)
+            login_user(user, remember=False)
             print(f"✅ [CALLBACK] login_user() completed successfully", flush=True)
-            print(f"✅ [CALLBACK] Session marked as permanent, cookies will persist", flush=True)
             print(f"✅ [CALLBACK] User ID stored in session: {user.id}", flush=True)
             print(f"✅ [CALLBACK] Session keys after login: {list(session.keys())}", flush=True)
 

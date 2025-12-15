@@ -117,10 +117,11 @@ except Exception as e:
 # Configure Flask-Session to use Redis
 app.config['SESSION_TYPE'] = 'redis'
 app.config['SESSION_REDIS'] = session_redis
-app.config['SESSION_PERMANENT'] = True
+app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True  # Sign session cookies for security
 app.config['SESSION_KEY_PREFIX'] = 'resell_rebel:session:'  # Namespace for session keys
-app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 hours
+from datetime import timedelta
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1)  # Optional: 1 hour session lifetime
 
 # Cookie settings for OAuth compatibility
 # CRITICAL FIX: Use 'Lax' for production since we're on the same domain (no cross-site needed)

@@ -21,23 +21,23 @@
         <div class="card-body">
             <div class="row mb-3">
                 <div class="col-6">
-                    <button type="button" class="btn btn-outline-primary w-100" onclick="document.getElementById('cameraInput').click()">
+                    <button type="button" class="btn btn-secondary w-100" onclick="document.getElementById('cameraInput').click()">
                         <i class="fas fa-camera"></i><br>Take Photo
                     </button>
                     <input type="file" class="d-none" id="cameraInput" name="photos" accept="image/*" capture="environment" onchange="handlePhotoSelect(event)">
                 </div>
                 <div class="col-6">
-                    <button type="button" class="btn btn-outline-secondary w-100" onclick="document.getElementById('photoInput').click()">
+                    <button type="button" class="btn btn-secondary w-100" onclick="document.getElementById('photoInput').click()">
                         <i class="fas fa-upload"></i><br>Upload Files
                     </button>
                     <input type="file" class="d-none" id="photoInput" name="photos" multiple accept="image/*" onchange="handlePhotoSelect(event)">
                 </div>
             </div>
             <div id="photoPreview" class="mt-3 d-flex flex-wrap"></div>
-            <button type="button" class="btn btn-info mt-2" id="analyzeBtn" disabled title="Upload photos first to enable AI analysis">
+            <button type="button" class="btn btn-hero-outline mt-2" id="analyzeBtn" disabled title="Upload photos first to enable AI analysis">
                 <i class="fas fa-magic"></i> Analyze with AI
             </button>
-            <button type="button" class="btn btn-warning mt-2 ms-2" id="enhancedAnalyzerBtn" disabled title="Run AI analysis first to enable this feature">
+            <button type="button" class="btn btn-hero-outline mt-2 ms-2" id="enhancedAnalyzerBtn" disabled title="Run AI analysis first to enable this feature">
                 <i class="fas fa-gem"></i> Enhanced Analyzer
             </button>
         </div>
@@ -148,7 +148,7 @@
                     <label class="form-label">SKU / Custom ID</label>
                     <div class="input-group">
                         <input type="text" class="form-control" id="sku" name="sku" placeholder="Optional">
-                        <button class="btn btn-outline-secondary" type="button" onclick="generateSKU()" title="Generate random SKU">
+                        <button class="btn btn-secondary" type="button" onclick="generateSKU()" title="Generate random SKU">
                             <i class="fas fa-random"></i> Generate
                         </button>
                     </div>
@@ -418,6 +418,9 @@
         <button type="button" class="btn btn-outline-primary btn-lg" id="saveDraftBtn">
             <i class="fas fa-save"></i> Save as Draft
         </button>
+        <a href="{{ url_for('drafts') }}" class="btn btn-secondary btn-sm mt-2">
+            <i class="fas fa-folder-open"></i> View Drafts
+        </a>
         <small class="text-muted text-center mt-2">
             <strong>Post Now</strong> makes it active for selling. <strong>Save as Draft</strong> saves it for later.
         </small>
@@ -430,7 +433,7 @@
     <div class="photo-editor-container">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h4><i class="fas fa-magic"></i> Edit Photo (FREE!)</h4>
-            <button class="btn btn-outline-danger" onclick="closePhotoEditor()">
+            <button class="btn btn-secondary" onclick="closePhotoEditor()">
                 <i class="fas fa-times"></i> Close
             </button>
         </div>
@@ -443,16 +446,16 @@
             <button class="btn btn-primary" onclick="enableCrop()">
                 <i class="fas fa-crop"></i> Crop
             </button>
-            <button class="btn btn-success" id="cropBtn" onclick="applyCrop()" style="display:none;">
+            <button class="btn btn-primary" id="cropBtn" onclick="applyCrop()" style="display:none;">
                 <i class="fas fa-check"></i> Apply Crop
             </button>
-            <button class="btn btn-danger" id="cancelCropBtn" onclick="cancelCrop()" style="display:none;">
+            <button class="btn btn-secondary" id="cancelCropBtn" onclick="cancelCrop()" style="display:none;">
                 <i class="fas fa-times"></i> Cancel Crop
             </button>
-            <button class="btn btn-warning" onclick="removeBackground()">
+            <button class="btn btn-hero-outline" onclick="removeBackground()">
                 <i class="fas fa-magic"></i> Remove Background
             </button>
-            <button class="btn btn-info" onclick="enlargePhoto()">
+            <button class="btn btn-hero-outline" onclick="enlargePhoto()">
                 <i class="fas fa-search-plus"></i> Enlarge (2x)
             </button>
             <button class="btn btn-secondary" onclick="resetPhoto()">
@@ -933,7 +936,7 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
             const enhancedBtn = document.getElementById('enhancedAnalyzerBtn');
             enhancedBtn.disabled = false;
             enhancedBtn.classList.remove('btn-outline-warning');
-            enhancedBtn.classList.add('btn-warning');
+            enhancedBtn.classList.add('btn-hero-outline');
             enhancedBtn.title = 'Click for detailed card analysis';
 
             showAlert('Card detected and analyzed!', 'success');
@@ -1021,7 +1024,7 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
                     const enhancedBtn = document.getElementById('enhancedAnalyzerBtn');
                     enhancedBtn.disabled = false;
                     enhancedBtn.classList.remove('btn-outline-warning');
-                    enhancedBtn.classList.add('btn-warning');
+                    enhancedBtn.classList.add('btn-hero-outline');
                     enhancedBtn.title = 'Click for detailed collectible analysis';
                 }
                 // Don't enable enhanced analyzer if no collectible detected
@@ -1412,10 +1415,10 @@ function showCardDetectionBanner(cardData) {
                 </div>
                 <div class="col-md-5">
                     <div class="d-grid gap-2">
-                        <button type="button" class="btn btn-success btn-lg pulse-glow" onclick="storeCardOnly()">
+                        <button type="button" class="btn btn-primary btn-lg pulse-glow" onclick="storeCardOnly()">
                             <i class="fas fa-box"></i> Store Only
                         </button>
-                        <button type="button" class="btn btn-outline-success" onclick="storeAndList()">
+                        <button type="button" class="btn btn-hero-outline" onclick="storeAndList()">
                             <i class="fas fa-plus-circle"></i> Store + Create Listing
                         </button>
                         <small class="text-muted text-center">
@@ -1567,7 +1570,7 @@ async function storeAndList() {
                             </h5>
                             <small class="text-muted">Continue filling out the form below to create a listing.</small>
                         </div>
-                        <a href="/cards" class="btn btn-info">
+                        <a href="/cards" class="btn btn-hero-outline">
                             <i class="fas fa-box-open"></i> View Collection
                         </a>
                     </div>

@@ -6,10 +6,10 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0"><i class="fas fa-boxes"></i> Inventory Management</h2>
     <div class="btn-group">
-        <button class="btn btn-outline-primary" onclick="exportInventory()">
+        <button class="btn btn-secondary" onclick="exportInventory()">
             <i class="fas fa-download"></i> Export
         </button>
-        <button class="btn btn-outline-success" onclick="refreshInventory()">
+        <button class="btn btn-secondary" onclick="refreshInventory()">
             <i class="fas fa-sync"></i> Refresh
         </button>
     </div>
@@ -95,13 +95,13 @@
             <div class="col-md-6">
                 <label class="form-label">&nbsp;</label>
                 <div>
-                    <button class="btn btn-success me-2" onclick="applyBulkUpdate()">
+                    <button class="btn btn-primary me-2" onclick="applyBulkUpdate()">
                         <i class="fas fa-check"></i> Apply Changes
                     </button>
-                    <button class="btn btn-danger me-2" onclick="bulkDelete()">
+                    <button class="btn btn-primary me-2" onclick="bulkDelete()">
                         <i class="fas fa-trash"></i> Delete Selected
                     </button>
-                    <button class="btn btn-outline-secondary" onclick="clearSelection()">
+                    <button class="btn btn-secondary" onclick="clearSelection()">
                         <i class="fas fa-times"></i> Clear Selection
                     </button>
                 </div>
@@ -116,10 +116,10 @@
         <div class="d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Inventory Items</h5>
             <div class="btn-group btn-group-sm">
-                <button class="btn btn-outline-secondary" onclick="changeView('table')" id="tableViewBtn">
+                <button class="btn btn-secondary" onclick="changeView('table')" id="tableViewBtn">
                     <i class="fas fa-table"></i>
                 </button>
-                <button class="btn btn-outline-secondary" onclick="changeView('card')" id="cardViewBtn">
+                <button class="btn btn-secondary" onclick="changeView('card')" id="cardViewBtn">
                     <i class="fas fa-th"></i>
                 </button>
             </div>
@@ -352,11 +352,11 @@ function renderTable(listings) {
                 <td><small>${created}</small></td>
                 <td>
                     <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-primary btn-sm" onclick="viewItem(${item.id})">
+                        <button class="btn btn-secondary btn-sm" onclick="viewItem(${item.id})">
                             <i class="fas fa-eye"></i>
                         </button>
-                        <button class="btn btn-outline-secondary btn-sm" onclick="editItem(${item.id})">
-                            <i class="fas fa-edit"></i>
+                        <button class="btn btn-primary btn-sm" onclick="editItem(${item.id})">
+                            <i class="fas fa-edit"></i> Edit
                         </button>
                     </div>
                 </td>

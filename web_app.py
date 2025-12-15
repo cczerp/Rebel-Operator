@@ -449,9 +449,8 @@ def debug_config():
 
 @app.route('/')
 def index():
-    """Landing page / dashboard"""
-    is_guest = not current_user.is_authenticated
-    return render_template('index.html', is_guest=is_guest)
+    """Landing page / dashboard - renders based on current_user"""
+    return render_template('index.html')
 
 @app.route('/data/<path:filename>')
 def serve_data_files(filename):
@@ -465,8 +464,7 @@ def create_listing():
     """Create new listing page - accessible to all, but only logged-in users can save"""
     from flask import request
     draft_id = request.args.get('draft_id', type=int)
-    is_guest = not current_user.is_authenticated
-    return render_template('create.html', draft_id=draft_id, is_guest=is_guest)
+    return render_template('create.html', draft_id=draft_id)
 
 @app.route('/drafts')
 def drafts():

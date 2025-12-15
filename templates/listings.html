@@ -161,7 +161,7 @@
             </small>
 
             {% if listing.status == 'active' %}
-            <button class="btn btn-sm btn-danger w-100" onclick="markSold({{ listing.id }})">
+            <button class="btn btn-sm btn-secondary w-100" onclick="markSold({{ listing.id }})">
                 <i class="fas fa-check-circle"></i> Mark as Sold
             </button>
             {% endif %}
@@ -263,32 +263,32 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6 mb-2">
-                            <button class="btn btn-primary w-100" onclick="exportToCSV('poshmark')">
+                            <button class="btn btn-utility w-100" onclick="exportToCSV('poshmark')">
                                 <i class="fas fa-tshirt"></i> Export to Poshmark CSV
                             </button>
                         </div>
                         <div class="col-md-6 mb-2">
-                            <button class="btn btn-primary w-100" onclick="exportToCSV('mercari')">
+                            <button class="btn btn-utility w-100" onclick="exportToCSV('mercari')">
                                 <i class="fas fa-shopping-bag"></i> Export to Mercari CSV
                             </button>
                         </div>
                         <div class="col-md-6 mb-2">
-                            <button class="btn w-100" onclick="exportToCSV('ebay')" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white; border: none;">
+                            <button class="btn btn-utility w-100" onclick="exportToCSV('ebay')">
                                 <i class="fab fa-ebay"></i> Export to eBay CSV
                             </button>
                         </div>
                         <div class="col-md-6 mb-2">
-                            <button class="btn btn-dark w-100" onclick="exportToCSV('grailed')">
+                            <button class="btn btn-utility w-100" onclick="exportToCSV('grailed')">
                                 <i class="fas fa-tshirt"></i> Export to Grailed CSV
                             </button>
                         </div>
                         <div class="col-md-6 mb-2">
-                            <button class="btn btn-danger w-100" onclick="exportToCSV('depop')">
+                            <button class="btn btn-utility w-100" onclick="exportToCSV('depop')">
                                 <i class="fas fa-store"></i> Export to Depop CSV
                             </button>
                         </div>
                         <div class="col-md-6 mb-2">
-                            <button class="btn w-100" onclick="exportToCSV('generic')" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white; border: none;">
+                            <button class="btn btn-utility w-100" onclick="exportToCSV('generic')">
                                 <i class="fas fa-file-csv"></i> Export to Generic CSV
                             </button>
                         </div>
@@ -507,7 +507,7 @@ function showAPIResults(apiResults) {
             html += `</div>`;
         });
 
-        html += `<a href="/settings" class="btn btn-primary">`;
+        html += `<a href="/settings" class="btn btn-utility">`;
         html += `<i class="fas fa-cog"></i> Configure ${platformName} API`;
         html += `</a>`;
         html += `</div></div>`;

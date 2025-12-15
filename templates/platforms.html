@@ -161,7 +161,7 @@
                         <button class="btn btn-secondary" onclick="window.location.href='/api/platform/ebay/test'">Test</button>
                         <button class="btn btn-danger" onclick="disconnectPlatform('ebay')">Disconnect</button>
                     {% else %}
-                        <button class="btn btn-primary" onclick="connectOAuth('ebay')">Connect</button>
+                        <button class="btn btn-secondary" onclick="connectOAuth('ebay')">Connect</button>
                     {% endif %}
                 </div>
             </div>
@@ -182,7 +182,7 @@
                         <button class="btn btn-secondary" onclick="window.location.href='/api/platform/etsy/test'">Test</button>
                         <button class="btn btn-danger" onclick="disconnectPlatform('etsy')">Disconnect</button>
                     {% else %}
-                        <button class="btn btn-primary" onclick="connectOAuth('etsy')">Connect</button>
+                        <button class="btn btn-secondary" onclick="connectOAuth('etsy')">Connect</button>
                     {% endif %}
                 </div>
             </div>
@@ -203,7 +203,7 @@
                         <button class="btn btn-secondary" onclick="window.location.href='/api/platform/shopify/test'">Test</button>
                         <button class="btn btn-danger" onclick="disconnectPlatform('shopify')">Disconnect</button>
                     {% else %}
-                        <button class="btn btn-primary" onclick="toggleForm('shopify-form')">Connect</button>
+                        <button class="btn btn-secondary" onclick="toggleForm('shopify-form')">Connect</button>
                     {% endif %}
                 </div>
                 <div id="shopify-form" class="connection-form">
@@ -220,7 +220,7 @@
                             <label>API Password:</label>
                             <input type="password" name="api_password" placeholder="Your Shopify API password" required>
                         </div>
-                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="submit" class="btn btn-secondary">Save</button>
                     </form>
                 </div>
             </div>
@@ -241,7 +241,7 @@
                         <button class="btn btn-secondary" onclick="window.location.href='/api/platform/mercari/test'">Test</button>
                         <button class="btn btn-danger" onclick="disconnectPlatform('mercari')">Disconnect</button>
                     {% else %}
-                        <button class="btn btn-primary" onclick="toggleForm('mercari-form')">Connect</button>
+                        <button class="btn btn-secondary" onclick="toggleForm('mercari-form')">Connect</button>
                     {% endif %}
                 </div>
                 <div id="mercari-form" class="connection-form">
@@ -250,7 +250,7 @@
                             <label>API Key:</label>
                             <input type="text" name="api_key" placeholder="Your Mercari API key" required>
                         </div>
-                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="submit" class="btn btn-secondary">Save</button>
                     </form>
                 </div>
             </div>
@@ -271,7 +271,7 @@
                         <button class="btn btn-secondary" onclick="window.location.href='/api/feeds/facebook?format=csv'">Download Feed</button>
                         <button class="btn btn-danger" onclick="disconnectPlatform('facebook')">Disconnect</button>
                     {% else %}
-                        <button class="btn btn-primary" onclick="connectOAuth('facebook')">Connect</button>
+                        <button class="btn btn-secondary" onclick="connectOAuth('facebook')">Connect</button>
                     {% endif %}
                 </div>
             </div>
@@ -292,7 +292,7 @@
                         <button class="btn btn-secondary" onclick="window.location.href='/api/feeds/google?format=xml'">Download Feed</button>
                         <button class="btn btn-danger" onclick="disconnectPlatform('google')">Disconnect</button>
                     {% else %}
-                        <button class="btn btn-primary" onclick="connectOAuth('google')">Connect</button>
+                        <button class="btn btn-secondary" onclick="connectOAuth('google')">Connect</button>
                     {% endif %}
                 </div>
             </div>
@@ -313,7 +313,7 @@
                         <button class="btn btn-secondary" onclick="window.location.href='/api/feeds/pinterest?format=csv'">Download Feed</button>
                         <button class="btn btn-danger" onclick="disconnectPlatform('pinterest')">Disconnect</button>
                     {% else %}
-                        <button class="btn btn-primary" onclick="connectOAuth('pinterest')">Connect</button>
+                        <button class="btn btn-secondary" onclick="connectOAuth('pinterest')">Connect</button>
                     {% endif %}
                 </div>
             </div>
@@ -328,7 +328,7 @@
                     CSV bulk upload (manual upload to Poshmark)
                 </div>
                 <div class="platform-actions">
-                    <button class="btn btn-primary" onclick="window.location.href='/api/export-csv?platform=poshmark'">Download CSV</button>
+                    <button class="btn btn-secondary" onclick="window.location.href='/api/export-csv?platform=poshmark'">Download CSV</button>
                 </div>
             </div>
         </div>

@@ -215,14 +215,236 @@
             }
         }
 
+        /* Primary AI Button (Red) - Material depth with elevation */
         .btn-primary {
-            background: var(--primary);
-            border-color: var(--primary);
+            background: linear-gradient(180deg, #DC2626 0%, #991B1B 100%);
+            border: none;
+            color: white;
+            font-weight: 600;
+            position: relative;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            /* Base elevation: layered shadows for depth */
+            box-shadow: 
+                0 2px 4px rgba(0, 0, 0, 0.15),
+                0 4px 8px rgba(220, 38, 38, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        /* Edge highlight for material feel */
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.25) 20%, 
+                rgba(255, 255, 255, 0.3) 50%, 
+                rgba(255, 255, 255, 0.25) 80%, 
+                transparent
+            );
+            opacity: 1;
+            transition: opacity 0.25s ease;
         }
 
         .btn-primary:hover {
-            background: #45a049;
-            border-color: #45a049;
+            /* Elevated state: brighter base, higher shadow */
+            background: linear-gradient(180deg, #EF4444 0%, #DC2626 100%);
+            transform: translateY(-2px);
+            /* Increased elevation: deeper shadows */
+            box-shadow: 
+                0 4px 8px rgba(0, 0, 0, 0.2),
+                0 8px 16px rgba(220, 38, 38, 0.35),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-primary:hover::before {
+            opacity: 1;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.35) 20%, 
+                rgba(255, 255, 255, 0.4) 50%, 
+                rgba(255, 255, 255, 0.35) 80%, 
+                transparent
+            );
+        }
+
+        .btn-primary:active {
+            /* Pressed state: compressed, darker material */
+            background: linear-gradient(180deg, #991B1B 0%, #7F1D1D 100%);
+            transform: translateY(0px) scale(0.98);
+            /* Reduced elevation: flatter shadow */
+            box-shadow: 
+                0 1px 2px rgba(0, 0, 0, 0.2),
+                0 2px 4px rgba(220, 38, 38, 0.25),
+                inset 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-primary:active::before {
+            opacity: 0.5;
+        }
+
+        /* Primary action buttons (Post Now, etc.) - same material depth as .btn-primary */
+        .btn-success.btn-lg,
+        .btn-success#postNowBtn {
+            background: linear-gradient(180deg, #DC2626 0%, #991B1B 100%);
+            border: none;
+            color: white;
+            font-weight: 600;
+            position: relative;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            /* Base elevation: layered shadows for depth */
+            box-shadow: 
+                0 2px 4px rgba(0, 0, 0, 0.15),
+                0 4px 8px rgba(220, 38, 38, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-success.btn-lg::before,
+        .btn-success#postNowBtn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.25) 20%, 
+                rgba(255, 255, 255, 0.3) 50%, 
+                rgba(255, 255, 255, 0.25) 80%, 
+                transparent
+            );
+            transition: opacity 0.25s ease;
+        }
+
+        .btn-success.btn-lg:hover,
+        .btn-success#postNowBtn:hover {
+            background: linear-gradient(180deg, #EF4444 0%, #DC2626 100%);
+            transform: translateY(-2px);
+            box-shadow: 
+                0 4px 8px rgba(0, 0, 0, 0.2),
+                0 8px 16px rgba(220, 38, 38, 0.35),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-success.btn-lg:hover::before,
+        .btn-success#postNowBtn:hover::before {
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.35) 20%, 
+                rgba(255, 255, 255, 0.4) 50%, 
+                rgba(255, 255, 255, 0.35) 80%, 
+                transparent
+            );
+        }
+
+        .btn-success.btn-lg:active,
+        .btn-success#postNowBtn:active {
+            background: linear-gradient(180deg, #991B1B 0%, #7F1D1D 100%);
+            transform: translateY(0px) scale(0.98);
+            box-shadow: 
+                0 1px 2px rgba(0, 0, 0, 0.2),
+                0 2px 4px rgba(220, 38, 38, 0.25),
+                inset 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-success.btn-lg:active::before,
+        .btn-success#postNowBtn:active::before {
+            opacity: 0.5;
+        }
+
+        /* Utility Buttons (Save Draft, etc.) - Minimal elevation, material depth */
+        .btn-secondary,
+        .btn-outline-primary {
+            background: linear-gradient(180deg, #374151 0%, #1F2937 100%);
+            border: none;
+            color: #E5E7EB;
+            font-weight: 500;
+            position: relative;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            /* Minimal elevation: subtle shadows only */
+            box-shadow: 
+                0 1px 2px rgba(0, 0, 0, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.04),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        /* Thin edge highlight for subtle material definition */
+        .btn-secondary::before,
+        .btn-outline-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.1) 30%, 
+                rgba(255, 255, 255, 0.12) 50%, 
+                rgba(255, 255, 255, 0.1) 70%, 
+                transparent
+            );
+            transition: opacity 0.25s ease;
+        }
+
+        .btn-secondary:hover,
+        .btn-outline-primary:hover {
+            /* Slightly elevated: brighter material */
+            background: linear-gradient(180deg, #4B5563 0%, #374151 100%);
+            color: #F3F4F6;
+            transform: translateY(-1px);
+            /* Subtle elevation increase */
+            box-shadow: 
+                0 2px 4px rgba(0, 0, 0, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.06),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+        }
+
+        .btn-secondary:hover::before,
+        .btn-outline-primary:hover::before {
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.12) 30%, 
+                rgba(255, 255, 255, 0.15) 50%, 
+                rgba(255, 255, 255, 0.12) 70%, 
+                transparent
+            );
+        }
+
+        .btn-secondary:active,
+        .btn-outline-primary:active {
+            /* Pressed: darker, compressed */
+            background: linear-gradient(180deg, #1F2937 0%, #111827 100%);
+            transform: translateY(0px) scale(0.98);
+            /* Flattened */
+            box-shadow: 
+                0 1px 2px rgba(0, 0, 0, 0.15),
+                inset 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-secondary:active::before,
+        .btn-outline-primary:active::before {
+            opacity: 0.3;
+        }
+
+        /* Override Bootstrap outline-primary to match utility style */
+        .btn-outline-primary {
+            background: linear-gradient(180deg, #374151 0%, #1F2937 100%);
+            border: none;
+            color: #E5E7EB;
+        }
+
+        .btn-outline-primary:hover {
+            background: linear-gradient(180deg, #4B5563 0%, #374151 100%);
+            color: #F3F4F6;
         }
 
         .card {
@@ -581,20 +803,78 @@
             color: #5B21B6;
         }
 
+        /* Secondary AI Button (Steel Blue-Grey) - Material depth with subtle elevation */
         .btn-hero-outline {
-            background: transparent;
+            background: linear-gradient(180deg, #475569 0%, #334155 100%);
             color: white;
-            border: 2px solid white;
-            font-weight: 700;
+            border: none;
+            font-weight: 600;
             padding: 14px 32px;
             border-radius: 30px;
-            transition: all 0.3s ease;
+            position: relative;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            /* Lower elevation than primary: softer shadows */
+            box-shadow: 
+                0 1px 3px rgba(0, 0, 0, 0.12),
+                0 2px 6px rgba(71, 85, 105, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+        }
+
+        /* Top edge highlight for material sheen */
+        .btn-hero-outline::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.2) 20%, 
+                rgba(255, 255, 255, 0.25) 50%, 
+                rgba(255, 255, 255, 0.2) 80%, 
+                transparent
+            );
+            border-radius: 30px 30px 0 0;
+            transition: opacity 0.25s ease;
         }
 
         .btn-hero-outline:hover {
-            background: white;
-            color: #5B21B6;
-            transform: translateY(-3px);
+            /* Elevated: brighter material, subtle lift */
+            background: linear-gradient(180deg, #64748B 0%, #475569 100%);
+            transform: translateY(-1px);
+            /* Increased elevation */
+            box-shadow: 
+                0 2px 6px rgba(0, 0, 0, 0.15),
+                0 4px 12px rgba(71, 85, 105, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.12),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+        }
+
+        .btn-hero-outline:hover::before {
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.25) 20%, 
+                rgba(255, 255, 255, 0.3) 50%, 
+                rgba(255, 255, 255, 0.25) 80%, 
+                transparent
+            );
+        }
+
+        .btn-hero-outline:active {
+            /* Pressed: darker material, compressed */
+            background: linear-gradient(180deg, #334155 0%, #1E293B 100%);
+            transform: translateY(0px) scale(0.98);
+            /* Flattened elevation */
+            box-shadow: 
+                0 1px 2px rgba(0, 0, 0, 0.15),
+                0 2px 4px rgba(71, 85, 105, 0.2),
+                inset 0 2px 4px rgba(0, 0, 0, 0.25);
+        }
+
+        .btn-hero-outline:active::before {
+            opacity: 0.4;
         }
 
         .pulse-glow {

@@ -8,7 +8,7 @@ services:
     # CRITICAL: Disable autoscaling - filesystem sessions require single instance
     autoDeploy: true
     numInstances: 1
-    buildCommand: pip install --upgrade pip && pip install gunicorn && pip install -r requirements.txt
+    buildCommand: pip install --upgrade pip && pip install -r requirements-core.txt -r requirements-linux.txt -r requirements.txt
     startCommand: gunicorn web_app:app --bind 0.0.0.0:$PORT --workers 1 --worker-class sync --timeout 120
     maxUploadSizeMB: 50
     disk:

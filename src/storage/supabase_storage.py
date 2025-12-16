@@ -70,12 +70,14 @@ def upload_to_supabase_storage(
         # Upload to Supabase Storage
         # Supabase Python client API: storage.from_(bucket).upload(path, file_bytes, file_options)
         try:
+            # Convert bytes to file-like object if needed, or use bytes directly
+            # Supabase expects file_data as bytes or file-like object
             response = supabase.storage.from_(bucket_name).upload(
                 path=storage_path,
                 file=file_data,
                 file_options={
                     "content-type": content_type,
-                    "upsert": "false"  # Don't overwrite existing files
+                    "upsert": False  # Don't overwrite existing files (boolean, not string)
                 }
             )
             

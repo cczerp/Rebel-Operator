@@ -21,13 +21,13 @@
         <div class="card-body">
             <div class="row mb-3">
                 <div class="col-6">
-                    <button type="button" class="btn btn-secondary w-100" onclick="document.getElementById('cameraInput').click()">
+                    <button type="button" class="btn btn-utility w-100" onclick="document.getElementById('cameraInput').click()">
                         <i class="fas fa-camera"></i><br>Take Photo
                     </button>
                     <input type="file" class="d-none" id="cameraInput" name="photos" accept="image/*" capture="environment" onchange="handlePhotoSelect(event)">
                 </div>
                 <div class="col-6">
-                    <button type="button" class="btn btn-secondary w-100" onclick="document.getElementById('photoInput').click()">
+                    <button type="button" class="btn btn-utility w-100" onclick="document.getElementById('photoInput').click()">
                         <i class="fas fa-upload"></i><br>Upload Files
                     </button>
                     <input type="file" class="d-none" id="photoInput" name="photos" multiple accept="image/*" onchange="handlePhotoSelect(event)">
@@ -148,7 +148,7 @@
                     <label class="form-label">SKU / Custom ID</label>
                     <div class="input-group">
                         <input type="text" class="form-control" id="sku" name="sku" placeholder="Optional">
-                        <button class="btn btn-secondary" type="button" onclick="generateSKU()" title="Generate random SKU">
+                        <button class="btn btn-utility" type="button" onclick="generateSKU()" title="Generate random SKU">
                             <i class="fas fa-random"></i> Generate
                         </button>
                     </div>
@@ -875,6 +875,7 @@ function updatePhotoAfterEdit(newImageData, newFilepath) {
 // AI Analysis
 let detectedCardData = null; // Store card data if detected
 let enhancedAnalysisData = null; // Store enhanced collectible analysis
+let stage1AnalysisData = null; // Store Stage 1 analysis results (required for Stage 2 prerequisites)
 
 document.getElementById('analyzeBtn').addEventListener('click', async function() {
     const analyzeBtn = document.getElementById('analyzeBtn');
@@ -945,10 +946,24 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
             const generalController = new AbortController();
             const generalTimeout = setTimeout(() => generalController.abort(), 60000); // 60 second timeout
             
+            // SYSTEM CONTRACT: Stage 1 requires text input with at least 3 distinct key details
+            // Collect text details from form fields
+            const textDetails = {
+                title: document.getElementById('title')?.value?.trim() || '',
+                description: document.getElementById('description')?.value?.trim() || '',
+                brand: document.getElementById('brand')?.value?.trim() || '',
+                category: document.getElementById('category')?.value?.trim() || '',
+                size: document.getElementById('size')?.value?.trim() || '',
+                color: document.getElementById('color')?.value?.trim() || ''
+            };
+            
             const response = await fetch('/api/analyze', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ photos: uploadedPhotos }),
+                body: JSON.stringify({ 
+                    photos: uploadedPhotos,
+                    ...textDetails  // Include text details per system contract
+                }),
                 signal: generalController.signal
             });
 
@@ -969,8 +984,11 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
 
                 if (data.result && data.result.success) {
                     const analysis = data.result.analysis;
+                    
+                    // SYSTEM CONTRACT: Store Stage 1 analysis results (required for Stage 2 prerequisites)
+                    stage1AnalysisData = analysis;
 
-                // Store enhanced analysis if available
+                // Store enhanced analysis if available (Stage 2 may have run automatically)
                 if (data.result && data.result.collectible_analysis) {
                     enhancedAnalysisData = data.result.collectible_analysis;
                 }
@@ -1137,6 +1155,19 @@ document.getElementById('enhancedAnalyzerBtn').addEventListener('click', async f
     const enhancedBtn = document.getElementById('enhancedAnalyzerBtn');
     const originalText = enhancedBtn.innerHTML;
     
+    // SYSTEM CONTRACT: Stage 2 Prerequisites Check
+    // 1. Regular AI Scanner (Stage 1) has run
+    // 2. Regular AI Scanner marked item as collectible
+    if (!stage1AnalysisData) {
+        showAlert('Please run Stage 1 Regular AI Scanner first before using Enhanced Analyzer.', 'warning');
+        return;
+    }
+    
+    if (stage1AnalysisData.collectible !== true) {
+        showAlert('Enhanced Analyzer can only run on items marked as collectible by Stage 1. This item was not marked as collectible.', 'warning');
+        return;
+    }
+    
     // If we don't have enhanced data yet, try to get it
     if (!enhancedAnalysisData) {
         enhancedBtn.disabled = true;
@@ -1149,12 +1180,16 @@ document.getElementById('enhancedAnalyzerBtn').addEventListener('click', async f
         const timeout = setTimeout(() => controller.abort(), 90000); // 90 second timeout for deep analysis
 
         try {
+            // SYSTEM CONTRACT: Stage 2 Enhanced Analyzer inputs are Images only (not text)
+            // Stage 1 has already run and verified collectible status
             const response = await fetch('/api/analyze', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    photos: uploadedPhotos,
-                    force_enhanced: true  // Request enhanced analysis even if not collectible
+                    photos: uploadedPhotos,  // Images only per Stage 2 contract
+                    // No text details - Stage 2 only takes images
+                    force_enhanced: true,  // Request Stage 2 Enhanced Analyzer
+                    stage1_already_run: true  // SYSTEM CONTRACT: Stage 1 has run and marked as collectible (verified above)
                 }),
                 signal: controller.signal
             });

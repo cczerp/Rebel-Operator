@@ -101,7 +101,7 @@ VALID_MARKETPLATFORMS = [
     "facebook", "tiktok_shop", "woocommerce", "nextdoor", "varagesale",
     "ruby_lane", "ecrater", "bonanza", "kijiji", "personal_website",
     "grailed", "vinted", "mercado_libre", "tradesy", "vestiaire",
-    "rebag", "thredup", "poshmark_ca", "other"
+    "rebag", "thredup", "poshmark_ca", "ebay", "mercari", "other"
 ]
 
 
@@ -148,7 +148,7 @@ def delete_marketplace_credentials(platform):
 # API CREDENTIALS CRUD (Etsy/Shopify/WooCommerce/Facebook)
 # -------------------------------------------------------------------------
 
-VALID_API_PLATFORMS = ["etsy", "shopify", "woocommerce", "facebook"]
+VALID_API_PLATFORMS = ["etsy", "shopify", "woocommerce", "facebook", "ebay", "mercari"]
 
 
 @main_bp.route("/api/settings/api-credentials", methods=["POST"])
@@ -265,7 +265,15 @@ def api_analyze_card():
             from src.ai.gemini_classifier import analyze_card
             
             paths = job_data["photo_paths"]
-            photos = [Photo(url="", local_path=p) for p in paths]
+            # Create Photo objects - paths are now Supabase Storage URLs, not local paths
+            photos = []
+            for i, path in enumerate(paths):
+                if path.startswith('http://') or path.startswith('https://'):
+                    # Supabase Storage URL - use as url
+                    photos.append(Photo(url=path, local_path=None, order=i, is_primary=(i == 0)))
+                else:
+                    # Legacy local path - keep for backwards compatibility
+                    photos.append(Photo(url="", local_path=path, order=i, is_primary=(i == 0)))
             result = analyze_card(photos)
 
             # Check for API key errors
@@ -340,22 +348,71 @@ def api_analyze_card_status(job_id):
 
 @main_bp.route("/api/analyze", methods=["POST"])
 def api_analyze():
-    """Analyze item photos - returns job_id immediately, use /api/analyze-status/<job_id> to poll"""
+    """
+    Stage 1 — Regular AI Scanner (Classification)
+    
+    SYSTEM CONTRACT REQUIREMENTS:
+    - Text input (required) - at least 3 distinct key details must be provided
+    - Images (optional)
+    - If fewer than 3 details are present, the scan must not run
+    
+    Returns job_id immediately, use /api/analyze-status/<job_id> to poll
+    """
     try:
         from src.workers.job_manager import get_job_manager
         from src.schema.unified_listing import Photo
 
         data = request.get_json() or {}
         photo_paths = data.get("photos") or []
-
-        if not photo_paths:
-            return jsonify({"error": "No photos provided"}), 400
+        force_enhanced = data.get("force_enhanced", False)
+        stage1_already_run = data.get("stage1_already_run", False)  # Flag: Stage 1 has run and marked as collectible
+        
+        # SYSTEM CONTRACT: Stage 2 Enhanced Analyzer inputs are Images only
+        # If stage1_already_run=True, this is Stage 2 - skip Stage 1 text requirement
+        is_stage2_only = stage1_already_run and force_enhanced
+        
+        if not is_stage2_only:
+            # SYSTEM CONTRACT: Stage 1 requires text input (required) with at least 3 distinct key details
+            # Extract text details from request
+            text_details = []
+            if data.get("title"):
+                text_details.append("title")
+            if data.get("description"):
+                text_details.append("description")
+            if data.get("brand"):
+                text_details.append("brand")
+            if data.get("category"):
+                text_details.append("category")
+            if data.get("size"):
+                text_details.append("size")
+            if data.get("color"):
+                text_details.append("color")
+            if data.get("item_name"):
+                text_details.append("item_name")
+            
+            # Check if at least 3 distinct key details are provided
+            distinct_details = len(set(text_details))
+            if distinct_details < 3:
+                return jsonify({
+                    "error": "Stage 1 Regular AI Scanner requires text input with at least 3 distinct key details (e.g., title, description, brand, category, size, color). Images are optional but text is required.",
+                    "error_type": "insufficient_text_details",
+                    "provided_details": distinct_details,
+                    "required_details": 3
+                }), 400
+        
+        # SYSTEM CONTRACT: Stage 2 requires images (Stage 1 text requirement skipped above)
+        if is_stage2_only and not photo_paths:
+            return jsonify({
+                "error": "Stage 2 Enhanced Analyzer requires images. Prerequisites: Stage 1 has run and marked item as collectible.",
+                "error_type": "stage2_no_images"
+            }), 400
 
         # Create background job
         job_manager = get_job_manager()
         job_id = job_manager.create_job("analyze", {
             "photo_paths": photo_paths,
-            "force_enhanced": data.get("force_enhanced", False)
+            "force_enhanced": force_enhanced,
+            "is_stage2_only": is_stage2_only  # Flag: Stage 2 only (images, skip Stage 1)
         })
 
         # Start processing in background
@@ -365,11 +422,33 @@ def api_analyze():
             
             photo_paths = job_data["photo_paths"]
             force_enhanced = job_data.get("force_enhanced", False)
-            photos = [Photo(url="", local_path=p) for p in photo_paths]
+            is_stage2_only = job_data.get("is_stage2_only", False)
+            
+            # Create Photo objects - paths are now Supabase Storage URLs, not local paths
+            # Detect if path is a URL (starts with http) or local path
+            photos = []
+            for i, path in enumerate(photo_paths):
+                if path.startswith('http://') or path.startswith('https://'):
+                    # Supabase Storage URL - use as url
+                    photos.append(Photo(url=path, local_path=None, order=i, is_primary=(i == 0)))
+                else:
+                    # Legacy local path - keep for backwards compatibility
+                    photos.append(Photo(url="", local_path=path, order=i, is_primary=(i == 0)))
 
-            # Run fast classification
-            classifier = GeminiClassifier()
-            analysis = classifier.analyze_item(photos)
+            # SYSTEM CONTRACT: Stage 2 Enhanced Analyzer inputs are Images only
+            # If is_stage2_only=True, skip Stage 1 and go straight to Stage 2
+            if is_stage2_only:
+                # Stage 2 only - prerequisites already verified on frontend
+                # Create minimal Stage 1 analysis result indicating collectible=True
+                analysis = {
+                    "collectible": True,  # Prerequisite already verified
+                    "item_name": "Collectible Item",  # Placeholder
+                    "category": "collectible"
+                }
+            else:
+                # Run Stage 1 fast classification
+                classifier = GeminiClassifier()
+                analysis = classifier.analyze_item(photos)
 
             # Check for errors
             if analysis.get("error"):
@@ -382,13 +461,21 @@ def api_analyze():
                 }
 
             # Deep analysis if needed
+            # SYSTEM CONTRACT: Stage 2 (Enhanced Analyzer) must only run if Stage 1 marked item as collectible
+            # Violation fixed: Removed force_enhanced bypass - Stage 2 cannot run on non-collectible items
             collectible_analysis = None
-            if analysis.get("collectible") or force_enhanced:
+            if analysis.get("collectible") is True:  # Explicit True check - no force_enhanced bypass
                 try:
                     claude = ClaudeCollectibleAnalyzer.from_env()
                     collectible_analysis = claude.deep_analyze_collectible(photos, analysis, db)
                 except Exception as e:
                     collectible_analysis = {"error": str(e)}
+            elif force_enhanced:
+                # Log violation attempt but don't run Stage 2
+                print(f"[AI CONTRACT VIOLATION] Attempted to run Stage 2 Enhanced Analyzer on non-collectible item. Rejected per system contract.", flush=True)
+                collectible_analysis = {
+                    "error": "Enhanced Analyzer can only run on items marked as collectible by Stage 1 Regular Scanner."
+                }
 
             return {
                 "success": True,
@@ -446,11 +533,19 @@ def api_analyze_status(job_id):
 
 @main_bp.route('/api/upload-photos', methods=['POST'])
 def api_upload_photos():
-    """Upload photos for a listing"""
+    """
+    Upload photos for a listing to Supabase Storage.
+    
+    Per system contract:
+    - Provider: Supabase Storage
+    - Bucket: listing-images
+    - Paths namespaced by user_id
+    - Returns URLs (not local paths) for database storage
+    """
     try:
         import uuid
-        from pathlib import Path
         from werkzeug.utils import secure_filename
+        from src.storage.supabase_storage import upload_to_supabase_storage
 
         print(f"[UPLOAD] Received upload request", flush=True)
         print(f"[UPLOAD] Request files keys: {list(request.files.keys())}", flush=True)
@@ -466,23 +561,22 @@ def api_upload_photos():
             print(f"[UPLOAD ERROR] File list is empty", flush=True)
             return jsonify({"error": "No photos provided"}), 400
 
-        # Create unique directory for this upload
-        # Ensure base directories exist (for Render persistent disk)
-        base_dir = Path('data')
-        base_dir.mkdir(parents=True, exist_ok=True)
-        print(f"[UPLOAD] Base dir absolute path: {base_dir.absolute()}", flush=True)
+        # Get user_id for namespacing (per system contract)
+        # Allow unauthenticated uploads for testing, but prefer user_id if available
+        user_id = None
+        if current_user.is_authenticated:
+            user_id = str(current_user.id)
+            print(f"[UPLOAD] Authenticated user: {user_id}", flush=True)
+        else:
+            # For unauthenticated users, use a temporary namespace
+            user_id = "guest"
+            print(f"[UPLOAD] Unauthenticated upload - using guest namespace", flush=True)
 
-        draft_photos_dir = base_dir / 'draft_photos'
-        draft_photos_dir.mkdir(parents=True, exist_ok=True)
-        print(f"[UPLOAD] Draft photos dir: {draft_photos_dir.absolute()}", flush=True)
-
+        # Generate listing UUID for this upload session
         upload_uuid = str(uuid.uuid4())
-        upload_dir = draft_photos_dir / upload_uuid
-        print(f"[UPLOAD] Creating upload directory: {upload_dir.absolute()}", flush=True)
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        print(f"[UPLOAD] Directory created successfully", flush=True)
+        print(f"[UPLOAD] Upload session UUID: {upload_uuid}", flush=True)
 
-        saved_paths = []
+        saved_urls = []
         for file in files:
             if file and file.filename:
                 filename = secure_filename(file.filename)
@@ -491,20 +585,37 @@ def api_upload_photos():
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 filename = f"{timestamp}_{filename}"
 
-                filepath = upload_dir / filename
-                print(f"[UPLOAD] Saving file to: {filepath}", flush=True)
-                file.save(str(filepath))
+                # Read file data
+                file_data = file.read()
+                print(f"[UPLOAD] Uploading {filename} ({len(file_data)} bytes) to Supabase Storage", flush=True)
 
-                # Return relative path for database storage
-                relative_path = f"data/draft_photos/{upload_uuid}/{filename}"
-                saved_paths.append(relative_path)
-                print(f"[UPLOAD] Saved: {relative_path}", flush=True)
+                # Upload to Supabase Storage bucket
+                success, result = upload_to_supabase_storage(
+                    file_data=file_data,
+                    filename=filename,
+                    user_id=user_id,
+                    listing_uuid=upload_uuid,
+                    bucket_name="listing-images"
+                )
 
-        print(f"[UPLOAD SUCCESS] Uploaded {len(saved_paths)} files", flush=True)
+                if success:
+                    # result is the public URL
+                    saved_urls.append(result)
+                    print(f"[UPLOAD] ✅ Saved to Supabase Storage: {result}", flush=True)
+                else:
+                    # result is error message
+                    print(f"[UPLOAD ERROR] Failed to upload {filename}: {result}", flush=True)
+                    # Continue with other files, but log the error
+                    # In production, you might want to fail fast or collect all errors
+
+        if not saved_urls:
+            return jsonify({"error": "Failed to upload any photos. Check Supabase Storage configuration."}), 500
+
+        print(f"[UPLOAD SUCCESS] Uploaded {len(saved_urls)} files to Supabase Storage", flush=True)
         return jsonify({
             "success": True,
-            "paths": saved_paths,
-            "count": len(saved_paths)
+            "paths": saved_urls,  # These are now Supabase Storage URLs
+            "count": len(saved_urls)
         })
 
     except Exception as e:

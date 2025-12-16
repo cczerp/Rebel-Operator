@@ -450,6 +450,9 @@ def debug_config():
 @app.route('/')
 def index():
     """Landing page / dashboard - renders based on current_user"""
+    # CRITICAL: Force user context loading by checking current_user
+    # This ensures user_loader fires immediately, not just on protected routes
+    is_authenticated = current_user.is_authenticated if current_user else False
     return render_template('index.html')
 
 @app.route('/data/<path:filename>')

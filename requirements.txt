@@ -12,7 +12,7 @@
 # HTTP & NETWORKING
 # ============================================================================
 # urllib3 pinned to fix kubernetes and qdrant-client conflicts
-urllib3==2.0.7  # Compatible with kubernetes and qdrant-client
+# Note: urllib3 is in requirements-core.txt (1.26.15) to satisfy qdrant-client <2.0.0 requirement
 aiohttp==3.9.1
 aiohappyeyeballs==2.6.1
 aiosignal==1.4.0
@@ -112,7 +112,7 @@ scikit-image==0.25.2
 # ============================================================================
 # VECTOR DATABASES (with urllib3 conflict fixed)
 # ============================================================================
-qdrant-client==1.7.0  # Requires urllib3<2.0.0 (fixed above)
+qdrant-client==1.7.0  # Requires urllib3<2.0.0 (satisfied by urllib3==1.26.15 in core)
 pinecone-client==2.2.4
 weaviate-client==3.25.0
 

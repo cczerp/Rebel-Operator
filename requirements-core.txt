@@ -99,7 +99,8 @@ pydantic_core==2.41.5
 # ============================================================================
 # HTTP CLIENT (Non-negotiable - pinned to fix conflicts)
 # ============================================================================
-urllib3==1.26.15  # CRITICAL: Must be <2.0.0 for qdrant-client 1.7.0, >=1.21.1 for requests, <2.4.0 for kubernetes
+urllib3==2.0.7  # CRITICAL: Must be >=2.0.0 for types-requests, <2.4.0 for kubernetes, >=1.21.1 for requests
+# Note: qdrant-client upgraded to 1.16.2 to support urllib3 2.x
 certifi==2025.11.12
 charset-normalizer==3.4.4
 idna==3.11

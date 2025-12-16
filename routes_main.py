@@ -536,19 +536,55 @@ def api_upload_photos():
     """
     Upload photos for a listing to Supabase Storage.
     
-    Per system contract:
+    IMAGE_CONTRACT REQUIREMENTS:
+    - Step 1: User uploads image → Image uploaded to storage
+    - Step 2: Image immediately attached to user_id and listing_id (before save, not after)
+    - Step 3: UI reflects database truth (thumbnail renders from DB-backed image list)
+    
+    SYSTEM_CONTRACT:
     - Provider: Supabase Storage
     - Bucket: listing-images
     - Paths namespaced by user_id
-    - Returns URLs (not local paths) for database storage
+    - Database stores image references (URLs), not binaries
     """
     try:
         import uuid
+        import json
         from werkzeug.utils import secure_filename
         from src.storage.supabase_storage import upload_to_supabase_storage
 
-        print(f"[UPLOAD] Received upload request", flush=True)
-        print(f"[UPLOAD] Request files keys: {list(request.files.keys())}", flush=True)
+        # IMAGE_CONTRACT: "No anonymous writes to the database" - require authentication
+        if not current_user.is_authenticated:
+            return jsonify({"error": "Authentication required to upload photos"}), 401
+
+        # IMAGE_CONTRACT: "Image upload requires: user_id, listing_id"
+        listing_id = request.form.get('listing_id') or request.args.get('listing_id')
+        if not listing_id:
+            return jsonify({"error": "listing_id is required per IMAGE_CONTRACT"}), 400
+        
+        try:
+            listing_id = int(listing_id)
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid listing_id"}), 400
+
+        print(f"[UPLOAD] Received upload request for listing_id={listing_id}", flush=True)
+
+        # Verify listing exists and belongs to user
+        if not db:
+            return jsonify({"error": "Database not initialized"}), 500
+        
+        listing = db.get_listing(listing_id)
+        if not listing:
+            return jsonify({"error": "Listing not found"}), 404
+        
+        if listing.get('user_id') != str(current_user.id):
+            return jsonify({"error": "Unauthorized: Listing does not belong to user"}), 403
+
+        # Get listing_uuid for storage path (per SYSTEM_CONTRACT)
+        listing_uuid = listing.get('listing_uuid')
+        user_id = str(current_user.id)
+
+        print(f"[UPLOAD] Listing verified: uuid={listing_uuid}, user={user_id}", flush=True)
 
         if 'photos' not in request.files:
             print(f"[UPLOAD ERROR] No 'photos' field in request.files", flush=True)
@@ -561,20 +597,13 @@ def api_upload_photos():
             print(f"[UPLOAD ERROR] File list is empty", flush=True)
             return jsonify({"error": "No photos provided"}), 400
 
-        # Get user_id for namespacing (per system contract)
-        # Allow unauthenticated uploads for testing, but prefer user_id if available
-        user_id = None
-        if current_user.is_authenticated:
-            user_id = str(current_user.id)
-            print(f"[UPLOAD] Authenticated user: {user_id}", flush=True)
-        else:
-            # For unauthenticated users, use a temporary namespace
-            user_id = "guest"
-            print(f"[UPLOAD] Unauthenticated upload - using guest namespace", flush=True)
-
-        # Generate listing UUID for this upload session
-        upload_uuid = str(uuid.uuid4())
-        print(f"[UPLOAD] Upload session UUID: {upload_uuid}", flush=True)
+        # Get existing photos from listing (to append new ones)
+        existing_photos = []
+        if listing.get('photos'):
+            try:
+                existing_photos = json.loads(listing['photos']) if isinstance(listing['photos'], str) else listing['photos']
+            except (json.JSONDecodeError, TypeError):
+                existing_photos = []
 
         saved_urls = []
         for file in files:
@@ -589,12 +618,12 @@ def api_upload_photos():
                 file_data = file.read()
                 print(f"[UPLOAD] Uploading {filename} ({len(file_data)} bytes) to Supabase Storage", flush=True)
 
-                # Upload to Supabase Storage bucket
+                # Upload to Supabase Storage bucket using listing_uuid (per SYSTEM_CONTRACT)
                 success, result = upload_to_supabase_storage(
                     file_data=file_data,
                     filename=filename,
                     user_id=user_id,
-                    listing_uuid=upload_uuid,
+                    listing_uuid=listing_uuid,  # Use listing's UUID, not generate new one
                     bucket_name="listing-images"
                 )
 
@@ -606,15 +635,24 @@ def api_upload_photos():
                     # result is error message
                     print(f"[UPLOAD ERROR] Failed to upload {filename}: {result}", flush=True)
                     # Continue with other files, but log the error
-                    # In production, you might want to fail fast or collect all errors
 
         if not saved_urls:
             return jsonify({"error": "Failed to upload any photos. Check Supabase Storage configuration."}), 500
 
-        print(f"[UPLOAD SUCCESS] Uploaded {len(saved_urls)} files to Supabase Storage", flush=True)
+        # IMAGE_CONTRACT Step 2: "Image is immediately attached to user_id and listing_id"
+        # "This happens before save, not after."
+        # Append new photos to existing ones
+        updated_photos = existing_photos + saved_urls
+        
+        # Update listing in database immediately
+        db.update_listing(listing_id, photos=updated_photos)
+        print(f"[UPLOAD] ✅ Updated listing {listing_id} with {len(updated_photos)} photos in database", flush=True)
+
+        print(f"[UPLOAD SUCCESS] Uploaded {len(saved_urls)} files, listing now has {len(updated_photos)} total photos", flush=True)
         return jsonify({
             "success": True,
-            "paths": saved_urls,  # These are now Supabase Storage URLs
+            "paths": saved_urls,  # Newly uploaded URLs
+            "all_photos": updated_photos,  # All photos including existing ones (for UI refresh)
             "count": len(saved_urls)
         })
 
@@ -760,17 +798,58 @@ def api_get_draft(draft_id):
 @main_bp.route('/api/save-draft', methods=['POST'])
 @login_required
 def api_save_draft():
-    """Save a listing as draft or post it (status). Expects JSON with form fields and `photos` array."""
+    """
+    Save a listing as draft or post it (status).
+    
+    IMAGE_CONTRACT: Listing must already exist (created when /create page loads).
+    This endpoint UPDATES the existing listing, does not create a new one.
+    """
     try:
         import uuid
+        import json
         data = request.get_json() or {}
+
+        # IMAGE_CONTRACT: Listing must exist - get listing_id from request
+        listing_id = data.get('listing_id') or data.get('draft_id')
+        if not listing_id:
+            return jsonify({"error": "listing_id is required per IMAGE_CONTRACT. Listing should exist before save."}), 400
+
+        try:
+            listing_id = int(listing_id)
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid listing_id"}), 400
+
+        # Verify listing exists and belongs to user
+        listing = db.get_listing(listing_id)
+        if not listing:
+            return jsonify({"error": "Listing not found"}), 404
+        
+        if listing.get('user_id') != str(current_user.id):
+            return jsonify({"error": "Unauthorized: Listing does not belong to user"}), 403
+
+        # Get listing_uuid from existing listing (don't generate new one)
+        listing_uuid = listing.get('listing_uuid')
+        if not listing_uuid:
+            return jsonify({"error": "Listing missing listing_uuid"}), 500
 
         # Required fields
         title = data.get('title') or 'Untitled'
         price = float(data.get('price') or 0)
         condition = data.get('condition') or 'good'
         status = data.get('status', 'draft')
-        photos = data.get('photos') or []
+        
+        # IMAGE_CONTRACT: Photos should already be in DB from upload endpoint
+        # But allow override if provided (for backwards compatibility)
+        photos = data.get('photos')
+        if photos is None:
+            # Use existing photos from listing
+            if listing.get('photos'):
+                try:
+                    photos = json.loads(listing['photos']) if isinstance(listing['photos'], str) else listing['photos']
+                except (json.JSONDecodeError, TypeError):
+                    photos = []
+            else:
+                photos = []
 
         # Optional fields
         description = data.get('description')
@@ -785,16 +864,6 @@ def api_save_draft():
         storage_location = data.get('storage_location')
         sku = data.get('sku')
         upc = data.get('upc')
-
-        # If editing an existing draft, remove it first (simple replace semantics)
-        draft_id = data.get('draft_id')
-        if draft_id:
-            try:
-                db.delete_listing(int(draft_id))
-            except Exception:
-                pass
-
-        listing_uuid = data.get('listing_uuid') or str(uuid.uuid4())
 
         # Handle AI analysis data if present
         collectible_id = None
@@ -844,19 +913,15 @@ def api_save_draft():
             # Save deep analysis to collectible
             db.save_deep_analysis(collectible_id, enhanced_analysis)
 
-        # Create listing in DB - ensure user_id is UUID string
-        user_id_str = str(current_user.id) if current_user and current_user.id else None
-        if not user_id_str:
-            return jsonify({"error": "User not authenticated"}), 401
-
-        listing_id = db.create_listing(
-            listing_uuid=listing_uuid,
+        # IMAGE_CONTRACT: UPDATE existing listing instead of creating new one
+        # "Listing must exist immediately" - it was created when /create page loaded
+        db.update_listing(
+            listing_id=listing_id,
             title=title,
             description=description,
             price=price,
             condition=condition,
-            photos=photos,
-            user_id=user_id_str,
+            photos=photos,  # Photos already in DB from upload endpoint, but allow override
             collectible_id=collectible_id,
             cost=cost,
             category=item_type,

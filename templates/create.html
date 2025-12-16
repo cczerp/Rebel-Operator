@@ -477,9 +477,12 @@ console.log('CREATE.HTML JAVASCRIPT LOADED');
 console.log('Current user authenticated:', {{ 'true' if current_user.is_authenticated else 'false' }});
 console.log('========================================');
 
-let uploadedPhotos = [];
+// IMAGE_CONTRACT: Listing exists immediately, images attached to listing_id
+let currentListingId = {{ listing_id if listing_id else 'null' }};
+let currentListingUuid = {{ '"' + listing_uuid + '"' if listing_uuid else 'null' }};
+let uploadedPhotos = [];  // Local state for UI, but DB is source of truth
 let editingDraftId = {{ draft_id if draft_id else 'null' }};
-let editingListingUuid = null;
+let editingListingUuid = currentListingUuid;
 
 // Generic photo handling function for both camera and file upload
 async function handlePhotoSelect(e) {
@@ -491,7 +494,14 @@ async function handlePhotoSelect(e) {
         return;
     }
 
+    // IMAGE_CONTRACT: "Image upload requires: user_id, listing_id"
+    if (!currentListingId) {
+        showAlert('Error: Listing ID not found. Please refresh the page.', 'danger');
+        return;
+    }
+
     const formData = new FormData();
+    formData.append('listing_id', currentListingId);  // IMAGE_CONTRACT: Required
     for (let file of files) {
         console.log('[UPLOAD] Adding file:', file.name, file.size, 'bytes');
         formData.append('photos', file);
@@ -506,7 +516,7 @@ async function handlePhotoSelect(e) {
     }
 
     try {
-        console.log('[UPLOAD] Sending fetch request to /api/upload-photos');
+        console.log('[UPLOAD] Sending fetch request to /api/upload-photos with listing_id=', currentListingId);
         const response = await fetch('/api/upload-photos', {
             method: 'POST',
             body: formData
@@ -518,26 +528,19 @@ async function handlePhotoSelect(e) {
 
         if (data.success) {
             console.log('[UPLOAD] Upload successful, paths:', data.paths);
-            // Append to existing photos instead of replacing
-            uploadedPhotos = uploadedPhotos.concat(data.paths);
-
-            // Show previews (append to existing)
-            const previewDiv = document.getElementById('photoPreview');
-            console.log('[UPLOAD] Creating', files.length, 'preview images');
-            for (let i = 0; i < files.length; i++) {
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(files[i]);
-                img.className = 'photo-preview';
-                img.title = 'Click to edit photo';
-
-                // Make photo clickable to open editor
-                const photoIndex = uploadedPhotos.length - data.paths.length + i;
-                img.onclick = function() {
-                    openPhotoEditor(photoIndex, this.src);
-                };
-
-                previewDiv.appendChild(img);
+            
+            // IMAGE_CONTRACT Step 3: "UI reflects database truth"
+            // Use all_photos from DB response (source of truth), not just local state
+            if (data.all_photos && Array.isArray(data.all_photos)) {
+                uploadedPhotos = data.all_photos;
+            } else {
+                // Fallback: append new photos to existing
+                uploadedPhotos = uploadedPhotos.concat(data.paths);
             }
+
+            // IMAGE_CONTRACT: "Thumbnail renders from DB-backed image list"
+            // Refresh photo previews from DB-backed list
+            refreshPhotoPreviews();
 
             // Enable the analyze button when photos are uploaded
             const analyzeBtn = document.getElementById('analyzeBtn');
@@ -1727,13 +1730,52 @@ function collectFormData() {
         upc: document.getElementById('upc').value
     };
 
-    // Include draft_id if editing
-    if (editingDraftId) {
-        data.draft_id = editingDraftId;
-        data.listing_uuid = editingListingUuid;
+    // IMAGE_CONTRACT: Always include listing_id (listing exists before save)
+    if (currentListingId) {
+        data.listing_id = currentListingId;
+        data.draft_id = currentListingId;  // For backwards compatibility
+    }
+    if (currentListingUuid) {
+        data.listing_uuid = currentListingUuid;
     }
 
     return data;
+}
+
+// IMAGE_CONTRACT Step 3: "UI reflects database truth"
+// Refresh photo previews from DB-backed uploadedPhotos array
+function refreshPhotoPreviews() {
+    const previewDiv = document.getElementById('photoPreview');
+    previewDiv.innerHTML = '';
+    
+    if (!uploadedPhotos || uploadedPhotos.length === 0) {
+        return;
+    }
+    
+    uploadedPhotos.forEach((photoUrl, index) => {
+        const img = document.createElement('img');
+        img.src = photoUrl;  // Use URL from Supabase Storage
+        img.className = 'photo-preview';
+        img.title = 'Click to edit photo';
+        img.onerror = function() {
+            console.error('[PREVIEW] Failed to load image:', photoUrl);
+            this.style.display = 'none';
+        };
+        
+        // Make photo clickable to open editor
+        img.onclick = function() {
+            openPhotoEditor(index, photoUrl);
+        };
+        
+        previewDiv.appendChild(img);
+    });
+    
+    // Enable analyze button if photos exist
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    if (uploadedPhotos.length > 0) {
+        analyzeBtn.disabled = false;
+        analyzeBtn.title = 'Click to analyze photos with AI';
+    }
 }
 
 // Load draft data for editing
@@ -1782,36 +1824,30 @@ async function loadDraftData() {
             document.getElementById('sku').value = listing.sku || '';
             document.getElementById('upc').value = listing.upc || '';
 
-            // Load photos
-            if (listing.photos && listing.photos.length > 0) {
-                uploadedPhotos = listing.photos;
-
-                // Display photo previews
-                const previewDiv = document.getElementById('photoPreview');
-                previewDiv.innerHTML = '';
-
-                for (let i = 0; i < listing.photos.length; i++) {
-                    const photoPath = listing.photos[i];
-                    const img = document.createElement('img');
-                    // Convert server path to URL
-                    img.src = '/' + photoPath;
-                    img.className = 'photo-preview';
-                    img.title = 'Click to edit photo';
-
-                    // Make photo clickable to open editor
-                    const photoIndex = i;
-                    img.onclick = function() {
-                        openPhotoEditor(photoIndex, this.src);
-                    };
-
-                    img.onerror = function() {
-                        // Fallback: try different path formats
-                        this.src = '/data/draft_photos/' + listing.listing_uuid + '/' + photoPath.split('/').pop();
-                    };
-                    previewDiv.appendChild(img);
+            // IMAGE_CONTRACT: Load photos from database (source of truth)
+            if (listing.photos) {
+                try {
+                    const photos = typeof listing.photos === 'string' ? JSON.parse(listing.photos) : listing.photos;
+                    uploadedPhotos = Array.isArray(photos) ? photos : [];
+                    refreshPhotoPreviews();  // Render from DB
+                } catch (e) {
+                    console.error('[LOAD] Failed to parse photos:', e);
+                    uploadedPhotos = [];
                 }
-
-                // Enable the analyze button when photos are loaded from draft
+            } else {
+                uploadedPhotos = [];
+            }
+            
+            // Update listing IDs if not already set
+            if (!currentListingId && listing.id) {
+                currentListingId = listing.id;
+            }
+            if (!currentListingUuid && listing.listing_uuid) {
+                currentListingUuid = listing.listing_uuid;
+            }
+            
+            // Photos already loaded above via IMAGE_CONTRACT code
+            // refreshPhotoPreviews() was already called
                 const analyzeBtn = document.getElementById('analyzeBtn');
                 analyzeBtn.disabled = false;
                 analyzeBtn.title = 'Click to analyze photos with AI';
@@ -1830,7 +1866,40 @@ async function loadDraftData() {
 
 // Load draft data when page loads
 if (editingDraftId) {
-    document.addEventListener('DOMContentLoaded', loadDraftData);
+    // IMAGE_CONTRACT: Load existing listing data on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        if (editingDraftId) {
+            loadDraftData();
+        } else if (currentListingId) {
+            // New listing was created - load any existing photos from DB
+            loadListingPhotos();
+        }
+    });
+    
+    // Load photos for new listing (if any were uploaded before page refresh)
+    async function loadListingPhotos() {
+        if (!currentListingId) return;
+        
+        try {
+            const response = await fetch(`/api/get-draft/${currentListingId}`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.listing && data.listing.photos) {
+                    try {
+                        const photos = typeof data.listing.photos === 'string' 
+                            ? JSON.parse(data.listing.photos) 
+                            : data.listing.photos;
+                        uploadedPhotos = Array.isArray(photos) ? photos : [];
+                        refreshPhotoPreviews();
+                    } catch (e) {
+                        console.error('[LOAD] Failed to parse photos:', e);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('[LOAD] Failed to load listing photos:', error);
+        }
+    }
 }
 
 // Generate random SKU

@@ -296,11 +296,12 @@
         }
 
         /* Primary action buttons (Post Now, etc.) - same material depth as .btn-primary */
+        /* SYSTEM CONTRACT: Red buttons → black text (not white) */
         .btn-success.btn-lg,
         .btn-success#postNowBtn {
             background: linear-gradient(180deg, var(--red-primary-dark) 0%, var(--red-primary) 100%);
             border: none;
-            color: white;
+            color: black;  /* SYSTEM CONTRACT: Red buttons use black text, not white */
             font-weight: 600;
             position: relative;
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -367,27 +368,25 @@
             opacity: 0.5;
         }
 
-        /* Utility Buttons (Save Draft, etc.) - Dark steel/charcoal with subtle edge highlight */
-        .btn-secondary,
-        .btn-outline-primary,
-        .btn-utility {
-            background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%);
-            border: none;
-            color: var(--off-white-text);
-            font-weight: 500;
+        /* Secondary Buttons (Steel Blue-Grey) - Lower elevation than primary */
+        /* SYSTEM CONTRACT: Steel / grey-blue buttons → black text (not white) */
+        .btn-secondary {
+            background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%);
+            border: 1px solid rgba(71, 85, 105, 0.3);
+            color: black;  /* SYSTEM CONTRACT: Steel buttons use black text, not white */
+            font-weight: 600;
             position: relative;
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            /* Minimal elevation: subtle shadows only */
+            /* Lower elevation than primary: softer shadows */
             box-shadow: 
-                0 1px 2px rgba(0, 0, 0, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.04),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+                0 1px 3px rgba(0, 0, 0, 0.12),
+                0 2px 6px rgba(71, 85, 105, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
         }
 
-        /* Thin edge highlight for subtle material definition */
-        .btn-secondary::before,
-        .btn-outline-primary::before,
-        .btn-utility::before {
+        /* Top edge highlight for material sheen */
+        .btn-secondary::before {
             content: '';
             position: absolute;
             top: 0;
@@ -396,41 +395,126 @@
             height: 1px;
             background: linear-gradient(90deg, 
                 transparent, 
-                rgba(255, 255, 255, 0.1) 30%, 
-                rgba(255, 255, 255, 0.12) 50%, 
-                rgba(255, 255, 255, 0.1) 70%, 
+                rgba(255, 255, 255, 0.2) 20%, 
+                rgba(255, 255, 255, 0.25) 50%, 
+                rgba(255, 255, 255, 0.2) 80%, 
                 transparent
             );
             transition: opacity 0.25s ease;
         }
 
-        .btn-secondary:hover,
-        .btn-outline-primary:hover,
-        .btn-utility:hover {
-            /* Slightly elevated: brighter material */
-            background: linear-gradient(180deg, #4B5563 0%, var(--charcoal-light) 100%);
-            color: var(--off-white);
+        .btn-secondary:hover {
+            /* Elevated: brighter material, subtle lift */
+            background: linear-gradient(180deg, var(--steel-blue-grey-light) 0%, var(--steel-blue-grey) 100%);
             transform: translateY(-1px);
-            /* Subtle elevation increase */
+            /* Increased elevation */
             box-shadow: 
-                0 2px 4px rgba(0, 0, 0, 0.12),
-                inset 0 1px 0 rgba(255, 255, 255, 0.06),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+                0 2px 6px rgba(0, 0, 0, 0.15),
+                0 4px 12px rgba(71, 85, 105, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.12),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.12);
         }
 
-        .btn-secondary:hover::before,
-        .btn-outline-primary:hover::before,
-        .btn-utility:hover::before {
+        .btn-secondary:hover::before {
             background: linear-gradient(90deg, 
                 transparent, 
-                rgba(255, 255, 255, 0.12) 30%, 
-                rgba(255, 255, 255, 0.15) 50%, 
-                rgba(255, 255, 255, 0.12) 70%, 
+                rgba(255, 255, 255, 0.25) 20%, 
+                rgba(255, 255, 255, 0.3) 50%, 
+                rgba(255, 255, 255, 0.25) 80%, 
                 transparent
             );
         }
 
-        .btn-secondary:active,
+        .btn-secondary:active {
+            /* Pressed: darker material, compressed */
+            background: linear-gradient(180deg, var(--steel-blue-grey-dark) 0%, #1E293B 100%);
+            transform: translateY(0px) scale(0.98);
+            /* Flattened elevation */
+            box-shadow: 
+                0 1px 2px rgba(0, 0, 0, 0.15),
+                0 2px 4px rgba(71, 85, 105, 0.2),
+                inset 0 2px 4px rgba(0, 0, 0, 0.25);
+        }
+
+        .btn-secondary:active::before {
+            opacity: 0.4;
+        }
+
+        /* Utility Buttons (Save Draft, camera triggers, etc.) - Charcoal material with defined shine */
+        .btn-outline-primary,
+        .btn-utility {
+            background: linear-gradient(
+                180deg,
+                var(--charcoal-light) 0%,
+                var(--charcoal) 45%,
+                var(--charcoal-dark) 100%
+            );
+            border: 1px solid rgba(15, 23, 42, 0.7);
+            color: var(--off-white-text);
+            font-weight: 500;
+            border-radius: 10px;
+            position: relative;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            /* Minimal elevation: clear but compact */
+            box-shadow:
+                0 1px 2px rgba(0, 0, 0, 0.18),
+                0 3px 6px rgba(15, 23, 42, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.06),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+        }
+
+        /* Thin edge highlight for subtle forged edge */
+        .btn-outline-primary::before,
+        .btn-utility::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.18) 25%,
+                rgba(255, 255, 255, 0.22) 50%,
+                rgba(255, 255, 255, 0.18) 75%,
+                transparent
+            );
+            opacity: 0.9;
+            transition: opacity 0.25s ease;
+        }
+
+        .btn-outline-primary:hover,
+        .btn-utility:hover {
+            /* Slightly elevated: brighter face, stronger edge */
+            background: linear-gradient(
+                180deg,
+                var(--charcoal-light) 0%,
+                var(--charcoal) 35%,
+                var(--charcoal-dark) 100%
+            );
+            color: var(--off-white);
+            transform: translateY(-1px);
+            box-shadow:
+                0 2px 6px rgba(0, 0, 0, 0.2),
+                0 4px 10px rgba(15, 23, 42, 0.55),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-outline-primary:hover::before,
+        .btn-utility:hover::before {
+            opacity: 1;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.24) 25%,
+                rgba(255, 255, 255, 0.3) 50%,
+                rgba(255, 255, 255, 0.24) 75%,
+                transparent
+            );
+        }
+
         .btn-outline-primary:active,
         .btn-utility:active {
             /* Pressed: darker, compressed */
@@ -442,22 +526,9 @@
                 inset 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
-        .btn-secondary:active::before,
         .btn-outline-primary:active::before,
         .btn-utility:active::before {
             opacity: 0.3;
-        }
-
-        /* Override Bootstrap outline-primary to match utility style */
-        .btn-outline-primary {
-            background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%);
-            border: none;
-            color: var(--off-white-text);
-        }
-
-        .btn-outline-primary:hover {
-            background: linear-gradient(180deg, #4B5563 0%, var(--charcoal-light) 100%);
-            color: var(--off-white);
         }
 
         .card {
@@ -853,10 +924,11 @@
         }
 
         /* Secondary Button (Steel Blue-Grey) - Material depth with subtle elevation */
+        /* SYSTEM CONTRACT: Steel / grey-blue buttons → black text (not white) */
         .btn-hero-outline,
         .btn-secondary-action {
             background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%);
-            color: white;
+            color: black;  /* SYSTEM CONTRACT: Steel buttons use black text, not white */
             border: none;
             font-weight: 600;
             padding: 14px 32px;

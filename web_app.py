@@ -449,7 +449,23 @@ def debug_config():
 
 @app.route('/')
 def index():
-    """Landing page / dashboard - renders based on current_user"""
+    """
+    Landing page / dashboard.
+
+    SYSTEM_CONTRACT – AUTH DISPLAY RULES:
+    - If current_user.is_authenticated is true:
+      - Marketing CTAs MUST NOT render
+      - Logged-in workflow UI MUST render
+
+    Implementation:
+    - Logged-out: render marketing landing (index.html)
+    - Logged-in: redirect to /create (primary workflow surface)
+    """
+    # Force user context loading by touching current_user
+    if current_user.is_authenticated:
+        # Logged-in workflow: send users directly to Create page
+        return redirect(url_for('create_listing'))
+
     return render_template('index.html')
 
 @app.route('/data/<path:filename>')
@@ -461,10 +477,59 @@ def serve_data_files(filename):
 
 @app.route('/create')
 def create_listing():
-    """Create new listing page - accessible to all, but only logged-in users can save"""
+    """
+    Create new listing page - per IMAGE_CONTRACT:
+    - Listing must exist immediately, even if empty/draft
+    - Images require listing_id to attach
+    - Draft listings still own images
+    - IMAGE_CONTRACT: "No anonymous writes to the database" - requires authentication
+    """
     from flask import request
+    import uuid
+    
+    # IMAGE_CONTRACT: "Nothing exists unless a user exists" - require authentication
+    if not current_user.is_authenticated:
+        flash('Please log in to create listings', 'info')
+        return redirect(url_for('auth.login'))
+    
     draft_id = request.args.get('draft_id', type=int)
-    return render_template('create.html', draft_id=draft_id)
+    
+    # If editing existing draft, load it
+    if draft_id:
+        db = get_db_instance()
+        listing = db.get_listing(draft_id)
+        if listing and listing.get('user_id') == str(current_user.id):
+            return render_template('create.html', 
+                                 draft_id=draft_id,
+                                 listing_id=draft_id,
+                                 listing_uuid=listing.get('listing_uuid'))
+        else:
+            # Draft not found or unauthorized
+            flash('Draft not found', 'error')
+            return redirect(url_for('drafts'))
+    
+    # IMAGE_CONTRACT Step 2: Create empty draft listing immediately for new listings
+    # This ensures listing_id exists before any images are uploaded
+    # "A listing is created immediately. Even if empty. Even if draft."
+    db = get_db_instance()
+    listing_uuid = str(uuid.uuid4())
+    
+    # Create empty draft listing
+    listing_id = db.create_listing(
+        listing_uuid=listing_uuid,
+        title='Untitled',
+        description='',
+        price=0.0,
+        condition='good',
+        photos=[],  # Empty photos array - images will be added via upload endpoint
+        user_id=str(current_user.id),
+        status='draft'
+    )
+    
+    return render_template('create.html',
+                         draft_id=listing_id,
+                         listing_id=listing_id,
+                         listing_uuid=listing_uuid)
 
 @app.route('/drafts')
 def drafts():

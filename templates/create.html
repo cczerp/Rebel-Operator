@@ -418,11 +418,16 @@
         <button type="button" class="btn btn-utility btn-lg" id="saveDraftBtn">
             <i class="fas fa-save"></i> Save as Draft
         </button>
+        <button type="button" class="btn btn-secondary btn-lg" id="discardListingBtn">
+            <i class="fas fa-trash"></i> Discard This Listing
+        </button>
         <a href="{{ url_for('drafts') }}" class="btn btn-secondary btn-sm mt-2">
             <i class="fas fa-folder-open"></i> View Drafts
         </a>
-        <small class="text-muted text-center mt-2">
+        <small class="text-muted text-center mt-2 d-block">
             <strong>Post Now</strong> makes it active for selling. <strong>Save as Draft</strong> saves it for later.
+            <br>
+            <strong>Discard This Listing</strong> deletes this draft and its images from your workspace.
         </small>
         {% endif %}
     </div>
@@ -1705,6 +1710,40 @@ document.getElementById('saveDraftBtn').addEventListener('click', async function
         }
     }
     await saveListing('draft');
+});
+
+// Discard Listing button
+document.getElementById('discardListingBtn').addEventListener('click', async function() {
+    if (!currentListingId) {
+        showAlert('No listing to discard. Please refresh the page.', 'warning');
+        return;
+    }
+
+    if (!confirm('Discard this listing and all its images? This cannot be undone.')) {
+        return;
+    }
+
+    showLoading();
+
+    try {
+        const response = await fetch(`/api/delete-draft/${currentListingId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('Listing discarded.', 'success');
+            // After discard, start fresh with a brand new listing
+            setTimeout(() => window.location.href = '/create', 1000);
+        } else {
+            showAlert(data.error || 'Failed to discard listing', 'danger');
+        }
+    } catch (error) {
+        showAlert('Error discarding listing: ' + error, 'danger');
+    } finally {
+        hideLoading();
+    }
 });
 
 // Post Now button

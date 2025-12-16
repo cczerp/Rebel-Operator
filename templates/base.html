@@ -440,24 +440,30 @@
             opacity: 0.4;
         }
 
-        /* Utility Buttons (Save Draft, etc.) - Dark charcoal with subtle edge highlight */
+        /* Utility Buttons (Save Draft, camera triggers, etc.) - Charcoal material with defined shine */
         .btn-outline-primary,
         .btn-utility {
-            background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%);
-            border: 1px solid rgba(31, 41, 55, 0.4);
+            background: linear-gradient(
+                180deg,
+                var(--charcoal-light) 0%,
+                var(--charcoal) 45%,
+                var(--charcoal-dark) 100%
+            );
+            border: 1px solid rgba(15, 23, 42, 0.7);
             color: var(--off-white-text);
             font-weight: 500;
+            border-radius: 10px;
             position: relative;
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            /* Minimal elevation: subtle shadows only */
-            box-shadow: 
-                0 1px 2px rgba(0, 0, 0, 0.1),
-                0 2px 4px rgba(31, 41, 55, 0.15),
-                inset 0 1px 0 rgba(255, 255, 255, 0.04),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+            /* Minimal elevation: clear but compact */
+            box-shadow:
+                0 1px 2px rgba(0, 0, 0, 0.18),
+                0 3px 6px rgba(15, 23, 42, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.06),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.25);
         }
 
-        /* Thin edge highlight for subtle material definition */
+        /* Thin edge highlight for subtle forged edge */
         .btn-outline-primary::before,
         .btn-utility::before {
             content: '';
@@ -466,36 +472,45 @@
             left: 0;
             right: 0;
             height: 1px;
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(255, 255, 255, 0.1) 30%, 
-                rgba(255, 255, 255, 0.12) 50%, 
-                rgba(255, 255, 255, 0.1) 70%, 
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.18) 25%,
+                rgba(255, 255, 255, 0.22) 50%,
+                rgba(255, 255, 255, 0.18) 75%,
                 transparent
             );
+            opacity: 0.9;
             transition: opacity 0.25s ease;
         }
 
         .btn-outline-primary:hover,
         .btn-utility:hover {
-            /* Slightly elevated: brighter material */
-            background: linear-gradient(180deg, #4B5563 0%, var(--charcoal-light) 100%);
+            /* Slightly elevated: brighter face, stronger edge */
+            background: linear-gradient(
+                180deg,
+                var(--charcoal-light) 0%,
+                var(--charcoal) 35%,
+                var(--charcoal-dark) 100%
+            );
             color: var(--off-white);
             transform: translateY(-1px);
-            /* Subtle elevation increase */
-            box-shadow: 
-                0 2px 4px rgba(0, 0, 0, 0.12),
-                inset 0 1px 0 rgba(255, 255, 255, 0.06),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+            box-shadow:
+                0 2px 6px rgba(0, 0, 0, 0.2),
+                0 4px 10px rgba(15, 23, 42, 0.55),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.3);
         }
 
         .btn-outline-primary:hover::before,
         .btn-utility:hover::before {
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(255, 255, 255, 0.12) 30%, 
-                rgba(255, 255, 255, 0.15) 50%, 
-                rgba(255, 255, 255, 0.12) 70%, 
+            opacity: 1;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.24) 25%,
+                rgba(255, 255, 255, 0.3) 50%,
+                rgba(255, 255, 255, 0.24) 75%,
                 transparent
             );
         }

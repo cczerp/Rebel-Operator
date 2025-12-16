@@ -449,10 +449,23 @@ def debug_config():
 
 @app.route('/')
 def index():
-    """Landing page / dashboard - renders based on current_user"""
-    # CRITICAL: Force user context loading by checking current_user
-    # This ensures user_loader fires immediately, not just on protected routes
-    is_authenticated = current_user.is_authenticated if current_user else False
+    """
+    Landing page / dashboard.
+
+    SYSTEM_CONTRACT – AUTH DISPLAY RULES:
+    - If current_user.is_authenticated is true:
+      - Marketing CTAs MUST NOT render
+      - Logged-in workflow UI MUST render
+
+    Implementation:
+    - Logged-out: render marketing landing (index.html)
+    - Logged-in: redirect to /create (primary workflow surface)
+    """
+    # Force user context loading by touching current_user
+    if current_user.is_authenticated:
+        # Logged-in workflow: send users directly to Create page
+        return redirect(url_for('create_listing'))
+
     return render_template('index.html')
 
 @app.route('/data/<path:filename>')

@@ -16,6 +16,10 @@ services:
       mountPath: /opt/render/project/src/data
       sizeGB: 1
     envVars:
+      # Python Version (CRITICAL: Pin to 3.11.9 for faiss-cpu compatibility)
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      
       # Flask Configuration
       - key: FLASK_SECRET_KEY
         generateValue: true

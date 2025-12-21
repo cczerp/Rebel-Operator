@@ -1659,7 +1659,7 @@
 <nav class="bottom-nav">
     <div class="d-flex">
         <div class="nav-item">
-            <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'main.index' %}active{% endif %}">
+            <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">
                 <i class="fas fa-home"></i>
                 <span>Home</span>
             </a>
@@ -1691,6 +1691,27 @@
             </button>
         </div>
         <div class="account-menu-body">
+            <a href="{{ url_for('listings') }}" class="account-menu-item">
+                <i class="fas fa-list"></i>
+                <span>Listings</span>
+            </a>
+            <a href="{{ url_for('main.inventory') }}" class="account-menu-item">
+                <i class="fas fa-boxes"></i>
+                <span>Inventory</span>
+            </a>
+            <a href="{{ url_for('storage') }}" class="account-menu-item">
+                <i class="fas fa-box"></i>
+                <span>Storage</span>
+            </a>
+            <a href="{{ url_for('main.invoicing') }}" class="account-menu-item">
+                <i class="fas fa-file-invoice-dollar"></i>
+                <span>Invoicing</span>
+            </a>
+            <a href="{{ url_for('notifications') }}" class="account-menu-item">
+                <i class="fas fa-bell"></i>
+                <span>Alerts</span>
+            </a>
+            <hr>
             <a href="{{ url_for('settings') }}" class="account-menu-item">
                 <i class="fas fa-key"></i>
                 <span>Website Credentials</span>

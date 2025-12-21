@@ -1635,26 +1635,7 @@
     </div>
 
 
-  
-  
-  
-  
-  
-  
-  
-  
-  {% if current_user.is_authenticated and current_user.is_admin %}
-<div class="bg-danger text-white text-center py-2">
-    <small>
-        <i class="fas fa-shield-alt"></i> Admin Mode
-        <a href="{{ url_for('admin.admin_dashboard') }}" class="text-white ms-3">
-            <u>Go to Admin Dashboard</u>
-        </a>
-    </small>
-</div>
-{% endif %}
-
-<!-- Bottom Navigation -->
+    <!-- Bottom Navigation -->
 {% if current_user.is_authenticated %}
 <nav class="bottom-nav">
     <div class="d-flex">
@@ -1715,27 +1696,6 @@
             <a href="{{ url_for('settings') }}" class="account-menu-item">
                 <i class="fas fa-key"></i>
                 <span>Website Credentials</span>
-            </a>
-            <hr>
-            <a href="{{ url_for('listings') }}" class="account-menu-item">
-                <i class="fas fa-list"></i>
-                <span>Listings</span>
-            </a>
-            <a href="{{ url_for('main.inventory') }}" class="account-menu-item">
-                <i class="fas fa-boxes"></i>
-                <span>Inventory</span>
-            </a>
-            <a href="{{ url_for('storage') }}" class="account-menu-item">
-                <i class="fas fa-box"></i>
-                <span>Storage</span>
-            </a>
-            <a href="{{ url_for('main.invoicing') }}" class="account-menu-item">
-                <i class="fas fa-file-invoice-dollar"></i>
-                <span>Invoicing</span>
-            </a>
-            <a href="{{ url_for('notifications') }}" class="account-menu-item">
-                <i class="fas fa-bell"></i>
-                <span>Alerts</span>
             </a>
             <hr>
             <a href="{{ url_for('drafts') }}" class="account-menu-item">

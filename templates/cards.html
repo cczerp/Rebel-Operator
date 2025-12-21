@@ -133,7 +133,7 @@
                     <!-- Scan Tab -->
                     <div class="tab-pane fade show active" id="scanTab">
                         <div class="text-center mb-3">
-                            <button class="btn btn-primary btn-lg" onclick="document.getElementById('cardScanInput').click()">
+                            <button class="btn btn-secondary btn-lg" onclick="document.getElementById('cardScanInput').click()">
                                 <i class="fas fa-camera"></i> Scan Card with Camera
                             </button>
                             <input type="file" id="cardScanInput" accept="image/*" capture="environment" class="d-none" onchange="scanCard(event)">
@@ -205,7 +205,7 @@
                                 </div>
                             </div>
 
-                            <button type="submit" class="btn w-100" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white; border: none;">
+                            <button type="submit" class="btn btn-secondary w-100">
                                 <i class="fas fa-plus"></i> Add to Collection
                             </button>
                         </form>
@@ -217,7 +217,7 @@
                             <label class="form-label">Upload CSV File</label>
                             <input type="file" class="form-control" id="csvImportInput" accept=".csv">
                         </div>
-                        <button class="btn btn-primary" onclick="importCSV()">
+                        <button class="btn btn-utility" onclick="importCSV()">
                             <i class="fas fa-upload"></i> Import Cards
                         </button>
                         <hr>

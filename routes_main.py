@@ -101,7 +101,7 @@ VALID_MARKETPLATFORMS = [
     "facebook", "tiktok_shop", "woocommerce", "nextdoor", "varagesale",
     "ruby_lane", "ecrater", "bonanza", "kijiji", "personal_website",
     "grailed", "vinted", "mercado_libre", "tradesy", "vestiaire",
-    "rebag", "thredup", "poshmark_ca", "other"
+    "rebag", "thredup", "poshmark_ca", "ebay", "mercari", "other"
 ]
 
 
@@ -148,7 +148,7 @@ def delete_marketplace_credentials(platform):
 # API CREDENTIALS CRUD (Etsy/Shopify/WooCommerce/Facebook)
 # -------------------------------------------------------------------------
 
-VALID_API_PLATFORMS = ["etsy", "shopify", "woocommerce", "facebook"]
+VALID_API_PLATFORMS = ["etsy", "shopify", "woocommerce", "facebook", "ebay", "mercari"]
 
 
 @main_bp.route("/api/settings/api-credentials", methods=["POST"])
@@ -265,7 +265,15 @@ def api_analyze_card():
             from src.ai.gemini_classifier import analyze_card
             
             paths = job_data["photo_paths"]
-            photos = [Photo(url="", local_path=p) for p in paths]
+            # Create Photo objects - paths are now Supabase Storage URLs, not local paths
+            photos = []
+            for i, path in enumerate(paths):
+                if path.startswith('http://') or path.startswith('https://'):
+                    # Supabase Storage URL - use as url
+                    photos.append(Photo(url=path, local_path=None, order=i, is_primary=(i == 0)))
+                else:
+                    # Legacy local path - keep for backwards compatibility
+                    photos.append(Photo(url="", local_path=path, order=i, is_primary=(i == 0)))
             result = analyze_card(photos)
 
             # Check for API key errors
@@ -340,22 +348,71 @@ def api_analyze_card_status(job_id):
 
 @main_bp.route("/api/analyze", methods=["POST"])
 def api_analyze():
-    """Analyze item photos - returns job_id immediately, use /api/analyze-status/<job_id> to poll"""
+    """
+    Stage 1 — Regular AI Scanner (Classification)
+    
+    SYSTEM CONTRACT REQUIREMENTS:
+    - Text input (required) - at least 3 distinct key details must be provided
+    - Images (optional)
+    - If fewer than 3 details are present, the scan must not run
+    
+    Returns job_id immediately, use /api/analyze-status/<job_id> to poll
+    """
     try:
         from src.workers.job_manager import get_job_manager
         from src.schema.unified_listing import Photo
 
         data = request.get_json() or {}
         photo_paths = data.get("photos") or []
-
-        if not photo_paths:
-            return jsonify({"error": "No photos provided"}), 400
+        force_enhanced = data.get("force_enhanced", False)
+        stage1_already_run = data.get("stage1_already_run", False)  # Flag: Stage 1 has run and marked as collectible
+        
+        # SYSTEM CONTRACT: Stage 2 Enhanced Analyzer inputs are Images only
+        # If stage1_already_run=True, this is Stage 2 - skip Stage 1 text requirement
+        is_stage2_only = stage1_already_run and force_enhanced
+        
+        if not is_stage2_only:
+            # SYSTEM CONTRACT: Stage 1 requires text input (required) with at least 3 distinct key details
+            # Extract text details from request
+            text_details = []
+            if data.get("title"):
+                text_details.append("title")
+            if data.get("description"):
+                text_details.append("description")
+            if data.get("brand"):
+                text_details.append("brand")
+            if data.get("category"):
+                text_details.append("category")
+            if data.get("size"):
+                text_details.append("size")
+            if data.get("color"):
+                text_details.append("color")
+            if data.get("item_name"):
+                text_details.append("item_name")
+            
+            # Check if at least 3 distinct key details are provided
+            distinct_details = len(set(text_details))
+            if distinct_details < 3:
+                return jsonify({
+                    "error": "Stage 1 Regular AI Scanner requires text input with at least 3 distinct key details (e.g., title, description, brand, category, size, color). Images are optional but text is required.",
+                    "error_type": "insufficient_text_details",
+                    "provided_details": distinct_details,
+                    "required_details": 3
+                }), 400
+        
+        # SYSTEM CONTRACT: Stage 2 requires images (Stage 1 text requirement skipped above)
+        if is_stage2_only and not photo_paths:
+            return jsonify({
+                "error": "Stage 2 Enhanced Analyzer requires images. Prerequisites: Stage 1 has run and marked item as collectible.",
+                "error_type": "stage2_no_images"
+            }), 400
 
         # Create background job
         job_manager = get_job_manager()
         job_id = job_manager.create_job("analyze", {
             "photo_paths": photo_paths,
-            "force_enhanced": data.get("force_enhanced", False)
+            "force_enhanced": force_enhanced,
+            "is_stage2_only": is_stage2_only  # Flag: Stage 2 only (images, skip Stage 1)
         })
 
         # Start processing in background
@@ -365,11 +422,33 @@ def api_analyze():
             
             photo_paths = job_data["photo_paths"]
             force_enhanced = job_data.get("force_enhanced", False)
-            photos = [Photo(url="", local_path=p) for p in photo_paths]
+            is_stage2_only = job_data.get("is_stage2_only", False)
+            
+            # Create Photo objects - paths are now Supabase Storage URLs, not local paths
+            # Detect if path is a URL (starts with http) or local path
+            photos = []
+            for i, path in enumerate(photo_paths):
+                if path.startswith('http://') or path.startswith('https://'):
+                    # Supabase Storage URL - use as url
+                    photos.append(Photo(url=path, local_path=None, order=i, is_primary=(i == 0)))
+                else:
+                    # Legacy local path - keep for backwards compatibility
+                    photos.append(Photo(url="", local_path=path, order=i, is_primary=(i == 0)))
 
-            # Run fast classification
-            classifier = GeminiClassifier()
-            analysis = classifier.analyze_item(photos)
+            # SYSTEM CONTRACT: Stage 2 Enhanced Analyzer inputs are Images only
+            # If is_stage2_only=True, skip Stage 1 and go straight to Stage 2
+            if is_stage2_only:
+                # Stage 2 only - prerequisites already verified on frontend
+                # Create minimal Stage 1 analysis result indicating collectible=True
+                analysis = {
+                    "collectible": True,  # Prerequisite already verified
+                    "item_name": "Collectible Item",  # Placeholder
+                    "category": "collectible"
+                }
+            else:
+                # Run Stage 1 fast classification
+                classifier = GeminiClassifier()
+                analysis = classifier.analyze_item(photos)
 
             # Check for errors
             if analysis.get("error"):
@@ -382,13 +461,21 @@ def api_analyze():
                 }
 
             # Deep analysis if needed
+            # SYSTEM CONTRACT: Stage 2 (Enhanced Analyzer) must only run if Stage 1 marked item as collectible
+            # Violation fixed: Removed force_enhanced bypass - Stage 2 cannot run on non-collectible items
             collectible_analysis = None
-            if analysis.get("collectible") or force_enhanced:
+            if analysis.get("collectible") is True:  # Explicit True check - no force_enhanced bypass
                 try:
                     claude = ClaudeCollectibleAnalyzer.from_env()
                     collectible_analysis = claude.deep_analyze_collectible(photos, analysis, db)
                 except Exception as e:
                     collectible_analysis = {"error": str(e)}
+            elif force_enhanced:
+                # Log violation attempt but don't run Stage 2
+                print(f"[AI CONTRACT VIOLATION] Attempted to run Stage 2 Enhanced Analyzer on non-collectible item. Rejected per system contract.", flush=True)
+                collectible_analysis = {
+                    "error": "Enhanced Analyzer can only run on items marked as collectible by Stage 1 Regular Scanner."
+                }
 
             return {
                 "success": True,
@@ -446,14 +533,58 @@ def api_analyze_status(job_id):
 
 @main_bp.route('/api/upload-photos', methods=['POST'])
 def api_upload_photos():
-    """Upload photos for a listing"""
+    """
+    Upload photos for a listing to Supabase Storage.
+    
+    IMAGE_CONTRACT REQUIREMENTS:
+    - Step 1: User uploads image → Image uploaded to storage
+    - Step 2: Image immediately attached to user_id and listing_id (before save, not after)
+    - Step 3: UI reflects database truth (thumbnail renders from DB-backed image list)
+    
+    SYSTEM_CONTRACT:
+    - Provider: Supabase Storage
+    - Bucket: listing-images
+    - Paths namespaced by user_id
+    - Database stores image references (URLs), not binaries
+    """
     try:
         import uuid
-        from pathlib import Path
+        import json
         from werkzeug.utils import secure_filename
+        from src.storage.supabase_storage import upload_to_supabase_storage
 
-        print(f"[UPLOAD] Received upload request", flush=True)
-        print(f"[UPLOAD] Request files keys: {list(request.files.keys())}", flush=True)
+        # IMAGE_CONTRACT: "No anonymous writes to the database" - require authentication
+        if not current_user.is_authenticated:
+            return jsonify({"error": "Authentication required to upload photos"}), 401
+
+        # IMAGE_CONTRACT: "Image upload requires: user_id, listing_id"
+        listing_id = request.form.get('listing_id') or request.args.get('listing_id')
+        if not listing_id:
+            return jsonify({"error": "listing_id is required per IMAGE_CONTRACT"}), 400
+        
+        try:
+            listing_id = int(listing_id)
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid listing_id"}), 400
+
+        print(f"[UPLOAD] Received upload request for listing_id={listing_id}", flush=True)
+
+        # Verify listing exists and belongs to user
+        if not db:
+            return jsonify({"error": "Database not initialized"}), 500
+        
+        listing = db.get_listing(listing_id)
+        if not listing:
+            return jsonify({"error": "Listing not found"}), 404
+        
+        if listing.get('user_id') != str(current_user.id):
+            return jsonify({"error": "Unauthorized: Listing does not belong to user"}), 403
+
+        # Get listing_uuid for storage path (per SYSTEM_CONTRACT)
+        listing_uuid = listing.get('listing_uuid')
+        user_id = str(current_user.id)
+
+        print(f"[UPLOAD] Listing verified: uuid={listing_uuid}, user={user_id}", flush=True)
 
         if 'photos' not in request.files:
             print(f"[UPLOAD ERROR] No 'photos' field in request.files", flush=True)
@@ -466,23 +597,15 @@ def api_upload_photos():
             print(f"[UPLOAD ERROR] File list is empty", flush=True)
             return jsonify({"error": "No photos provided"}), 400
 
-        # Create unique directory for this upload
-        # Ensure base directories exist (for Render persistent disk)
-        base_dir = Path('data')
-        base_dir.mkdir(parents=True, exist_ok=True)
-        print(f"[UPLOAD] Base dir absolute path: {base_dir.absolute()}", flush=True)
+        # Get existing photos from listing (to append new ones)
+        existing_photos = []
+        if listing.get('photos'):
+            try:
+                existing_photos = json.loads(listing['photos']) if isinstance(listing['photos'], str) else listing['photos']
+            except (json.JSONDecodeError, TypeError):
+                existing_photos = []
 
-        draft_photos_dir = base_dir / 'draft_photos'
-        draft_photos_dir.mkdir(parents=True, exist_ok=True)
-        print(f"[UPLOAD] Draft photos dir: {draft_photos_dir.absolute()}", flush=True)
-
-        upload_uuid = str(uuid.uuid4())
-        upload_dir = draft_photos_dir / upload_uuid
-        print(f"[UPLOAD] Creating upload directory: {upload_dir.absolute()}", flush=True)
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        print(f"[UPLOAD] Directory created successfully", flush=True)
-
-        saved_paths = []
+        saved_urls = []
         for file in files:
             if file and file.filename:
                 filename = secure_filename(file.filename)
@@ -491,20 +614,46 @@ def api_upload_photos():
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 filename = f"{timestamp}_{filename}"
 
-                filepath = upload_dir / filename
-                print(f"[UPLOAD] Saving file to: {filepath}", flush=True)
-                file.save(str(filepath))
+                # Read file data
+                file_data = file.read()
+                print(f"[UPLOAD] Uploading {filename} ({len(file_data)} bytes) to Supabase Storage", flush=True)
 
-                # Return relative path for database storage
-                relative_path = f"data/draft_photos/{upload_uuid}/{filename}"
-                saved_paths.append(relative_path)
-                print(f"[UPLOAD] Saved: {relative_path}", flush=True)
+                # Upload to Supabase Storage bucket using listing_uuid (per SYSTEM_CONTRACT)
+                success, result = upload_to_supabase_storage(
+                    file_data=file_data,
+                    filename=filename,
+                    user_id=user_id,
+                    listing_uuid=listing_uuid,  # Use listing's UUID, not generate new one
+                    bucket_name="listing-images"
+                )
 
-        print(f"[UPLOAD SUCCESS] Uploaded {len(saved_paths)} files", flush=True)
+                if success:
+                    # result is the public URL
+                    saved_urls.append(result)
+                    print(f"[UPLOAD] ✅ Saved to Supabase Storage: {result}", flush=True)
+                else:
+                    # result is error message
+                    print(f"[UPLOAD ERROR] Failed to upload {filename}: {result}", flush=True)
+                    # Continue with other files, but log the error
+
+        if not saved_urls:
+            return jsonify({"error": "Failed to upload any photos. Check Supabase Storage configuration."}), 500
+
+        # IMAGE_CONTRACT Step 2: "Image is immediately attached to user_id and listing_id"
+        # "This happens before save, not after."
+        # Append new photos to existing ones
+        updated_photos = existing_photos + saved_urls
+        
+        # Update listing in database immediately
+        db.update_listing(listing_id, photos=updated_photos)
+        print(f"[UPLOAD] ✅ Updated listing {listing_id} with {len(updated_photos)} photos in database", flush=True)
+
+        print(f"[UPLOAD SUCCESS] Uploaded {len(saved_urls)} files, listing now has {len(updated_photos)} total photos", flush=True)
         return jsonify({
             "success": True,
-            "paths": saved_paths,
-            "count": len(saved_paths)
+            "paths": saved_urls,  # Newly uploaded URLs
+            "all_photos": updated_photos,  # All photos including existing ones (for UI refresh)
+            "count": len(saved_urls)
         })
 
     except Exception as e:
@@ -649,17 +798,58 @@ def api_get_draft(draft_id):
 @main_bp.route('/api/save-draft', methods=['POST'])
 @login_required
 def api_save_draft():
-    """Save a listing as draft or post it (status). Expects JSON with form fields and `photos` array."""
+    """
+    Save a listing as draft or post it (status).
+    
+    IMAGE_CONTRACT: Listing must already exist (created when /create page loads).
+    This endpoint UPDATES the existing listing, does not create a new one.
+    """
     try:
         import uuid
+        import json
         data = request.get_json() or {}
+
+        # IMAGE_CONTRACT: Listing must exist - get listing_id from request
+        listing_id = data.get('listing_id') or data.get('draft_id')
+        if not listing_id:
+            return jsonify({"error": "listing_id is required per IMAGE_CONTRACT. Listing should exist before save."}), 400
+
+        try:
+            listing_id = int(listing_id)
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid listing_id"}), 400
+
+        # Verify listing exists and belongs to user
+        listing = db.get_listing(listing_id)
+        if not listing:
+            return jsonify({"error": "Listing not found"}), 404
+        
+        if listing.get('user_id') != str(current_user.id):
+            return jsonify({"error": "Unauthorized: Listing does not belong to user"}), 403
+
+        # Get listing_uuid from existing listing (don't generate new one)
+        listing_uuid = listing.get('listing_uuid')
+        if not listing_uuid:
+            return jsonify({"error": "Listing missing listing_uuid"}), 500
 
         # Required fields
         title = data.get('title') or 'Untitled'
         price = float(data.get('price') or 0)
         condition = data.get('condition') or 'good'
         status = data.get('status', 'draft')
-        photos = data.get('photos') or []
+        
+        # IMAGE_CONTRACT: Photos should already be in DB from upload endpoint
+        # But allow override if provided (for backwards compatibility)
+        photos = data.get('photos')
+        if photos is None:
+            # Use existing photos from listing
+            if listing.get('photos'):
+                try:
+                    photos = json.loads(listing['photos']) if isinstance(listing['photos'], str) else listing['photos']
+                except (json.JSONDecodeError, TypeError):
+                    photos = []
+            else:
+                photos = []
 
         # Optional fields
         description = data.get('description')
@@ -674,16 +864,6 @@ def api_save_draft():
         storage_location = data.get('storage_location')
         sku = data.get('sku')
         upc = data.get('upc')
-
-        # If editing an existing draft, remove it first (simple replace semantics)
-        draft_id = data.get('draft_id')
-        if draft_id:
-            try:
-                db.delete_listing(int(draft_id))
-            except Exception:
-                pass
-
-        listing_uuid = data.get('listing_uuid') or str(uuid.uuid4())
 
         # Handle AI analysis data if present
         collectible_id = None
@@ -733,19 +913,15 @@ def api_save_draft():
             # Save deep analysis to collectible
             db.save_deep_analysis(collectible_id, enhanced_analysis)
 
-        # Create listing in DB - ensure user_id is UUID string
-        user_id_str = str(current_user.id) if current_user and current_user.id else None
-        if not user_id_str:
-            return jsonify({"error": "User not authenticated"}), 401
-
-        listing_id = db.create_listing(
-            listing_uuid=listing_uuid,
+        # IMAGE_CONTRACT: UPDATE existing listing instead of creating new one
+        # "Listing must exist immediately" - it was created when /create page loaded
+        db.update_listing(
+            listing_id=listing_id,
             title=title,
             description=description,
             price=price,
             condition=condition,
-            photos=photos,
-            user_id=user_id_str,
+            photos=photos,  # Photos already in DB from upload endpoint, but allow override
             collectible_id=collectible_id,
             cost=cost,
             category=item_type,

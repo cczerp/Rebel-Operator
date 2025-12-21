@@ -150,12 +150,16 @@ def login():
         print(f"[LOGIN] Logging in user: {user.email} (User ID: {user.id})")
         print(f"[LOGIN] User ID type: {type(user.id)}, value: {user.id}", flush=True)
         
-        login_user(user, remember=False)
+        # Make session permanent and explicit
+        session.permanent = True
+        login_user(user, remember=True)
         print(f"[LOGIN] ✅ Login successful for {user.email}", flush=True)
         print(f"[LOGIN] User ID stored in session: {user.id}", flush=True)
         print(f"[LOGIN] Session keys after login: {list(session.keys())}", flush=True)
 
-        return redirect(url_for('index'))
+        # CRITICAL: Redirect to a route that forces user context loading
+        # Redirect to /create which uses @login_required or explicitly checks current_user
+        return redirect(url_for('create_listing'))
 
     except Exception as e:
         print(f"[LOGIN ERROR] {e}")
@@ -371,7 +375,8 @@ def api_login():
         )
 
         print(f"[API_LOGIN] Logging in user: {user.email} (User ID: {user.id})", flush=True)
-        login_user(user, remember=False)
+        session.permanent = True
+        login_user(user, remember=True)
         print(f"[API_LOGIN] ✅ Login successful, User ID stored in session: {user.id}", flush=True)
 
         db.log_activity(
@@ -924,7 +929,9 @@ def auth_callback():
             print(f"🔐 [CALLBACK] Calling login_user()...", flush=True)
             print(f"🔐 [CALLBACK] User ID to store: {user_identifier} (type: {type(user_identifier)})", flush=True)
             
-            login_user(user, remember=False)
+            # Make session permanent and explicit
+            session.permanent = True
+            login_user(user, remember=True)
             print(f"✅ [CALLBACK] login_user() completed successfully", flush=True)
             print(f"✅ [CALLBACK] User ID stored in session: {user.id}", flush=True)
             print(f"✅ [CALLBACK] Session keys after login: {list(session.keys())}", flush=True)
@@ -948,7 +955,8 @@ def auth_callback():
             print(f"🎉 [CALLBACK] OAuth login successful for {local_user['username']}!", flush=True)
             print(f"=" * 80, flush=True)
             flash(f"Welcome{', ' + full_name if full_name else ''}! You're now logged in with Google.", "success")
-            return redirect(url_for('index'))
+            # CRITICAL: Redirect to a route that forces user context loading
+            return redirect(url_for('create_listing'))
         
         except Exception as e:
             print(f"Database error in OAuth callback: {e}")

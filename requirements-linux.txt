@@ -1,0 +1,15 @@
+# ============================================================================
+# LINUX-SPECIFIC DEPENDENCIES (Render/Production)
+# ============================================================================
+# Install with: pip install -r requirements-core.txt -r requirements-linux.txt
+# ============================================================================
+
+# Web server (already in core, but explicitly here for clarity)
+# gunicorn==23.0.0  # Already in core
+
+# Linux-specific image processing (if needed)
+# opencv-python-headless is already in core (works on Linux)
+
+# Note: customtkinter, pywin32, and Windows automation tools are NOT included
+# These will fail to install on Linux and are not needed
+

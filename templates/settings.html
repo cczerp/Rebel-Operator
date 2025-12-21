@@ -40,7 +40,7 @@
                     You'll receive notifications when items sell, offers arrive, etc.
                 </small>
             </div>
-            <button type="submit" class="btn btn-primary">
+            <button type="submit" class="btn btn-secondary">
                 <i class="fas fa-save"></i> Save Notification Email
             </button>
         </form>
@@ -76,7 +76,7 @@
                     <label class="form-label small">Shop ID</label>
                     <input type="text" class="form-control form-control-sm" name="shop_id" placeholder="Your Etsy Shop ID">
                 </div>
-                <button type="submit" class="btn btn-sm" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white; border: none;">
+                <button type="submit" class="btn btn-sm btn-secondary">
                     <i class="fas fa-save"></i> Save Etsy API
                 </button>
             </form>
@@ -100,7 +100,7 @@
                     <label class="form-label small">Access Token</label>
                     <input type="password" class="form-control form-control-sm" name="access_token" placeholder="Your Shopify Access Token">
                 </div>
-                <button type="submit" class="btn btn-sm" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white; border: none;">
+                <button type="submit" class="btn btn-sm btn-secondary">
                     <i class="fas fa-save"></i> Save Shopify API
                 </button>
             </form>
@@ -128,7 +128,7 @@
                     <label class="form-label small">Consumer Secret</label>
                     <input type="password" class="form-control form-control-sm" name="consumer_secret" placeholder="cs_...">
                 </div>
-                <button type="submit" class="btn btn-sm" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white; border: none;">
+                <button type="submit" class="btn btn-sm btn-secondary">
                     <i class="fas fa-save"></i> Save WooCommerce API
                 </button>
             </form>
@@ -152,8 +152,75 @@
                     <label class="form-label small">Catalog ID</label>
                     <input type="text" class="form-control form-control-sm" name="catalog_id" placeholder="Your Facebook Catalog ID">
                 </div>
-                <button type="submit" class="btn btn-sm" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white; border: none;">
+                <button type="submit" class="btn btn-sm btn-secondary">
                     <i class="fas fa-save"></i> Save Facebook API
+                </button>
+            </form>
+        </div>
+
+        <!-- eBay API -->
+        <div class="border rounded p-3 mb-3">
+            <h6 class="d-flex justify-content-between align-items-center">
+                <span><i class="fab fa-ebay text-warning"></i> eBay API</span>
+                <span class="badge" style="background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%); color: var(--off-white-text);">Not Configured</span>
+            </h6>
+            <p class="small text-muted">
+                Get your API credentials from: <a href="https://developer.ebay.com/" target="_blank">eBay Developers Program</a>
+            </p>
+            <form class="api-credentials-form" data-platform="ebay">
+                <div class="mb-2">
+                    <label class="form-label small">App ID (Client ID)</label>
+                    <input type="text" class="form-control form-control-sm" name="app_id" placeholder="Your eBay App ID">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Dev ID</label>
+                    <input type="text" class="form-control form-control-sm" name="dev_id" placeholder="Your eBay Dev ID">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Cert ID (Client Secret)</label>
+                    <input type="password" class="form-control form-control-sm" name="cert_id" placeholder="Your eBay Cert ID">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">OAuth Token (Optional - will be generated if not provided)</label>
+                    <input type="password" class="form-control form-control-sm" name="oauth_token" placeholder="OAuth Token (optional)">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Environment</label>
+                    <select class="form-control form-control-sm" name="environment">
+                        <option value="sandbox">Sandbox (Testing)</option>
+                        <option value="production" selected>Production</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-sm btn-secondary">
+                    <i class="fas fa-save"></i> Save eBay API
+                </button>
+            </form>
+        </div>
+
+        <!-- Mercari API -->
+        <div class="border rounded p-3 mb-3">
+            <h6 class="d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-shopping-bag text-primary"></i> Mercari API</span>
+                <span class="badge" style="background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%); color: var(--off-white-text);">Not Configured</span>
+            </h6>
+            <p class="small text-muted">
+                Mercari API credentials for automated posting. Contact Mercari for API access.
+            </p>
+            <form class="api-credentials-form" data-platform="mercari">
+                <div class="mb-2">
+                    <label class="form-label small">API Key</label>
+                    <input type="text" class="form-control form-control-sm" name="api_key" placeholder="Your Mercari API Key">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">API Secret</label>
+                    <input type="password" class="form-control form-control-sm" name="api_secret" placeholder="Your Mercari API Secret">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Access Token (Optional - will be generated if not provided)</label>
+                    <input type="password" class="form-control form-control-sm" name="access_token" placeholder="Access Token (optional)">
+                </div>
+                <button type="submit" class="btn btn-sm btn-secondary">
+                    <i class="fas fa-save"></i> Save Mercari API
                 </button>
             </form>
         </div>

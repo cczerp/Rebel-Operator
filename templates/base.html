@@ -32,7 +32,7 @@
             --steel-blue-grey: #475569;    /* Functional UI surfaces and secondary actions */
             --steel-blue-grey-light: #64748B; /* Lighter steel for hover */
             --steel-blue-grey-dark: #334155;   /* Darker steel for pressed */
-            --off-white: #F9FAFB;          /* Accent only (text, icons, outlines), never a surface */
+            --off-white: #F9FAFB;          /* Accent + light canvas */
             --off-white-text: #E5E7EB;     /* Off-white for text on dark backgrounds */
             
             /* Legacy compatibility (mapped to new system) */
@@ -47,20 +47,20 @@
             --danger: #DC2626;
             --warning: #475569;  /* Warning uses steel blue-grey */
 
-            /* Light mode colors - Charcoal foundation */
-            --bg-primary: #1F2937;         /* Charcoal canvas */
-            --bg-secondary: #111827;       /* Darker charcoal for depth */
-            --bg-tertiary: #374151;       /* Lighter charcoal for cards */
-            --text-primary: #F9FAFB;      /* Off-white text */
-            --text-secondary: #E5E7EB;    /* Off-white secondary text */
-            --text-tertiary: #9CA3AF;     /* Muted text */
-            --border-color: rgba(255,255,255,0.1);
-            --card-bg: #374151;           /* Steel blue-grey for functional surfaces */
-            --card-shadow: rgba(0,0,0,0.3);
+            /* Light mode surfaces (brighter, same palette) */
+            --bg-primary: var(--off-white);            /* Canvas */
+            --bg-secondary: var(--off-white-text);     /* Sub-surface */
+            --bg-tertiary: var(--steel-blue-grey-light); /* Cards / panels */
+            --text-primary: var(--charcoal);           
+            --text-secondary: var(--steel-blue-grey);  
+            --text-tertiary: var(--charcoal-light);    
+            --border-color: rgba(31, 41, 55, 0.08);     /* Charcoal at low opacity */
+            --card-bg: var(--steel-blue-grey-light);    
+            --card-shadow: rgba(0,0,0,0.12);
         }
 
         [data-theme="dark"] {
-            /* Dark mode uses same charcoal foundation, just slightly adjusted */
+            /* Dark mode stays heavy/industrial */
             --bg-primary: #111827;
             --bg-secondary: #0A0F1A;
             --bg-tertiary: #1F2937;
@@ -110,7 +110,7 @@
 
         body {
             padding-bottom: 80px; /* Space for bottom nav */
-            background: var(--bg-secondary);
+            background: var(--bg-primary);
             color: var(--text-primary);
             transition: background-color 0.3s ease, color 0.3s ease;
         }
@@ -224,7 +224,7 @@
 
         /* Primary AI Button (Red) - Material depth with elevation */
         .btn-primary {
-            background: linear-gradient(180deg, #DC2626 0%, #991B1B 100%);
+            background: linear-gradient(180deg, var(--red-primary-dark) 0%, var(--red-primary) 100%);
             border: none;
             color: white;
             font-weight: 600;
@@ -259,7 +259,7 @@
 
         .btn-primary:hover {
             /* Elevated state: brighter base, higher shadow */
-            background: linear-gradient(180deg, #EF4444 0%, #DC2626 100%);
+            background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-light) 100%);
             transform: translateY(-2px);
             /* Increased elevation: deeper shadows */
             box-shadow: 
@@ -282,7 +282,7 @@
 
         .btn-primary:active {
             /* Pressed state: compressed, darker material */
-            background: linear-gradient(180deg, #991B1B 0%, #7F1D1D 100%);
+            background: linear-gradient(180deg, var(--red-primary-dark) 0%, #7F1D1D 100%);
             transform: translateY(0px) scale(0.98);
             /* Reduced elevation: flatter shadow */
             box-shadow: 
@@ -296,11 +296,12 @@
         }
 
         /* Primary action buttons (Post Now, etc.) - same material depth as .btn-primary */
+        /* SYSTEM CONTRACT: Red buttons → black text (not white) */
         .btn-success.btn-lg,
         .btn-success#postNowBtn {
-            background: linear-gradient(180deg, #DC2626 0%, #991B1B 100%);
+            background: linear-gradient(180deg, var(--red-primary-dark) 0%, var(--red-primary) 100%);
             border: none;
-            color: white;
+            color: black;  /* SYSTEM CONTRACT: Red buttons use black text, not white */
             font-weight: 600;
             position: relative;
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -332,7 +333,7 @@
 
         .btn-success.btn-lg:hover,
         .btn-success#postNowBtn:hover {
-            background: linear-gradient(180deg, #EF4444 0%, #DC2626 100%);
+            background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-light) 100%);
             transform: translateY(-2px);
             box-shadow: 
                 0 4px 8px rgba(0, 0, 0, 0.2),
@@ -354,7 +355,7 @@
 
         .btn-success.btn-lg:active,
         .btn-success#postNowBtn:active {
-            background: linear-gradient(180deg, #991B1B 0%, #7F1D1D 100%);
+            background: linear-gradient(180deg, var(--red-primary-dark) 0%, #7F1D1D 100%);
             transform: translateY(0px) scale(0.98);
             box-shadow: 
                 0 1px 2px rgba(0, 0, 0, 0.2),
@@ -367,27 +368,25 @@
             opacity: 0.5;
         }
 
-        /* Utility Buttons (Save Draft, etc.) - Dark steel/charcoal with subtle edge highlight */
-        .btn-secondary,
-        .btn-outline-primary,
-        .btn-utility {
-            background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%);
-            border: none;
-            color: var(--off-white-text);
-            font-weight: 500;
+        /* Secondary Buttons (Steel Blue-Grey) - Lower elevation than primary */
+        /* SYSTEM CONTRACT: Steel / grey-blue buttons → black text (not white) */
+        .btn-secondary {
+            background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%);
+            border: 1px solid rgba(71, 85, 105, 0.3);
+            color: black;  /* SYSTEM CONTRACT: Steel buttons use black text, not white */
+            font-weight: 600;
             position: relative;
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            /* Minimal elevation: subtle shadows only */
+            /* Lower elevation than primary: softer shadows */
             box-shadow: 
-                0 1px 2px rgba(0, 0, 0, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.04),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+                0 1px 3px rgba(0, 0, 0, 0.12),
+                0 2px 6px rgba(71, 85, 105, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
         }
 
-        /* Thin edge highlight for subtle material definition */
-        .btn-secondary::before,
-        .btn-outline-primary::before,
-        .btn-utility::before {
+        /* Top edge highlight for material sheen */
+        .btn-secondary::before {
             content: '';
             position: absolute;
             top: 0;
@@ -396,41 +395,126 @@
             height: 1px;
             background: linear-gradient(90deg, 
                 transparent, 
-                rgba(255, 255, 255, 0.1) 30%, 
-                rgba(255, 255, 255, 0.12) 50%, 
-                rgba(255, 255, 255, 0.1) 70%, 
+                rgba(255, 255, 255, 0.2) 20%, 
+                rgba(255, 255, 255, 0.25) 50%, 
+                rgba(255, 255, 255, 0.2) 80%, 
                 transparent
             );
             transition: opacity 0.25s ease;
         }
 
-        .btn-secondary:hover,
-        .btn-outline-primary:hover,
-        .btn-utility:hover {
-            /* Slightly elevated: brighter material */
-            background: linear-gradient(180deg, #4B5563 0%, var(--charcoal-light) 100%);
-            color: var(--off-white);
+        .btn-secondary:hover {
+            /* Elevated: brighter material, subtle lift */
+            background: linear-gradient(180deg, var(--steel-blue-grey-light) 0%, var(--steel-blue-grey) 100%);
             transform: translateY(-1px);
-            /* Subtle elevation increase */
+            /* Increased elevation */
             box-shadow: 
-                0 2px 4px rgba(0, 0, 0, 0.12),
-                inset 0 1px 0 rgba(255, 255, 255, 0.06),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+                0 2px 6px rgba(0, 0, 0, 0.15),
+                0 4px 12px rgba(71, 85, 105, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.12),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.12);
         }
 
-        .btn-secondary:hover::before,
-        .btn-outline-primary:hover::before,
-        .btn-utility:hover::before {
+        .btn-secondary:hover::before {
             background: linear-gradient(90deg, 
                 transparent, 
-                rgba(255, 255, 255, 0.12) 30%, 
-                rgba(255, 255, 255, 0.15) 50%, 
-                rgba(255, 255, 255, 0.12) 70%, 
+                rgba(255, 255, 255, 0.25) 20%, 
+                rgba(255, 255, 255, 0.3) 50%, 
+                rgba(255, 255, 255, 0.25) 80%, 
                 transparent
             );
         }
 
-        .btn-secondary:active,
+        .btn-secondary:active {
+            /* Pressed: darker material, compressed */
+            background: linear-gradient(180deg, var(--steel-blue-grey-dark) 0%, #1E293B 100%);
+            transform: translateY(0px) scale(0.98);
+            /* Flattened elevation */
+            box-shadow: 
+                0 1px 2px rgba(0, 0, 0, 0.15),
+                0 2px 4px rgba(71, 85, 105, 0.2),
+                inset 0 2px 4px rgba(0, 0, 0, 0.25);
+        }
+
+        .btn-secondary:active::before {
+            opacity: 0.4;
+        }
+
+        /* Utility Buttons (Save Draft, camera triggers, etc.) - Charcoal material with defined shine */
+        .btn-outline-primary,
+        .btn-utility {
+            background: linear-gradient(
+                180deg,
+                var(--charcoal-light) 0%,
+                var(--charcoal) 45%,
+                var(--charcoal-dark) 100%
+            );
+            border: 1px solid rgba(15, 23, 42, 0.7);
+            color: var(--off-white-text);
+            font-weight: 500;
+            border-radius: 10px;
+            position: relative;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            /* Minimal elevation: clear but compact */
+            box-shadow:
+                0 1px 2px rgba(0, 0, 0, 0.18),
+                0 3px 6px rgba(15, 23, 42, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.06),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+        }
+
+        /* Thin edge highlight for subtle forged edge */
+        .btn-outline-primary::before,
+        .btn-utility::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.18) 25%,
+                rgba(255, 255, 255, 0.22) 50%,
+                rgba(255, 255, 255, 0.18) 75%,
+                transparent
+            );
+            opacity: 0.9;
+            transition: opacity 0.25s ease;
+        }
+
+        .btn-outline-primary:hover,
+        .btn-utility:hover {
+            /* Slightly elevated: brighter face, stronger edge */
+            background: linear-gradient(
+                180deg,
+                var(--charcoal-light) 0%,
+                var(--charcoal) 35%,
+                var(--charcoal-dark) 100%
+            );
+            color: var(--off-white);
+            transform: translateY(-1px);
+            box-shadow:
+                0 2px 6px rgba(0, 0, 0, 0.2),
+                0 4px 10px rgba(15, 23, 42, 0.55),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-outline-primary:hover::before,
+        .btn-utility:hover::before {
+            opacity: 1;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.24) 25%,
+                rgba(255, 255, 255, 0.3) 50%,
+                rgba(255, 255, 255, 0.24) 75%,
+                transparent
+            );
+        }
+
         .btn-outline-primary:active,
         .btn-utility:active {
             /* Pressed: darker, compressed */
@@ -442,22 +526,9 @@
                 inset 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
-        .btn-secondary:active::before,
         .btn-outline-primary:active::before,
         .btn-utility:active::before {
             opacity: 0.3;
-        }
-
-        /* Override Bootstrap outline-primary to match utility style */
-        .btn-outline-primary {
-            background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%);
-            border: none;
-            color: var(--off-white-text);
-        }
-
-        .btn-outline-primary:hover {
-            background: linear-gradient(180deg, #4B5563 0%, var(--charcoal-light) 100%);
-            color: var(--off-white);
         }
 
         .card {
@@ -801,7 +872,7 @@
         }
 
         .btn-hero {
-            background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%);
+            background: linear-gradient(180deg, var(--red-primary-dark) 0%, var(--red-primary) 100%);
             color: white;
             font-weight: 700;
             padding: 14px 32px;
@@ -834,7 +905,7 @@
         }
 
         .btn-hero:hover {
-            background: linear-gradient(180deg, var(--red-primary-light) 0%, var(--red-primary) 100%);
+            background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-light) 100%);
             transform: translateY(-2px);
             box-shadow: 
                 0 4px 8px rgba(0, 0, 0, 0.2),
@@ -853,25 +924,26 @@
         }
 
         /* Secondary Button (Steel Blue-Grey) - Material depth with subtle elevation */
+        /* SYSTEM CONTRACT: Steel / grey-blue buttons → black text (not white) */
         .btn-hero-outline,
         .btn-secondary-action {
             background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%);
-            color: white;
+            color: black;  /* SYSTEM CONTRACT: Steel buttons use black text, not white */
             border: none;
             font-weight: 600;
             padding: 14px 32px;
             border-radius: 30px;
             position: relative;
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            /* Lower elevation than primary: softer shadows */
+            /* Enhanced elevation for better visibility */
             box-shadow: 
-                0 1px 3px rgba(0, 0, 0, 0.12),
-                0 2px 6px rgba(71, 85, 105, 0.2),
-                inset 0 1px 0 rgba(255, 255, 255, 0.08),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+                0 2px 4px rgba(0, 0, 0, 0.15),
+                0 4px 10px rgba(71, 85, 105, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.12),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.2);
         }
 
-        /* Top edge highlight for material sheen */
+        /* Top edge highlight for material sheen - more prominent */
         .btn-hero-outline::before,
         .btn-secondary-action::before {
             content: '';
@@ -879,38 +951,40 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 1px;
+            height: 2px;
             background: linear-gradient(90deg, 
                 transparent, 
-                rgba(255, 255, 255, 0.2) 20%, 
-                rgba(255, 255, 255, 0.25) 50%, 
-                rgba(255, 255, 255, 0.2) 80%, 
+                rgba(255, 255, 255, 0.3) 20%, 
+                rgba(255, 255, 255, 0.35) 50%, 
+                rgba(255, 255, 255, 0.3) 80%, 
                 transparent
             );
             border-radius: 30px 30px 0 0;
-            transition: opacity 0.25s ease;
+            transition: all 0.25s ease;
         }
 
         .btn-hero-outline:hover,
         .btn-secondary-action:hover {
             /* Elevated: brighter material, subtle lift */
             background: linear-gradient(180deg, var(--steel-blue-grey-light) 0%, var(--steel-blue-grey) 100%);
-            transform: translateY(-1px);
-            /* Increased elevation */
+            transform: translateY(-2px);
+            /* Increased elevation with glow effect */
             box-shadow: 
-                0 2px 6px rgba(0, 0, 0, 0.15),
-                0 4px 12px rgba(71, 85, 105, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.12),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+                0 4px 8px rgba(0, 0, 0, 0.2),
+                0 8px 20px rgba(71, 85, 105, 0.4),
+                0 0 25px rgba(100, 116, 139, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
         }
 
         .btn-hero-outline:hover::before,
         .btn-secondary-action:hover::before {
+            height: 3px;
             background: linear-gradient(90deg, 
                 transparent, 
-                rgba(255, 255, 255, 0.25) 20%, 
-                rgba(255, 255, 255, 0.3) 50%, 
-                rgba(255, 255, 255, 0.25) 80%, 
+                rgba(255, 255, 255, 0.35) 20%, 
+                rgba(255, 255, 255, 0.4) 50%, 
+                rgba(255, 255, 255, 0.35) 80%, 
                 transparent
             );
         }
@@ -930,6 +1004,38 @@
         .btn-hero-outline:active::before,
         .btn-secondary-action:active::before {
             opacity: 0.4;
+            height: 1px;
+        }
+
+        /* Disabled state for AI buttons - clearly shows unavailable */
+        .btn-hero-outline:disabled,
+        .btn-secondary-action:disabled {
+            background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%);
+            color: rgba(229, 231, 235, 0.4);
+            cursor: not-allowed;
+            opacity: 0.5;
+            box-shadow: 
+                0 1px 2px rgba(0, 0, 0, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.02);
+            transform: none;
+        }
+
+        .btn-hero-outline:disabled::before,
+        .btn-secondary-action:disabled::before {
+            opacity: 0.2;
+            height: 1px;
+        }
+
+        /* Icon animation for AI buttons */
+        .btn-hero-outline i,
+        .btn-secondary-action i {
+            transition: transform 0.25s ease;
+            display: inline-block;
+        }
+
+        .btn-hero-outline:hover:not(:disabled) i,
+        .btn-secondary-action:hover:not(:disabled) i {
+            transform: scale(1.1) rotate(5deg);
         }
 
         .pulse-glow {
@@ -943,6 +1049,29 @@
             }
             50% {
                 box-shadow: 0 8px 35px rgba(124, 58, 237, 0.6), 0 0 0 10px rgba(255,255,255,0);
+            }
+        }
+
+        /* Subtle ready pulse for AI buttons when enabled */
+        .ai-ready {
+            animation: ai-ready-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes ai-ready-pulse {
+            0%, 100% {
+                box-shadow: 
+                    0 2px 4px rgba(0, 0, 0, 0.15),
+                    0 4px 10px rgba(71, 85, 105, 0.3),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+                    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+            }
+            50% {
+                box-shadow: 
+                    0 2px 4px rgba(0, 0, 0, 0.15),
+                    0 4px 10px rgba(71, 85, 105, 0.3),
+                    0 0 15px rgba(100, 116, 139, 0.4),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+                    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
             }
         }
 
@@ -1584,13 +1713,31 @@
             </a>
             <hr>
             <a href="{{ url_for('settings') }}" class="account-menu-item">
-                <i class="fas fa-cog"></i>
-                <span>Settings</span>
-            </a>
-            <a href="{{ url_for('settings') }}#credentials" class="account-menu-item">
                 <i class="fas fa-key"></i>
                 <span>Website Credentials</span>
             </a>
+            <hr>
+            <a href="{{ url_for('listings') }}" class="account-menu-item">
+                <i class="fas fa-list"></i>
+                <span>Listings</span>
+            </a>
+            <a href="{{ url_for('main.inventory') }}" class="account-menu-item">
+                <i class="fas fa-boxes"></i>
+                <span>Inventory</span>
+            </a>
+            <a href="{{ url_for('storage') }}" class="account-menu-item">
+                <i class="fas fa-box"></i>
+                <span>Storage</span>
+            </a>
+            <a href="{{ url_for('main.invoicing') }}" class="account-menu-item">
+                <i class="fas fa-file-invoice-dollar"></i>
+                <span>Invoicing</span>
+            </a>
+            <a href="{{ url_for('notifications') }}" class="account-menu-item">
+                <i class="fas fa-bell"></i>
+                <span>Alerts</span>
+            </a>
+            <hr>
             <a href="{{ url_for('drafts') }}" class="account-menu-item">
                 <i class="fas fa-folder"></i>
                 <span>Drafts</span>

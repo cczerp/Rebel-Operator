@@ -490,11 +490,36 @@ let uploadedPhotos = [];  // Local state for UI, but DB is source of truth
 let editingDraftId = {{ draft_id if draft_id else 'null' }};
 let editingListingUuid = currentListingUuid;
 
+// Log initialization values for debugging
+console.log('[INIT] currentListingId:', currentListingId, typeof currentListingId);
+console.log('[INIT] currentListingUuid:', currentListingUuid);
+console.log('[INIT] editingDraftId:', editingDraftId);
+if (!currentListingId) {
+    console.warn('[INIT WARNING] currentListingId is not set! Image uploads will fail.');
+    console.warn('[INIT WARNING] This usually means the draft listing was not created properly.');
+}
+
 // Generic photo handling function for both camera and file upload
 async function handlePhotoSelect(e) {
-    console.log('[UPLOAD] handlePhotoSelect called');
+    console.log('[UPLOAD] handlePhotoSelect called', e);
+
+    // Defensive check: ensure event and target exist
+    if (!e || !e.target) {
+        console.error('[UPLOAD ERROR] Invalid event object:', e);
+        showAlert('Error: Invalid file selection event. Please try again.', 'danger');
+        return;
+    }
+
+    // Defensive check: ensure files property exists
+    if (!e.target.files) {
+        console.error('[UPLOAD ERROR] No files property on target:', e.target);
+        showAlert('Error: Unable to access selected files. Please try again.', 'danger');
+        return;
+    }
+
     const files = e.target.files;
-    console.log('[UPLOAD] Selected files:', files.length);
+    console.log('[UPLOAD] Selected files:', files.length, Array.from(files).map(f => f.name));
+
     if (files.length === 0) {
         console.log('[UPLOAD] No files selected, returning');
         return;
@@ -502,9 +527,13 @@ async function handlePhotoSelect(e) {
 
     // IMAGE_CONTRACT: "Image upload requires: user_id, listing_id"
     if (!currentListingId) {
-        showAlert('Error: Listing ID not found. Please refresh the page.', 'danger');
+        console.error('[UPLOAD ERROR] currentListingId is not set:', currentListingId);
+        console.error('[UPLOAD ERROR] Page may not have loaded correctly');
+        showAlert('Error: Listing ID not found. Please refresh the page and try again.', 'danger');
         return;
     }
+
+    console.log('[UPLOAD] Using listing_id:', currentListingId);
 
     const formData = new FormData();
     formData.append('listing_id', currentListingId);  // IMAGE_CONTRACT: Required
@@ -529,7 +558,18 @@ async function handlePhotoSelect(e) {
             credentials: 'include'  // Ensure session cookies are sent
         });
 
-        console.log('[UPLOAD] Response status:', response.status);
+        console.log('[UPLOAD] Response status:', response.status, response.statusText);
+
+        // Check for HTTP error status codes
+        if (!response.ok) {
+            console.error('[UPLOAD ERROR] HTTP error status:', response.status);
+            const data = await response.json().catch(() => ({ error: `HTTP ${response.status}: ${response.statusText}` }));
+            console.error('[UPLOAD ERROR] Error response:', data);
+            const errorMsg = data.error || `Server returned error ${response.status}`;
+            showAlert(`Upload failed: ${errorMsg}`, 'danger');
+            return;
+        }
+
         const data = await response.json();
         console.log('[UPLOAD] Response data:', data);
 
@@ -608,11 +648,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (cameraInput) {
         cameraInput.onchange = handlePhotoSelect;
+        console.log('[UPLOAD] Attached onchange handler to cameraInput');
+    } else {
+        console.error('[UPLOAD ERROR] cameraInput element not found!');
     }
     if (photoInput) {
         photoInput.onchange = handlePhotoSelect;
+        console.log('[UPLOAD] Attached onchange handler to photoInput');
+    } else {
+        console.error('[UPLOAD ERROR] photoInput element not found!');
     }
-    console.log('[UPLOAD] Handlers attached:', {
+    console.log('[UPLOAD] Handler attachment complete. Elements found:', {
         cameraBtn: !!cameraBtn,
         uploadBtn: !!uploadBtn,
         cameraInput: !!cameraInput,

@@ -1137,6 +1137,7 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
                 }
             }
         }
+        }
     } catch (error) {
         if (error.name === 'AbortError') {
             showAlert('Analysis timed out. Please try again with fewer photos or check your connection.', 'warning');

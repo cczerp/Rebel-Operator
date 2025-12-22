@@ -586,18 +586,24 @@ async function handlePhotoSelect(e) {
     console.log('[UPLOAD] Reset file input');
 }
 
-// Attach upload handlers after function is defined
-(function() {
+// Attach upload handlers after DOM is ready and function is defined
+document.addEventListener('DOMContentLoaded', function() {
     const cameraBtn = document.getElementById('cameraBtn');
     const uploadBtn = document.getElementById('uploadBtn');
     const cameraInput = document.getElementById('cameraInput');
     const photoInput = document.getElementById('photoInput');
 
     if (cameraBtn && cameraInput) {
-        cameraBtn.onclick = function() { cameraInput.click(); };
+        cameraBtn.onclick = function() {
+            console.log('[UPLOAD] Camera button clicked');
+            cameraInput.click();
+        };
     }
     if (uploadBtn && photoInput) {
-        uploadBtn.onclick = function() { photoInput.click(); };
+        uploadBtn.onclick = function() {
+            console.log('[UPLOAD] Upload button clicked');
+            photoInput.click();
+        };
     }
     if (cameraInput) {
         cameraInput.onchange = handlePhotoSelect;
@@ -605,8 +611,13 @@ async function handlePhotoSelect(e) {
     if (photoInput) {
         photoInput.onchange = handlePhotoSelect;
     }
-    console.log('[UPLOAD] Handlers attached:', {cameraBtn: !!cameraBtn, uploadBtn: !!uploadBtn});
-})();
+    console.log('[UPLOAD] Handlers attached:', {
+        cameraBtn: !!cameraBtn,
+        uploadBtn: !!uploadBtn,
+        cameraInput: !!cameraInput,
+        photoInput: !!photoInput
+    });
+});
 
 // ========================================
 // PHOTO EDITOR FUNCTIONS (FREE!)

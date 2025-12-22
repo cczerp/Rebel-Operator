@@ -314,11 +314,10 @@ tabulate==0.9.0
 # ============================================================================
 # REALTIME / WEBSOCKETS
 # ============================================================================
-# NOTE: realtime==2.25.1 imports `websockets.asyncio.client`, which was removed
-# in websockets>=11. We must stay on a 10.x release that still exposes this
-# module path, otherwise Supabase auth / realtime will crash on import.
-websockets==10.4
-websocket-client==1.9.0
+# Older Supabase realtime versions (<2.x) required websockets 10.x due to
+# importing `websockets.asyncio.client`. As of realtime>=2.25.1 this import
+# has been fixed and websockets>=11 is REQUIRED. Do not pin websockets to 10.x.
+
 
 # ============================================================================
 # MISC

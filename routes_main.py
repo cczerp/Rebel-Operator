@@ -3,7 +3,7 @@ routes_main.py
 Main application routes: listings, drafts, notifications, storage, settings
 """
 
-from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
+from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash, session
 from flask_login import login_required, current_user
 from pathlib import Path
 from functools import wraps
@@ -580,8 +580,16 @@ def api_upload_photos():
         from werkzeug.utils import secure_filename
         from src.storage.supabase_storage import upload_to_supabase_storage
 
+        # Debug authentication status
+        print(f"[UPLOAD DEBUG] current_user type: {type(current_user)}", flush=True)
+        print(f"[UPLOAD DEBUG] current_user.is_authenticated: {current_user.is_authenticated}", flush=True)
+        if hasattr(current_user, 'id'):
+            print(f"[UPLOAD DEBUG] current_user.id: {current_user.id}", flush=True)
+        print(f"[UPLOAD DEBUG] session keys: {list(session.keys())}", flush=True)
+
         # IMAGE_CONTRACT: "No anonymous writes to the database" - require authentication
         if not current_user.is_authenticated:
+            print(f"[UPLOAD ERROR] User not authenticated - current_user: {current_user}", flush=True)
             return jsonify({"error": "Authentication required to upload photos"}), 401
 
         # IMAGE_CONTRACT: "Image upload requires: user_id, listing_id"

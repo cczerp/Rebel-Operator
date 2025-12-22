@@ -1121,7 +1121,7 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
                 }
 
                 showAlert('AI analysis complete!', 'success');
-                } else {
+            } else {
                     // Show detailed error message
                     const errorMsg = (data.result && data.result.error) || data.error || 'Unknown error occurred';
                     const errorDetails = (data.result && data.result.details) ? ' - ' + data.result.details : '';

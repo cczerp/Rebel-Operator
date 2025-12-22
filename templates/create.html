@@ -485,7 +485,7 @@ console.log('========================================');
 
 // IMAGE_CONTRACT: Listing exists immediately, images attached to listing_id
 let currentListingId = {{ listing_id if listing_id else 'null' }};
-let currentListingUuid = {{ '"' + listing_uuid + '"' if listing_uuid else 'null' }};
+let currentListingUuid = {{ listing_uuid|tojson if listing_uuid else 'null' }};
 let uploadedPhotos = [];  // Local state for UI, but DB is source of truth
 let editingDraftId = {{ draft_id if draft_id else 'null' }};
 let editingListingUuid = currentListingUuid;

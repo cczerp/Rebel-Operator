@@ -511,25 +511,36 @@ def create_listing():
     # IMAGE_CONTRACT Step 2: Create empty draft listing immediately for new listings
     # This ensures listing_id exists before any images are uploaded
     # "A listing is created immediately. Even if empty. Even if draft."
-    db = get_db_instance()
-    listing_uuid = str(uuid.uuid4())
-    
-    # Create empty draft listing
-    listing_id = db.create_listing(
-        listing_uuid=listing_uuid,
-        title='Untitled',
-        description='',
-        price=0.0,
-        condition='good',
-        photos=[],  # Empty photos array - images will be added via upload endpoint
-        user_id=str(current_user.id),
-        status='draft'
-    )
-    
-    return render_template('create.html',
-                         draft_id=listing_id,
-                         listing_id=listing_id,
-                         listing_uuid=listing_uuid)
+    try:
+        db = get_db_instance()
+        listing_uuid = str(uuid.uuid4())
+
+        print(f"[CREATE] Creating draft for user_id={current_user.id}, listing_uuid={listing_uuid}", flush=True)
+
+        # Create empty draft listing
+        listing_id = db.create_listing(
+            listing_uuid=listing_uuid,
+            title='Untitled',
+            description='',
+            price=0.0,
+            condition='good',
+            photos=[],  # Empty photos array - images will be added via upload endpoint
+            user_id=str(current_user.id),
+            status='draft'
+        )
+
+        print(f"[CREATE] Draft created successfully: listing_id={listing_id}", flush=True)
+
+        return render_template('create.html',
+                             draft_id=listing_id,
+                             listing_id=listing_id,
+                             listing_uuid=listing_uuid)
+    except Exception as e:
+        print(f"[CREATE ERROR] Failed to create draft: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        flash(f'Failed to create listing draft: {str(e)}', 'error')
+        return redirect(url_for('drafts'))
 
 @app.route('/drafts')
 def drafts():

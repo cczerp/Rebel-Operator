@@ -525,7 +525,8 @@ async function handlePhotoSelect(e) {
         console.log('[UPLOAD] Sending fetch request to /api/upload-photos with listing_id=', currentListingId);
         const response = await fetch('/api/upload-photos', {
             method: 'POST',
-            body: formData
+            body: formData,
+            credentials: 'include'  // Ensure session cookies are sent
         });
 
         console.log('[UPLOAD] Response status:', response.status);

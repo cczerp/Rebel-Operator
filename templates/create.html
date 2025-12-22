@@ -34,30 +34,6 @@
                 </div>
             </div>
 
-            <script>
-            // Attach upload handlers immediately after elements exist
-            (function() {
-                const cameraBtn = document.getElementById('cameraBtn');
-                const uploadBtn = document.getElementById('uploadBtn');
-                const cameraInput = document.getElementById('cameraInput');
-                const photoInput = document.getElementById('photoInput');
-
-                if (cameraBtn && cameraInput) {
-                    cameraBtn.onclick = function() { cameraInput.click(); };
-                }
-                if (uploadBtn && photoInput) {
-                    uploadBtn.onclick = function() { photoInput.click(); };
-                }
-                if (cameraInput) {
-                    cameraInput.onchange = handlePhotoSelect;
-                }
-                if (photoInput) {
-                    photoInput.onchange = handlePhotoSelect;
-                }
-                console.log('[UPLOAD] Handlers attached inline:', {cameraBtn: !!cameraBtn, uploadBtn: !!uploadBtn});
-            })();
-            </script>
-
             <div id="photoPreview" class="mt-3 d-flex flex-wrap"></div>
             <button type="button" class="btn btn-hero-outline mt-2" id="analyzeBtn" disabled title="Upload photos first to enable AI analysis">
                 <i class="fas fa-magic"></i> Analyze with AI
@@ -609,6 +585,28 @@ async function handlePhotoSelect(e) {
     e.target.value = '';
     console.log('[UPLOAD] Reset file input');
 }
+
+// Attach upload handlers after function is defined
+(function() {
+    const cameraBtn = document.getElementById('cameraBtn');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const cameraInput = document.getElementById('cameraInput');
+    const photoInput = document.getElementById('photoInput');
+
+    if (cameraBtn && cameraInput) {
+        cameraBtn.onclick = function() { cameraInput.click(); };
+    }
+    if (uploadBtn && photoInput) {
+        uploadBtn.onclick = function() { photoInput.click(); };
+    }
+    if (cameraInput) {
+        cameraInput.onchange = handlePhotoSelect;
+    }
+    if (photoInput) {
+        photoInput.onchange = handlePhotoSelect;
+    }
+    console.log('[UPLOAD] Handlers attached:', {cameraBtn: !!cameraBtn, uploadBtn: !!uploadBtn});
+})();
 
 // ========================================
 // PHOTO EDITOR FUNCTIONS (FREE!)

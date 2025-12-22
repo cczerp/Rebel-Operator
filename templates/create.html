@@ -567,7 +567,9 @@ async function handlePhotoSelect(e) {
             ? error.stack
             : undefined;
         console.error('[UPLOAD] Error details:', errorMessage, errorStack);
-        showAlert('Upload failed: ' + errorMessage, 'danger');
+
+        // Show detailed error to user
+        showAlert('Upload failed: ' + errorMessage + '. Check browser console for details.', 'danger');
     } finally {
         // Hide loading spinner (with error handling)
         try {

@@ -33,6 +33,31 @@
                     <input type="file" class="d-none" id="photoInput" name="photos" multiple accept="image/*">
                 </div>
             </div>
+
+            <script>
+            // Attach upload handlers immediately after elements exist
+            (function() {
+                const cameraBtn = document.getElementById('cameraBtn');
+                const uploadBtn = document.getElementById('uploadBtn');
+                const cameraInput = document.getElementById('cameraInput');
+                const photoInput = document.getElementById('photoInput');
+
+                if (cameraBtn && cameraInput) {
+                    cameraBtn.onclick = function() { cameraInput.click(); };
+                }
+                if (uploadBtn && photoInput) {
+                    uploadBtn.onclick = function() { photoInput.click(); };
+                }
+                if (cameraInput) {
+                    cameraInput.onchange = handlePhotoSelect;
+                }
+                if (photoInput) {
+                    photoInput.onchange = handlePhotoSelect;
+                }
+                console.log('[UPLOAD] Handlers attached inline:', {cameraBtn: !!cameraBtn, uploadBtn: !!uploadBtn});
+            })();
+            </script>
+
             <div id="photoPreview" class="mt-3 d-flex flex-wrap"></div>
             <button type="button" class="btn btn-hero-outline mt-2" id="analyzeBtn" disabled title="Upload photos first to enable AI analysis">
                 <i class="fas fa-magic"></i> Analyze with AI
@@ -2089,29 +2114,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load any saved draft
     loadFromLocalStorage();
 
-    // Setup photo upload handlers (modern, CSP-safe approach)
-    const cameraBtn = document.getElementById('cameraBtn');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const cameraInput = document.getElementById('cameraInput');
-    const photoInput = document.getElementById('photoInput');
-
-    if (cameraBtn && cameraInput) {
-        cameraBtn.addEventListener('click', () => {
-            console.log('[UPLOAD] Camera button clicked');
-            cameraInput.click();
-        });
-        cameraInput.addEventListener('change', handlePhotoSelect);
-        console.log('[UPLOAD] Camera input handler attached');
-    }
-
-    if (uploadBtn && photoInput) {
-        uploadBtn.addEventListener('click', () => {
-            console.log('[UPLOAD] Upload button clicked');
-            photoInput.click();
-        });
-        photoInput.addEventListener('change', handlePhotoSelect);
-        console.log('[UPLOAD] Photo input handler attached');
-    }
+    // Photo upload handlers are attached inline (see script after buttons)
 
     // Add listeners to form fields
     const formFields = [

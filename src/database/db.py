@@ -52,13 +52,13 @@ def _get_connection_pool():
                 options_encoded = quote('-c statement_timeout=10000')
                 connection_params += f'&options={options_encoded}'
         
-        # Create connection pool with MINIMAL settings for Render free tier
-        # Render: 512 MB RAM + Gunicorn workers = need tiny pool
-        # 1 worker * 2 connections = 2 total connections (safe for free tier)
+        # Create connection pool with settings optimized for Render
+        # Render free tier: 512 MB RAM but needs to handle concurrent requests
+        # Balance: enough connections to prevent exhaustion, but not too many to exhaust RAM
         print("🔌 Creating PostgreSQL connection pool...", flush=True)
         _connection_pool = psycopg2.pool.ThreadedConnectionPool(
-            minconn=1,  # Minimum connections in pool
-            maxconn=2,  # CRITICAL: Tiny pool for Render free tier (512 MB RAM)
+            minconn=2,  # Minimum connections in pool
+            maxconn=10,  # Increased from 2 to prevent pool exhaustion
             dsn=connection_params,
             connect_timeout=5,
             keepalives=1,
@@ -66,7 +66,7 @@ def _get_connection_pool():
             keepalives_interval=10,  # Increased to reduce keepalive overhead
             keepalives_count=3
         )
-        print("✅ Connection pool created (maxconn=2 for Render free tier)", flush=True)
+        print("✅ Connection pool created (minconn=2, maxconn=10)", flush=True)
     
     return _connection_pool
 
@@ -2905,8 +2905,10 @@ class Database:
         print("✅ Migrations complete!")
 
     def close(self):
-        """Close database connection"""
-        self.conn.close()
+        """Close database connection - No-op since we use connection pooling"""
+        # Connections are automatically returned to pool by context managers
+        # This method kept for backward compatibility with teardown handlers
+        pass
 
 
 # ============================================================================

@@ -41,10 +41,11 @@ def upload_to_supabase_storage(
     """
     try:
         from src.auth_utils import get_supabase_client
-        
+
         supabase = get_supabase_client()
         if not supabase:
-            return False, "Supabase client not configured"
+            print(f"[SUPABASE_STORAGE ERROR] Supabase client not configured - check SUPABASE_URL and SUPABASE_ANON_KEY", flush=True)
+            return False, "Supabase client not configured. Please check SUPABASE_URL and SUPABASE_ANON_KEY environment variables."
         
         # Namespace path by user_id per system contract
         # Format: {user_id}/{listing_uuid}/{filename} or {user_id}/{filename}
@@ -70,6 +71,8 @@ def upload_to_supabase_storage(
         # Upload to Supabase Storage
         # Supabase Python client API: storage.from_(bucket).upload(path, file_bytes, file_options)
         try:
+            print(f"[SUPABASE_STORAGE] Attempting upload - File size: {len(file_data)} bytes, Content-Type: {content_type}", flush=True)
+
             # Convert bytes to file-like object if needed, or use bytes directly
             # Supabase expects file_data as bytes or file-like object
             response = supabase.storage.from_(bucket_name).upload(
@@ -80,12 +83,14 @@ def upload_to_supabase_storage(
                     "upsert": False  # Don't overwrite existing files (boolean, not string)
                 }
             )
-            
+
+            print(f"[SUPABASE_STORAGE] Upload response type: {type(response)}, Response: {response}", flush=True)
+
             # Check response - Supabase returns dict with 'error' key if failed
             if isinstance(response, dict) and response.get('error'):
                 error_msg = response.get('error', 'Unknown error')
                 print(f"[SUPABASE_STORAGE ERROR] Upload failed: {error_msg}", flush=True)
-                return False, f"Upload failed: {error_msg}"
+                return False, f"Supabase Storage upload failed: {error_msg}"
             
             # If response is successful, it may be None or a dict without error
             # Get public URL

@@ -31,8 +31,9 @@ def upload_log_to_storage(
     """
     try:
         # Get bucket name from env var or use default
+        # Check both SUPABASE_BUCKET_LOGS (user's preference) and SUPABASE_LOGS_BUCKET (backwards compat)
         if bucket_name is None:
-            bucket_name = os.getenv("SUPABASE_LOGS_BUCKET", "logs")
+            bucket_name = os.getenv("SUPABASE_BUCKET_LOGS") or os.getenv("SUPABASE_LOGS_BUCKET", "log-ride")
         
         supabase = _get_supabase_storage_client()
         if not supabase:

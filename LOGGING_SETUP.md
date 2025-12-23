@@ -20,10 +20,10 @@ If your logs bucket has a different name, set it in your environment variables:
 
 ```bash
 # In Render or .env file
-SUPABASE_LOGS_BUCKET=your-logs-bucket-name
+SUPABASE_BUCKET_LOGS=your-logs-bucket-name
 ```
 
-Default is `logs` if not set.
+Default is `log-ride` if not set (or `logs` for backwards compatibility).
 
 ## Using the Diagnostics Endpoint
 

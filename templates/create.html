@@ -984,20 +984,44 @@ let detectedCardData = null; // Store card data if detected
 let enhancedAnalysisData = null; // Store enhanced collectible analysis
 let stage1AnalysisData = null; // Store Stage 1 analysis results (required for Stage 2 prerequisites)
 
-document.getElementById('analyzeBtn').addEventListener('click', async function() {
+// Ensure analyze button event listener is attached after DOM is ready
+function initializeAnalyzeButton() {
     const analyzeBtn = document.getElementById('analyzeBtn');
-    const originalText = analyzeBtn.innerHTML;
+    if (!analyzeBtn) {
+        console.error('[ANALYZE] Analyze button not found in DOM');
+        return;
+    }
     
-    // Show loading state
-    analyzeBtn.disabled = true;
-    analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
-    showLoading();
+    // Remove any existing listeners (in case of multiple initializations)
+    const newBtn = analyzeBtn.cloneNode(true);
+    analyzeBtn.parentNode.replaceChild(newBtn, analyzeBtn);
+    
+    newBtn.addEventListener('click', async function() {
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        
+        // Validate prerequisites before starting analysis
+        if (!uploadedPhotos || uploadedPhotos.length === 0) {
+            showAlert('Please upload photos first before running AI analysis.', 'warning');
+            return;
+        }
+        
+        if (!currentListingId) {
+            showAlert('Error: Listing ID not found. Please refresh the page.', 'danger');
+            return;
+        }
+        
+        const originalText = analyzeBtn.innerHTML;
+        
+        // Show loading state
+        analyzeBtn.disabled = true;
+        analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+        showLoading();
 
-    // Create abort controller for timeout
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+        // Create abort controller for timeout
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 60000); // 60 second timeout
 
-    try {
+        try {
         // Try card analysis first - now returns job_id
         const cardResponse = await fetch('/api/analyze-card', {
             method: 'POST',
@@ -1008,16 +1032,16 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
             signal: controller.signal
         });
 
-        clearTimeout(timeout);
+            clearTimeout(timeout);
 
-        if (!cardResponse.ok) {
-            throw new Error(`Card analysis failed: ${cardResponse.statusText}`);
-        }
+            if (!cardResponse.ok) {
+                throw new Error(`Card analysis failed: ${cardResponse.statusText}`);
+            }
 
-        const cardJob = await cardResponse.json();
-        
-        // If job_id is returned, poll for results
-        if (cardJob.job_id) {
+            const cardJob = await cardResponse.json();
+            
+            // If job_id is returned, poll for results
+            if (cardJob.job_id) {
             const cardData = await pollJobStatus('/api/analyze-card-status/' + cardJob.job_id, 60);
             
             // Log response for debugging
@@ -1207,13 +1231,15 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
             console.error('Analysis error:', error);
             showAlert('Analysis failed: ' + (error.message || error), 'danger');
         }
-    } finally {
-        clearTimeout(timeout);
-        hideLoading();
-        analyzeBtn.disabled = false;
-        analyzeBtn.innerHTML = originalText;
-    }
-});
+    });
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeAnalyzeButton);
+} else {
+    initializeAnalyzeButton();
+}
 
 function getDemandEmoji(demand) {
     if (demand === 'High') return '🔥';
@@ -1911,12 +1937,8 @@ function refreshPhotoPreviews() {
         previewDiv.appendChild(img);
     });
     
-    // Enable analyze button if photos exist
-    const analyzeBtn = document.getElementById('analyzeBtn');
-    if (uploadedPhotos.length > 0) {
-        analyzeBtn.disabled = false;
-        analyzeBtn.title = 'Click to analyze photos with AI';
-    }
+    // Update analyze button state based on photos
+    updateAnalyzeButtonState();
 }
 
 // Load draft data for editing
@@ -2007,17 +2029,29 @@ async function loadDraftData() {
     }
 }
 
+// Initialize button state on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize button state
+    updateAnalyzeButtonState();
+    
+    // Load draft data if editing
+    if (editingDraftId) {
+        loadDraftData();
+    } else if (currentListingId) {
+        // New listing was created - load any existing photos from DB
+        loadListingPhotos();
+    }
+});
+
+// Also initialize if DOM is already loaded
+if (document.readyState !== 'loading') {
+    updateAnalyzeButtonState();
+}
+
 // Load draft data when page loads
 if (editingDraftId) {
     // IMAGE_CONTRACT: Load existing listing data on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        if (editingDraftId) {
-            loadDraftData();
-        } else if (currentListingId) {
-            // New listing was created - load any existing photos from DB
-            loadListingPhotos();
-        }
-    });
+    // (Now handled in DOMContentLoaded above)
     
     // Load photos for new listing (if any were uploaded before page refresh)
     async function loadListingPhotos() {

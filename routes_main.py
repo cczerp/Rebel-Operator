@@ -420,14 +420,19 @@ def api_analyze():
         def analyze_worker(job_data):
             from src.ai.gemini_classifier import GeminiClassifier
             from src.ai.claude_collectible_analyzer import ClaudeCollectibleAnalyzer
-            from src.database import get_db
+            from src.database import Database
             
             photo_paths = job_data["photo_paths"]
             force_enhanced = job_data.get("force_enhanced", False)
             is_stage2_only = job_data.get("is_stage2_only", False)
             
-            # Get database instance for worker (use singleton, not global db)
-            worker_db = get_db()
+            # Create a new Database instance for this worker thread
+            # CRITICAL: Background workers don't have Flask request context, so we can't use get_db_instance()
+            # Creating a fresh Database instance is safe because:
+            # - Database instances don't store connections (they use global connection pool)
+            # - All database operations use _get_connection() context managers
+            # - Connections are automatically returned to pool after use
+            worker_db = Database()
             
             # Create Photo objects - paths are now Supabase Storage URLs, not local paths
             # Detect if path is a URL (starts with http) or local path

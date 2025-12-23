@@ -1124,6 +1124,7 @@ function initializeAnalyzeButton() {
 
         try {
         // Try card analysis first - now returns job_id
+        console.log('[AI] Starting card analysis with photos:', uploadedPhotos);
         const cardResponse = await fetch('/api/analyze-card', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -1136,49 +1137,64 @@ function initializeAnalyzeButton() {
             clearTimeout(timeout);
 
             if (!cardResponse.ok) {
-                throw new Error(`Card analysis failed: ${cardResponse.statusText}`);
+                const errorText = await cardResponse.text();
+                console.error('[AI] Card analysis HTTP error:', cardResponse.status, errorText);
+                throw new Error(`Card analysis failed: ${cardResponse.statusText} - ${errorText}`);
             }
 
             const cardJob = await cardResponse.json();
+            console.log('[AI] Card analysis job created:', cardJob);
             
             // If job_id is returned, poll for results
             if (cardJob.job_id) {
-            const cardData = await pollJobStatus('/api/analyze-card-status/' + cardJob.job_id, 60);
+                try {
+                    const cardData = await pollJobStatus('/api/analyze-card-status/' + cardJob.job_id, 60);
+                    
+                    // Log response for debugging
+                    console.log('Card analysis response:', cardData);
+
+                    // Check if it's a card
+                    if (cardData.success && cardData.card_data && cardData.card_data.is_card) {
+                        // Store card data for later
+                        detectedCardData = cardData.card_data;
+
+                        // Store enhanced analysis if available
+                        if (cardData.collectible_analysis) {
+                            enhancedAnalysisData = cardData.collectible_analysis;
+                        }
+
+                        // Show card detection banner
+                        showCardDetectionBanner(cardData.card_data);
+
+                        // Fill form with card data
+                        fillFormFromCardData(cardData.card_data);
+
+                        // Enable enhanced analyzer button
+                        const enhancedBtn = document.getElementById('enhancedAnalyzerBtn');
+                        enhancedBtn.disabled = false;
+                        enhancedBtn.classList.remove('btn-outline-warning');
+                        enhancedBtn.classList.add('btn-hero-outline');
+                        enhancedBtn.classList.add('ai-ready');
+                        enhancedBtn.title = 'Click for detailed card analysis';
+
+                        showAlert('Card detected and analyzed!', 'success');
+                        analyzeBtn.disabled = false;
+                        analyzeBtn.innerHTML = originalText;
+                        hideLoading();
+                        return; // Exit early - card analysis complete
+                    }
+                    // If not a card, fall through to general analysis below
+                    console.log('[AI] Not a card, proceeding to general analysis');
+                } catch (cardError) {
+                    console.warn('[AI] Card analysis failed or timed out, proceeding to general analysis:', cardError);
+                    // Continue to general analysis even if card analysis fails
+                }
+            }
             
-            // Log response for debugging
-            console.log('Card analysis response:', cardData);
-
-            // Check if it's a card
-            if (cardData.success && cardData.card_data && cardData.card_data.is_card) {
-            // Store card data for later
-            detectedCardData = cardData.card_data;
-
-            // Store enhanced analysis if available
-            if (cardData.collectible_analysis) {
-                enhancedAnalysisData = cardData.collectible_analysis;
-            }
-
-            // Show card detection banner
-            showCardDetectionBanner(cardData.card_data);
-
-            // Fill form with card data
-            fillFormFromCardData(cardData.card_data);
-
-            // Enable enhanced analyzer button
-            const enhancedBtn = document.getElementById('enhancedAnalyzerBtn');
-            enhancedBtn.disabled = false;
-            enhancedBtn.classList.remove('btn-outline-warning');
-            enhancedBtn.classList.add('btn-hero-outline');
-            enhancedBtn.classList.add('ai-ready');
-            enhancedBtn.title = 'Click for detailed card analysis';
-
-            showAlert('Card detected and analyzed!', 'success');
-            }
-        } else {
-            // Not a card, do regular item analysis
+            // Not a card or card analysis didn't work, do regular item analysis
             // Create new abort controller for general analysis
             const generalController = new AbortController();
-            const generalTimeout = setTimeout(() => generalController.abort(), 60000); // 60 second timeout
+            const generalTimeout = setTimeout(() => generalController.abort(), 90000); // 90 second timeout for general analysis
             
             // SYSTEM CONTRACT: Stage 1 requires text input with at least 3 distinct key details
             // Collect text details from form fields
@@ -1191,6 +1207,7 @@ function initializeAnalyzeButton() {
                 color: document.getElementById('color')?.value?.trim() || ''
             };
             
+            console.log('[AI] Starting general analysis with photos and text details:', { photos: uploadedPhotos, textDetails });
             const response = await fetch('/api/analyze', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -1204,13 +1221,17 @@ function initializeAnalyzeButton() {
             clearTimeout(generalTimeout);
 
             if (!response.ok) {
-                throw new Error(`Analysis failed: ${response.statusText}`);
+                const errorText = await response.text();
+                console.error('[AI] General analysis HTTP error:', response.status, errorText);
+                throw new Error(`Analysis failed: ${response.statusText} - ${errorText}`);
             }
 
             const jobResponse = await response.json();
+            console.log('[AI] General analysis job created:', jobResponse);
             
             // If job_id is returned, poll for results
             if (jobResponse.job_id) {
+                console.log('[AI] Starting to poll for job status:', jobResponse.job_id);
                 const data = await pollJobStatus('/api/analyze-status/' + jobResponse.job_id, 90);
                 
                 // Log response for debugging
@@ -1308,7 +1329,10 @@ function initializeAnalyzeButton() {
                     document.getElementById('listingForm').insertAdjacentElement('beforebegin', marketAlert);
                 }
 
-                showAlert('AI analysis complete!', 'success');
+                    showAlert('AI analysis complete!', 'success');
+                    analyzeBtn.disabled = false;
+                    analyzeBtn.innerHTML = originalText;
+                    hideLoading();
                 } else {
                     // Show detailed error message
                     const errorMsg = (data.result && data.result.error) || data.error || 'Unknown error occurred';
@@ -1321,6 +1345,9 @@ function initializeAnalyzeButton() {
                     } else {
                         showAlert('AI analysis error: ' + errorMsg + errorDetails, 'danger');
                     }
+                    analyzeBtn.disabled = false;
+                    analyzeBtn.innerHTML = originalText;
+                    hideLoading();
                 }
             } else {
                 // Legacy response format (shouldn't happen with new API)
@@ -1332,11 +1359,20 @@ function initializeAnalyzeButton() {
             }
         }
     } catch (error) {
+        console.error('[AI] Analysis error caught:', error);
+        analyzeBtn.disabled = false;
+        analyzeBtn.innerHTML = originalText;
+        hideLoading();
+        
         if (error.name === 'AbortError') {
             showAlert('Analysis timed out. Please try again with fewer photos or check your connection.', 'warning');
         } else {
             console.error('Analysis error:', error);
-            showAlert('Analysis failed: ' + (error.message || error), 'danger');
+            const errorMsg = error.message || error.toString();
+            // Don't show error if it's just "Job timed out" from polling - that's handled above
+            if (!errorMsg.includes('Job timed out')) {
+                showAlert('Analysis failed: ' + errorMsg, 'danger');
+            }
         }
     }
 });
@@ -1370,21 +1406,38 @@ async function pollJobStatus(statusUrl, maxSeconds = 60) {
     const maxTime = maxSeconds * 1000;
     const pollInterval = 2000; // Poll every 2 seconds
     
+    console.log('[AI] Starting to poll job status:', statusUrl, 'maxSeconds:', maxSeconds);
+    
     while (Date.now() - startTime < maxTime) {
         try {
             const response = await fetch(statusUrl);
             if (!response.ok) {
+                // If 404, job might not exist yet - wait and retry
+                if (response.status === 404) {
+                    console.log('[AI] Job not found yet (404), waiting...');
+                    await new Promise(resolve => setTimeout(resolve, pollInterval));
+                    continue;
+                }
                 throw new Error(`Status check failed: ${response.statusText}`);
             }
             
             const data = await response.json();
+            console.log('[AI] Poll response:', data.status, data);
             
             if (data.status === 'completed') {
+                console.log('[AI] Job completed successfully');
                 return data;
             } else if (data.status === 'failed') {
+                console.error('[AI] Job failed:', data.error);
                 throw new Error(data.error || 'Job failed');
             } else if (data.status === 'processing' || data.status === 'pending') {
                 // Still processing, wait and poll again
+                console.log('[AI] Job still processing, waiting...');
+                await new Promise(resolve => setTimeout(resolve, pollInterval));
+                continue;
+            } else {
+                // Unknown status, wait and retry
+                console.log('[AI] Unknown status:', data.status, 'waiting...');
                 await new Promise(resolve => setTimeout(resolve, pollInterval));
                 continue;
             }
@@ -1392,7 +1445,8 @@ async function pollJobStatus(statusUrl, maxSeconds = 60) {
             if (error.message.includes('Job failed') || error.message.includes('failed')) {
                 throw error;
             }
-            // Network error, retry
+            // Network error or other transient error, retry
+            console.warn('[AI] Poll error (will retry):', error.message);
             await new Promise(resolve => setTimeout(resolve, pollInterval));
         }
     }

@@ -634,7 +634,8 @@ def supabase_diagnostics():
                         bucket_names.append(bucket)
                 
                 # Check for both listing-images and logs buckets
-                logs_bucket_name = os.getenv("SUPABASE_LOGS_BUCKET", "logs")
+                # Check both SUPABASE_BUCKET_LOGS (user's preference) and SUPABASE_LOGS_BUCKET (backwards compat)
+                logs_bucket_name = os.getenv("SUPABASE_BUCKET_LOGS") or os.getenv("SUPABASE_LOGS_BUCKET", "log-ride")
                 
                 diagnostics["bucket_status"] = {
                     "can_list": True,

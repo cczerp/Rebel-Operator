@@ -1031,6 +1031,49 @@ function updatePhotoAfterEdit(newImageData, newFilepath) {
 let detectedCardData = null; // Store card data if detected
 let enhancedAnalysisData = null; // Store enhanced collectible analysis
 let stage1AnalysisData = null; // Store Stage 1 analysis results (required for Stage 2 prerequisites)
+let aiStatus = { gemini: false, claude: false }; // Track AI service availability
+
+// Check AI service status on page load
+async function checkAIStatus() {
+    try {
+        const response = await fetch('/api/ai-status');
+        if (response.ok) {
+            const data = await response.json();
+            aiStatus = {
+                gemini: data.status.gemini.configured,
+                claude: data.status.claude.configured
+            };
+            
+            // Update button tooltips based on availability
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            if (analyzeBtn && !aiStatus.gemini) {
+                analyzeBtn.title = 'AI service not configured. Please set GEMINI_API_KEY environment variable.';
+            }
+            
+            const enhancedBtn = document.getElementById('enhancedAnalyzerBtn');
+            if (enhancedBtn && !aiStatus.claude) {
+                enhancedBtn.title = 'Enhanced Analyzer requires Claude API key (ANTHROPIC_API_KEY).';
+            }
+            
+            // Show warning if AI is not configured
+            if (!aiStatus.gemini) {
+                console.warn('[AI] Gemini API key not configured. Basic AI analysis will not work.');
+            }
+            if (!aiStatus.claude) {
+                console.warn('[AI] Claude API key not configured. Enhanced Analyzer will not work.');
+            }
+        }
+    } catch (error) {
+        console.error('[AI] Failed to check AI status:', error);
+    }
+}
+
+// Check AI status when page loads
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', checkAIStatus);
+} else {
+    checkAIStatus();
+}
 
 // Ensure analyze button event listener is attached after DOM is ready
 function initializeAnalyzeButton() {
@@ -1056,6 +1099,15 @@ function initializeAnalyzeButton() {
         
         if (!currentListingId) {
             showAlert('Error: Listing ID not found. Please refresh the page.', 'danger');
+            return;
+        }
+        
+        // Check if AI service is configured
+        if (!aiStatus.gemini) {
+            showAlert('AI service is not configured. Please set GEMINI_API_KEY environment variable. See AI_SETUP.md for instructions.', 'danger');
+            analyzeBtn.disabled = false;
+            analyzeBtn.innerHTML = originalText;
+            hideLoading();
             return;
         }
         
@@ -1257,12 +1309,18 @@ function initializeAnalyzeButton() {
                 }
 
                 showAlert('AI analysis complete!', 'success');
-            } else {
+                } else {
                     // Show detailed error message
                     const errorMsg = (data.result && data.result.error) || data.error || 'Unknown error occurred';
                     const errorDetails = (data.result && data.result.details) ? ' - ' + data.result.details : '';
                     console.error('Analysis error:', errorMsg, errorDetails);
-                    showAlert('AI analysis error: ' + errorMsg + errorDetails, 'danger');
+                    
+                    // Check for API key errors and provide helpful message
+                    if (errorMsg.includes('API_KEY') || errorMsg.includes('GEMINI') || errorMsg.includes('not configured')) {
+                        showAlert('AI service is not configured. Please set GEMINI_API_KEY environment variable. See AI_SETUP.md for instructions.', 'danger');
+                    } else {
+                        showAlert('AI analysis error: ' + errorMsg + errorDetails, 'danger');
+                    }
                 }
             } else {
                 // Legacy response format (shouldn't happen with new API)
@@ -1413,7 +1471,13 @@ document.getElementById('enhancedAnalyzerBtn').addEventListener('click', async f
                         return;
                     }
                 } else if (data.error || (data.result && data.result.error)) {
-                    showAlert('Enhanced analysis failed: ' + (data.error || data.result.error), 'danger');
+                    const errorMsg = data.error || (data.result && data.result.error) || 'Unknown error';
+                    // Check for API key errors
+                    if (errorMsg.includes('API_KEY') || errorMsg.includes('ANTHROPIC') || errorMsg.includes('CLAUDE') || errorMsg.includes('not configured')) {
+                        showAlert('Enhanced Analyzer requires Claude API key. Please set ANTHROPIC_API_KEY environment variable. See AI_SETUP.md for instructions.', 'danger');
+                    } else {
+                        showAlert('Enhanced analysis failed: ' + errorMsg, 'danger');
+                    }
                     return;
                 } else {
                     showAlert('Enhanced analysis not available for this item. This feature works best with collectibles, trading cards, and sports memorabilia.', 'warning');
@@ -1431,7 +1495,16 @@ document.getElementById('enhancedAnalyzerBtn').addEventListener('click', async f
                         return;
                     }
                 } else if (data.error) {
-                    showAlert('Enhanced analysis failed: ' + data.error, 'danger');
+                    const errorMsg = data.error || 'Unknown error';
+                    // Check for API key errors
+                    if (errorMsg.includes('API_KEY') || errorMsg.includes('ANTHROPIC') || errorMsg.includes('CLAUDE') || errorMsg.includes('not configured')) {
+                        showAlert('Enhanced Analyzer requires Claude API key. Please set ANTHROPIC_API_KEY environment variable. See AI_SETUP.md for instructions.', 'danger');
+                    } else {
+                        showAlert('Enhanced analysis failed: ' + errorMsg, 'danger');
+                    }
+                    enhancedBtn.disabled = false;
+                    enhancedBtn.innerHTML = originalText;
+                    hideLoading();
                     return;
                 } else {
                     showAlert('Enhanced analysis not available for this item. This feature works best with collectibles, trading cards, and sports memorabilia.', 'warning');

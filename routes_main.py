@@ -561,13 +561,19 @@ def api_analyze_status(job_id):
 @main_bp.route('/api/upload-photos', methods=['POST'])
 def api_upload_photos():
     """
-    Upload photos for a listing to Supabase Storage.
-    
-    IMAGE_CONTRACT REQUIREMENTS:
+    Upload photos for a listing or a temporary session to Supabase Storage.
+
+    IMAGE_CONTRACT REQUIREMENTS (updated for temp sessions):
     - Step 1: User uploads image → Image uploaded to storage
-    - Step 2: Image immediately attached to user_id and listing_id (before save, not after)
-    - Step 3: UI reflects database truth (thumbnail renders from DB-backed image list)
-    
+    - Step 2: For committed listings, image is attached to user_id and listing_id
+    - Step 3: UI reflects stored image list (listing or temp session)
+
+    TEMP SESSION MODE (pre-save, new listing):
+    - If listing_id is not provided but session_id is, images are uploaded under:
+      temp/{user_id}/{session_id}/filename
+    - These images are NOT attached to a listing yet and may be cleaned up later.
+    - This allows AI analysis before a listing is created.
+
     SYSTEM_CONTRACT:
     - Provider: Supabase Storage
     - Bucket: listing-images
@@ -592,34 +598,16 @@ def api_upload_photos():
             print(f"[UPLOAD ERROR] User not authenticated - current_user: {current_user}", flush=True)
             return jsonify({"error": "Authentication required to upload photos"}), 401
 
-        # IMAGE_CONTRACT: "Image upload requires: user_id, listing_id"
-        listing_id = request.form.get('listing_id') or request.args.get('listing_id')
-        if not listing_id:
-            return jsonify({"error": "listing_id is required per IMAGE_CONTRACT"}), 400
-        
-        try:
-            listing_id = int(listing_id)
-        except (ValueError, TypeError):
-            return jsonify({"error": "Invalid listing_id"}), 400
-
-        print(f"[UPLOAD] Received upload request for listing_id={listing_id}", flush=True)
-
-        # Verify listing exists and belongs to user
-        if not db:
-            return jsonify({"error": "Database not initialized"}), 500
-        
-        listing = db.get_listing(listing_id)
-        if not listing:
-            return jsonify({"error": "Listing not found"}), 404
-        
-        if listing.get('user_id') != str(current_user.id):
-            return jsonify({"error": "Unauthorized: Listing does not belong to user"}), 403
-
-        # Get listing_uuid for storage path (per SYSTEM_CONTRACT)
-        listing_uuid = listing.get('listing_uuid')
         user_id = str(current_user.id)
 
-        print(f"[UPLOAD] Listing verified: uuid={listing_uuid}, user={user_id}", flush=True)
+        # Support two modes:
+        # 1) Committed listing mode: listing_id provided -> attach directly to listing
+        # 2) Temp session mode: session_id provided without listing_id -> upload under temp/
+        listing_id_raw = request.form.get('listing_id') or request.args.get('listing_id')
+        session_id = request.form.get('session_id') or request.args.get('session_id')
+
+        if not listing_id_raw and not session_id:
+            return jsonify({"error": "listing_id or session_id is required to upload photos"}), 400
 
         if 'photos' not in request.files:
             print(f"[UPLOAD ERROR] No 'photos' field in request.files", flush=True)
@@ -632,13 +620,39 @@ def api_upload_photos():
             print(f"[UPLOAD ERROR] File list is empty", flush=True)
             return jsonify({"error": "No photos provided"}), 400
 
-        # Get existing photos from listing (to append new ones)
+        mode = "temp" if session_id and not listing_id_raw else "listing"
+
+        listing = None
+        listing_uuid = None
         existing_photos = []
-        if listing.get('photos'):
+
+        if mode == "listing":
+            # Resolve and validate listing
             try:
-                existing_photos = json.loads(listing['photos']) if isinstance(listing['photos'], str) else listing['photos']
-            except (json.JSONDecodeError, TypeError):
-                existing_photos = []
+                listing_id = int(listing_id_raw)
+            except (ValueError, TypeError):
+                return jsonify({"error": "Invalid listing_id"}), 400
+
+            print(f"[UPLOAD] Received upload request for listing_id={listing_id}", flush=True)
+
+            if not db:
+                return jsonify({"error": "Database not initialized"}), 500
+
+            listing = db.get_listing(listing_id)
+            if not listing:
+                return jsonify({"error": "Listing not found"}), 404
+
+            if listing.get('user_id') != str(current_user.id):
+                return jsonify({"error": "Unauthorized: Listing does not belong to user"}), 403
+
+            listing_uuid = listing.get('listing_uuid')
+            print(f"[UPLOAD] Listing verified: uuid={listing_uuid}, user={user_id}", flush=True)
+
+            if listing.get('photos'):
+                try:
+                    existing_photos = json.loads(listing['photos']) if isinstance(listing['photos'], str) else listing['photos']
+                except (json.JSONDecodeError, TypeError):
+                    existing_photos = []
 
         saved_urls = []
         for file in files:
@@ -653,13 +667,22 @@ def api_upload_photos():
                 file_data = file.read()
                 print(f"[UPLOAD] Uploading {filename} ({len(file_data)} bytes) to Supabase Storage", flush=True)
 
-                # Upload to Supabase Storage bucket using listing_uuid (per SYSTEM_CONTRACT)
+                # Decide storage path based on mode
+                override_path = None
+                if mode == "temp":
+                    if not session_id:
+                        return jsonify({"error": "session_id is required for temp image uploads"}), 400
+                    override_path = f"temp/{user_id}/{session_id}/{filename}"
+
+                # Upload to Supabase Storage bucket using either listing_uuid (committed)
+                # or temp/{user_id}/{session_id}/... (pre-save sandbox)
                 success, result = upload_to_supabase_storage(
                     file_data=file_data,
                     filename=filename,
                     user_id=user_id,
-                    listing_uuid=listing_uuid,  # Use listing's UUID, not generate new one
-                    bucket_name="listing-images"
+                    listing_uuid=listing_uuid,  # None in temp mode
+                    bucket_name="listing-images",
+                    override_path=override_path,
                 )
 
                 if success:
@@ -681,20 +704,27 @@ def api_upload_photos():
             print(f"[UPLOAD ERROR] {error_msg}", flush=True)
             return jsonify({"error": error_msg}), 500
 
-        # IMAGE_CONTRACT Step 2: "Image is immediately attached to user_id and listing_id"
-        # "This happens before save, not after."
-        # Append new photos to existing ones
-        updated_photos = existing_photos + saved_urls
-        
-        # Update listing in database immediately
-        db.update_listing(listing_id, photos=updated_photos)
-        print(f"[UPLOAD] ✅ Updated listing {listing_id} with {len(updated_photos)} photos in database", flush=True)
+        if mode == "listing":
+            # Append new photos to existing ones and update listing in DB
+            updated_photos = existing_photos + saved_urls
+            db.update_listing(listing_id, photos=updated_photos)
+            print(f"[UPLOAD] ✅ Updated listing {listing_id} with {len(updated_photos)} photos in database", flush=True)
 
-        print(f"[UPLOAD SUCCESS] Uploaded {len(saved_urls)} files, listing now has {len(updated_photos)} total photos", flush=True)
+            print(f"[UPLOAD SUCCESS] Uploaded {len(saved_urls)} files, listing now has {len(updated_photos)} total photos", flush=True)
+            return jsonify({
+                "success": True,
+                "mode": "listing",
+                "paths": saved_urls,   # Newly uploaded URLs
+                "all_photos": updated_photos,  # All photos including existing ones (for UI refresh)
+                "count": len(saved_urls)
+            })
+
+        # Temp session mode: no DB writes, just return URLs to frontend
+        print(f"[UPLOAD] Temp session upload complete: {len(saved_urls)} photo(s) for session_id={session_id}", flush=True)
         return jsonify({
             "success": True,
-            "paths": saved_urls,  # Newly uploaded URLs
-            "all_photos": updated_photos,  # All photos including existing ones (for UI refresh)
+            "mode": "temp",
+            "paths": saved_urls,
             "count": len(saved_urls)
         })
 
@@ -843,36 +873,45 @@ def api_save_draft():
     """
     Save a listing as draft or post it (status).
     
-    IMAGE_CONTRACT: Listing must already exist (created when /create page loads).
-    This endpoint UPDATES the existing listing, does not create a new one.
+    Supports two flows:
+    - Existing listing: listing_id provided → update listing in-place
+    - New listing from temp session: no listing_id, but session_id + temp photos provided
     """
     try:
         import uuid
         import json
         data = request.get_json() or {}
+        session_id = data.get('session_id')
 
-        # IMAGE_CONTRACT: Listing must exist - get listing_id from request
-        listing_id = data.get('listing_id') or data.get('draft_id')
-        if not listing_id:
-            return jsonify({"error": "listing_id is required per IMAGE_CONTRACT. Listing should exist before save."}), 400
+        # Decide flow: existing listing vs new listing from temp session
+        listing_id_raw = data.get('listing_id') or data.get('draft_id')
+        listing = None
+        listing_id = None
+        listing_uuid = None
 
-        try:
-            listing_id = int(listing_id)
-        except (ValueError, TypeError):
-            return jsonify({"error": "Invalid listing_id"}), 400
+        if listing_id_raw:
+            # Existing listing flow
+            try:
+                listing_id = int(listing_id_raw)
+            except (ValueError, TypeError):
+                return jsonify({"error": "Invalid listing_id"}), 400
 
-        # Verify listing exists and belongs to user
-        listing = db.get_listing(listing_id)
-        if not listing:
-            return jsonify({"error": "Listing not found"}), 404
-        
-        if listing.get('user_id') != str(current_user.id):
-            return jsonify({"error": "Unauthorized: Listing does not belong to user"}), 403
+            # Verify listing exists and belongs to user
+            listing = db.get_listing(listing_id)
+            if not listing:
+                return jsonify({"error": "Listing not found"}), 404
+            
+            if listing.get('user_id') != str(current_user.id):
+                return jsonify({"error": "Unauthorized: Listing does not belong to user"}), 403
 
-        # Get listing_uuid from existing listing (don't generate new one)
-        listing_uuid = listing.get('listing_uuid')
-        if not listing_uuid:
-            return jsonify({"error": "Listing missing listing_uuid"}), 500
+            # Get listing_uuid from existing listing (don't generate new one)
+            listing_uuid = listing.get('listing_uuid')
+            if not listing_uuid:
+                return jsonify({"error": "Listing missing listing_uuid"}), 500
+        else:
+            # New listing flow requires a temp session
+            if not session_id:
+                return jsonify({"error": "session_id is required when listing_id is missing"}), 400
 
         # Required fields
         title = data.get('title') or 'Untitled'
@@ -880,12 +919,13 @@ def api_save_draft():
         condition = data.get('condition') or 'good'
         status = data.get('status', 'draft')
         
-        # IMAGE_CONTRACT: Photos should already be in DB from upload endpoint
-        # But allow override if provided (for backwards compatibility)
+        # Photos may come from:
+        # - existing listing (committed paths)
+        # - temp session uploads (temp/{user_id}/{session_id}/...)
         photos = data.get('photos')
         if photos is None:
-            # Use existing photos from listing
-            if listing.get('photos'):
+            # Use existing photos from listing if available
+            if listing and listing.get('photos'):
                 try:
                     photos = json.loads(listing['photos']) if isinstance(listing['photos'], str) else listing['photos']
                 except (json.JSONDecodeError, TypeError):
@@ -914,7 +954,7 @@ def api_save_draft():
             # Extract key info from enhanced analysis
             name = title  # Use listing title as collectible name
             category_val = item_type
-            brand = attributes.get('brand') if attributes else None
+            brand_val = attributes.get('brand') if attributes else None
 
             # Extract values from enhanced analysis
             condition_val = condition
@@ -939,7 +979,7 @@ def api_save_draft():
             collectible_id = db.add_collectible(
                 name=name,
                 category=category_val,
-                brand=brand,
+                brand=brand_val,
                 year=year_val,
                 condition=condition_val,
                 estimated_value_low=value_low,
@@ -955,25 +995,93 @@ def api_save_draft():
             # Save deep analysis to collectible
             db.save_deep_analysis(collectible_id, enhanced_analysis)
 
-        # IMAGE_CONTRACT: UPDATE existing listing instead of creating new one
-        # "Listing must exist immediately" - it was created when /create page loaded
-        db.update_listing(
-            listing_id=listing_id,
-            title=title,
-            description=description,
-            price=price,
-            condition=condition,
-            photos=photos,  # Photos already in DB from upload endpoint, but allow override
-            collectible_id=collectible_id,
-            cost=cost,
-            category=item_type,
-            attributes=attributes,
-            quantity=quantity,
-            storage_location=storage_location,
-            sku=sku,
-            upc=upc,
-            status=status,
-        )
+        # If this is a new listing (no existing listing_id), we need to:
+        # - create a new listing_uuid
+        # - move temp images (if any) into permanent listing path
+        # - create the listing record
+        if listing_id is None:
+            from src.storage.supabase_storage import move_supabase_object
+            from urllib.parse import urlparse
+
+            user_id_str = str(current_user.id)
+            listing_uuid = uuid.uuid4().hex
+            final_photos = []
+
+            for url in photos or []:
+                if not isinstance(url, str):
+                    continue
+
+                parsed = urlparse(url)
+                # Expect URLs like: .../storage/v1/object/public/listing-images/<path>
+                path = parsed.path or ""
+                marker = "/storage/v1/object/public/listing-images/"
+                if marker in path:
+                    storage_path = path.split(marker, 1)[1]
+                else:
+                    # If we can't find the marker, just keep the URL as-is
+                    final_photos.append(url)
+                    continue
+
+                # Only move temp session images; keep others as-is
+                if not storage_path.startswith(f"temp/{user_id_str}/{session_id}/"):
+                    final_photos.append(url)
+                    continue
+
+                filename = storage_path.split("/")[-1]
+                to_path = f"{user_id_str}/{listing_uuid}/{filename}"
+
+                success, new_url = move_supabase_object(
+                    from_path=storage_path,
+                    to_path=to_path,
+                    bucket_name="listing-images",
+                )
+                if success:
+                    final_photos.append(new_url)
+                else:
+                    # If move fails, fall back to original URL to avoid losing the image
+                    final_photos.append(url)
+
+            if not final_photos:
+                final_photos = photos or []
+
+            listing_id = db.create_listing(
+                listing_uuid=listing_uuid,
+                title=title,
+                description=description,
+                price=price,
+                condition=condition,
+                photos=final_photos,
+                user_id=current_user.id,
+                collectible_id=collectible_id,
+                cost=cost,
+                category=item_type,
+                item_type=item_type,
+                attributes=attributes,
+                quantity=quantity,
+                storage_location=storage_location,
+                sku=sku,
+                upc=upc,
+                status=status,
+            )
+        else:
+            # Existing listing: update in-place
+            db.update_listing(
+                listing_id=listing_id,
+                title=title,
+                description=description,
+                price=price,
+                condition=condition,
+                photos=photos,
+                collectible_id=collectible_id,
+                cost=cost,
+                category=item_type,
+                attributes=attributes,
+                quantity=quantity,
+                storage_location=storage_location,
+                sku=sku,
+                upc=upc,
+                status=status,
+            )
 
         return jsonify({"success": True, "listing_id": listing_id})
 

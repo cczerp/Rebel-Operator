@@ -483,15 +483,42 @@ console.log('CREATE.HTML JAVASCRIPT LOADED');
 console.log('Current user authenticated:', {{ 'true' if current_user.is_authenticated else 'false' }});
 console.log('========================================');
 
-// IMAGE_CONTRACT: Listing exists immediately, images attached to listing_id
 let currentListingId = {{ listing_id if listing_id else 'null' }};
 let currentListingUuid = {{ listing_uuid|tojson if listing_uuid else 'null' }};
-// IMAGE_CONTRACT Step 3: "UI reflects database truth" - Initialize from backend
 let uploadedPhotos = {{ listing_photos|tojson if listing_photos else '[]' }};
 let editingDraftId = {{ draft_id if draft_id else 'null' }};
 let editingListingUuid = currentListingUuid;
+let currentSessionId = null;
 
-<<<<<<< HEAD
+function ensureSessionId() {
+    if (currentSessionId) {
+        return currentSessionId;
+    }
+    try {
+        const existing = window.sessionStorage.getItem('createSessionId');
+        if (existing) {
+            currentSessionId = existing;
+            console.log('[SESSION] Reusing existing session_id from sessionStorage:', currentSessionId);
+            return currentSessionId;
+        }
+    } catch (e) {
+        console.warn('[SESSION] Unable to access sessionStorage:', e);
+    }
+
+    // Simple UUID-like generator for session ID
+    const rand = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
+    currentSessionId = `sess-${rand()}${rand()}-${rand()}-${rand()}-${rand()}${rand()}${rand()}`;
+
+    try {
+        window.sessionStorage.setItem('createSessionId', currentSessionId);
+    } catch (e) {
+        console.warn('[SESSION] Unable to persist session_id to sessionStorage:', e);
+    }
+
+    console.log('[SESSION] Generated new session_id:', currentSessionId);
+    return currentSessionId;
+}
+
 // Helper function to manage analyze button state
 // Safe to call on any page - returns early if button doesn't exist
 function updateAnalyzeButtonState() {
@@ -511,16 +538,14 @@ function updateAnalyzeButtonState() {
     } catch (e) {
         // Silently fail if called on wrong page
         console.log('[CREATE] updateAnalyzeButtonState: Button not available on this page');
-=======
+    }
+}
+
 // Log initialization values for debugging
 console.log('[INIT] currentListingId:', currentListingId, typeof currentListingId);
 console.log('[INIT] currentListingUuid:', currentListingUuid);
 console.log('[INIT] editingDraftId:', editingDraftId);
 console.log('[INIT] uploadedPhotos from database:', uploadedPhotos);
-if (!currentListingId) {
-    console.warn('[INIT WARNING] currentListingId is not set! Image uploads will fail.');
-    console.warn('[INIT WARNING] This usually means the draft listing was not created properly.');
-}
 
 // IMAGE_CONTRACT: Render photos immediately on page load from database
 if (uploadedPhotos && uploadedPhotos.length > 0) {
@@ -529,10 +554,20 @@ if (uploadedPhotos && uploadedPhotos.length > 0) {
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
             refreshPhotoPreviews();
+            updateAnalyzeButtonState();
         });
     } else {
         refreshPhotoPreviews();
->>>>>>> fcc4173eb2849cc8eab24e85dbbef605ebafd081
+        updateAnalyzeButtonState();
+    }
+} else {
+    // Ensure analyze button starts in correct state
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            updateAnalyzeButtonState();
+        });
+    } else {
+        updateAnalyzeButtonState();
     }
 }
 
@@ -562,18 +597,15 @@ async function handlePhotoSelect(e) {
         return;
     }
 
-    // IMAGE_CONTRACT: "Image upload requires: user_id, listing_id"
-    if (!currentListingId) {
-        console.error('[UPLOAD ERROR] currentListingId is not set:', currentListingId);
-        console.error('[UPLOAD ERROR] Page may not have loaded correctly');
-        showAlert('Error: Listing ID not found. Please refresh the page and try again.', 'danger');
-        return;
-    }
-
-    console.log('[UPLOAD] Using listing_id:', currentListingId);
-
     const formData = new FormData();
-    formData.append('listing_id', currentListingId);  // IMAGE_CONTRACT: Required
+    if (currentListingId) {
+        console.log('[UPLOAD] Using listing_id (committed listing mode):', currentListingId);
+        formData.append('listing_id', currentListingId);
+    } else {
+        const sessionId = ensureSessionId();
+        console.log('[UPLOAD] Using session_id (temp session mode):', sessionId);
+        formData.append('session_id', sessionId);
+    }
     for (let file of files) {
         console.log('[UPLOAD] Adding file:', file.name, file.size, 'bytes');
         formData.append('photos', file);
@@ -588,7 +620,7 @@ async function handlePhotoSelect(e) {
     }
 
     try {
-        console.log('[UPLOAD] Sending fetch request to /api/upload-photos with listing_id=', currentListingId);
+        console.log('[UPLOAD] Sending fetch request to /api/upload-photos');
         const response = await fetch('/api/upload-photos', {
             method: 'POST',
             body: formData,
@@ -611,27 +643,21 @@ async function handlePhotoSelect(e) {
         console.log('[UPLOAD] Response data:', data);
 
         if (data.success) {
-            console.log('[UPLOAD] Upload successful, paths:', data.paths);
+            console.log('[UPLOAD] Upload successful, mode:', data.mode, 'paths:', data.paths);
             
-            // IMAGE_CONTRACT Step 3: "UI reflects database truth"
-            // Use all_photos from DB response (source of truth), not just local state
-            if (data.all_photos && Array.isArray(data.all_photos)) {
+            // For committed listings, prefer all_photos from DB as source of truth
+            if (data.mode === 'listing' && data.all_photos && Array.isArray(data.all_photos)) {
                 uploadedPhotos = data.all_photos;
             } else {
-                // Fallback: append new photos to existing
-                uploadedPhotos = uploadedPhotos.concat(data.paths);
+                const newPaths = data.paths || [];
+                uploadedPhotos = uploadedPhotos.concat(newPaths);
             }
 
-            // IMAGE_CONTRACT: "Thumbnail renders from DB-backed image list"
-            // Refresh photo previews from DB-backed list
+            // Refresh photo previews from current uploadedPhotos
             refreshPhotoPreviews();
+            updateAnalyzeButtonState();
 
-            // Enable the analyze button when photos are uploaded
-            const analyzeBtn = document.getElementById('analyzeBtn');
-            analyzeBtn.disabled = false;
-            analyzeBtn.title = 'Click to analyze photos with AI';
-            analyzeBtn.classList.add('ai-ready');
-            console.log('[UPLOAD] Enabled analyze button');
+            console.log('[UPLOAD] Enabled analyze button (if available)');
             showAlert(`${data.count} photo(s) added! Total: ${uploadedPhotos.length}`, 'success');
         } else {
             console.error('[UPLOAD] Upload failed:', data.error);
@@ -1800,6 +1826,9 @@ async function saveListing(status = 'draft') {
     // include uploaded server photo paths
     formData.photos = uploadedPhotos;
     formData.status = status;
+    if (!currentListingId && currentSessionId) {
+        formData.session_id = currentSessionId;
+    }
     // Include AI analysis data if available
     if (enhancedAnalysisData) {
         formData.enhanced_analysis = enhancedAnalysisData;
@@ -1929,7 +1958,6 @@ function collectFormData() {
         upc: document.getElementById('upc').value
     };
 
-    // IMAGE_CONTRACT: Always include listing_id (listing exists before save)
     if (currentListingId) {
         data.listing_id = currentListingId;
         data.draft_id = currentListingId;  // For backwards compatibility

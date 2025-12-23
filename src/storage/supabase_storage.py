@@ -72,7 +72,8 @@ def upload_to_supabase_storage(
     filename: str,
     user_id: str,
     listing_uuid: Optional[str] = None,
-    bucket_name: str = "listing-images"
+    bucket_name: str = "listing-images",
+    override_path: Optional[str] = None,
 ) -> Tuple[bool, str]:
     """
     Upload a file to Supabase Storage bucket.
@@ -107,7 +108,10 @@ def upload_to_supabase_storage(
 
         # Namespace path by user_id per system contract
         # Format: {user_id}/{listing_uuid}/{filename} or {user_id}/{filename}
-        if listing_uuid:
+        # For temp uploads we can override the exact storage path (e.g. temp/{user_id}/{session_id}/filename)
+        if override_path:
+            storage_path = override_path
+        elif listing_uuid:
             storage_path = f"{user_id}/{listing_uuid}/{filename}"
         else:
             # Use timestamp-based folder for temporary uploads
@@ -188,6 +192,64 @@ def upload_to_supabase_storage(
 
     except Exception as e:
         error_msg = f"Supabase Storage upload error: {str(e)}"
+        print(f"[SUPABASE_STORAGE ERROR] {error_msg}", flush=True)
+        import traceback
+        traceback.print_exc()
+        return False, error_msg
+
+
+def move_supabase_object(
+    from_path: str,
+    to_path: str,
+    bucket_name: str = "listing-images",
+) -> Tuple[bool, str]:
+    """
+    Move an object within a Supabase Storage bucket.
+
+    Args:
+        from_path: Existing path in bucket (e.g., "temp/{user_id}/{session_id}/photo.jpg")
+        to_path: Destination path in bucket (e.g., "{user_id}/{listing_uuid}/photo.jpg")
+        bucket_name: Bucket name (default: "listing-images")
+
+    Returns:
+        (success: bool, url_or_error: str)
+        - On success: Returns public URL for the new location
+        - On failure: Returns error message string
+    """
+    try:
+        supabase = _get_supabase_storage_client()
+        if not supabase:
+            return False, "Supabase client not configured"
+
+        supabase_url = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
+        if not supabase_url:
+            return False, "SUPABASE_URL not configured in environment variables"
+
+        print(f"[SUPABASE_STORAGE] Moving object from '{from_path}' to '{to_path}' in bucket '{bucket_name}'", flush=True)
+
+        response = supabase.storage.from_(bucket_name).move(from_path, to_path)
+        print(f"[SUPABASE_STORAGE] Move response: {response}", flush=True)
+
+        # Best-effort error detection
+        has_error = False
+        error_msg = None
+        if isinstance(response, dict):
+            has_error = "error" in response and response["error"]
+            error_msg = response.get("error") if has_error else None
+        elif hasattr(response, "error"):
+            has_error = response.error is not None
+            error_msg = str(response.error) if has_error else None
+
+        if has_error:
+            print(f"[SUPABASE_STORAGE ERROR] Move failed: {error_msg}", flush=True)
+            return False, f"Supabase Storage move failed: {error_msg}"
+
+        public_url = f"{supabase_url}/storage/v1/object/public/{bucket_name}/{to_path}"
+        print(f"[SUPABASE_STORAGE] ✅ Move successful: {public_url}", flush=True)
+        return True, public_url
+
+    except Exception as e:
+        error_msg = f"Supabase Storage move error: {str(e)}"
         print(f"[SUPABASE_STORAGE ERROR] {error_msg}", flush=True)
         import traceback
         traceback.print_exc()

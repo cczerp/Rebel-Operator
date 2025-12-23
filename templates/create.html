@@ -491,6 +491,27 @@ let uploadedPhotos = {{ listing_photos|tojson if listing_photos else '[]' }};
 let editingDraftId = {{ draft_id if draft_id else 'null' }};
 let editingListingUuid = currentListingUuid;
 
+<<<<<<< HEAD
+// Helper function to manage analyze button state
+// Safe to call on any page - returns early if button doesn't exist
+function updateAnalyzeButtonState() {
+    try {
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        if (!analyzeBtn) return; // Button doesn't exist on this page - that's fine
+        
+        if (uploadedPhotos && uploadedPhotos.length > 0) {
+            analyzeBtn.disabled = false;
+            analyzeBtn.title = 'Click to analyze photos with AI';
+            analyzeBtn.classList.remove('disabled');
+        } else {
+            analyzeBtn.disabled = true;
+            analyzeBtn.title = 'Upload photos first to enable AI analysis';
+            analyzeBtn.classList.add('disabled');
+        }
+    } catch (e) {
+        // Silently fail if called on wrong page
+        console.log('[CREATE] updateAnalyzeButtonState: Button not available on this page');
+=======
 // Log initialization values for debugging
 console.log('[INIT] currentListingId:', currentListingId, typeof currentListingId);
 console.log('[INIT] currentListingUuid:', currentListingUuid);
@@ -511,6 +532,7 @@ if (uploadedPhotos && uploadedPhotos.length > 0) {
         });
     } else {
         refreshPhotoPreviews();
+>>>>>>> fcc4173eb2849cc8eab24e85dbbef605ebafd081
     }
 }
 
@@ -986,17 +1008,18 @@ let stage1AnalysisData = null; // Store Stage 1 analysis results (required for S
 
 // Ensure analyze button event listener is attached after DOM is ready
 function initializeAnalyzeButton() {
-    const analyzeBtn = document.getElementById('analyzeBtn');
-    if (!analyzeBtn) {
-        console.error('[ANALYZE] Analyze button not found in DOM');
-        return;
-    }
-    
-    // Remove any existing listeners (in case of multiple initializations)
-    const newBtn = analyzeBtn.cloneNode(true);
-    analyzeBtn.parentNode.replaceChild(newBtn, analyzeBtn);
-    
-    newBtn.addEventListener('click', async function() {
+    try {
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        if (!analyzeBtn) {
+            // Button doesn't exist on this page (e.g., login page) - that's fine
+            return;
+        }
+        
+        // Remove any existing listeners (in case of multiple initializations)
+        const newBtn = analyzeBtn.cloneNode(true);
+        analyzeBtn.parentNode.replaceChild(newBtn, analyzeBtn);
+        
+        newBtn.addEventListener('click', async function() {
         const analyzeBtn = document.getElementById('analyzeBtn');
         
         // Validate prerequisites before starting analysis
@@ -1231,14 +1254,23 @@ function initializeAnalyzeButton() {
             console.error('Analysis error:', error);
             showAlert('Analysis failed: ' + (error.message || error), 'danger');
         }
-    });
+        });
+    } catch (e) {
+        // Silently fail if called on wrong page or if button doesn't exist
+        console.log('[CREATE] initializeAnalyzeButton: Not available on this page');
+    }
 }
 
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeAnalyzeButton);
-} else {
-    initializeAnalyzeButton();
+// Initialize when DOM is ready (only on create page where analyzeBtn exists)
+// Wrap in try-catch to prevent errors on other pages
+try {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeAnalyzeButton);
+    } else {
+        initializeAnalyzeButton();
+    }
+} catch (e) {
+    // Silently fail - this script only runs on create.html anyway
 }
 
 function getDemandEmoji(demand) {
@@ -2029,12 +2061,42 @@ async function loadDraftData() {
     }
 }
 
+// Load photos for new listing (if any were uploaded before page refresh)
+async function loadListingPhotos() {
+    if (!currentListingId) return;
+    
+    try {
+        const response = await fetch(`/api/get-draft/${currentListingId}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.listing && data.listing.photos) {
+                try {
+                    const photos = typeof data.listing.photos === 'string' 
+                        ? JSON.parse(data.listing.photos) 
+                        : data.listing.photos;
+                    uploadedPhotos = Array.isArray(photos) ? photos : [];
+                    refreshPhotoPreviews();
+                } catch (e) {
+                    console.error('[LOAD] Failed to parse photos:', e);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('[LOAD] Failed to load listing photos:', error);
+    }
+}
+
 // Initialize button state on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize button state
-    updateAnalyzeButtonState();
+    // Initialize button state (only if analyzeBtn exists - safe for all pages)
+    try {
+        updateAnalyzeButtonState();
+    } catch (e) {
+        // Button doesn't exist on this page (e.g., login page) - that's fine
+        console.log('[CREATE] Analyze button not found on this page (expected for non-create pages)');
+    }
     
-    // Load draft data if editing
+    // Only load draft data if we're on the create page
     if (editingDraftId) {
         loadDraftData();
     } else if (currentListingId) {
@@ -2042,42 +2104,6 @@ document.addEventListener('DOMContentLoaded', function() {
         loadListingPhotos();
     }
 });
-
-// Also initialize if DOM is already loaded
-if (document.readyState !== 'loading') {
-    updateAnalyzeButtonState();
-}
-
-// Load draft data when page loads
-if (editingDraftId) {
-    // IMAGE_CONTRACT: Load existing listing data on page load
-    // (Now handled in DOMContentLoaded above)
-    
-    // Load photos for new listing (if any were uploaded before page refresh)
-    async function loadListingPhotos() {
-        if (!currentListingId) return;
-        
-        try {
-            const response = await fetch(`/api/get-draft/${currentListingId}`);
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success && data.listing && data.listing.photos) {
-                    try {
-                        const photos = typeof data.listing.photos === 'string' 
-                            ? JSON.parse(data.listing.photos) 
-                            : data.listing.photos;
-                        uploadedPhotos = Array.isArray(photos) ? photos : [];
-                        refreshPhotoPreviews();
-                    } catch (e) {
-                        console.error('[LOAD] Failed to parse photos:', e);
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('[LOAD] Failed to load listing photos:', error);
-        }
-    }
-}
 
 // Generate random SKU
 function generateSKU() {

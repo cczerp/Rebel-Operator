@@ -17,6 +17,56 @@ import uuid
 from datetime import datetime
 
 
+def _get_supabase_storage_client():
+    """
+    Get Supabase client for storage operations.
+    
+    Per Supabase docs: "All other bucket or file operations require you to meet storage policies"
+    Since we use Flask-Login (not Supabase Auth), we need service role key to bypass RLS policies.
+    Falls back to anon key if service role key not available.
+    """
+    import os
+    from supabase.client import Client, ClientOptions
+    
+    supabase_url = os.getenv("SUPABASE_URL", "").strip()
+    if not supabase_url:
+        return None
+    
+    # Try service role key first (bypasses RLS policies)
+    service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    if service_role_key:
+        try:
+            print(f"[SUPABASE_STORAGE] ✅ Using service role key for storage operations (bypasses RLS)", flush=True)
+            return Client(
+                supabase_url,
+                service_role_key,
+                options=ClientOptions(
+                    auto_refresh_token=False,
+                    persist_session=False
+                )
+            )
+        except Exception as e:
+            print(f"[SUPABASE_STORAGE] Service role key failed, trying anon key: {e}", flush=True)
+    
+    # Fallback to anon key (requires proper storage policies)
+    anon_key = os.getenv("SUPABASE_ANON_KEY", "").strip()
+    if anon_key:
+        try:
+            print(f"[SUPABASE_STORAGE] ⚠️  Using anon key (may require storage policies)", flush=True)
+            return Client(
+                supabase_url,
+                anon_key,
+                options=ClientOptions(
+                    auto_refresh_token=False,
+                    persist_session=False
+                )
+            )
+        except Exception as e:
+            print(f"[SUPABASE_STORAGE] Anon key failed: {e}", flush=True)
+    
+    return None
+
+
 def upload_to_supabase_storage(
     file_data: bytes,
     filename: str,
@@ -26,6 +76,10 @@ def upload_to_supabase_storage(
 ) -> Tuple[bool, str]:
     """
     Upload a file to Supabase Storage bucket.
+
+    IMPORTANT: Per Supabase docs, public buckets only allow public downloads.
+    Upload operations require storage policies. This function uses service role key
+    (if available) to bypass RLS, or anon key with proper policies.
 
     Args:
         file_data: File bytes to upload
@@ -40,12 +94,10 @@ def upload_to_supabase_storage(
         - On failure: Returns error message string
     """
     try:
-        from src.auth_utils import get_supabase_client
-
-        supabase = get_supabase_client()
+        supabase = _get_supabase_storage_client()
         if not supabase:
-            print(f"[SUPABASE_STORAGE ERROR] Supabase client not configured - check SUPABASE_URL and SUPABASE_ANON_KEY", flush=True)
-            return False, "Supabase client not configured. Please check SUPABASE_URL and SUPABASE_ANON_KEY environment variables."
+            print(f"[SUPABASE_STORAGE ERROR] Supabase client not configured - check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY", flush=True)
+            return False, "Supabase client not configured. Please check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_ANON_KEY) environment variables."
 
         # Get and validate SUPABASE_URL early
         supabase_url = os.getenv("SUPABASE_URL", "").strip().rstrip('/')
@@ -128,7 +180,7 @@ def upload_to_supabase_storage(
             if "bucket" in error_msg.lower() and ("not found" in error_msg.lower() or "does not exist" in error_msg.lower()):
                 return False, f"Bucket '{bucket_name}' not found. Please create it in Supabase Storage dashboard."
             elif "row-level security" in error_msg.lower() or "policy" in error_msg.lower():
-                return False, f"Permission denied: Please check bucket policies and ensure bucket is public."
+                return False, f"Permission denied: Storage policies blocking upload. Set SUPABASE_SERVICE_ROLE_KEY to bypass RLS, or configure storage policies in Supabase dashboard."
             elif "unauthenticated" in error_msg.lower() or "unauthorized" in error_msg.lower():
                 return False, f"Authentication failed: Please check SUPABASE_ANON_KEY is correct."
 

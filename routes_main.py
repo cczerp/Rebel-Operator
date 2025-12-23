@@ -556,6 +556,55 @@ def api_analyze_status(job_id):
 
 
 # -------------------------------------------------------------------------
+# AI API KEY STATUS CHECK
+# -------------------------------------------------------------------------
+
+@main_bp.route("/api/ai-status", methods=["GET"])
+@login_required
+def api_ai_status():
+    """Check status of AI API keys (Gemini and Claude)"""
+    import os
+    
+    status = {
+        "gemini": {
+            "configured": False,
+            "key_present": False,
+            "message": ""
+        },
+        "claude": {
+            "configured": False,
+            "key_present": False,
+            "message": ""
+        }
+    }
+    
+    # Check Gemini
+    gemini_key = os.getenv("GOOGLE_AI_API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("GEMENI_API_KEY")
+    if gemini_key:
+        status["gemini"]["key_present"] = True
+        status["gemini"]["configured"] = True
+        status["gemini"]["message"] = "Gemini API key is configured"
+    else:
+        status["gemini"]["message"] = "Gemini API key not found. Set GEMINI_API_KEY environment variable."
+    
+    # Check Claude
+    claude_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY")
+    if claude_key:
+        status["claude"]["key_present"] = True
+        status["claude"]["configured"] = True
+        status["claude"]["message"] = "Claude API key is configured"
+    else:
+        status["claude"]["message"] = "Claude API key not found. Set ANTHROPIC_API_KEY environment variable."
+    
+    return jsonify({
+        "success": True,
+        "status": status,
+        "basic_ai_available": status["gemini"]["configured"],
+        "enhanced_ai_available": status["claude"]["configured"]
+    })
+
+
+# -------------------------------------------------------------------------
 # SUPABASE STORAGE DIAGNOSTICS
 # -------------------------------------------------------------------------
 

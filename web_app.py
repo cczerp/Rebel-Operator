@@ -676,6 +676,7 @@ def storage_map():
 @login_required
 def settings():
     """User settings"""
+    import json
     # Get user info
     db = get_db_instance()
     cursor = db._get_cursor()
@@ -687,6 +688,19 @@ def settings():
         cursor.execute("SELECT * FROM marketplace_credentials WHERE user_id = %s", (current_user.id,))
         creds_rows = cursor.fetchall()
         credentials = {row['platform']: dict(row) for row in creds_rows}
+
+        # Get API credentials (stored with platform prefix "api_")
+        api_credentials = {}
+        for platform in ['etsy', 'shopify', 'woocommerce', 'facebook', 'ebay', 'mercari']:
+            api_platform = f"api_{platform}"
+            if api_platform in credentials:
+                try:
+                    # Parse JSON credentials
+                    creds_data = json.loads(credentials[api_platform].get('password', '{}'))
+                    api_credentials[platform] = creds_data
+                except (json.JSONDecodeError, TypeError):
+                    # Legacy format or invalid JSON
+                    api_credentials[platform] = {}
 
         # Define platforms
         platforms = [
@@ -703,7 +717,7 @@ def settings():
             {'id': 'chairish', 'name': 'Chairish', 'icon': 'fas fa-couch', 'color': 'text-info'},
         ]
 
-        return render_template('settings.html', user=user, credentials=credentials, platforms=platforms)
+        return render_template('settings.html', user=user, credentials=credentials, platforms=platforms, api_credentials=api_credentials)
     finally:
         cursor.close()
 

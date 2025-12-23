@@ -750,7 +750,30 @@ def api_upload_photos():
         print(f"[UPLOAD DEBUG] =========================================", flush=True)
 
         # IMAGE_CONTRACT: "No anonymous writes to the database" - require authentication
-        if not current_user.is_authenticated:
+        # Add retry logic for connection pool exhaustion during auth check
+        max_auth_retries = 3
+        user_authenticated = False
+        for auth_attempt in range(max_auth_retries):
+            try:
+                user_authenticated = current_user.is_authenticated
+                break
+            except Exception as auth_error:
+                error_str = str(auth_error)
+                if "connection pool exhausted" in error_str.lower() and auth_attempt < max_auth_retries - 1:
+                    print(f"[UPLOAD] Connection pool exhausted during auth check (attempt {auth_attempt + 1}/{max_auth_retries}), waiting 0.1s and retrying...", flush=True)
+                    import time
+                    time.sleep(0.1)
+                    continue
+                else:
+                    print(f"[UPLOAD ERROR] Error checking authentication: {auth_error}", flush=True)
+                    import traceback
+                    traceback.print_exc()
+                    return jsonify({
+                        "error": "Authentication check failed. Please try again.",
+                        "error_type": "auth_check_failed"
+                    }), 500
+        
+        if not user_authenticated:
             print(f"[UPLOAD ERROR] ❌ User not authenticated", flush=True)
             print(f"[UPLOAD ERROR] This is a Flask-Login session issue. User needs to log in first.", flush=True)
             return jsonify({
@@ -759,7 +782,33 @@ def api_upload_photos():
                 "hint": "Make sure you're logged in. If you just logged in, try refreshing the page."
             }), 401
 
-        user_id = str(current_user.id)
+        # Get user_id with retry for connection pool exhaustion
+        user_id = None
+        for user_id_attempt in range(max_auth_retries):
+            try:
+                user_id = str(current_user.id)
+                break
+            except Exception as user_id_error:
+                error_str = str(user_id_error)
+                if "connection pool exhausted" in error_str.lower() and user_id_attempt < max_auth_retries - 1:
+                    print(f"[UPLOAD] Connection pool exhausted getting user_id (attempt {user_id_attempt + 1}/{max_auth_retries}), waiting 0.1s and retrying...", flush=True)
+                    import time
+                    time.sleep(0.1)
+                    continue
+                else:
+                    print(f"[UPLOAD ERROR] Error getting user_id: {user_id_error}", flush=True)
+                    import traceback
+                    traceback.print_exc()
+                    return jsonify({
+                        "error": "Failed to get user ID. Please try again.",
+                        "error_type": "user_id_failed"
+                    }), 500
+        
+        if not user_id:
+            return jsonify({
+                "error": "Failed to get user ID. Please log in again.",
+                "error_type": "user_id_missing"
+            }), 401
 
         # Support two modes:
         # 1) Committed listing mode: listing_id provided -> attach directly to listing
@@ -799,7 +848,28 @@ def api_upload_photos():
             if not db:
                 return jsonify({"error": "Database not initialized"}), 500
 
-            listing = db.get_listing(listing_id)
+            # Get listing with retry for connection pool exhaustion
+            listing = None
+            for listing_attempt in range(max_auth_retries):
+                try:
+                    listing = db.get_listing(listing_id)
+                    break
+                except Exception as listing_error:
+                    error_str = str(listing_error)
+                    if "connection pool exhausted" in error_str.lower() and listing_attempt < max_auth_retries - 1:
+                        print(f"[UPLOAD] Connection pool exhausted getting listing (attempt {listing_attempt + 1}/{max_auth_retries}), waiting 0.1s and retrying...", flush=True)
+                        import time
+                        time.sleep(0.1)
+                        continue
+                    else:
+                        print(f"[UPLOAD ERROR] Error getting listing: {listing_error}", flush=True)
+                        import traceback
+                        traceback.print_exc()
+                        return jsonify({
+                            "error": "Failed to get listing. Please try again.",
+                            "error_type": "listing_fetch_failed"
+                        }), 500
+            
             if not listing:
                 return jsonify({"error": "Listing not found"}), 404
 
@@ -911,8 +981,32 @@ def api_upload_photos():
         if mode == "listing":
             # Append new photos to existing ones and update listing in DB
             updated_photos = existing_photos + saved_urls
-            db.update_listing(listing_id, photos=updated_photos)
-            print(f"[UPLOAD] ✅ Updated listing {listing_id} with {len(updated_photos)} photos in database", flush=True)
+            # Update listing with retry for connection pool exhaustion
+            for update_attempt in range(max_auth_retries):
+                try:
+                    db.update_listing(listing_id, photos=updated_photos)
+                    print(f"[UPLOAD] ✅ Updated listing {listing_id} with {len(updated_photos)} photos in database", flush=True)
+                    break
+                except Exception as update_error:
+                    error_str = str(update_error)
+                    if "connection pool exhausted" in error_str.lower() and update_attempt < max_auth_retries - 1:
+                        print(f"[UPLOAD] Connection pool exhausted updating listing (attempt {update_attempt + 1}/{max_auth_retries}), waiting 0.1s and retrying...", flush=True)
+                        import time
+                        time.sleep(0.1)
+                        continue
+                    else:
+                        print(f"[UPLOAD ERROR] Error updating listing: {update_error}", flush=True)
+                        import traceback
+                        traceback.print_exc()
+                        # Still return success for uploads, but warn about DB update failure
+                        return jsonify({
+                            "success": True,
+                            "mode": "listing",
+                            "paths": saved_urls,
+                            "all_photos": updated_photos,
+                            "count": len(saved_urls),
+                            "warning": "Photos uploaded but database update failed. Please refresh the page."
+                        }), 200
 
             print(f"[UPLOAD SUCCESS] Uploaded {len(saved_urls)} files, listing now has {len(updated_photos)} total photos", flush=True)
             return jsonify({
@@ -934,6 +1028,49 @@ def api_upload_photos():
 
     except Exception as e:
         print(f"[UPLOAD ERROR] Exception: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+# -------------------------------------------------------------------------
+# UPDATE LISTING PHOTOS
+# -------------------------------------------------------------------------
+
+@main_bp.route('/api/update-listing-photos/<int:listing_id>', methods=['POST'])
+@login_required
+def api_update_listing_photos(listing_id):
+    """Update the photos array for a listing (used when removing photos)"""
+    try:
+        if not current_user.is_authenticated:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        # Verify listing belongs to user
+        listing = db.get_listing(listing_id)
+        if not listing:
+            return jsonify({"error": "Listing not found"}), 404
+        
+        if listing.get('user_id') != str(current_user.id):
+            return jsonify({"error": "Unauthorized: Listing does not belong to user"}), 403
+        
+        # Get new photos array from request
+        data = request.get_json() or {}
+        new_photos = data.get('photos', [])
+        
+        if not isinstance(new_photos, list):
+            return jsonify({"error": "photos must be an array"}), 400
+        
+        # Update listing photos
+        db.update_listing(listing_id, photos=new_photos)
+        print(f"[UPDATE PHOTOS] ✅ Updated listing {listing_id} with {len(new_photos)} photos", flush=True)
+        
+        return jsonify({
+            "success": True,
+            "photos": new_photos,
+            "count": len(new_photos)
+        })
+    except Exception as e:
+        print(f"[UPDATE PHOTOS ERROR] Exception: {e}", flush=True)
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500

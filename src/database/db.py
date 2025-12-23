@@ -129,12 +129,12 @@ def _get_connection_pool():
         if is_session_mode:
             # Session mode (port 5432): VERY strict limits - use minimal pool
             # Default pool_size is usually 15 TOTAL connections across ALL clients
-            # With Gunicorn workers (2) + zombie cleanup + pool init = need to be very conservative
-            # Use only 2 connections max to leave room for other operations
-            pool_min = 1
-            pool_max = 2  # CRITICAL: Session mode limit is ~15 total, so use minimal pool
+            # With Gunicorn workers (1) + zombie cleanup + pool init = need to be very conservative
+            # Increased to 3 to handle concurrent requests better (user loader + upload + other)
+            pool_min = 0  # On-demand connections
+            pool_max = 3  # Increased from 2 to handle concurrent user loader + upload requests
             print(f"🔌 Creating PostgreSQL connection pool (Session mode - port 5432, IPv4)...", flush=True)
-            print(f"   Using minimal pool (maxconn={pool_max}) due to Session mode strict limits", flush=True)
+            print(f"   Using pool (maxconn={pool_max}) - increased to handle concurrent requests", flush=True)
         else:
             # Transaction mode (port 6543): Better for connection pooling, supports more connections
             pool_min = 2
@@ -2075,15 +2075,25 @@ class Database:
                         return None
                     finally:
                         cursor.close()
+            except psycopg2.pool.PoolError as e:
+                # Connection pool exhausted - retry with backoff
+                if attempt < max_retries - 1:
+                    wait_time = 0.1 * (attempt + 1)  # Exponential backoff: 0.1s, 0.2s
+                    print(f"⚠️  Connection pool exhausted in get_user_by_supabase_uid (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s and retrying...", flush=True)
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    print(f"❌ Connection pool exhausted in get_user_by_supabase_uid after {max_retries} attempts: {e}", flush=True)
+                    return None
             except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
                 if attempt < max_retries - 1:
-                    print(f"⚠️  Database connection error in get_user_by_supabase_uid (attempt {attempt + 1}/{max_retries}), retrying...")
+                    print(f"⚠️  Database connection error in get_user_by_supabase_uid (attempt {attempt + 1}/{max_retries}), retrying...", flush=True)
                     time.sleep(0.1)  # Quick retry
                 else:
-                    print(f"❌ Database error in get_user_by_supabase_uid after {max_retries} attempts: {e}")
+                    print(f"❌ Database error in get_user_by_supabase_uid after {max_retries} attempts: {e}", flush=True)
                     return None
             except Exception as e:
-                print(f"Error in get_user_by_supabase_uid: {e}")
+                print(f"Error in get_user_by_supabase_uid: {e}", flush=True)
                 return None
         return None
 
@@ -2171,18 +2181,28 @@ class Database:
                         return None
                     finally:
                         cursor.close()
+            except psycopg2.pool.PoolError as e:
+                # Connection pool exhausted - retry with backoff
+                if attempt < max_retries - 1:
+                    wait_time = 0.1 * (attempt + 1)  # Exponential backoff: 0.1s, 0.2s, 0.3s
+                    print(f"⚠️  Connection pool exhausted in get_user_by_id (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s and retrying...", flush=True)
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    print(f"❌ Connection pool exhausted in get_user_by_id after {max_retries} attempts: {e}", flush=True)
+                    return None
             except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
-                print(f"⚠️  Database connection error in get_user_by_id (attempt {attempt + 1}/{max_retries}): {e}")
+                print(f"⚠️  Database connection error in get_user_by_id (attempt {attempt + 1}/{max_retries}): {e}", flush=True)
                 if attempt < max_retries - 1:
                     time.sleep(0.5 * (attempt + 1))
                 else:
-                    print(f"❌ Failed to get user after {max_retries} attempts")
+                    print(f"❌ Failed to get user after {max_retries} attempts", flush=True)
                     return None
             except (ValueError, TypeError) as e:
-                print(f"Invalid user_id format: {user_id}, error: {e}")
+                print(f"Invalid user_id format: {user_id}, error: {e}", flush=True)
                 return None
             except Exception as e:
-                print(f"Unexpected error in get_user_by_id: {e}")
+                print(f"Unexpected error in get_user_by_id: {e}", flush=True)
                 import traceback
                 traceback.print_exc()
                 return None

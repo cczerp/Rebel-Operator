@@ -1,0 +1,67 @@
+
+
+Before changing anything, treat this as a system-wide design contract, not a single-page redesign.
+
+Brand color hierarchy (do not deviate):
+
+Red = primary brand + primary actions only
+
+Charcoal = foundational background / app canvas
+
+Steel blue-grey = functional UI surfaces and secondary actions
+
+Off-white = accent only (text, icons, outlines), never a surface
+
+These are roles, not suggestions.
+
+Button rules (global):
+
+No button may be flat grey or solid white.
+
+No page may invent a new button style.
+
+All buttons must feel like materials (depth, elevation, interaction), not flat fills.
+
+Button tiers:
+
+Primary action → red (only one per page)
+
+Secondary action → steel blue-grey
+
+Utility action (Save Draft, etc.) → dark steel / charcoal surface with subtle edge highlight
+
+Hover and active states must change material feel (light, depth), not just color.
+
+Layout rules (global):
+
+The landing page is the only page allowed to show multiple workflow entry buttons.
+
+Logged-out landing page: marketing CTAs only.
+
+Logged-in landing page: Create Listing (primary), Inventory, Storage (secondary).
+
+Create page is a focused work page: AI actions + Save Draft only.
+
+Inventory / Storage navigation lives under Account or global nav, not scattered.
+
+Consistency requirement:
+
+Color usage, button hierarchy, spacing, and elevation must be identical across all pages.
+
+Do not restyle a single button in isolation.
+
+Apply the system everywhere in one coherent pass.
+
+Explicit constraints:
+
+Masculine, industrial tone.
+
+No orange.
+
+No pastel.
+
+No “flat modern” look.
+
+Depth through tone, elevation, and edges — not flashy gradients.
+
+If any part of the UI violates this hierarchy, it is considered incorrect.

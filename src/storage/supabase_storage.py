@@ -258,8 +258,27 @@ def upload_to_supabase_storage(
             error_type = type(upload_error).__name__
             print(f"[SUPABASE_STORAGE ERROR] Upload exception ({error_type}): {error_msg}", flush=True)
             import traceback
+            traceback_str = traceback.format_exc()
             print(f"[SUPABASE_STORAGE ERROR] Full traceback:", flush=True)
-            traceback.print_exc()
+            print(traceback_str, flush=True)
+            
+            # Upload error to logs bucket
+            try:
+                from src.storage.log_storage import log_error
+                log_error(
+                    error_message=error_msg,
+                    error_type=f"SupabaseStorage{error_type}",
+                    traceback=traceback_str,
+                    context={
+                        "bucket_name": bucket_name,
+                        "storage_path": storage_path,
+                        "filename": filename,
+                        "file_size": len(file_data),
+                    },
+                    user_id=user_id,
+                )
+            except Exception as log_error_exception:
+                print(f"[SUPABASE_STORAGE ERROR] Failed to log error to storage: {log_error_exception}", flush=True)
 
             # Check for specific error patterns
             error_lower = error_msg.lower()

@@ -19,6 +19,40 @@ import psycopg2.pool
 # Global connection pool - shared across all Database instances
 _connection_pool = None
 
+def _cleanup_zombie_connections():
+    """Kill idle-in-transaction connections that are leaking pool slots.
+
+    This runs once at startup to clean up zombie connections from previous deploys.
+    Prevents 'MaxClientsInSessionMode: max clients reached' errors.
+    """
+    database_url = os.getenv('DATABASE_URL')
+    if not database_url:
+        return
+
+    try:
+        # Connect directly (not from pool) to run cleanup
+        conn = psycopg2.connect(database_url, connect_timeout=5)
+        cursor = conn.cursor()
+
+        # Kill connections that are idle-in-transaction for more than 5 minutes
+        cursor.execute("""
+            SELECT pg_terminate_backend(pid), pid, query_start, state, query
+            FROM pg_stat_activity
+            WHERE state = 'idle in transaction'
+            AND query_start < NOW() - INTERVAL '5 minutes'
+            AND pid != pg_backend_pid()
+        """)
+
+        killed = cursor.fetchall()
+        if killed:
+            print(f"🧹 Cleaned up {len(killed)} zombie connections (idle in transaction)", flush=True)
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"⚠️  Zombie connection cleanup failed (non-fatal): {e}", flush=True)
+
 def _get_connection_pool():
     """Get or create global connection pool"""
     global _connection_pool
@@ -52,6 +86,7 @@ def _get_connection_pool():
                 options_encoded = quote('-c statement_timeout=10000')
                 connection_params += f'&options={options_encoded}'
         
+<<<<<<< HEAD
         # Create connection pool with settings optimized for Render
         # Render free tier: 512 MB RAM, but Supabase allows up to 15 connections in Session mode
         # Use 5 connections to allow concurrent requests while staying safe
@@ -59,6 +94,19 @@ def _get_connection_pool():
         _connection_pool = psycopg2.pool.ThreadedConnectionPool(
             minconn=1,  # Minimum connections in pool
             maxconn=5,  # Increased from 2 to 5 to handle concurrent requests (Supabase Session mode limit is 15)
+=======
+        # CRITICAL: Clean up zombie connections from previous deploys BEFORE creating pool
+        # This prevents "MaxClientsInSessionMode: max clients reached" errors
+        _cleanup_zombie_connections()
+
+        # Create connection pool with settings optimized for Render
+        # Render free tier: 512 MB RAM but needs to handle concurrent requests
+        # Balance: enough connections to prevent exhaustion, but not too many to exhaust RAM
+        print("🔌 Creating PostgreSQL connection pool...", flush=True)
+        _connection_pool = psycopg2.pool.ThreadedConnectionPool(
+            minconn=2,  # Minimum connections in pool
+            maxconn=10,  # Increased from 2 to prevent pool exhaustion
+>>>>>>> fcc4173eb2849cc8eab24e85dbbef605ebafd081
             dsn=connection_params,
             connect_timeout=5,
             keepalives=1,
@@ -66,7 +114,11 @@ def _get_connection_pool():
             keepalives_interval=10,
             keepalives_count=3
         )
+<<<<<<< HEAD
         print("✅ Connection pool created (maxconn=5 for concurrent requests)", flush=True)
+=======
+        print("✅ Connection pool created (minconn=2, maxconn=10)", flush=True)
+>>>>>>> fcc4173eb2849cc8eab24e85dbbef605ebafd081
     
     return _connection_pool
 
@@ -117,6 +169,7 @@ class _ManagedCursor:
         self.cursor = None
         
         try:
+<<<<<<< HEAD
             if cursor_to_close:
                 cursor_to_close.close()
         except Exception as e:
@@ -132,6 +185,28 @@ class _ManagedCursor:
                     except:
                         pass
                     self.pool.putconn(conn_to_return)
+=======
+            if self.cursor:
+                self.cursor.close()
+        except:
+            pass
+        # CRITICAL: Commit transaction before returning connection to pool
+        # This prevents "idle in transaction" connections that leak pool slots
+        if self.conn is not None:
+            try:
+                if not self.conn.closed:
+                    # Try to commit any pending transaction
+                    try:
+                        self.conn.commit()
+                    except Exception:
+                        # If commit fails, rollback
+                        try:
+                            self.conn.rollback()
+                        except:
+                            pass
+                    # Return connection to pool
+                    self.pool.putconn(self.conn)
+>>>>>>> fcc4173eb2849cc8eab24e85dbbef605ebafd081
                 else:
                     # Connection is closed, mark it as bad
                     self.pool.putconn(conn_to_return, close=True)
@@ -2921,8 +2996,10 @@ class Database:
         print("✅ Migrations complete!")
 
     def close(self):
-        """Close database connection"""
-        self.conn.close()
+        """Close database connection - No-op since we use connection pooling"""
+        # Connections are automatically returned to pool by context managers
+        # This method kept for backward compatibility with teardown handlers
+        pass
 
 
 # ============================================================================

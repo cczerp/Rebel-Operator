@@ -3,7 +3,7 @@ routes_main.py
 Main application routes: listings, drafts, notifications, storage, settings
 """
 
-from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
+from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash, session
 from flask_login import login_required, current_user
 from pathlib import Path
 from functools import wraps
@@ -447,8 +447,25 @@ def api_analyze():
                 }
             else:
                 # Run Stage 1 fast classification
-                classifier = GeminiClassifier()
-                analysis = classifier.analyze_item(photos)
+                try:
+                    classifier = GeminiClassifier()
+                    analysis = classifier.analyze_item(photos)
+                except ValueError as e:
+                    # API key not configured
+                    error_msg = str(e)
+                    if "API_KEY" in error_msg:
+                        return {
+                            "success": False,
+                            "error": "Gemini API key not configured. Please set GEMINI_API_KEY environment variable. See AI_SETUP.md for instructions.",
+                            "error_type": "config"
+                        }
+                    raise
+                except Exception as e:
+                    return {
+                        "success": False,
+                        "error": f"Gemini classifier initialization failed: {str(e)}",
+                        "error_type": "init_error"
+                    }
 
             # Check for errors
             if analysis.get("error"):
@@ -468,8 +485,18 @@ def api_analyze():
                 try:
                     claude = ClaudeCollectibleAnalyzer.from_env()
                     collectible_analysis = claude.deep_analyze_collectible(photos, analysis, db)
+                except ValueError as e:
+                    # API key not configured
+                    error_msg = str(e)
+                    if "API_KEY" in error_msg or "ANTHROPIC" in error_msg or "CLAUDE" in error_msg:
+                        collectible_analysis = {
+                            "error": "Claude API key not configured. Please set ANTHROPIC_API_KEY environment variable. See AI_SETUP.md for instructions.",
+                            "error_type": "config"
+                        }
+                    else:
+                        collectible_analysis = {"error": str(e)}
                 except Exception as e:
-                    collectible_analysis = {"error": str(e)}
+                    collectible_analysis = {"error": f"Claude analyzer error: {str(e)}"}
             elif force_enhanced:
                 # Log violation attempt but don't run Stage 2
                 print(f"[AI CONTRACT VIOLATION] Attempted to run Stage 2 Enhanced Analyzer on non-collectible item. Rejected per system contract.", flush=True)
@@ -553,8 +580,16 @@ def api_upload_photos():
         from werkzeug.utils import secure_filename
         from src.storage.supabase_storage import upload_to_supabase_storage
 
+        # Debug authentication status
+        print(f"[UPLOAD DEBUG] current_user type: {type(current_user)}", flush=True)
+        print(f"[UPLOAD DEBUG] current_user.is_authenticated: {current_user.is_authenticated}", flush=True)
+        if hasattr(current_user, 'id'):
+            print(f"[UPLOAD DEBUG] current_user.id: {current_user.id}", flush=True)
+        print(f"[UPLOAD DEBUG] session keys: {list(session.keys())}", flush=True)
+
         # IMAGE_CONTRACT: "No anonymous writes to the database" - require authentication
         if not current_user.is_authenticated:
+            print(f"[UPLOAD ERROR] User not authenticated - current_user: {current_user}", flush=True)
             return jsonify({"error": "Authentication required to upload photos"}), 401
 
         # IMAGE_CONTRACT: "Image upload requires: user_id, listing_id"
@@ -637,7 +672,14 @@ def api_upload_photos():
                     # Continue with other files, but log the error
 
         if not saved_urls:
-            return jsonify({"error": "Failed to upload any photos. Check Supabase Storage configuration."}), 500
+            error_msg = "Failed to upload any photos. "
+            if len(files) > 0:
+                error_msg += f"Attempted to upload {len(files)} file(s), but all failed. "
+            error_msg += "Please check: 1) Supabase Storage bucket 'listing-images' exists and is public, "
+            error_msg += "2) SUPABASE_URL and SUPABASE_ANON_KEY environment variables are set correctly. "
+            error_msg += "Check server logs for details."
+            print(f"[UPLOAD ERROR] {error_msg}", flush=True)
+            return jsonify({"error": error_msg}), 500
 
         # IMAGE_CONTRACT Step 2: "Image is immediately attached to user_id and listing_id"
         # "This happens before save, not after."

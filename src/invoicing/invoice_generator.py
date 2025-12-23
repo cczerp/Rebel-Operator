@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 from pathlib import Path
 import json
-import html
+import html as html_module
 
 
 class InvoiceGenerator:
@@ -107,7 +107,7 @@ class InvoiceGenerator:
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Invoice {html.escape(invoice_number)}</title>
+    <title>Invoice {html_module.escape(invoice_number)}</title>
     <style>
         body {{
             font-family: Arial, sans-serif;
@@ -207,17 +207,17 @@ class InvoiceGenerator:
 <body>
     <div class="header">
         <div class="business-info">
-            <div class="business-name">{html.escape(self.business_info.get('business_name', ''))}</div>
-            <div>{html.escape(self.business_info.get('address', ''))}</div>
-            <div>{html.escape(self.business_info.get('city_state_zip', ''))}</div>
-            <div>Email: {html.escape(self.business_info.get('email', ''))}</div>
-            <div>Phone: {html.escape(self.business_info.get('phone', ''))}</div>
+            <div class="business-name">{html_module.escape(self.business_info.get('business_name', ''))}</div>
+            <div>{html_module.escape(self.business_info.get('address', ''))}</div>
+            <div>{html_module.escape(self.business_info.get('city_state_zip', ''))}</div>
+            <div>Email: {html_module.escape(self.business_info.get('email', ''))}</div>
+            <div>Phone: {html_module.escape(self.business_info.get('phone', ''))}</div>
         </div>
         <div class="invoice-info">
             <div class="invoice-title">INVOICE</div>
             <div style="margin-top: 10px;">
-                <div><strong>Invoice #:</strong> {html.escape(invoice_number)}</div>
-                <div><strong>Date:</strong> {html.escape(invoice_date)}</div>
+                <div><strong>Invoice #:</strong> {html_module.escape(invoice_number)}</div>
+                <div><strong>Date:</strong> {html_module.escape(invoice_date)}</div>
             </div>
         </div>
     </div>
@@ -225,10 +225,10 @@ class InvoiceGenerator:
     <div class="section">
         <div class="section-title">Bill To</div>
         <div class="buyer-info">
-            <div><strong>{html.escape(buyer.get('name', 'N/A'))}</strong></div>
-            <div>{html.escape(buyer.get('email', ''))}</div>
-            <div>{html.escape(buyer.get('address', ''))}</div>
-            <div>{html.escape(buyer.get('city_state_zip', ''))}</div>
+            <div><strong>{html_module.escape(buyer.get('name', 'N/A'))}</strong></div>
+            <div>{html_module.escape(buyer.get('email', ''))}</div>
+            <div>{html_module.escape(buyer.get('address', ''))}</div>
+            <div>{html_module.escape(buyer.get('city_state_zip', ''))}</div>
         </div>
     </div>
 
@@ -246,8 +246,8 @@ class InvoiceGenerator:
             </thead>
             <tbody>
                 <tr>
-                    <td>{html.escape(item.get('title', 'N/A'))}</td>
-                    <td>{html.escape(item.get('sku', 'N/A'))}</td>
+                    <td>{html_module.escape(item.get('title', 'N/A'))}</td>
+                    <td>{html_module.escape(item.get('sku', 'N/A'))}</td>
                     <td style="text-align: right;">{item.get('quantity', 1)}</td>
                     <td style="text-align: right;">${item.get('price', 0.0):.2f}</td>
                     <td style="text-align: right;">${totals.get('subtotal', 0.0):.2f}</td>
@@ -304,7 +304,7 @@ class InvoiceGenerator:
             html_template += f"""
     <div class="notes">
         <strong>Notes:</strong><br>
-        {html.escape(notes)}
+        {html_module.escape(notes)}
     </div>
 """
 
@@ -343,7 +343,7 @@ class InvoiceGenerator:
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Packing Slip {html.escape(order_number)}</title>
+    <title>Packing Slip {html_module.escape(order_number)}</title>
     <style>
         body {{
             font-family: Arial, sans-serif;
@@ -405,19 +405,19 @@ class InvoiceGenerator:
     <div class="header">PACKING SLIP</div>
 
     <div class="section">
-        <span class="label">Order #:</span> {html.escape(order_number)}<br>
-        <span class="label">Date:</span> {html.escape(order_date)}
+        <span class="label">Order #:</span> {html_module.escape(order_number)}<br>
+        <span class="label">Date:</span> {html_module.escape(order_date)}
     </div>
 
     <div class="ship-to">
         <div class="ship-to-label">SHIP TO:</div>
-        <div><strong>{html.escape(buyer.get('name', ''))}</strong></div>
-        <div>{html.escape(buyer.get('address', ''))}</div>
-        <div>{html.escape(buyer.get('city_state_zip', ''))}</div>
+        <div><strong>{html_module.escape(buyer.get('name', ''))}</strong></div>
+        <div>{html_module.escape(buyer.get('address', ''))}</div>
+        <div>{html_module.escape(buyer.get('city_state_zip', ''))}</div>
     </div>
 
     <div class="storage">
-        📦 Storage Location: {html.escape(storage_location)}
+        📦 Storage Location: {html_module.escape(storage_location)}
     </div>
 
     <table>
@@ -436,8 +436,8 @@ class InvoiceGenerator:
             for item in items:
                 html += f"""
             <tr>
-                <td>{html.escape(item.get('title', 'N/A'))}</td>
-                <td>{html.escape(item.get('sku', 'N/A'))}</td>
+                <td>{html_module.escape(item.get('title', 'N/A'))}</td>
+                <td>{html_module.escape(item.get('sku', 'N/A'))}</td>
                 <td>{item.get('quantity', 1)}</td>
             </tr>
 """

@@ -5,7 +5,7 @@ Background job queue with retry logic and priority support
 """
 
 from enum import Enum
-from typing import Dict, Any, Optional, Callable
+from typing import Dict, Any, Optional, Callable, List
 from datetime import datetime, timedelta
 import json
 import uuid

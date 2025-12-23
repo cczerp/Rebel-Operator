@@ -60,12 +60,13 @@ def upload_log_to_storage(
         log_bytes = log_json.encode('utf-8')
         
         # Upload to Supabase Storage
+        # Note: file_options only accepts string values for headers
+        # upsert is not a valid file_option
         response = supabase.storage.from_(bucket_name).upload(
             path=filename,
             file=log_bytes,
             file_options={
-                "content-type": "application/json",
-                "upsert": False
+                "content-type": "application/json"
             }
         )
         

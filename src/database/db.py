@@ -52,21 +52,21 @@ def _get_connection_pool():
                 options_encoded = quote('-c statement_timeout=10000')
                 connection_params += f'&options={options_encoded}'
         
-        # Create connection pool with MINIMAL settings for Render free tier
-        # Render: 512 MB RAM + Gunicorn workers = need tiny pool
-        # 1 worker * 2 connections = 2 total connections (safe for free tier)
+        # Create connection pool with settings optimized for Render
+        # Render free tier: 512 MB RAM, but Supabase allows up to 15 connections in Session mode
+        # Use 5 connections to allow concurrent requests while staying safe
         print("🔌 Creating PostgreSQL connection pool...", flush=True)
         _connection_pool = psycopg2.pool.ThreadedConnectionPool(
             minconn=1,  # Minimum connections in pool
-            maxconn=2,  # CRITICAL: Tiny pool for Render free tier (512 MB RAM)
+            maxconn=5,  # Increased from 2 to 5 to handle concurrent requests (Supabase Session mode limit is 15)
             dsn=connection_params,
             connect_timeout=5,
             keepalives=1,
-            keepalives_idle=30,  # Increased to reduce keepalive overhead
-            keepalives_interval=10,  # Increased to reduce keepalive overhead
+            keepalives_idle=30,
+            keepalives_interval=10,
             keepalives_count=3
         )
-        print("✅ Connection pool created (maxconn=2 for Render free tier)", flush=True)
+        print("✅ Connection pool created (maxconn=5 for concurrent requests)", flush=True)
     
     return _connection_pool
 
@@ -108,21 +108,37 @@ class _ManagedCursor:
         # Unregister from thread-local storage
         if hasattr(_thread_local, 'current_cursor') and _thread_local.current_cursor is self:
             _thread_local.current_cursor = None
+        
+        conn_to_return = self.conn  # Save reference before cleanup
+        cursor_to_close = self.cursor
+        
+        # Clear references first to prevent reuse
+        self.conn = None
+        self.cursor = None
+        
         try:
-            if self.cursor:
-                self.cursor.close()
-        except:
-            pass
-        # CRITICAL: Always return connection to pool
-        if self.conn is not None:
+            if cursor_to_close:
+                cursor_to_close.close()
+        except Exception as e:
+            print(f"⚠️  Error closing cursor: {e}", flush=True)
+        
+        # CRITICAL: Always return connection to pool, even on errors
+        if conn_to_return is not None:
             try:
-                if not self.conn.closed:
-                    self.pool.putconn(self.conn)
+                if not conn_to_return.closed:
+                    # Rollback any uncommitted transaction before returning
+                    try:
+                        conn_to_return.rollback()
+                    except:
+                        pass
+                    self.pool.putconn(conn_to_return)
                 else:
-                    self.pool.putconn(self.conn, close=True)
-            except Exception:
+                    # Connection is closed, mark it as bad
+                    self.pool.putconn(conn_to_return, close=True)
+            except Exception as e:
+                print(f"⚠️  Error returning connection to pool: {e}", flush=True)
                 try:
-                    self.conn.close()
+                    conn_to_return.close()
                 except:
                     pass
 

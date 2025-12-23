@@ -30,14 +30,22 @@ def _get_supabase_storage_client():
     
     supabase_url = os.getenv("SUPABASE_URL", "").strip()
     if not supabase_url:
+        print(f"[SUPABASE_STORAGE ERROR] SUPABASE_URL environment variable is not set", flush=True)
         return None
+    
+    # Validate URL format
+    if not supabase_url.startswith("http"):
+        print(f"[SUPABASE_STORAGE ERROR] SUPABASE_URL appears invalid (should start with http/https): {supabase_url[:50]}...", flush=True)
+        return None
+    
+    print(f"[SUPABASE_STORAGE] SUPABASE_URL configured: {supabase_url[:30]}...", flush=True)
     
     # Try service role key first (bypasses RLS policies)
     service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
     if service_role_key:
         try:
             print(f"[SUPABASE_STORAGE] ✅ Using service role key for storage operations (bypasses RLS)", flush=True)
-            return Client(
+            client = Client(
                 supabase_url,
                 service_role_key,
                 options=ClientOptions(
@@ -45,15 +53,20 @@ def _get_supabase_storage_client():
                     persist_session=False
                 )
             )
+            # Test client by checking if we can access storage
+            print(f"[SUPABASE_STORAGE] Service role client initialized successfully", flush=True)
+            return client
         except Exception as e:
-            print(f"[SUPABASE_STORAGE] Service role key failed, trying anon key: {e}", flush=True)
+            print(f"[SUPABASE_STORAGE ERROR] Service role key failed to initialize client: {type(e).__name__}: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
     
     # Fallback to anon key (requires proper storage policies)
     anon_key = os.getenv("SUPABASE_ANON_KEY", "").strip()
     if anon_key:
         try:
             print(f"[SUPABASE_STORAGE] ⚠️  Using anon key (may require storage policies)", flush=True)
-            return Client(
+            client = Client(
                 supabase_url,
                 anon_key,
                 options=ClientOptions(
@@ -61,8 +74,14 @@ def _get_supabase_storage_client():
                     persist_session=False
                 )
             )
+            print(f"[SUPABASE_STORAGE] Anon key client initialized successfully", flush=True)
+            return client
         except Exception as e:
-            print(f"[SUPABASE_STORAGE] Anon key failed: {e}", flush=True)
+            print(f"[SUPABASE_STORAGE ERROR] Anon key failed to initialize client: {type(e).__name__}: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
+    else:
+        print(f"[SUPABASE_STORAGE ERROR] Neither SUPABASE_SERVICE_ROLE_KEY nor SUPABASE_ANON_KEY is set", flush=True)
     
     return None
 
@@ -95,16 +114,31 @@ def upload_to_supabase_storage(
         - On failure: Returns error message string
     """
     try:
+        # Validate environment variables upfront
+        supabase_url = os.getenv("SUPABASE_URL", "").strip().rstrip('/')
+        service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+        anon_key = os.getenv("SUPABASE_ANON_KEY", "").strip()
+        
+        print(f"[SUPABASE_STORAGE DEBUG] Environment check:", flush=True)
+        print(f"  - SUPABASE_URL: {'✅ Set' if supabase_url else '❌ Missing'} ({supabase_url[:30] + '...' if supabase_url else 'N/A'})", flush=True)
+        print(f"  - SUPABASE_SERVICE_ROLE_KEY: {'✅ Set' if service_role_key else '❌ Missing'}", flush=True)
+        print(f"  - SUPABASE_ANON_KEY: {'✅ Set' if anon_key else '❌ Missing'}", flush=True)
+        
+        if not supabase_url:
+            error_msg = "SUPABASE_URL environment variable is not set. Please set it in your .env file or environment variables."
+            print(f"[SUPABASE_STORAGE ERROR] {error_msg}", flush=True)
+            return False, error_msg
+        
+        if not service_role_key and not anon_key:
+            error_msg = "Neither SUPABASE_SERVICE_ROLE_KEY nor SUPABASE_ANON_KEY is set. Please set at least one in your .env file or environment variables."
+            print(f"[SUPABASE_STORAGE ERROR] {error_msg}", flush=True)
+            return False, error_msg
+        
         supabase = _get_supabase_storage_client()
         if not supabase:
-            print(f"[SUPABASE_STORAGE ERROR] Supabase client not configured - check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY", flush=True)
-            return False, "Supabase client not configured. Please check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_ANON_KEY) environment variables."
-
-        # Get and validate SUPABASE_URL early
-        supabase_url = os.getenv("SUPABASE_URL", "").strip().rstrip('/')
-        if not supabase_url:
-            print(f"[SUPABASE_STORAGE ERROR] SUPABASE_URL not configured", flush=True)
-            return False, "SUPABASE_URL not configured in environment variables"
+            error_msg = "Failed to initialize Supabase client. Please check: 1) SUPABASE_URL is correct, 2) SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY is correct, 3) Check server logs for detailed error."
+            print(f"[SUPABASE_STORAGE ERROR] {error_msg}", flush=True)
+            return False, error_msg
 
         # Namespace path by user_id per system contract
         # Format: {user_id}/{listing_uuid}/{filename} or {user_id}/{filename}
@@ -130,10 +164,48 @@ def upload_to_supabase_storage(
         elif filename_lower.endswith('.webp'):
             content_type = "image/webp"
 
+        # Check if bucket exists before attempting upload
+        try:
+            print(f"[SUPABASE_STORAGE] Checking if bucket '{bucket_name}' exists...", flush=True)
+            buckets_response = supabase.storage.list_buckets()
+            print(f"[SUPABASE_STORAGE] Available buckets response: {buckets_response}", flush=True)
+            
+            # Parse buckets list
+            buckets_list = []
+            if isinstance(buckets_response, dict):
+                buckets_list = buckets_response.get('data', []) or []
+            elif hasattr(buckets_response, 'data'):
+                buckets_list = buckets_response.data or []
+            elif isinstance(buckets_response, list):
+                buckets_list = buckets_response
+            
+            bucket_names = []
+            if buckets_list:
+                for bucket in buckets_list:
+                    if isinstance(bucket, dict):
+                        bucket_names.append(bucket.get('name', ''))
+                    elif hasattr(bucket, 'name'):
+                        bucket_names.append(bucket.name)
+                    elif isinstance(bucket, str):
+                        bucket_names.append(bucket)
+            
+            print(f"[SUPABASE_STORAGE] Found buckets: {bucket_names}", flush=True)
+            
+            if bucket_name not in bucket_names:
+                error_msg = f"Bucket '{bucket_name}' not found. Available buckets: {', '.join(bucket_names) if bucket_names else 'none'}. Please create the bucket '{bucket_name}' in Supabase Storage dashboard and make it public."
+                print(f"[SUPABASE_STORAGE ERROR] {error_msg}", flush=True)
+                return False, error_msg
+            
+            print(f"[SUPABASE_STORAGE] ✅ Bucket '{bucket_name}' exists", flush=True)
+        except Exception as bucket_check_error:
+            print(f"[SUPABASE_STORAGE WARNING] Could not verify bucket existence (may not have list permission): {type(bucket_check_error).__name__}: {bucket_check_error}", flush=True)
+            # Continue anyway - upload will fail with a clearer error if bucket doesn't exist
+        
         # Upload to Supabase Storage
         # Supabase Python client API: storage.from_(bucket).upload(path, file_bytes, file_options)
         try:
             print(f"[SUPABASE_STORAGE] Attempting upload - File size: {len(file_data)} bytes, Content-Type: {content_type}", flush=True)
+            print(f"[SUPABASE_STORAGE] Upload path: {storage_path}", flush=True)
 
             # Convert bytes to file-like object if needed, or use bytes directly
             # Supabase expects file_data as bytes or file-like object
@@ -147,6 +219,12 @@ def upload_to_supabase_storage(
             )
 
             print(f"[SUPABASE_STORAGE] Upload response type: {type(response)}, Response: {response}", flush=True)
+            
+            # Log full response details for debugging
+            if hasattr(response, '__dict__'):
+                print(f"[SUPABASE_STORAGE] Response attributes: {list(response.__dict__.keys())}", flush=True)
+            if isinstance(response, dict):
+                print(f"[SUPABASE_STORAGE] Response keys: {list(response.keys())}", flush=True)
 
             # Check response - handle both dict and object responses
             # Response might be a dict with 'error' key or an object with error attribute
@@ -179,16 +257,24 @@ def upload_to_supabase_storage(
             error_msg = str(upload_error)
             error_type = type(upload_error).__name__
             print(f"[SUPABASE_STORAGE ERROR] Upload exception ({error_type}): {error_msg}", flush=True)
+            import traceback
+            print(f"[SUPABASE_STORAGE ERROR] Full traceback:", flush=True)
+            traceback.print_exc()
 
             # Check for specific error patterns
-            if "bucket" in error_msg.lower() and ("not found" in error_msg.lower() or "does not exist" in error_msg.lower()):
-                return False, f"Bucket '{bucket_name}' not found. Please create it in Supabase Storage dashboard."
-            elif "row-level security" in error_msg.lower() or "policy" in error_msg.lower():
-                return False, f"Permission denied: Storage policies blocking upload. Set SUPABASE_SERVICE_ROLE_KEY to bypass RLS, or configure storage policies in Supabase dashboard."
-            elif "unauthenticated" in error_msg.lower() or "unauthorized" in error_msg.lower():
-                return False, f"Authentication failed: Please check SUPABASE_ANON_KEY is correct."
+            error_lower = error_msg.lower()
+            if "bucket" in error_lower and ("not found" in error_lower or "does not exist" in error_lower):
+                return False, f"Bucket '{bucket_name}' not found. Please create it in Supabase Storage dashboard and make it public."
+            elif "row-level security" in error_lower or "policy" in error_lower or "permission" in error_lower:
+                return False, f"Permission denied: Storage policies blocking upload. Set SUPABASE_SERVICE_ROLE_KEY to bypass RLS, or configure storage policies in Supabase dashboard to allow uploads."
+            elif "unauthenticated" in error_lower or "unauthorized" in error_lower or "401" in error_msg or "403" in error_msg:
+                return False, f"Authentication failed: Please check SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY is correct and has proper permissions."
+            elif "404" in error_msg:
+                return False, f"Bucket or path not found (404). Please verify: 1) Bucket '{bucket_name}' exists and is public, 2) Storage path is valid."
+            elif "network" in error_lower or "connection" in error_lower or "timeout" in error_lower:
+                return False, f"Network error: Could not connect to Supabase. Please check SUPABASE_URL is correct and network connectivity."
 
-            return False, f"Upload failed ({error_type}): {error_msg}"
+            return False, f"Upload failed ({error_type}): {error_msg}. Check server logs for details."
 
     except Exception as e:
         error_msg = f"Supabase Storage upload error: {str(e)}"

@@ -560,7 +560,6 @@ def api_analyze_status(job_id):
 # -------------------------------------------------------------------------
 
 @main_bp.route('/api/supabase-diagnostics', methods=['GET'])
-@login_required
 def supabase_diagnostics():
     """
     Diagnostic endpoint to check Supabase Storage configuration.
@@ -576,6 +575,8 @@ def supabase_diagnostics():
         - bucket_status: Available buckets and if listing-images exists
         - errors: Any errors encountered
     """
+    # Don't require login - this is a diagnostic tool
+    # But we can check if user is logged in for additional context
     import os
     from src.storage.supabase_storage import _get_supabase_storage_client
     
@@ -599,7 +600,17 @@ def supabase_diagnostics():
         },
         "SUPABASE_SERVICE_ROLE_KEY": {
             "set": bool(service_role_key),
-            "length": len(service_role_key) if service_role_key else 0
+            "length": len(service_role_key) if service_role_key else 0,
+            "prefix": service_role_key[:30] + "..." if service_role_key else None,
+            "is_temp_key": service_role_key.startswith("sb_temp_") if service_role_key else False,
+            "looks_like_jwt": service_role_key.startswith("eyJ") if service_role_key else False,
+            "note": "Service role keys are JWT tokens (start with 'eyJ') found in Settings → API → Project API keys → service_role (secret). They are NOT in a separate JWT section." if service_role_key else None,
+            "warning": (
+                "❌ CRITICAL: Temporary/invalid key detected (starts with 'sb_temp_'). Get the permanent service_role key from Supabase Dashboard → Settings → API → Project API keys → service_role (click 'Reveal' to show the secret key)" if service_role_key and service_role_key.startswith("sb_temp_") else
+                "⚠️ Key doesn't start with 'eyJ' (JWT format). Verify you copied the full service_role key from Settings → API → Project API keys → service_role (secret)" if service_role_key and not service_role_key.startswith("eyJ") else
+                "⚠️ Key seems short. Service role keys are usually 200+ characters. Make sure you copied the entire key." if service_role_key and len(service_role_key) < 200 else
+                None
+            )
         },
         "SUPABASE_ANON_KEY": {
             "set": bool(anon_key),
@@ -613,7 +624,7 @@ def supabase_diagnostics():
         if supabase:
             diagnostics["client_status"] = "✅ Client initialized successfully"
             
-            # Try to list buckets
+            # Try to list buckets (this tests if the key actually works)
             try:
                 buckets_response = supabase.storage.list_buckets()
                 buckets_list = []
@@ -633,9 +644,23 @@ def supabase_diagnostics():
                     elif isinstance(bucket, str):
                         bucket_names.append(bucket)
                 
+                # If we got here, the key works!
+                diagnostics["client_status"] = "✅ Client initialized and key validated (can list buckets)"
+                
                 # Check for both listing-images and logs buckets
                 # Check both SUPABASE_BUCKET_LOGS (user's preference) and SUPABASE_LOGS_BUCKET (backwards compat)
                 logs_bucket_name = os.getenv("SUPABASE_BUCKET_LOGS") or os.getenv("SUPABASE_LOGS_BUCKET", "log-ride")
+                
+                # Check if user is logged in (optional context)
+                user_logged_in = False
+                user_id = None
+                try:
+                    from flask_login import current_user
+                    if current_user.is_authenticated:
+                        user_logged_in = True
+                        user_id = str(current_user.id)
+                except:
+                    pass
                 
                 diagnostics["bucket_status"] = {
                     "can_list": True,
@@ -644,11 +669,30 @@ def supabase_diagnostics():
                     "logs_bucket_exists": logs_bucket_name in bucket_names,
                     "logs_bucket_name": logs_bucket_name
                 }
+                diagnostics["user_context"] = {
+                    "logged_in": user_logged_in,
+                    "user_id": user_id
+                }
             except Exception as bucket_error:
+                error_msg = str(bucket_error)
+                error_lower = error_msg.lower()
+                
+                # Check for authentication/permission errors
+                is_auth_error = (
+                    "invalid" in error_lower or 
+                    "unauthorized" in error_lower or 
+                    "401" in error_msg or 
+                    "403" in error_msg or
+                    "permission" in error_lower or
+                    "authentication" in error_lower
+                )
+                
                 diagnostics["bucket_status"] = {
                     "can_list": False,
-                    "error": str(bucket_error),
-                    "error_type": type(bucket_error).__name__
+                    "error": error_msg,
+                    "error_type": type(bucket_error).__name__,
+                    "is_auth_error": is_auth_error,
+                    "suggestion": "❌ API key appears invalid! Get the correct 'service_role' key from Supabase Dashboard → Settings → API → service_role key (NOT anon key)" if is_auth_error else None
                 }
         else:
             diagnostics["client_status"] = "❌ Failed to initialize client"

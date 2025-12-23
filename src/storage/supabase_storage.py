@@ -43,8 +43,16 @@ def _get_supabase_storage_client():
     # Try service role key first (bypasses RLS policies)
     service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
     if service_role_key:
+        # Validate key format - service role keys should NOT start with sb_temp_
+        if service_role_key.startswith("sb_temp_"):
+            print(f"[SUPABASE_STORAGE ERROR] ⚠️  Service role key appears to be a temporary/invalid key (starts with 'sb_temp_'). Get the permanent service_role key from Supabase Dashboard → Settings → API", flush=True)
+            # Continue anyway, but warn
+        elif len(service_role_key) < 50:
+            print(f"[SUPABASE_STORAGE WARNING] Service role key seems too short ({len(service_role_key)} chars). Verify it's the full key from Supabase Dashboard.", flush=True)
+        
         try:
             print(f"[SUPABASE_STORAGE] ✅ Using service role key for storage operations (bypasses RLS)", flush=True)
+            print(f"[SUPABASE_STORAGE] Key prefix: {service_role_key[:20]}... (length: {len(service_role_key)})", flush=True)
             client = Client(
                 supabase_url,
                 service_role_key,
@@ -57,7 +65,10 @@ def _get_supabase_storage_client():
             print(f"[SUPABASE_STORAGE] Service role client initialized successfully", flush=True)
             return client
         except Exception as e:
-            print(f"[SUPABASE_STORAGE ERROR] Service role key failed to initialize client: {type(e).__name__}: {e}", flush=True)
+            error_msg = str(e)
+            print(f"[SUPABASE_STORAGE ERROR] Service role key failed to initialize client: {type(e).__name__}: {error_msg}", flush=True)
+            if "invalid" in error_msg.lower() or "unauthorized" in error_msg.lower():
+                print(f"[SUPABASE_STORAGE ERROR] ⚠️  API key appears invalid. Verify SUPABASE_SERVICE_ROLE_KEY is the correct 'service_role' key (not 'anon' key) from Supabase Dashboard → Settings → API", flush=True)
             import traceback
             traceback.print_exc()
     
@@ -211,6 +222,20 @@ def upload_to_supabase_storage(
             # Supabase expects file_data as bytes or file-like object
             # Note: file_options only accepts string values for headers
             # upsert is not a valid file_option - it's handled by the upload method itself
+            
+            # Log exactly what we're sending
+            print(f"[SUPABASE_STORAGE] About to upload:", flush=True)
+            print(f"  - Bucket: {bucket_name}", flush=True)
+            print(f"  - Path: {storage_path}", flush=True)
+            print(f"  - File size: {len(file_data)} bytes", flush=True)
+            print(f"  - Content-Type: {content_type}", flush=True)
+            print(f"  - Supabase URL: {supabase_url}", flush=True)
+            
+            # Check what key we're actually using
+            current_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip() or os.getenv("SUPABASE_ANON_KEY", "").strip()
+            if current_key:
+                print(f"  - Using key prefix: {current_key[:30]}... (length: {len(current_key)})", flush=True)
+            
             response = supabase.storage.from_(bucket_name).upload(
                 path=storage_path,
                 file=file_data,
@@ -257,11 +282,26 @@ def upload_to_supabase_storage(
             # Handle specific Supabase errors (including StorageException)
             error_msg = str(upload_error)
             error_type = type(upload_error).__name__
-            print(f"[SUPABASE_STORAGE ERROR] Upload exception ({error_type}): {error_msg}", flush=True)
+            
+            # Get full error details
             import traceback
             traceback_str = traceback.format_exc()
+            
+            print(f"[SUPABASE_STORAGE ERROR] ========== UPLOAD FAILED ==========", flush=True)
+            print(f"[SUPABASE_STORAGE ERROR] Exception type: {error_type}", flush=True)
+            print(f"[SUPABASE_STORAGE ERROR] Error message: {error_msg}", flush=True)
             print(f"[SUPABASE_STORAGE ERROR] Full traceback:", flush=True)
             print(traceback_str, flush=True)
+            
+            # Check what key was actually used
+            service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+            anon_key = os.getenv("SUPABASE_ANON_KEY", "").strip()
+            print(f"[SUPABASE_STORAGE ERROR] Environment check at error time:", flush=True)
+            print(f"  - SUPABASE_SERVICE_ROLE_KEY set: {bool(service_role_key)} (length: {len(service_role_key) if service_role_key else 0})", flush=True)
+            print(f"  - SUPABASE_ANON_KEY set: {bool(anon_key)} (length: {len(anon_key) if anon_key else 0})", flush=True)
+            if service_role_key:
+                print(f"  - Service role key prefix: {service_role_key[:30]}...", flush=True)
+            print(f"[SUPABASE_STORAGE ERROR] =====================================", flush=True)
             
             # Upload error to logs bucket
             try:
@@ -285,10 +325,15 @@ def upload_to_supabase_storage(
             error_lower = error_msg.lower()
             if "bucket" in error_lower and ("not found" in error_lower or "does not exist" in error_lower):
                 return False, f"Bucket '{bucket_name}' not found. Please create it in Supabase Storage dashboard and make it public."
-            elif "row-level security" in error_lower or "policy" in error_lower or "permission" in error_lower:
-                return False, f"Permission denied: Storage policies blocking upload. Set SUPABASE_SERVICE_ROLE_KEY to bypass RLS, or configure storage policies in Supabase dashboard to allow uploads."
-            elif "unauthenticated" in error_lower or "unauthorized" in error_lower or "401" in error_msg or "403" in error_msg:
-                return False, f"Authentication failed: Please check SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY is correct and has proper permissions."
+            elif "row-level security" in error_lower or "policy" in error_lower or "permission" in error_lower or "403" in error_msg:
+                # Check if we're using service role key
+                service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+                if not service_role_key:
+                    return False, f"❌ Permission denied (403): Storage policies blocking upload. SOLUTION: Set SUPABASE_SERVICE_ROLE_KEY in Render environment variables to bypass RLS policies. Get it from Supabase Dashboard → Settings → API → service_role key."
+                else:
+                    return False, f"❌ Permission denied (403): Even with service role key, upload blocked. Check: 1) SUPABASE_SERVICE_ROLE_KEY is correct, 2) Bucket '{bucket_name}' exists and is public, 3) Storage policies allow uploads."
+            elif "unauthenticated" in error_lower or "unauthorized" in error_lower or "401" in error_msg:
+                return False, f"❌ Authentication failed (401): Please check SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY is correct. Get keys from Supabase Dashboard → Settings → API."
             elif "404" in error_msg:
                 return False, f"Bucket or path not found (404). Please verify: 1) Bucket '{bucket_name}' exists and is public, 2) Storage path is valid."
             elif "network" in error_lower or "connection" in error_lower or "timeout" in error_lower:

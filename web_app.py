@@ -12,6 +12,7 @@ This file serves as the entry point that:
 
 import os
 import sys
+import json
 from pathlib import Path
 from functools import wraps
 from flask import Flask, render_template, redirect, url_for, flash
@@ -503,7 +504,6 @@ def create_listing():
             photos = listing.get('photos', [])
             # Ensure photos is a list (it might be JSON string or None)
             if isinstance(photos, str):
-                import json
                 try:
                     photos = json.loads(photos)
                 except json.JSONDecodeError:

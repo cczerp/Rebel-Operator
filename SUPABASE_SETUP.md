@@ -14,64 +14,64 @@ The image upload feature requires a properly configured Supabase Storage bucket.
    - **Public bucket**: ✅ **YES** (must be checked for public access)
    - Click **Create bucket**
 
-### 2. Set Bucket Policies
+### 2. Set Bucket Policies (OPTIONAL - Service Role Key Recommended)
 
-After creating the bucket, set up Row Level Security (RLS) policies:
+**IMPORTANT:** Per Supabase docs: "A public bucket only means there is a public URL available for downloads. All other operations require storage policies."
+
+Since this app uses Flask-Login (not Supabase Auth), we have two options:
+
+#### Option A: Use Service Role Key (RECOMMENDED - Bypasses RLS)
+
+1. Go to Supabase Dashboard → Settings → API
+2. Copy the **service_role** key (NOT the anon key)
+3. Add to Render environment variables:
+   ```
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+   ```
+4. The app will automatically use service role key for uploads (bypasses RLS)
+
+#### Option B: Set Storage Policies (Alternative)
+
+If you prefer to use anon key, set up policies in Supabase:
 
 1. Click on the `listing-images` bucket
 2. Go to **Policies** tab
 3. Add these policies:
 
-#### Policy 1: Public Read Access
+**Policy 1: Public Read Access**
 ```sql
 CREATE POLICY "Public Access"
 ON storage.objects FOR SELECT
 USING ( bucket_id = 'listing-images' );
 ```
 
-#### Policy 2: Authenticated Upload
+**Policy 2: Allow All Uploads (for anon key)**
 ```sql
-CREATE POLICY "Authenticated users can upload"
+CREATE POLICY "Allow all uploads"
 ON storage.objects FOR INSERT
-WITH CHECK (
-  bucket_id = 'listing-images'
-  AND auth.role() = 'authenticated'
-);
+WITH CHECK ( bucket_id = 'listing-images' );
 ```
 
-#### Policy 3: Users can update their own files
-```sql
-CREATE POLICY "Users can update own files"
-ON storage.objects FOR UPDATE
-USING (
-  bucket_id = 'listing-images'
-  AND auth.uid()::text = (storage.foldername(name))[1]
-);
-```
-
-#### Policy 4: Users can delete their own files
-```sql
-CREATE POLICY "Users can delete own files"
-ON storage.objects FOR DELETE
-USING (
-  bucket_id = 'listing-images'
-  AND auth.uid()::text = (storage.foldername(name))[1]
-);
-```
+**Note:** Option A (service role key) is recommended because it bypasses RLS entirely and is simpler.
 
 ### 3. Verify Environment Variables
 
 Make sure these environment variables are set in your Render.com dashboard:
 
+**Required:**
 - **SUPABASE_URL**: Your Supabase project URL (e.g., `https://xxxxx.supabase.co`)
-- **SUPABASE_ANON_KEY**: Your Supabase anonymous/public key
+
+**Required (choose one):**
+- **SUPABASE_SERVICE_ROLE_KEY**: Service role key (RECOMMENDED - bypasses RLS)
+- **OR SUPABASE_ANON_KEY**: Anonymous/public key (requires storage policies)
 
 To find these values:
 1. Go to your Supabase project dashboard
 2. Click **Settings** → **API**
 3. Copy:
    - **Project URL** → use as `SUPABASE_URL`
-   - **anon/public key** → use as `SUPABASE_ANON_KEY`
+   - **service_role key** → use as `SUPABASE_SERVICE_ROLE_KEY` (recommended)
+   - **OR anon/public key** → use as `SUPABASE_ANON_KEY` (if not using service role)
 
 ### 4. Test the Upload
 
@@ -93,8 +93,9 @@ After configuration:
 - Create the bucket as described in Step 1
 - Make sure it's named exactly `listing-images`
 
-**Error: "Upload failed: new row violates row-level security policy"**
-- Set up the bucket policies as described in Step 2
+**Error: "Upload failed: new row violates row-level security policy" or "Permission denied: Storage policies blocking upload"**
+- **RECOMMENDED:** Add `SUPABASE_SERVICE_ROLE_KEY` environment variable (bypasses RLS)
+- **OR:** Set up storage policies as described in Step 2 (Option B)
 - Make sure the bucket is marked as **Public**
 
 **Images upload but don't display**

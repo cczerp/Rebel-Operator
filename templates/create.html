@@ -1981,10 +1981,18 @@ function refreshPhotoPreviews() {
     }
     
     uploadedPhotos.forEach((photoUrl, index) => {
+        // Create container for photo + remove button
+        const container = document.createElement('div');
+        container.className = 'photo-preview-container';
+        container.style.position = 'relative';
+        container.style.display = 'inline-block';
+        container.style.margin = '5px';
+        
         const img = document.createElement('img');
         img.src = photoUrl;  // Use URL from Supabase Storage
         img.className = 'photo-preview';
         img.title = 'Click to edit photo';
+        img.style.cursor = 'pointer';
         img.onerror = function() {
             console.error('[PREVIEW] Failed to load image:', photoUrl);
             this.style.display = 'none';
@@ -1995,11 +2003,72 @@ function refreshPhotoPreviews() {
             openPhotoEditor(index, photoUrl);
         };
         
-        previewDiv.appendChild(img);
+        // Create remove button (X)
+        const removeBtn = document.createElement('button');
+        removeBtn.innerHTML = '×';
+        removeBtn.className = 'btn btn-sm';
+        removeBtn.style.cssText = 'position: absolute; top: 5px; right: 5px; background: rgba(220, 38, 38, 0.9); color: white; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 20px; line-height: 1; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 0;';
+        removeBtn.title = 'Remove photo';
+        removeBtn.onclick = function(e) {
+            e.stopPropagation(); // Prevent triggering photo editor
+            removePhoto(index);
+        };
+        
+        container.appendChild(img);
+        container.appendChild(removeBtn);
+        previewDiv.appendChild(container);
     });
     
     // Update analyze button state based on photos
     updateAnalyzeButtonState();
+}
+
+// Remove photo from array and optionally delete from storage
+async function removePhoto(index) {
+    if (index < 0 || index >= uploadedPhotos.length) {
+        console.error('[REMOVE] Invalid photo index:', index);
+        return;
+    }
+    
+    const photoUrl = uploadedPhotos[index];
+    console.log('[REMOVE] Removing photo at index', index, ':', photoUrl);
+    
+    // Remove from array
+    uploadedPhotos.splice(index, 1);
+    
+    // Update UI immediately
+    refreshPhotoPreviews();
+    updateAnalyzeButtonState();
+    
+    // If this is a committed listing, update the database
+    if (currentListingId) {
+        try {
+            console.log('[REMOVE] Updating listing in database...');
+            const response = await fetch(`/api/update-listing-photos/${currentListingId}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                credentials: 'include',
+                body: JSON.stringify({
+                    photos: uploadedPhotos  // Send updated array without the removed photo
+                })
+            });
+            
+            if (!response.ok) {
+                console.error('[REMOVE] Failed to update listing:', response.statusText);
+                showAlert('Photo removed from preview, but failed to update database. Please refresh the page.', 'warning');
+            } else {
+                console.log('[REMOVE] ✅ Listing updated in database');
+                showAlert('Photo removed successfully', 'success');
+            }
+        } catch (error) {
+            console.error('[REMOVE] Error updating listing:', error);
+            showAlert('Photo removed from preview, but failed to update database. Please refresh the page.', 'warning');
+        }
+    } else {
+        // Temp session - just removed from array, no DB update needed
+        console.log('[REMOVE] ✅ Photo removed from temp session');
+        showAlert('Photo removed', 'success');
+    }
 }
 
 // Load draft data for editing

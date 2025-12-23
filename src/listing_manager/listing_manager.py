@@ -164,12 +164,209 @@ class ListingManager:
         
         return results
     
+    def publish_to_platform(self, listing_id: int, platform: str) -> Dict[str, Any]:
+        """
+        Publish a single listing to a specific platform.
+
+        This method handles the complete workflow:
+        1. Fetch listing from database
+        2. Convert to UnifiedListing format
+        3. Download images from Supabase Storage
+        4. Upload images to target platform
+        5. Create listing on platform
+        6. Track platform listing in database
+
+        Args:
+            listing_id: Listing ID
+            platform: Platform name (e.g., 'ebay', 'mercari')
+
+        Returns:
+            Dict with success status and platform listing details
+        """
+        try:
+            # Fetch listing from database
+            listing = self.db.get_listing(listing_id)
+            if not listing:
+                return {"success": False, "error": f"Listing {listing_id} not found"}
+
+            # Convert to UnifiedListing
+            unified_listing = self._convert_to_unified_listing(listing)
+
+            # Publish using internal method
+            platform_listing_id = self._publish_to_platform(listing, platform)
+
+            # Track in database
+            self.db.add_platform_listing(
+                listing_id=listing_id,
+                platform=platform,
+                platform_listing_id=platform_listing_id,
+                status='active'
+            )
+
+            return {
+                "success": True,
+                "platform": platform,
+                "platform_listing_id": platform_listing_id,
+                "message": f"Successfully published to {platform}"
+            }
+
+        except Exception as e:
+            # Track error in database
+            try:
+                self.db.add_platform_listing(
+                    listing_id=listing_id,
+                    platform=platform,
+                    status='failed',
+                    error_message=str(e)
+                )
+            except:
+                pass  # Don't fail if error tracking fails
+
+            return {
+                "success": False,
+                "error": str(e),
+                "platform": platform
+            }
+
     def _publish_to_platform(self, listing: Dict, platform: str) -> str:
-        """Publish listing to a specific platform (placeholder)"""
-        # TODO: Integrate with platform adapters
-        # For now, return a mock ID
-        import uuid
-        return str(uuid.uuid4())
+        """
+        Internal method to publish listing to a specific platform.
+
+        Handles image transfer from Supabase to platform.
+
+        Args:
+            listing: Listing dict from database
+            platform: Platform name
+
+        Returns:
+            Platform listing ID
+
+        Raises:
+            Exception if publish fails
+        """
+        print(f"[LISTING_MANAGER] Publishing listing to {platform}", flush=True)
+
+        # Get platform adapter
+        adapter = None
+        try:
+            if platform.lower() == 'ebay':
+                from ..adapters.ebay_adapter import EbayAdapter
+                adapter = EbayAdapter.from_env()
+            elif platform.lower() == 'mercari':
+                from ..adapters.mercari_adapter import MercariAdapter
+                adapter = MercariAdapter.from_env()
+            elif platform.lower() == 'poshmark':
+                from ..adapters.poshmark_adapter import PoshmarkAdapter
+                adapter = PoshmarkAdapter.from_env()
+            else:
+                # Try to get from all_platforms
+                from ..adapters.all_platforms import get_adapter_class
+                adapter_class = get_adapter_class(platform)
+                if adapter_class and hasattr(adapter_class, 'from_env'):
+                    adapter = adapter_class.from_env()
+                else:
+                    raise ValueError(f"Unsupported platform: {platform}")
+        except Exception as e:
+            raise ValueError(f"Failed to initialize {platform} adapter: {e}")
+
+        # Convert listing dict to UnifiedListing
+        unified_listing = self._convert_to_unified_listing(listing)
+
+        # Publish using adapter (this handles image transfer)
+        result = adapter.publish_listing(unified_listing)
+
+        if not result.get('success'):
+            error = result.get('error', 'Unknown error')
+            raise Exception(f"Platform publish failed: {error}")
+
+        # Return platform listing ID
+        platform_listing_id = result.get('listing_id') or result.get('platform_listing_id')
+        if not platform_listing_id:
+            # Fallback: generate UUID if platform didn't return ID
+            import uuid
+            platform_listing_id = f"{platform}_{uuid.uuid4()}"
+
+        print(f"[LISTING_MANAGER] ✅ Published to {platform}: {platform_listing_id}", flush=True)
+        return platform_listing_id
+
+    def _convert_to_unified_listing(self, listing: Dict) -> UnifiedListing:
+        """
+        Convert database listing dict to UnifiedListing object.
+
+        Args:
+            listing: Listing dict from database
+
+        Returns:
+            UnifiedListing object
+        """
+        import json
+        from ..schema.unified_listing import (
+            UnifiedListing, PriceInfo, Photo, Condition, ItemSpecifics
+        )
+
+        # Parse photos JSON
+        photos = []
+        if listing.get('photos'):
+            photo_urls = listing['photos']
+            if isinstance(photo_urls, str):
+                try:
+                    photo_urls = json.loads(photo_urls)
+                except:
+                    photo_urls = []
+
+            for url in photo_urls:
+                photos.append(Photo(url=url, local_path=None))
+
+        # Parse attributes
+        attributes = {}
+        if listing.get('attributes'):
+            if isinstance(listing['attributes'], str):
+                try:
+                    attributes = json.loads(listing['attributes'])
+                except:
+                    attributes = {}
+            else:
+                attributes = listing['attributes']
+
+        # Create item specifics
+        item_specifics = ItemSpecifics(
+            brand=attributes.get('brand'),
+            size=attributes.get('size'),
+            color=attributes.get('color'),
+            item_type=listing.get('item_type')
+        )
+
+        # Create price info
+        price_info = PriceInfo(
+            amount=float(listing.get('price', 0)),
+            currency='USD',
+            cost=float(listing.get('cost', 0)) if listing.get('cost') else None
+        )
+
+        # Map condition
+        condition_map = {
+            'new': Condition.NEW,
+            'like_new': Condition.LIKE_NEW,
+            'excellent': Condition.EXCELLENT,
+            'good': Condition.GOOD,
+            'fair': Condition.FAIR,
+            'poor': Condition.POOR
+        }
+        condition = condition_map.get(listing.get('condition', 'good'), Condition.GOOD)
+
+        # Create UnifiedListing
+        return UnifiedListing(
+            id=listing.get('id'),
+            title=listing.get('title', 'Untitled'),
+            description=listing.get('description'),
+            price=price_info,
+            condition=condition,
+            photos=photos,
+            item_specifics=item_specifics,
+            quantity=listing.get('quantity', 1),
+            storage_location=listing.get('storage_location'),
+            sku=listing.get('sku')
+        )
     
     def list_everywhere(
         self,

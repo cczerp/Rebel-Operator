@@ -1,11 +1,14 @@
 # AI Cross-Poster 🚀
 
+> ⚠️ **DEVELOPERS & AI AGENTS**: Read [docs/GLOBAL_CONTRACT.md](docs/GLOBAL_CONTRACT.md) before making changes. All architectural rules are **IMMUTABLE** and strictly enforced.
+
+[![System Contract](https://img.shields.io/badge/System_Contract-ENFORCED-red?style=for-the-badge)](docs/GLOBAL_CONTRACT.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+
 **Analyzes images to create optimized listings on multiple resale platforms.**
 
 AI Cross-Poster is a powerful Python library that streamlines the process of creating and publishing product listings across eBay and Mercari. It uses dual-AI enhancement (OpenAI GPT-4 Vision + Anthropic Claude) to analyze photos, generate compelling descriptions, and optimize for search.
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
 ## ✨ Features
 

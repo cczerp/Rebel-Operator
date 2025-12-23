@@ -24,14 +24,21 @@ def _cleanup_zombie_connections():
 
     This runs once at startup to clean up zombie connections from previous deploys.
     Prevents 'MaxClientsInSessionMode: max clients reached' errors.
+    
+    NOTE: Session mode pooler (port 5432) is IPv4-compatible (required for Render).
+    Transaction mode (port 6543) is IPv6-only and won't work on Render.
+    If connections are exhausted, cleanup will skip silently (non-blocking).
     """
     database_url = os.getenv('DATABASE_URL')
     if not database_url:
         return
 
+    # Skip cleanup if we're already hitting connection limits (would make it worse)
+    # This is a best-effort cleanup, not critical for startup
     try:
         # Connect directly (not from pool) to run cleanup
-        conn = psycopg2.connect(database_url, connect_timeout=5)
+        # Use very short timeout to fail fast if connections are exhausted
+        conn = psycopg2.connect(database_url, connect_timeout=2)
         cursor = conn.cursor()
 
         # Kill connections that are idle-in-transaction for more than 5 minutes
@@ -50,8 +57,16 @@ def _cleanup_zombie_connections():
         conn.commit()
         cursor.close()
         conn.close()
-    except Exception as e:
-        print(f"⚠️  Zombie connection cleanup failed (non-fatal): {e}", flush=True)
+    except psycopg2.OperationalError as e:
+        # If we can't connect due to max clients, skip silently (expected when connections exhausted)
+        # Don't print error - just skip to avoid noise in logs
+        error_str = str(e)
+        if "MaxClientsInSessionMode" not in error_str and "max clients reached" not in error_str.lower():
+            # Only log non-max-clients errors
+            print(f"⚠️  Zombie connection cleanup skipped: {error_str[:100]}", flush=True)
+    except Exception:
+        # Silent skip for any other errors - cleanup is best-effort only
+        pass
 
 def _get_connection_pool():
     """Get or create global connection pool"""
@@ -67,6 +82,14 @@ def _get_connection_pool():
         
         # Parse connection string for pool
         connection_params = database_url
+        
+        # CRITICAL: Check if using Session mode (port 5432) vs Transaction mode (port 6543)
+        # Transaction mode (6543) is better for connection pooling - supports more concurrent connections
+        # Session mode (5432) has strict limits based on pool_size
+        is_session_mode = ':5432' in connection_params or (':5432/' in connection_params)
+        if is_session_mode:
+            print("⚠️  Using Session mode pooler (port 5432) - consider switching to Transaction mode (port 6543) for better pooling", flush=True)
+            print("   Transaction mode supports more concurrent connections and is better for connection pooling", flush=True)
         
         # Supabase pooler REQUIRES SSL - cannot use sslmode=disable
         # Add aggressive timeouts to prevent hanging queries
@@ -86,26 +109,74 @@ def _get_connection_pool():
                 options_encoded = quote('-c statement_timeout=10000')
                 connection_params += f'&options={options_encoded}'
         
+        # CRITICAL: Check if using Session mode (port 5432) vs Transaction mode (port 6543)
+        # Session mode (5432) is IPv4-compatible (required for Render)
+        # Transaction mode (6543) is IPv6-only (won't work on Render)
+        # Session mode has strict limits based on pool_size (usually 15 total connections)
+        is_session_mode = ':5432' in connection_params or connection_params.endswith(':5432')
+        
+        if is_session_mode:
+            print("ℹ️  Using Session mode pooler (port 5432) - IPv4 compatible (required for Render)", flush=True)
+            print("   Session mode has strict connection limits - using minimal pool size", flush=True)
+        
         # CRITICAL: Clean up zombie connections from previous deploys BEFORE creating pool
         # This prevents "MaxClientsInSessionMode: max clients reached" errors
+        # But skip if we're already hitting limits (would make it worse)
         _cleanup_zombie_connections()
 
         # Create connection pool with settings optimized for Render
-        # Render free tier: 512 MB RAM but needs to handle concurrent requests
-        # Balance: enough connections to prevent exhaustion, but not too many to exhaust RAM
-        # Supabase Session mode limit is 15, so 10 is safe
-        print("🔌 Creating PostgreSQL connection pool...", flush=True)
-        _connection_pool = psycopg2.pool.ThreadedConnectionPool(
-            minconn=2,  # Minimum connections in pool
-            maxconn=10,  # Increased from 2 to prevent pool exhaustion (Supabase limit is 15)
-            dsn=connection_params,
-            connect_timeout=5,
-            keepalives=1,
-            keepalives_idle=30,
-            keepalives_interval=10,
-            keepalives_count=3
-        )
-        print("✅ Connection pool created (minconn=2, maxconn=10)", flush=True)
+        # Adjust pool size based on pooler mode
+        if is_session_mode:
+            # Session mode (port 5432): VERY strict limits - use minimal pool
+            # Default pool_size is usually 15 TOTAL connections across ALL clients
+            # With Gunicorn workers (2) + zombie cleanup + pool init = need to be very conservative
+            # Use only 2 connections max to leave room for other operations
+            pool_min = 1
+            pool_max = 2  # CRITICAL: Session mode limit is ~15 total, so use minimal pool
+            print(f"🔌 Creating PostgreSQL connection pool (Session mode - port 5432, IPv4)...", flush=True)
+            print(f"   Using minimal pool (maxconn={pool_max}) due to Session mode strict limits", flush=True)
+        else:
+            # Transaction mode (port 6543): Better for connection pooling, supports more connections
+            pool_min = 2
+            pool_max = 10
+            print(f"🔌 Creating PostgreSQL connection pool (Transaction mode - port 6543)...", flush=True)
+        
+        try:
+            # For Session mode, use minconn=0 to avoid blocking if connections are exhausted
+            # The pool will create connections on-demand instead of at startup
+            actual_minconn = 0 if is_session_mode else pool_min
+            
+            _connection_pool = psycopg2.pool.ThreadedConnectionPool(
+                minconn=actual_minconn,  # 0 for Session mode (on-demand), pool_min for Transaction mode
+                maxconn=pool_max,
+                dsn=connection_params,
+                connect_timeout=5,
+                keepalives=1,
+                keepalives_idle=30,
+                keepalives_interval=10,
+                keepalives_count=3
+            )
+            print(f"✅ Connection pool created (minconn={actual_minconn}, maxconn={pool_max})", flush=True)
+        except psycopg2.OperationalError as e:
+            if "MaxClientsInSessionMode" in str(e) or "max clients reached" in str(e).lower():
+                error_msg = (
+                    "\n" + "="*80 + "\n"
+                    "❌ FATAL: Connection pool creation failed - Max clients reached!\n\n"
+                    "ROOT CAUSE: Session mode pooler (port 5432) has strict limits (~15 total connections).\n"
+                    "All connections are currently in use (likely from previous deploys or other clients).\n\n"
+                    "SOLUTIONS (try in order):\n"
+                    "1. Wait 5-10 minutes for idle connections to timeout\n"
+                    "2. Restart your Supabase project (releases all connections)\n"
+                    "3. Check Supabase Dashboard → Database → Connection Pooling → Active Connections\n"
+                    "   Kill any idle connections manually\n"
+                    "4. Reduce Gunicorn workers to 1 (in Render settings)\n\n"
+                    "NOTE: Port 5432 (Session mode) is required for IPv4 compatibility on Render.\n"
+                    "Port 6543 (Transaction mode) is IPv6-only and won't work.\n"
+                    "="*80 + "\n"
+                )
+                print(error_msg, flush=True)
+                raise ValueError("MaxClientsInSessionMode: All connections exhausted. Wait for timeout or restart Supabase project.") from e
+            raise
     
     return _connection_pool
 

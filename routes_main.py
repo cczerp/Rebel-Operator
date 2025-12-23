@@ -420,10 +420,14 @@ def api_analyze():
         def analyze_worker(job_data):
             from src.ai.gemini_classifier import GeminiClassifier
             from src.ai.claude_collectible_analyzer import ClaudeCollectibleAnalyzer
+            from src.database import get_db
             
             photo_paths = job_data["photo_paths"]
             force_enhanced = job_data.get("force_enhanced", False)
             is_stage2_only = job_data.get("is_stage2_only", False)
+            
+            # Get database instance for worker (use singleton, not global db)
+            worker_db = get_db()
             
             # Create Photo objects - paths are now Supabase Storage URLs, not local paths
             # Detect if path is a URL (starts with http) or local path
@@ -485,7 +489,7 @@ def api_analyze():
             if analysis.get("collectible") is True:  # Explicit True check - no force_enhanced bypass
                 try:
                     claude = ClaudeCollectibleAnalyzer.from_env()
-                    collectible_analysis = claude.deep_analyze_collectible(photos, analysis, db)
+                    collectible_analysis = claude.deep_analyze_collectible(photos, analysis, worker_db)
                 except ValueError as e:
                     # API key not configured
                     error_msg = str(e)

@@ -1,32 +1,116 @@
-# Web App Requirements
+# ============================================================================
+# WEB APP PRODUCTION REQUIREMENTS (Render Deployment)
+# ============================================================================
+# Lean requirements for web app deployment - excludes unused ML libraries
 # Install with: pip install -r requirements-web.txt
+# ============================================================================
+# This file contains ONLY what's needed for the web app to run
+# Heavy ML libraries (torch, faiss, chromadb) are excluded if not used
+# ============================================================================
 
-flask>=3.0.0
-werkzeug>=3.0.0
-python-dotenv>=1.0.0
+# ============================================================================
+# WEB FRAMEWORK (Required)
+# ============================================================================
+Flask==3.1.2
+Werkzeug==3.1.3
+Flask-Login==0.6.3
+Flask-Mail==0.10.0
+Flask-Session==0.8.0
+gunicorn==23.0.0
 
+# ============================================================================
+# DATABASE (Required)
+# ============================================================================
+psycopg2-binary==2.9.9
+SQLAlchemy==2.0.23
 
-# Core dependencies
-requests>=2.31.0
-python-dotenv>=1.0.0
+# ============================================================================
+# AUTH & SECURITY (Required)
+# ============================================================================
+bcrypt==4.1.1
+cryptography==41.0.7
+PyJWT==2.10.1
+python-jose==3.3.0
+passlib==1.7.4
 
-# Browser automation for Mercari (if not using Shops API)
-playwright>=1.40.0
+# ============================================================================
+# SUPABASE (Required for OAuth & Storage)
+# ============================================================================
+supabase==2.10.0
+supabase-auth==2.24.0
+supabase-functions==2.24.0
+postgrest==0.18.0
+storage3==0.9.0
+gotrue==2.10.0
+realtime==2.25.1
 
-# Data validation
-pydantic>=2.0.0
+# ============================================================================
+# AI APIs (Required - lightweight API clients only)
+# ============================================================================
+anthropic==0.7.0
+openai==1.3.0
+google-generativeai==0.3.2
+google-ai-generativelanguage==0.4.0
 
-# Console output formatting
-rich>=13.0.0
+# ============================================================================
+# ESSENTIAL UTILITIES (Required)
+# ============================================================================
+python-dotenv==1.0.0
+requests==2.31.0
+pydantic==2.12.5
+pydantic-settings==2.1.0
+pydantic_core==2.41.5
 
-# Optional: Image processing
-Pillow>=10.0.0
+# ============================================================================
+# HTTP CLIENT (Required)
+# ============================================================================
+urllib3==2.0.7
+certifi==2025.11.12
+charset-normalizer==3.4.4
+idna==3.11
 
-# GUI
-customtkinter>=5.2.0
+# ============================================================================
+# SESSION & CACHING (Required)
+# ============================================================================
+redis==5.0.1
+cachelib==0.13.0
 
-# Development dependencies
-pytest>=7.4.0
-pytest-cov>=4.1.0
+# ============================================================================
+# TEMPLATE ENGINE (Required for Flask)
+# ============================================================================
+Jinja2==3.1.6
+MarkupSafe==3.0.3
+click==8.1.7
+itsdangerous==2.2.0
 
-# Add any other dependencies from your main requirements.txt here
+# ============================================================================
+# ASYNC & CONCURRENCY (Required)
+# ============================================================================
+aiohttp==3.9.1
+anyio==3.7.1
+asgiref==3.11.0
+
+# ============================================================================
+# IMAGE PROCESSING (Lightweight - only what's needed)
+# ============================================================================
+Pillow==10.1.0
+opencv-python-headless==4.8.1.78
+numpy==1.26.4  # Required by opencv-python-headless
+
+# ============================================================================
+# CLOUD STORAGE (If using Cloudinary as fallback)
+# ============================================================================
+cloudinary==1.44.1
+
+# ============================================================================
+# NOTE: Excluded heavy dependencies that don't appear to be used:
+# - torch, torchvision (PyTorch - several GB)
+# - faiss-cpu (Vector search - large compilation)
+# - chromadb (Vector database - depends on faiss)
+# - transformers, sentence-transformers (NLP models - large)
+# - spacy (NLP library - downloads models)
+# - playwright (Browser automation - downloads Chromium)
+# - scipy, scikit-learn, pandas (Scientific computing - large)
+# 
+# If you need these later, add them back or use lazy imports
+# ============================================================================

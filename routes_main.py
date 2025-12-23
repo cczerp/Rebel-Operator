@@ -565,6 +565,16 @@ def supabase_diagnostics():
     """
     Diagnostic endpoint to check Supabase Storage configuration.
     Helps troubleshoot upload issues.
+    
+    Usage:
+        Visit: https://your-app.com/api/supabase-diagnostics
+        Or use curl: curl https://your-app.com/api/supabase-diagnostics
+        
+    Returns JSON with:
+        - environment_variables: Status of SUPABASE_URL, keys
+        - client_status: Whether Supabase client initialized
+        - bucket_status: Available buckets and if listing-images exists
+        - errors: Any errors encountered
     """
     import os
     from src.storage.supabase_storage import _get_supabase_storage_client
@@ -623,10 +633,15 @@ def supabase_diagnostics():
                     elif isinstance(bucket, str):
                         bucket_names.append(bucket)
                 
+                # Check for both listing-images and logs buckets
+                logs_bucket_name = os.getenv("SUPABASE_LOGS_BUCKET", "logs")
+                
                 diagnostics["bucket_status"] = {
                     "can_list": True,
                     "available_buckets": bucket_names,
-                    "listing_images_exists": "listing-images" in bucket_names
+                    "listing_images_exists": "listing-images" in bucket_names,
+                    "logs_bucket_exists": logs_bucket_name in bucket_names,
+                    "logs_bucket_name": logs_bucket_name
                 }
             except Exception as bucket_error:
                 diagnostics["bucket_status"] = {
@@ -794,18 +809,43 @@ def api_upload_photos():
                 error_msg += f"Attempted to upload {len(files)} file(s), but all failed. "
             
             # Include specific error details if available
-            if hasattr(api_upload_photos, '_upload_errors') and api_upload_photos._upload_errors:
-                error_msg += "\n\nDetailed errors:\n"
-                for err in api_upload_photos._upload_errors:
-                    error_msg += f"  - {err}\n"
-                # Clear errors for next request
+            upload_errors = []
+            if hasattr(api_upload_photos, '_upload_errors'):
+                upload_errors = api_upload_photos._upload_errors.copy()
                 delattr(api_upload_photos, '_upload_errors')
+            
+            if upload_errors:
+                error_msg += "\n\nDetailed errors:\n"
+                for err in upload_errors:
+                    error_msg += f"  - {err}\n"
             else:
                 error_msg += "Please check: 1) Supabase Storage bucket 'listing-images' exists and is public, "
                 error_msg += "2) SUPABASE_URL and SUPABASE_ANON_KEY (or SUPABASE_SERVICE_ROLE_KEY) environment variables are set correctly. "
                 error_msg += "Check server logs for details."
             
             print(f"[UPLOAD ERROR] {error_msg}", flush=True)
+            
+            # Log error to Supabase Storage logs bucket
+            try:
+                from src.storage.log_storage import log_error
+                import traceback
+                log_error(
+                    error_message=error_msg,
+                    error_type="PhotoUploadFailed",
+                    traceback=traceback.format_exc(),
+                    context={
+                        "files_attempted": len(files),
+                        "upload_errors": upload_errors,
+                        "user_id": user_id,
+                        "mode": mode,
+                        "listing_id": listing_id_raw,
+                        "session_id": session_id,
+                    },
+                    user_id=user_id,
+                )
+            except Exception as log_exception:
+                print(f"[UPLOAD ERROR] Failed to log error to storage: {log_exception}", flush=True)
+            
             return jsonify({"error": error_msg}), 500
         
         # Clear any stored errors on success

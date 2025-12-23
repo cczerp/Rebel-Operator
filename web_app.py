@@ -12,6 +12,7 @@ This file serves as the entry point that:
 
 import os
 import sys
+import json
 from pathlib import Path
 from functools import wraps
 from flask import Flask, render_template, redirect, url_for, flash
@@ -499,10 +500,22 @@ def create_listing():
         db = get_db_instance()
         listing = db.get_listing(draft_id)
         if listing and listing.get('user_id') == str(current_user.id):
-            return render_template('create.html', 
+            # IMAGE_CONTRACT: UI reflects database truth - pass photos to template
+            photos = listing.get('photos', [])
+            # Ensure photos is a list (it might be JSON string or None)
+            if isinstance(photos, str):
+                try:
+                    photos = json.loads(photos)
+                except json.JSONDecodeError:
+                    photos = []
+            elif photos is None:
+                photos = []
+
+            return render_template('create.html',
                                  draft_id=draft_id,
                                  listing_id=draft_id,
-                                 listing_uuid=listing.get('listing_uuid'))
+                                 listing_uuid=listing.get('listing_uuid'),
+                                 listing_photos=photos)
         else:
             # Draft not found or unauthorized
             flash('Draft not found', 'error')
@@ -534,7 +547,8 @@ def create_listing():
         return render_template('create.html',
                              draft_id=listing_id,
                              listing_id=listing_id,
-                             listing_uuid=listing_uuid)
+                             listing_uuid=listing_uuid,
+                             listing_photos=[])
     except Exception as e:
         print(f"[CREATE ERROR] Failed to create draft: {e}", flush=True)
         import traceback

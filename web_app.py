@@ -312,19 +312,49 @@ def load_user(user_id):
         print(f"[USER_LOADER] Session keys: {list(flask_session.keys())}", flush=True)
         print(f"[USER_LOADER] Session permanent: {flask_session.permanent}", flush=True)
         
-        # Get database instance with error handling
-        try:
-            db_instance = get_db_instance()
-            if not db_instance:
-                print(f"[USER_LOADER ERROR] Database instance not available", flush=True)
-                return None
-        except Exception as db_error:
-            print(f"[USER_LOADER ERROR] Failed to get database instance: {db_error}", flush=True)
-            import traceback
-            traceback.print_exc()
+        # Get database instance with error handling and retry for pool exhaustion
+        db_instance = None
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                db_instance = get_db_instance()
+                if db_instance:
+                    break
+            except Exception as db_error:
+                error_str = str(db_error)
+                if "connection pool exhausted" in error_str.lower() and attempt < max_retries - 1:
+                    print(f"[USER_LOADER] Pool exhausted (attempt {attempt + 1}/{max_retries}), waiting 0.1s and retrying...", flush=True)
+                    import time
+                    time.sleep(0.1)  # Brief wait before retry
+                    continue
+                else:
+                    print(f"[USER_LOADER ERROR] Failed to get database instance: {db_error}", flush=True)
+                    import traceback
+                    traceback.print_exc()
+                    return None
+        
+        if not db_instance:
+            print(f"[USER_LOADER ERROR] Database instance not available after {max_retries} attempts", flush=True)
             return None
         
-        user = User.get(user_id_str)
+        # Try to get user with retry for pool exhaustion
+        user = None
+        for attempt in range(max_retries):
+            try:
+                user = User.get(user_id_str)
+                break
+            except Exception as user_error:
+                error_str = str(user_error)
+                if "connection pool exhausted" in error_str.lower() and attempt < max_retries - 1:
+                    print(f"[USER_LOADER] Pool exhausted during user lookup (attempt {attempt + 1}/{max_retries}), waiting 0.1s and retrying...", flush=True)
+                    import time
+                    time.sleep(0.1)
+                    continue
+                else:
+                    print(f"[USER_LOADER ERROR] Error getting user: {user_error}", flush=True)
+                    import traceback
+                    traceback.print_exc()
+                    return None
 
         if user:
             print(f"[USER_LOADER] ✅ Successfully loaded user: {user.username} (ID: {user.id})", flush=True)
@@ -341,7 +371,11 @@ def load_user(user_id):
     except Exception as e:
         # Database errors (SSL connection failures, etc.) should not crash the app
         # Just log and return None, which tells Flask-Login the user is not authenticated
-        print(f"[USER_LOADER ERROR] Error loading user (returning None): {e}", flush=True)
+        error_str = str(e)
+        if "connection pool exhausted" in error_str.lower():
+            print(f"[USER_LOADER ERROR] Connection pool exhausted - this is a critical issue. Check database connection pool configuration.", flush=True)
+        else:
+            print(f"[USER_LOADER ERROR] Error loading user (returning None): {e}", flush=True)
         import traceback
         traceback.print_exc()
         return None

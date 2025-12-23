@@ -737,16 +737,27 @@ def api_upload_photos():
         from src.storage.supabase_storage import upload_to_supabase_storage
 
         # Debug authentication status
+        print(f"[UPLOAD DEBUG] ========== AUTHENTICATION CHECK ==========", flush=True)
         print(f"[UPLOAD DEBUG] current_user type: {type(current_user)}", flush=True)
         print(f"[UPLOAD DEBUG] current_user.is_authenticated: {current_user.is_authenticated}", flush=True)
+        print(f"[UPLOAD DEBUG] current_user class: {current_user.__class__.__name__}", flush=True)
         if hasattr(current_user, 'id'):
             print(f"[UPLOAD DEBUG] current_user.id: {current_user.id}", flush=True)
+        else:
+            print(f"[UPLOAD DEBUG] current_user has no 'id' attribute", flush=True)
         print(f"[UPLOAD DEBUG] session keys: {list(session.keys())}", flush=True)
+        print(f"[UPLOAD DEBUG] request headers - Cookie present: {bool(request.headers.get('Cookie'))}", flush=True)
+        print(f"[UPLOAD DEBUG] =========================================", flush=True)
 
         # IMAGE_CONTRACT: "No anonymous writes to the database" - require authentication
         if not current_user.is_authenticated:
-            print(f"[UPLOAD ERROR] User not authenticated - current_user: {current_user}", flush=True)
-            return jsonify({"error": "Authentication required to upload photos"}), 401
+            print(f"[UPLOAD ERROR] ❌ User not authenticated", flush=True)
+            print(f"[UPLOAD ERROR] This is a Flask-Login session issue. User needs to log in first.", flush=True)
+            return jsonify({
+                "error": "Authentication required to upload photos. Please log in first.",
+                "error_type": "flask_auth_required",
+                "hint": "Make sure you're logged in. If you just logged in, try refreshing the page."
+            }), 401
 
         user_id = str(current_user.id)
 

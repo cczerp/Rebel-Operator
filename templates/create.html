@@ -1121,6 +1121,7 @@ function initializeAnalyzeButton() {
             enhancedBtn.title = 'Click for detailed card analysis';
 
             showAlert('Card detected and analyzed!', 'success');
+            }
         } else {
             // Not a card, do regular item analysis
             // Create new abort controller for general analysis
@@ -1169,10 +1170,10 @@ function initializeAnalyzeButton() {
                     // SYSTEM CONTRACT: Store Stage 1 analysis results (required for Stage 2 prerequisites)
                     stage1AnalysisData = analysis;
 
-                // Store enhanced analysis if available (Stage 2 may have run automatically)
-                if (data.result && data.result.collectible_analysis) {
-                    enhancedAnalysisData = data.result.collectible_analysis;
-                }
+                    // Store enhanced analysis if available (Stage 2 may have run automatically)
+                    if (data.result && data.result.collectible_analysis) {
+                        enhancedAnalysisData = data.result.collectible_analysis;
+                    }
 
                 // Fill form
                 if (analysis.suggested_title) document.getElementById('title').value = analysis.suggested_title;
@@ -1272,7 +1273,6 @@ function initializeAnalyzeButton() {
                 }
             }
         }
-        }
     } catch (error) {
         if (error.name === 'AbortError') {
             showAlert('Analysis timed out. Please try again with fewer photos or check your connection.', 'warning');
@@ -1280,7 +1280,8 @@ function initializeAnalyzeButton() {
             console.error('Analysis error:', error);
             showAlert('Analysis failed: ' + (error.message || error), 'danger');
         }
-        });
+    }
+});
     } catch (e) {
         // Silently fail if called on wrong page or if button doesn't exist
         console.log('[CREATE] initializeAnalyzeButton: Not available on this page');
@@ -2309,6 +2310,5 @@ saveListing = async function(status = 'draft') {
     // Clear auto-save after successful save
     clearAutoSave();
 };
-}
 </script>
 {% endblock %}

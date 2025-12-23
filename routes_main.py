@@ -556,6 +556,95 @@ def api_analyze_status(job_id):
 
 
 # -------------------------------------------------------------------------
+# SUPABASE STORAGE DIAGNOSTICS
+# -------------------------------------------------------------------------
+
+@main_bp.route('/api/supabase-diagnostics', methods=['GET'])
+@login_required
+def supabase_diagnostics():
+    """
+    Diagnostic endpoint to check Supabase Storage configuration.
+    Helps troubleshoot upload issues.
+    """
+    import os
+    from src.storage.supabase_storage import _get_supabase_storage_client
+    
+    diagnostics = {
+        "environment_variables": {},
+        "client_status": None,
+        "bucket_status": None,
+        "errors": []
+    }
+    
+    # Check environment variables
+    supabase_url = os.getenv("SUPABASE_URL", "").strip()
+    service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    anon_key = os.getenv("SUPABASE_ANON_KEY", "").strip()
+    
+    diagnostics["environment_variables"] = {
+        "SUPABASE_URL": {
+            "set": bool(supabase_url),
+            "value_preview": supabase_url[:30] + "..." if supabase_url else None,
+            "valid_format": supabase_url.startswith("http") if supabase_url else False
+        },
+        "SUPABASE_SERVICE_ROLE_KEY": {
+            "set": bool(service_role_key),
+            "length": len(service_role_key) if service_role_key else 0
+        },
+        "SUPABASE_ANON_KEY": {
+            "set": bool(anon_key),
+            "length": len(anon_key) if anon_key else 0
+        }
+    }
+    
+    # Try to initialize client
+    try:
+        supabase = _get_supabase_storage_client()
+        if supabase:
+            diagnostics["client_status"] = "✅ Client initialized successfully"
+            
+            # Try to list buckets
+            try:
+                buckets_response = supabase.storage.list_buckets()
+                buckets_list = []
+                if isinstance(buckets_response, dict):
+                    buckets_list = buckets_response.get('data', []) or []
+                elif hasattr(buckets_response, 'data'):
+                    buckets_list = buckets_response.data or []
+                elif isinstance(buckets_response, list):
+                    buckets_list = buckets_response
+                
+                bucket_names = []
+                for bucket in buckets_list:
+                    if isinstance(bucket, dict):
+                        bucket_names.append(bucket.get('name', ''))
+                    elif hasattr(bucket, 'name'):
+                        bucket_names.append(bucket.name)
+                    elif isinstance(bucket, str):
+                        bucket_names.append(bucket)
+                
+                diagnostics["bucket_status"] = {
+                    "can_list": True,
+                    "available_buckets": bucket_names,
+                    "listing_images_exists": "listing-images" in bucket_names
+                }
+            except Exception as bucket_error:
+                diagnostics["bucket_status"] = {
+                    "can_list": False,
+                    "error": str(bucket_error),
+                    "error_type": type(bucket_error).__name__
+                }
+        else:
+            diagnostics["client_status"] = "❌ Failed to initialize client"
+            diagnostics["errors"].append("Could not initialize Supabase client. Check environment variables.")
+    except Exception as client_error:
+        diagnostics["client_status"] = f"❌ Error: {type(client_error).__name__}: {str(client_error)}"
+        diagnostics["errors"].append(f"Client initialization error: {str(client_error)}")
+    
+    return jsonify(diagnostics)
+
+
+# -------------------------------------------------------------------------
 # UPLOAD PHOTOS
 # -------------------------------------------------------------------------
 
@@ -693,17 +782,35 @@ def api_upload_photos():
                 else:
                     # result is error message
                     print(f"[UPLOAD ERROR] Failed to upload {filename}: {result}", flush=True)
+                    # Store error for detailed reporting
+                    if not hasattr(api_upload_photos, '_upload_errors'):
+                        api_upload_photos._upload_errors = []
+                    api_upload_photos._upload_errors.append(f"{filename}: {result}")
                     # Continue with other files, but log the error
 
         if not saved_urls:
             error_msg = "Failed to upload any photos. "
             if len(files) > 0:
                 error_msg += f"Attempted to upload {len(files)} file(s), but all failed. "
-            error_msg += "Please check: 1) Supabase Storage bucket 'listing-images' exists and is public, "
-            error_msg += "2) SUPABASE_URL and SUPABASE_ANON_KEY environment variables are set correctly. "
-            error_msg += "Check server logs for details."
+            
+            # Include specific error details if available
+            if hasattr(api_upload_photos, '_upload_errors') and api_upload_photos._upload_errors:
+                error_msg += "\n\nDetailed errors:\n"
+                for err in api_upload_photos._upload_errors:
+                    error_msg += f"  - {err}\n"
+                # Clear errors for next request
+                delattr(api_upload_photos, '_upload_errors')
+            else:
+                error_msg += "Please check: 1) Supabase Storage bucket 'listing-images' exists and is public, "
+                error_msg += "2) SUPABASE_URL and SUPABASE_ANON_KEY (or SUPABASE_SERVICE_ROLE_KEY) environment variables are set correctly. "
+                error_msg += "Check server logs for details."
+            
             print(f"[UPLOAD ERROR] {error_msg}", flush=True)
             return jsonify({"error": error_msg}), 500
+        
+        # Clear any stored errors on success
+        if hasattr(api_upload_photos, '_upload_errors'):
+            delattr(api_upload_photos, '_upload_errors')
 
         if mode == "listing":
             # Append new photos to existing ones and update listing in DB

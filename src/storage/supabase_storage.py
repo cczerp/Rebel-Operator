@@ -209,12 +209,13 @@ def upload_to_supabase_storage(
 
             # Convert bytes to file-like object if needed, or use bytes directly
             # Supabase expects file_data as bytes or file-like object
+            # Note: file_options only accepts string values for headers
+            # upsert is not a valid file_option - it's handled by the upload method itself
             response = supabase.storage.from_(bucket_name).upload(
                 path=storage_path,
                 file=file_data,
                 file_options={
-                    "content-type": content_type,
-                    "upsert": False  # Don't overwrite existing files (boolean, not string)
+                    "content-type": content_type
                 }
             )
 

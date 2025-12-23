@@ -486,7 +486,8 @@ console.log('========================================');
 // IMAGE_CONTRACT: Listing exists immediately, images attached to listing_id
 let currentListingId = {{ listing_id if listing_id else 'null' }};
 let currentListingUuid = {{ listing_uuid|tojson if listing_uuid else 'null' }};
-let uploadedPhotos = [];  // Local state for UI, but DB is source of truth
+// IMAGE_CONTRACT Step 3: "UI reflects database truth" - Initialize from backend
+let uploadedPhotos = {{ listing_photos|tojson if listing_photos else '[]' }};
 let editingDraftId = {{ draft_id if draft_id else 'null' }};
 let editingListingUuid = currentListingUuid;
 
@@ -494,9 +495,23 @@ let editingListingUuid = currentListingUuid;
 console.log('[INIT] currentListingId:', currentListingId, typeof currentListingId);
 console.log('[INIT] currentListingUuid:', currentListingUuid);
 console.log('[INIT] editingDraftId:', editingDraftId);
+console.log('[INIT] uploadedPhotos from database:', uploadedPhotos);
 if (!currentListingId) {
     console.warn('[INIT WARNING] currentListingId is not set! Image uploads will fail.');
     console.warn('[INIT WARNING] This usually means the draft listing was not created properly.');
+}
+
+// IMAGE_CONTRACT: Render photos immediately on page load from database
+if (uploadedPhotos && uploadedPhotos.length > 0) {
+    console.log('[INIT] Rendering', uploadedPhotos.length, 'photos from database');
+    // Use DOMContentLoaded or immediate execution depending on when script loads
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshPhotoPreviews();
+        });
+    } else {
+        refreshPhotoPreviews();
+    }
 }
 
 // Generic photo handling function for both camera and file upload

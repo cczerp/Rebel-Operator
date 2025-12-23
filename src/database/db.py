@@ -36,7 +36,7 @@ def _cleanup_zombie_connections():
 
         # Kill connections that are idle-in-transaction for more than 5 minutes
         cursor.execute("""
-            SELECT pg_terminate_backend(pid), pid, query_start, state, query
+            SELECT pid, pg_terminate_backend(pid) as killed
             FROM pg_stat_activity
             WHERE state = 'idle in transaction'
             AND query_start < NOW() - INTERVAL '5 minutes'
@@ -86,15 +86,6 @@ def _get_connection_pool():
                 options_encoded = quote('-c statement_timeout=10000')
                 connection_params += f'&options={options_encoded}'
         
-<<<<<<< HEAD
-        # Create connection pool with settings optimized for Render
-        # Render free tier: 512 MB RAM, but Supabase allows up to 15 connections in Session mode
-        # Use 5 connections to allow concurrent requests while staying safe
-        print("🔌 Creating PostgreSQL connection pool...", flush=True)
-        _connection_pool = psycopg2.pool.ThreadedConnectionPool(
-            minconn=1,  # Minimum connections in pool
-            maxconn=5,  # Increased from 2 to 5 to handle concurrent requests (Supabase Session mode limit is 15)
-=======
         # CRITICAL: Clean up zombie connections from previous deploys BEFORE creating pool
         # This prevents "MaxClientsInSessionMode: max clients reached" errors
         _cleanup_zombie_connections()
@@ -102,11 +93,11 @@ def _get_connection_pool():
         # Create connection pool with settings optimized for Render
         # Render free tier: 512 MB RAM but needs to handle concurrent requests
         # Balance: enough connections to prevent exhaustion, but not too many to exhaust RAM
+        # Supabase Session mode limit is 15, so 10 is safe
         print("🔌 Creating PostgreSQL connection pool...", flush=True)
         _connection_pool = psycopg2.pool.ThreadedConnectionPool(
             minconn=2,  # Minimum connections in pool
-            maxconn=10,  # Increased from 2 to prevent pool exhaustion
->>>>>>> fcc4173eb2849cc8eab24e85dbbef605ebafd081
+            maxconn=10,  # Increased from 2 to prevent pool exhaustion (Supabase limit is 15)
             dsn=connection_params,
             connect_timeout=5,
             keepalives=1,
@@ -114,11 +105,7 @@ def _get_connection_pool():
             keepalives_interval=10,
             keepalives_count=3
         )
-<<<<<<< HEAD
-        print("✅ Connection pool created (maxconn=5 for concurrent requests)", flush=True)
-=======
         print("✅ Connection pool created (minconn=2, maxconn=10)", flush=True)
->>>>>>> fcc4173eb2849cc8eab24e85dbbef605ebafd081
     
     return _connection_pool
 
@@ -169,44 +156,27 @@ class _ManagedCursor:
         self.cursor = None
         
         try:
-<<<<<<< HEAD
             if cursor_to_close:
                 cursor_to_close.close()
         except Exception as e:
             print(f"⚠️  Error closing cursor: {e}", flush=True)
         
-        # CRITICAL: Always return connection to pool, even on errors
+        # CRITICAL: Commit transaction before returning connection to pool
+        # This prevents "idle in transaction" connections that leak pool slots
         if conn_to_return is not None:
             try:
                 if not conn_to_return.closed:
-                    # Rollback any uncommitted transaction before returning
-                    try:
-                        conn_to_return.rollback()
-                    except:
-                        pass
-                    self.pool.putconn(conn_to_return)
-=======
-            if self.cursor:
-                self.cursor.close()
-        except:
-            pass
-        # CRITICAL: Commit transaction before returning connection to pool
-        # This prevents "idle in transaction" connections that leak pool slots
-        if self.conn is not None:
-            try:
-                if not self.conn.closed:
                     # Try to commit any pending transaction
                     try:
-                        self.conn.commit()
+                        conn_to_return.commit()
                     except Exception:
-                        # If commit fails, rollback
+                        # If commit fails, rollback to clear transaction state
                         try:
-                            self.conn.rollback()
+                            conn_to_return.rollback()
                         except:
                             pass
                     # Return connection to pool
-                    self.pool.putconn(self.conn)
->>>>>>> fcc4173eb2849cc8eab24e85dbbef605ebafd081
+                    self.pool.putconn(conn_to_return)
                 else:
                     # Connection is closed, mark it as bad
                     self.pool.putconn(conn_to_return, close=True)

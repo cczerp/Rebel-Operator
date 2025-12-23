@@ -19,6 +19,40 @@ import psycopg2.pool
 # Global connection pool - shared across all Database instances
 _connection_pool = None
 
+def _cleanup_zombie_connections():
+    """Kill idle-in-transaction connections that are leaking pool slots.
+
+    This runs once at startup to clean up zombie connections from previous deploys.
+    Prevents 'MaxClientsInSessionMode: max clients reached' errors.
+    """
+    database_url = os.getenv('DATABASE_URL')
+    if not database_url:
+        return
+
+    try:
+        # Connect directly (not from pool) to run cleanup
+        conn = psycopg2.connect(database_url, connect_timeout=5)
+        cursor = conn.cursor()
+
+        # Kill connections that are idle-in-transaction for more than 5 minutes
+        cursor.execute("""
+            SELECT pg_terminate_backend(pid), pid, query_start, state, query
+            FROM pg_stat_activity
+            WHERE state = 'idle in transaction'
+            AND query_start < NOW() - INTERVAL '5 minutes'
+            AND pid != pg_backend_pid()
+        """)
+
+        killed = cursor.fetchall()
+        if killed:
+            print(f"🧹 Cleaned up {len(killed)} zombie connections (idle in transaction)", flush=True)
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"⚠️  Zombie connection cleanup failed (non-fatal): {e}", flush=True)
+
 def _get_connection_pool():
     """Get or create global connection pool"""
     global _connection_pool
@@ -52,6 +86,10 @@ def _get_connection_pool():
                 options_encoded = quote('-c statement_timeout=10000')
                 connection_params += f'&options={options_encoded}'
         
+        # CRITICAL: Clean up zombie connections from previous deploys BEFORE creating pool
+        # This prevents "MaxClientsInSessionMode: max clients reached" errors
+        _cleanup_zombie_connections()
+
         # Create connection pool with settings optimized for Render
         # Render free tier: 512 MB RAM but needs to handle concurrent requests
         # Balance: enough connections to prevent exhaustion, but not too many to exhaust RAM
@@ -113,10 +151,21 @@ class _ManagedCursor:
                 self.cursor.close()
         except:
             pass
-        # CRITICAL: Always return connection to pool
+        # CRITICAL: Commit transaction before returning connection to pool
+        # This prevents "idle in transaction" connections that leak pool slots
         if self.conn is not None:
             try:
                 if not self.conn.closed:
+                    # Try to commit any pending transaction
+                    try:
+                        self.conn.commit()
+                    except Exception:
+                        # If commit fails, rollback
+                        try:
+                            self.conn.rollback()
+                        except:
+                            pass
+                    # Return connection to pool
                     self.pool.putconn(self.conn)
                 else:
                     self.pool.putconn(self.conn, close=True)

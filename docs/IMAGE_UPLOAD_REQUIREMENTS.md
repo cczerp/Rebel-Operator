@@ -25,10 +25,12 @@
    - ✅ Allowed: `<button onclick="openPicker()">Upload</button>`
    - ❌ Blocked: `setTimeout`, `async/await`, `useEffect`, page load, background JS
 
-4. **File input CANNOT be `display: none`**
-   - This breaks functionality silently.
-   - ❌ Breaks: `input[type="file"] { display: none; }`
-   - ✅ Allowed: `opacity: 0; position: absolute; left: -9999px;`
+4. **File input CANNOT be `display: none`** ⚠️ CRITICAL
+   - This breaks functionality silently - file picker will NOT open.
+   - ❌ Breaks: `input[type="file"] { display: none; }` or `class="d-none"` (Bootstrap)
+   - ✅ REQUIRED: `style="opacity: 0; position: absolute; left: -9999px; width: 1px; height: 1px;"`
+   - **MUST use inline styles** - CSS classes that hide elements (like Bootstrap's `d-none`) break the file picker
+   - **Location**: `templates/create.html` - file input elements MUST use this exact pattern
 
 5. **File input MUST exist in DOM at click time**
    - If conditionally rendered, the click fails.
@@ -37,8 +39,13 @@
 6. **File input MUST NOT be disabled**
    - Even temporarily. One `disabled=true` during loading = dead button.
 
-7. **Handler function MUST exist globally**
-   - If input has `onchange="handlePhotoSelect(event)"`, then `function handlePhotoSelect(e) {}` MUST exist.
+7. **Handler function MUST exist globally** ⚠️ CRITICAL
+   - If input has `onchange="handlePhotoSelect(event)"`, then `handlePhotoSelect` MUST exist in global scope
+   - ❌ Fails: Function defined in closure, IIFE, or module scope
+   - ✅ REQUIRED: `window.handlePhotoSelect = async function handlePhotoSelect(e) {}` 
+   - **MUST be attached to window object** for inline event handlers to access it
+   - Function declaration alone may not be sufficient - explicitly assign to `window` object
+   - **Location**: `templates/create.html` - handler function MUST be globally accessible
 
 8. **accept attribute MUST NOT filter everything out**
    - ❌ Over-filtered: `accept="image/jpg"`
@@ -58,22 +65,26 @@
   type="file"
   id="photoInput"
   accept="image/*"
-  style="opacity:0; position:absolute; left:-9999px;"
+  style="opacity: 0; position: absolute; left: -9999px; width: 1px; height: 1px;"
   onchange="handlePhotoSelect(event)"
 />
 
-<button onclick="openPicker()">Upload</button>
+<button onclick="document.getElementById('photoInput').click();">Upload</button>
 
 <script>
-function openPicker() {
-  document.getElementById("photoInput").click();
-}
-
-function handlePhotoSelect(e) {
+// Handler MUST be globally accessible - attach to window object
+window.handlePhotoSelect = async function handlePhotoSelect(e) {
   console.log(e.target.files);
+  // ... upload logic
 }
 </script>
 ```
+
+**Key Requirements:**
+- File input uses inline `style="opacity: 0; position: absolute; left: -9999px; width: 1px; height: 1px;"` (NOT `display: none` or `class="d-none"`)
+- Button uses inline `onclick="document.getElementById('photoInput').click();"`
+- Handler function attached to `window.handlePhotoSelect` for global access
+- Inline `onchange="handlePhotoSelect(event)"` on the file input
 
 **Location**: `templates/create.html` - Must maintain this exact structure
 

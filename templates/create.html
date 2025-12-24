@@ -21,16 +21,20 @@
         <div class="card-body">
             <div class="row mb-3">
                 <div class="col-6">
-                    <button type="button" class="btn btn-utility w-100" id="cameraBtn">
+                    <!-- IMAGE_CONTRACT NON-NEGOTIABLE: Button must use onclick to trigger file input click -->
+                    <button type="button" class="btn btn-utility w-100" onclick="document.getElementById('cameraInput').click();">
                         <i class="fas fa-camera"></i><br>Take Photo
                     </button>
-                    <input type="file" class="d-none" id="cameraInput" name="photos" accept="image/*" capture="environment">
+                    <!-- IMAGE_CONTRACT NON-NEGOTIABLE: Cannot use display:none - must use opacity/position instead -->
+                    <input type="file" id="cameraInput" name="photos" accept="image/*" capture="environment" style="opacity: 0; position: absolute; left: -9999px; width: 1px; height: 1px;" onchange="handlePhotoSelect(event)">
                 </div>
                 <div class="col-6">
-                    <button type="button" class="btn btn-utility w-100" id="uploadBtn">
+                    <!-- IMAGE_CONTRACT NON-NEGOTIABLE: Button must use onclick to trigger file input click -->
+                    <button type="button" class="btn btn-utility w-100" onclick="document.getElementById('photoInput').click();">
                         <i class="fas fa-upload"></i><br>Upload Files
                     </button>
-                    <input type="file" class="d-none" id="photoInput" name="photos" multiple accept="image/*">
+                    <!-- IMAGE_CONTRACT NON-NEGOTIABLE: Cannot use display:none - must use opacity/position instead -->
+                    <input type="file" id="photoInput" name="photos" multiple accept="image/*" style="opacity: 0; position: absolute; left: -9999px; width: 1px; height: 1px;" onchange="handlePhotoSelect(event)">
                 </div>
             </div>
 
@@ -690,79 +694,9 @@ async function handlePhotoSelect(e) {
     console.log('[UPLOAD] Reset file input');
 }
 
-// Attach upload handlers after DOM is ready and function is defined
-document.addEventListener('DOMContentLoaded', function() {
-    const cameraBtn = document.getElementById('cameraBtn');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const cameraInput = document.getElementById('cameraInput');
-    const photoInput = document.getElementById('photoInput');
-
-    console.log('[UPLOAD] Initializing upload handlers...');
-    console.log('[UPLOAD] Elements found:', {
-        cameraBtn: !!cameraBtn,
-        uploadBtn: !!uploadBtn,
-        cameraInput: !!cameraInput,
-        photoInput: !!photoInput
-    });
-
-    if (cameraBtn && cameraInput) {
-        cameraBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('[UPLOAD] Camera button clicked, triggering file input');
-            try {
-                cameraInput.click();
-                console.log('[UPLOAD] File input click triggered');
-            } catch (error) {
-                console.error('[UPLOAD ERROR] Failed to trigger camera input:', error);
-                showAlert('Failed to open camera. Please try again.', 'danger');
-            }
-        });
-        console.log('[UPLOAD] Camera button handler attached');
-    } else {
-        console.error('[UPLOAD ERROR] Camera button or input not found!', {
-            cameraBtn: !!cameraBtn,
-            cameraInput: !!cameraInput
-        });
-    }
-
-    if (uploadBtn && photoInput) {
-        uploadBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('[UPLOAD] Upload button clicked, triggering file input');
-            try {
-                photoInput.click();
-                console.log('[UPLOAD] File input click triggered');
-            } catch (error) {
-                console.error('[UPLOAD ERROR] Failed to trigger photo input:', error);
-                showAlert('Failed to open file selector. Please try again.', 'danger');
-            }
-        });
-        console.log('[UPLOAD] Upload button handler attached');
-    } else {
-        console.error('[UPLOAD ERROR] Upload button or input not found!', {
-            uploadBtn: !!uploadBtn,
-            photoInput: !!photoInput
-        });
-    }
-
-    if (cameraInput) {
-        cameraInput.addEventListener('change', handlePhotoSelect);
-        console.log('[UPLOAD] Attached change handler to cameraInput');
-    } else {
-        console.error('[UPLOAD ERROR] cameraInput element not found!');
-    }
-
-    if (photoInput) {
-        photoInput.addEventListener('change', handlePhotoSelect);
-        console.log('[UPLOAD] Attached change handler to photoInput');
-    } else {
-        console.error('[UPLOAD ERROR] photoInput element not found!');
-    }
-
-    console.log('[UPLOAD] Handler attachment complete');
-});
+// IMAGE_CONTRACT NON-NEGOTIABLE: File input handlers are attached via inline onchange attributes
+// The handlePhotoSelect function is defined globally and will be called by the onchange event
+// No DOMContentLoaded handler needed - inline onclick and onchange follow the canonical pattern
 
 // ========================================
 // PHOTO EDITOR FUNCTIONS (FREE!)

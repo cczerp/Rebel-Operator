@@ -576,7 +576,8 @@ if (uploadedPhotos && uploadedPhotos.length > 0) {
 }
 
 // Generic photo handling function for both camera and file upload
-async function handlePhotoSelect(e) {
+// IMAGE_CONTRACT NON-NEGOTIABLE: Must be globally accessible for inline onchange handlers
+window.handlePhotoSelect = async function handlePhotoSelect(e) {
     console.log('[UPLOAD] handlePhotoSelect called', e);
 
     // Defensive check: ensure event and target exist

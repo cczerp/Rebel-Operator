@@ -57,6 +57,24 @@ Every pool.getconn() MUST have a matching putconn()
 
 No pooled database connection may be stored on self
 
+OAuth State Management (NON-NEGOTIABLE)
+
+Supabase's PKCE flow handles state parameter internally
+
+DO NOT add custom state via query_params in OAuth requests
+
+DO NOT manually validate state in callback handlers
+
+DO NOT store or manage custom OAuth state - Supabase does this automatically
+
+The Supabase client with flow_type="pkce" automatically:
+- Generates state parameter
+- Stores code_verifier in FlaskSessionStorage (Redis-backed)
+- Validates state on callback
+- Manages the entire OAuth security flow
+
+Any attempt to add custom state parameters will cause bad_oauth_state errors and break OAuth login
+
 Violation of any invariant causes login instability.
 
 2. AUTH DISPLAY RULES (CRITICAL)

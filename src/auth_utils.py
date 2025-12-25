@@ -249,31 +249,28 @@ def get_google_oauth_url(session_storage: dict = None, redirect_override: Option
     try:
         print(f"[OAUTH] Generating OAuth URL for redirect: {redirect_url}")
 
-        # Generate random flow_id and state for CSRF protection
+        # Generate random flow_id for tracking (Supabase handles state internally)
         flow_id = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip('=')
-        state = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip('=')
 
         # Store flow_id in Flask session (Redis-backed) for tracking
         if session_storage is not None:
             session_storage['oauth_flow_id'] = flow_id
-            session_storage['oauth_state'] = state
-            print(f"[OAUTH] Stored flow_id and state in Redis session")
+            print(f"[OAUTH] Stored flow_id in Redis session")
 
-        # Also store state in Redis with TTL for extra security
-        store_oauth_state(state, flow_id, ttl=600)  # 10 minutes
+        # NOTE: We no longer store custom state - Supabase's PKCE flow handles state internally
+        # The state parameter in the OAuth URL is generated and validated by Supabase
 
         # Use Supabase client to generate OAuth URL
         # The client with flow_type="pkce" automatically:
         # - Generates code_verifier
-        # - Stores it in FlaskSessionStorage (which uses Redis via Flask-Session)
+        # - Generates its own state parameter for CSRF protection
+        # - Stores both in FlaskSessionStorage (which uses Redis via Flask-Session)
         # - Returns the OAuth URL with state parameter
+        # CRITICAL: Do NOT add custom state via query_params - Supabase handles this internally
         response = client.auth.sign_in_with_oauth({
             "provider": "google",
             "options": {
-                "redirect_to": redirect_url,
-                "query_params": {
-                    "state": state  # Add state for CSRF protection
-                }
+                "redirect_to": redirect_url
             }
         })
 
@@ -285,9 +282,10 @@ def get_google_oauth_url(session_storage: dict = None, redirect_override: Option
         print(f"[OAUTH] Generated OAuth URL using Supabase client with PKCE")
         print(f"[OAUTH] Redirect URL: {redirect_url}")
         print(f"[OAUTH] OAuth URL: {oauth_url[:150]}...")
-        print(f"[OAUTH] State parameter: {state[:20]}...")
+        print(f"[OAUTH] Flow ID: {flow_id[:20]}...")
 
-        return oauth_url, flow_id, state
+        # Return oauth_url and flow_id (state is handled by Supabase internally)
+        return oauth_url, flow_id, None
 
     except Exception as e:
         print(f"[OAUTH] Error generating OAuth URL: {e}")

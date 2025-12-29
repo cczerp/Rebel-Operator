@@ -45,7 +45,7 @@
 <!-- Clothing Storage -->
 {% if storage_map.clothing_bins %}
 <div class="card mb-4">
-    <div class="card-header" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;">
+    <div class="card-header" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">
         <h5 class="mb-0"><i class="fas fa-tshirt"></i> Clothing Storage</h5>
     </div>
     <div class="card-body">
@@ -91,7 +91,7 @@
 <!-- Card Storage -->
 {% if storage_map.card_bins %}
 <div class="card mb-4">
-    <div class="card-header" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;">
+    <div class="card-header" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">
         <h5 class="mb-0"><i class="fas fa-id-card"></i> Card Storage</h5>
     </div>
     <div class="card-body">
@@ -116,7 +116,7 @@
                     <div class="bg-light p-2 rounded">
                         <small class="text-muted">Sections:</small><br>
                         {% for section in bin.sections %}
-                        <span class="badge me-1 mb-1" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;">
+                        <span class="badge me-1 mb-1" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">
                             {{ section.section_name }} ({{ section.item_count }} cards)
                         </span>
                         {% endfor %}
@@ -144,7 +144,7 @@
         <a href="{{ url_for('storage_clothing') }}" class="btn btn-primary">
             <i class="fas fa-tshirt"></i> Start Clothing Storage
         </a>
-        <a href="{{ url_for('storage_cards') }}" class="btn" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white; border: none;">
+        <a href="{{ url_for('storage_cards') }}" class="btn btn-secondary" style="border: none;">
             <i class="fas fa-id-card"></i> Start Card Storage
         </a>
     </div>

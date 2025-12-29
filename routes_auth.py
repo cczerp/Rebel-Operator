@@ -153,6 +153,9 @@ def login():
         # Make session permanent and explicit
         session.permanent = True
         login_user(user, remember=True)
+        # CRITICAL: Mark session as modified for Redis-backed sessions
+        # Without this, session might not be saved to Redis before redirect
+        session.modified = True
         print(f"[LOGIN] ✅ Login successful for {user.email}", flush=True)
         print(f"[LOGIN] User ID stored in session: {user.id}", flush=True)
         print(f"[LOGIN] Session keys after login: {list(session.keys())}", flush=True)
@@ -377,6 +380,8 @@ def api_login():
         print(f"[API_LOGIN] Logging in user: {user.email} (User ID: {user.id})", flush=True)
         session.permanent = True
         login_user(user, remember=True)
+        # CRITICAL: Mark session as modified for Redis-backed sessions
+        session.modified = True
         print(f"[API_LOGIN] ✅ Login successful, User ID stored in session: {user.id}", flush=True)
 
         db.log_activity(
@@ -693,9 +698,11 @@ def login_google():
 
         # CRITICAL: Mark session as modified to ensure it's saved to Redis
         # This is important for Redis-backed sessions - Supabase stores code_verifier here
+        # Also ensure session is permanent for cookie persistence across redirects
+        session.permanent = True
         session.modified = True
         print(f"🔍 [LOGIN_GOOGLE] Session after OAuth URL generation: {list(session.keys())}", flush=True)
-        print(f"✅ [LOGIN_GOOGLE] Session marked as modified and will be saved to Redis", flush=True)
+        print(f"✅ [LOGIN_GOOGLE] Session marked as permanent and modified (will be saved to Redis)", flush=True)
         print(f"✅ [LOGIN_GOOGLE] OAuth URL generated with flow_id: {flow_id[:10]}...", flush=True)
         print(f"✅ [LOGIN_GOOGLE] Supabase handles state validation internally (PKCE flow)", flush=True)
         print(f"🚀 [LOGIN_GOOGLE] Redirecting to: {oauth_url[:100]}...", flush=True)
@@ -915,6 +922,8 @@ def auth_callback():
             # Make session permanent and explicit
             session.permanent = True
             login_user(user, remember=True)
+            # CRITICAL: Mark session as modified for Redis-backed sessions
+            session.modified = True
             print(f"✅ [CALLBACK] login_user() completed successfully", flush=True)
             print(f"✅ [CALLBACK] User ID stored in session: {user.id}", flush=True)
             print(f"✅ [CALLBACK] Session keys after login: {list(session.keys())}", flush=True)

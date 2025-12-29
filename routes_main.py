@@ -3,8 +3,9 @@ routes_main.py
 Main application routes: listings, drafts, notifications, storage, settings
 """
 
-from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash, session
-from flask_login import login_required, current_user
+# Type checking: These imports are resolved at runtime via venv, linter warnings are false positives
+from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash, session  # type: ignore
+from flask_login import login_required, current_user  # type: ignore
 from pathlib import Path
 from functools import wraps
 from datetime import datetime
@@ -15,7 +16,8 @@ import json
 main_bp = Blueprint('main', __name__)
 
 # db will be set by init_routes() in web_app.py
-db = None
+# Type checking: db is initialized at runtime, type checker warnings are false positives
+db = None  # type: ignore
 
 def init_routes(database):
     """Initialize routes with database"""
@@ -32,8 +34,8 @@ def admin_required(f):
     @wraps(f)
     @login_required
     def decorated_function(*args, **kwargs):
-        from flask_login import current_user
-        from flask import redirect, url_for, flash
+        from flask_login import current_user  # type: ignore
+        from flask import redirect, url_for, flash  # type: ignore
         if not current_user.is_admin:
             flash('You need administrator privileges to access this page.', 'error')
             return redirect(url_for('index'))
@@ -713,7 +715,7 @@ def supabase_diagnostics():
                 user_logged_in = False
                 user_id = None
                 try:
-                    from flask_login import current_user
+                    from flask_login import current_user  # type: ignore
                     if current_user.is_authenticated:
                         user_logged_in = True
                         user_id = str(current_user.id)
@@ -791,7 +793,7 @@ def api_upload_photos():
     try:
         import uuid
         import json
-        from werkzeug.utils import secure_filename
+        from werkzeug.utils import secure_filename  # type: ignore
         from src.storage.supabase_storage import upload_to_supabase_storage
 
         # Debug authentication status
@@ -1144,7 +1146,7 @@ def api_edit_photo():
     try:
         import base64
         import io
-        from PIL import Image
+        from PIL import Image  # type: ignore
         from pathlib import Path
         import uuid
         from datetime import datetime
@@ -1180,7 +1182,7 @@ def api_edit_photo():
 
         elif operation == 'remove-bg':
             try:
-                from rembg import remove
+                from rembg import remove  # type: ignore
                 img_bytes_io = io.BytesIO()
                 img.save(img_bytes_io, format='PNG')
                 img_bytes_io.seek(0)
@@ -2604,8 +2606,8 @@ def api_generate_feed():
     """Generate product feed for catalog platforms (Facebook, Google Shopping, Pinterest)"""
     try:
         import io
-        from flask import make_response
-        from ..src.adapters.all_platforms import FacebookShopsAdapter, GoogleShoppingAdapter, PinterestAdapter
+        from flask import make_response  # type: ignore
+        from ..src.adapters.all_platforms import FacebookShopsAdapter, GoogleShoppingAdapter, PinterestAdapter  # type: ignore
         from ..src.schema.unified_listing import UnifiedListing, Price, ListingCondition, Photo
 
         data = request.get_json()

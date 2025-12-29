@@ -13,6 +13,10 @@ class FlaskSessionStorage(SyncSupportedStorage):
 
     This tells the Supabase authentication library (gotrue) how to
     retrieve, store and remove sessions (JWT tokens) in Flask's session.
+    
+    CRITICAL: Must mark session as modified when storing items so Flask-Session
+    persists them to Redis. Without this, OAuth state/code_verifier won't persist
+    between requests, causing bad_oauth_state errors.
     """
 
     def __init__(self):
@@ -25,10 +29,21 @@ class FlaskSessionStorage(SyncSupportedStorage):
         return None
 
     def set_item(self, key: str, value: str) -> None:
-        """Store item in Flask session"""
+        """
+        Store item in Flask session.
+        
+        CRITICAL: Mark session as modified so Flask-Session saves to Redis.
+        This is required for OAuth PKCE flow - code_verifier must persist
+        between OAuth initiation and callback.
+        """
         self.storage[key] = value
+        # CRITICAL: Mark session as modified so Flask-Session persists to Redis
+        # Without this, the code_verifier won't be available on callback
+        self.storage.modified = True
 
     def remove_item(self, key: str) -> None:
         """Remove item from Flask session"""
         if key in self.storage:
             self.storage.pop(key, None)
+            # Mark as modified when removing items too
+            self.storage.modified = True

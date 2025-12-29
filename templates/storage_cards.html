@@ -48,7 +48,7 @@
 
 <!-- Create New Bin -->
 <div class="card mb-4">
-    <div class="card-header" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;">
+    <div class="card-header" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">
         <i class="fas fa-plus-circle"></i> Create New Bin
     </div>
     <div class="card-body">
@@ -74,7 +74,7 @@
     {% if bins %}
         {% for bin in bins %}
         <div class="card mb-3" id="bin-{{ bin.id }}">
-            <div class="card-header" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;">
+            <div class="card-header" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">
                 <div class="d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-box"></i> Bin {{ bin.bin_name }}
@@ -291,7 +291,7 @@ async function loadSections(binId) {
             sections.forEach(section => {
                 const badge = document.createElement('span');
                 badge.className = 'badge me-2';
-                badge.style.cssText = 'background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;';
+                badge.style.cssText = 'background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;';
                 badge.textContent = section;
                 sectionsListDiv.appendChild(badge);
             });

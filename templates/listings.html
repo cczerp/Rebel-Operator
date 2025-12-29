@@ -105,7 +105,7 @@
         </div>
 
         <div class="d-flex gap-2">
-            <button class="btn" onclick="bulkPost()" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white; border: none;">
+            <button class="btn btn-secondary" onclick="bulkPost()" style="border: none;">
                 <i class="fas fa-rocket"></i> Post to Selected Platforms
             </button>
             <button class="btn btn-outline-secondary" onclick="clearSelection()">
@@ -184,7 +184,7 @@
 <!-- CSV Manager View -->
 <div id="csvView" style="display: none;">
     <div class="card mb-3">
-        <div class="card-header" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;">
+        <div class="card-header" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">
             <i class="fas fa-table"></i> CSV Manager - Organize & Export by Category
         </div>
         <div class="card-body">
@@ -423,7 +423,7 @@ async function bulkPost() {
 function showCSVDownloads(csvFiles) {
     let html = '<div class="modal fade" id="csvDownloadModal" tabindex="-1">';
     html += '<div class="modal-dialog modal-lg"><div class="modal-content">';
-    html += '<div class="modal-header" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;">';
+    html += '<div class="modal-header" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">';
     html += '<h5 class="modal-title"><i class="fas fa-file-csv"></i> CSV Files Ready for Download</h5>';
     html += '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>';
     html += '</div><div class="modal-body">';
@@ -435,11 +435,11 @@ function showCSVDownloads(csvFiles) {
             html += `</div>`;
         } else {
             html += `<div class="card mb-3">`;
-            html += `<div class="card-header" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;">`;
+            html += `<div class="card-header" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">`;
             html += `<h6 class="mb-0"><i class="fas fa-gem"></i> ${fileInfo.platform_name}</h6>`;
             html += `</div><div class="card-body">`;
             html += `<p><strong>File:</strong> ${fileInfo.filename}</p>`;
-            html += `<a href="${fileInfo.download_url}" class="btn mb-3" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white; border: none;" download>`;
+            html += `<a href="${fileInfo.download_url}" class="btn btn-secondary mb-3" style="border: none;" download>`;
             html += `<i class="fas fa-download"></i> Download ${fileInfo.platform_name} CSV`;
             html += `</a>`;
 

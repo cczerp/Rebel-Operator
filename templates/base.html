@@ -1608,7 +1608,7 @@
 
     <!-- Admin Banner -->
     {% if current_user.is_authenticated and current_user.is_admin %}
-    <div class="text-center py-2" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;">
+    <div class="text-center py-2" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">
         <small>
             <i class="fas fa-shield-alt"></i> Admin Mode
             <a href="{{ url_for('admin.admin_dashboard') }}" class="text-white ms-3">

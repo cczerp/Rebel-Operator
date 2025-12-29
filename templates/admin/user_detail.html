@@ -33,7 +33,7 @@
                     </p>
                     <p><strong>Status:</strong>
                         {% if user.is_active %}
-                        <span class="badge" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;">Active</span>
+                        <span class="badge" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">Active</span>
                         {% else %}
                         <span class="badge" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">Inactive</span>
                         {% endif %}
@@ -77,9 +77,9 @@
                             <td>${{ "%.2f"|format(listing.price) }}</td>
                             <td>
                                 <span class="badge
-                                    {% if listing.status == 'sold' %}style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;"
+                                    {% if listing.status == 'sold' %}style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;"
                                     {% elif listing.status == 'draft' %}style="background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%); color: var(--off-white-text);"
-                                    {% else %}style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;"
+                                    {% else %}style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;"
                                     {% endif %}">
                                     {{ listing.status }}
                                 </span>

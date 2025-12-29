@@ -495,7 +495,27 @@ def index():
     Implementation:
     - Logged-out: render marketing landing (index.html)
     - Logged-in: redirect to /create (primary workflow surface)
+    
+    Also handles OAuth error redirects from Supabase when session is lost.
     """
+    from flask import request
+    
+    # Check for OAuth errors (Supabase redirects here when session is lost)
+    error = request.args.get('error')
+    if error:
+        error_code = request.args.get('error_code')
+        error_description = request.args.get('error_description', '')
+        
+        print(f"[INDEX] OAuth error redirected to root: {error} ({error_code})", flush=True)
+        print(f"[INDEX] Error description: {error_description}", flush=True)
+        
+        if error_code == 'bad_oauth_state':
+            flash('Session expired during login. Please try again.', 'error')
+        else:
+            flash(f'Authentication error: {error_description or error}', 'error')
+        
+        return redirect(url_for('auth.login'))
+    
     # Force user context loading by touching current_user
     if current_user.is_authenticated:
         # Logged-in workflow: send users directly to Create page

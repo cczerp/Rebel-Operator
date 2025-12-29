@@ -153,6 +153,9 @@ def login():
         # Make session permanent and explicit
         session.permanent = True
         login_user(user, remember=True)
+        # CRITICAL: Mark session as modified for Redis-backed sessions
+        # Without this, session might not be saved to Redis before redirect
+        session.modified = True
         print(f"[LOGIN] ✅ Login successful for {user.email}", flush=True)
         print(f"[LOGIN] User ID stored in session: {user.id}", flush=True)
         print(f"[LOGIN] Session keys after login: {list(session.keys())}", flush=True)
@@ -377,6 +380,8 @@ def api_login():
         print(f"[API_LOGIN] Logging in user: {user.email} (User ID: {user.id})", flush=True)
         session.permanent = True
         login_user(user, remember=True)
+        # CRITICAL: Mark session as modified for Redis-backed sessions
+        session.modified = True
         print(f"[API_LOGIN] ✅ Login successful, User ID stored in session: {user.id}", flush=True)
 
         db.log_activity(
@@ -685,19 +690,21 @@ def login_google():
             flash("Failed to generate Google OAuth URL. Please check Supabase configuration.", "error")
             return redirect(url_for('auth.login'))
 
-        oauth_url, flow_id, state = oauth_result
+        oauth_url, flow_id, _ = oauth_result
 
         # CRITICAL: Strip newlines from OAuth URL to prevent header errors
         # Environment variables or Supabase response may contain newlines
         oauth_url = oauth_url.strip() if oauth_url else ""
 
         # CRITICAL: Mark session as modified to ensure it's saved to Redis
-        # This is important for Redis-backed sessions
+        # This is important for Redis-backed sessions - Supabase stores code_verifier here
+        # Also ensure session is permanent for cookie persistence across redirects
+        session.permanent = True
         session.modified = True
         print(f"🔍 [LOGIN_GOOGLE] Session after OAuth URL generation: {list(session.keys())}", flush=True)
-        print(f"✅ [LOGIN_GOOGLE] Session marked as modified and will be saved to Redis", flush=True)
+        print(f"✅ [LOGIN_GOOGLE] Session marked as permanent and modified (will be saved to Redis)", flush=True)
         print(f"✅ [LOGIN_GOOGLE] OAuth URL generated with flow_id: {flow_id[:10]}...", flush=True)
-        print(f"✅ [LOGIN_GOOGLE] State parameter: {state[:20]}...", flush=True)
+        print(f"✅ [LOGIN_GOOGLE] Supabase handles state validation internally (PKCE flow)", flush=True)
         print(f"🚀 [LOGIN_GOOGLE] Redirecting to: {oauth_url[:100]}...", flush=True)
         return redirect(oauth_url)
     except Exception as e:
@@ -745,28 +752,11 @@ def auth_callback():
         flow_id = request.args.get('flow_id')
         print(f"🔍 [CALLBACK] flow_id from query: {flow_id[:10] if flow_id else 'None'}...", flush=True)
 
-        # Get state parameter for CSRF validation (OAuth 2.1 requirement)
+        # NOTE: Supabase handles state validation internally with PKCE flow
+        # We don't need to manually validate state - Supabase's client does this automatically
+        # If state validation fails, Supabase will return an error in the callback URL
         received_state = request.args.get('state')
-        stored_state = session.get('oauth_state')
-        print(f"🔍 [CALLBACK] State validation - received: {bool(received_state)}, stored in session: {bool(stored_state)}", flush=True)
-
-        # Validate state parameter using Redis (primary) and session (fallback)
-        if received_state:
-            # First try to verify state using Redis (most secure)
-            from src.auth_utils import verify_oauth_state
-            redis_flow_id = verify_oauth_state(received_state)
-
-            if redis_flow_id:
-                print(f"✅ [CALLBACK] State verified via Redis (flow_id: {redis_flow_id[:10]}...)", flush=True)
-            elif stored_state and received_state == stored_state:
-                # Fallback to session-based validation
-                print(f"✅ [CALLBACK] State verified via Flask session (fallback)", flush=True)
-            else:
-                print(f"❌ [CALLBACK] State validation failed - possible CSRF attack or expired state!", flush=True)
-                flash("OAuth authentication failed: Security validation error or session expired", "error")
-                return redirect(url_for('auth.login'))
-        else:
-            print(f"⚠️  [CALLBACK] No state parameter received from OAuth provider", flush=True)
+        print(f"🔍 [CALLBACK] State parameter received: {bool(received_state)}", flush=True)
 
         # Get authorization code from query params
         code = request.args.get("code")
@@ -932,6 +922,8 @@ def auth_callback():
             # Make session permanent and explicit
             session.permanent = True
             login_user(user, remember=True)
+            # CRITICAL: Mark session as modified for Redis-backed sessions
+            session.modified = True
             print(f"✅ [CALLBACK] login_user() completed successfully", flush=True)
             print(f"✅ [CALLBACK] User ID stored in session: {user.id}", flush=True)
             print(f"✅ [CALLBACK] Session keys after login: {list(session.keys())}", flush=True)

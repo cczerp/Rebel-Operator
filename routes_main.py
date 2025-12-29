@@ -780,7 +780,7 @@ def api_upload_photos():
 
     TEMP SESSION MODE (pre-save, new listing):
     - If listing_id is not provided but session_id is, images are uploaded under:
-      temp/{user_id}/{session_id}/filename
+        temp/{user_id}/{session_id}/filename
     - These images are NOT attached to a listing yet and may be cleaned up later.
     - This allows AI analysis before a listing is created.
 
@@ -3611,10 +3611,10 @@ def billing():
         can_create_listing, limit_message = billing_manager.check_listing_limit(current_user.id)
 
         return render_template('billing.html',
-                             user_tier=user_tier.value,
-                             tier_limits=tier_limits,
-                             can_create_listing=can_create_listing,
-                             limit_message=limit_message)
+                user_tier=user_tier.value,
+                tier_limits=tier_limits,
+                can_create_listing=can_create_listing,
+                limit_message=limit_message)
 
     except Exception as e:
         flash(f'Error loading billing page: {str(e)}', 'error')

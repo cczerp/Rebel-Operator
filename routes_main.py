@@ -102,7 +102,7 @@ def compress_image(image_file, max_size_mb=2, quality=85):
 @main_bp.route("/api/upload-photos", methods=["POST"])
 @login_required
 def api_upload_photos():
-    """Handle photo uploads for listings with compression"""
+    """Handle photo uploads for listings with compression - uploads to Supabase Storage temp bucket"""
     try:
         if 'photos' not in request.files:
             return jsonify({"error": "No photos provided"}), 400
@@ -111,44 +111,114 @@ def api_upload_photos():
         if not files or files[0].filename == '':
             return jsonify({"error": "No files selected"}), 400
 
-        # Create uploads directory if it doesn't exist
-        upload_dir = Path('./data/uploads')
-        upload_dir.mkdir(parents=True, exist_ok=True)
+        # Initialize Supabase Storage
+        try:
+            from src.storage.supabase_storage import get_supabase_storage
+            storage = get_supabase_storage()
+        except Exception as storage_error:
+            import logging
+            logging.error(f"Supabase Storage initialization failed: {storage_error}")
+            return jsonify({"error": "Storage service unavailable. Please check configuration."}), 500
 
-        uploaded_paths = []
+        uploaded_urls = []
         for file in files:
             if file and allowed_file(file.filename):
-                # Compress image before saving
+                # Check file size (20MB limit for Gemini)
+                file.seek(0, 2)  # Seek to end
+                file_size = file.tell()
+                file.seek(0)  # Reset to beginning
+                
+                if file_size > 20 * 1024 * 1024:  # 20MB
+                    return jsonify({"error": f"File {file.filename} exceeds 20MB limit"}), 400
+
+                # Compress image before uploading
                 compressed_file, ext = compress_image(file)
+                
+                # Determine content type
+                content_type_map = {
+                    'jpg': 'image/jpeg',
+                    'jpeg': 'image/jpeg',
+                    'png': 'image/png',
+                    'gif': 'image/gif',
+                    'webp': 'image/webp'
+                }
+                content_type = content_type_map.get(ext.lower(), 'image/jpeg')
+                
+                # Read compressed file bytes
+                compressed_file.seek(0)
+                file_data = compressed_file.read()
+                
+                # Upload to Supabase Storage (temp bucket)
+                success, result = storage.upload_photo(
+                    file_data=file_data,
+                    folder='temp',
+                    content_type=content_type
+                )
+                
+                if success:
+                    uploaded_urls.append(result)  # result is the public URL
+                else:
+                    import logging
+                    logging.error(f"Failed to upload {file.filename}: {result}")
+                    return jsonify({"error": f"Upload failed: {result}"}), 500
 
-                # Generate unique filename
-                filename = f"{uuid.uuid4().hex}.{ext}"
-                filepath = upload_dir / filename
-
-                # Save compressed file
-                with open(filepath, 'wb') as f:
-                    f.write(compressed_file.read())
-
-                # Return web-accessible path
-                uploaded_paths.append(f"/uploads/{filename}")
-
-        if not uploaded_paths:
+        if not uploaded_urls:
             return jsonify({"error": "No valid images uploaded"}), 400
 
         return jsonify({
             "success": True,
-            "paths": uploaded_paths,
-            "count": len(uploaded_paths)
+            "paths": uploaded_urls,  # Now returns Supabase Storage URLs
+            "count": len(uploaded_urls)
         })
 
     except Exception as e:
-        print(f"Upload error: {e}")
+        import logging
+        import traceback
+        logging.error(f"Upload error: {e}\n{traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/cleanup-temp-photos", methods=["POST"])
+@login_required
+def api_cleanup_temp_photos():
+    """Clean up temporary photos that weren't saved (called when user leaves page)"""
+    try:
+        data = request.get_json()
+        photo_urls = data.get("photos", [])
+        
+        if not photo_urls:
+            return jsonify({"success": True, "message": "No photos to clean up"})
+        
+        try:
+            from src.storage.supabase_storage import get_supabase_storage
+            storage = get_supabase_storage()
+            
+            deleted = 0
+            for url in photo_urls:
+                # Only delete from temp bucket
+                if 'supabase.co' in url and 'temp-photos' in url:
+                    if storage.delete_photo(url):
+                        deleted += 1
+            
+            return jsonify({
+                "success": True,
+                "deleted": deleted,
+                "message": f"Cleaned up {deleted} temporary photos"
+            })
+        except Exception as storage_error:
+            import logging
+            logging.warning(f"Cleanup failed: {storage_error}")
+            return jsonify({"success": False, "error": str(storage_error)}), 500
+            
+    except Exception as e:
+        import logging
+        logging.error(f"Cleanup error: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 @main_bp.route("/uploads/<filename>")
 def serve_upload(filename):
-    """Serve uploaded files"""
+    """Serve uploaded files (legacy support - now using Supabase Storage)"""
     try:
         from flask import send_from_directory
         upload_dir = Path('./data/uploads')
@@ -315,8 +385,40 @@ def api_save_draft():
         upc = data.get('upc', '')
         status = data.get('status', 'draft')
 
-        # Get photos array (should already be web paths like "/uploads/abc123.jpg")
+        # Get photos array (should be Supabase Storage URLs from temp bucket)
         photos = data.get('photos', [])
+        
+        # Move photos from temp bucket to drafts bucket if using Supabase Storage
+        try:
+            from src.storage.supabase_storage import get_supabase_storage
+            storage = get_supabase_storage()
+            
+            # Move each photo from temp to drafts bucket
+            moved_photos = []
+            for photo_url in photos:
+                # Check if it's a Supabase Storage URL (temp bucket)
+                if 'supabase.co' in photo_url and 'temp-photos' in photo_url:
+                    # Move to draft-images bucket
+                    success, new_url = storage.move_photo(
+                        source_url=photo_url,
+                        destination_folder='drafts',
+                        new_filename=f"{listing_uuid or uuid.uuid4().hex}_{uuid.uuid4().hex}.jpg"
+                    )
+                    if success:
+                        moved_photos.append(new_url)
+                    else:
+                        # If move fails, keep original URL (might already be in drafts)
+                        moved_photos.append(photo_url)
+                else:
+                    # Already in drafts or not Supabase URL, keep as-is
+                    moved_photos.append(photo_url)
+            
+            photos = moved_photos
+        except Exception as storage_error:
+            import logging
+            logging.warning(f"Could not move photos to drafts bucket: {storage_error}")
+            # Continue with original photos if storage move fails
+            pass
 
         # Build attributes from additional fields
         attributes = {
@@ -593,6 +695,8 @@ def api_analyze():
     try:
         from src.ai.gemini_classifier import GeminiClassifier
         from src.schema.unified_listing import Photo
+        import tempfile
+        import os
 
         data = request.get_json()
         if not data:
@@ -602,20 +706,45 @@ def api_analyze():
         if not paths:
             return jsonify({"error": "No photos provided"}), 400
 
-        # Validate and convert paths to local file paths
+        # Download photos from Supabase Storage or use local paths
         photo_objects = []
+        temp_files = []  # Track temp files for cleanup
+        
+        try:
+            from src.storage.supabase_storage import get_supabase_storage
+            storage = get_supabase_storage()
+            use_supabase = True
+        except Exception:
+            use_supabase = False
+            storage = None
+
         for path in paths:
-            # Path comes as "/uploads/filename.jpg"
-            # Convert to "./data/uploads/filename.jpg"
-            if path.startswith('/'):
-                local_path = f"./data{path}"
-            else:
-                local_path = f"./data/{path}"
+            local_path = None
             
-            # Verify file exists
-            from pathlib import Path
-            if not Path(local_path).exists():
-                return jsonify({"error": f"Photo file not found: {local_path}"}), 404
+            # Check if it's a Supabase Storage URL
+            if use_supabase and storage and 'supabase.co' in path:
+                # Download from Supabase Storage to temp file
+                file_data = storage.download_photo(path)
+                if file_data:
+                    # Create temp file
+                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+                    temp_file.write(file_data)
+                    temp_file.close()
+                    local_path = temp_file.name
+                    temp_files.append(local_path)
+                else:
+                    return jsonify({"error": f"Failed to download photo from Supabase: {path}"}), 404
+            else:
+                # Assume local path (legacy support)
+                if path.startswith('/'):
+                    local_path = f"./data{path}"
+                else:
+                    local_path = f"./data/{path}"
+                
+                # Verify file exists
+                from pathlib import Path
+                if not Path(local_path).exists():
+                    return jsonify({"error": f"Photo file not found: {local_path}"}), 404
             
             photo_objects.append(Photo(url=path, local_path=local_path))
         
@@ -626,10 +755,23 @@ def api_analyze():
         try:
             classifier = GeminiClassifier.from_env()
         except ValueError as e:
+            # Cleanup temp files
+            for temp_file in temp_files:
+                try:
+                    os.unlink(temp_file)
+                except:
+                    pass
             return jsonify({"error": f"AI service not configured: {str(e)}"}), 500
 
         # Analyze photos
         result = classifier.analyze_item(photo_objects)
+
+        # Cleanup temp files
+        for temp_file in temp_files:
+            try:
+                os.unlink(temp_file)
+            except:
+                pass
 
         if result.get("error"):
             return jsonify({"success": False, "error": result.get("error")}), 500
@@ -1829,6 +1971,37 @@ def api_publish_drafts():
                 if auto_assign_sku and not draft.get('sku'):
                     sku = db.assign_auto_sku_if_missing(draft_id, current_user.id)
                     draft['sku'] = sku
+
+                # Move photos from draft-images to listing-images bucket when publishing
+                try:
+                    from src.storage.supabase_storage import get_supabase_storage
+                    storage = get_supabase_storage()
+                    
+                    if draft.get('photos'):
+                        moved_photos = []
+                        for photo_url in draft['photos']:
+                            # Check if it's in draft-images bucket
+                            if 'supabase.co' in photo_url and 'draft-images' in photo_url:
+                                # Move to listing-images bucket
+                                success, new_url = storage.move_photo(
+                                    source_url=photo_url,
+                                    destination_folder='listings',
+                                    new_filename=f"{draft.get('listing_uuid', uuid.uuid4().hex)}_{uuid.uuid4().hex}.jpg"
+                                )
+                                if success:
+                                    moved_photos.append(new_url)
+                                else:
+                                    moved_photos.append(photo_url)  # Keep original if move fails
+                            else:
+                                moved_photos.append(photo_url)  # Keep non-Supabase URLs
+                        
+                        # Update listing with new photo URLs
+                        if moved_photos != draft['photos']:
+                            db.update_listing(draft_id, photos=moved_photos)
+                except Exception as storage_error:
+                    import logging
+                    logging.warning(f"Could not move photos to listing-images bucket: {storage_error}")
+                    # Continue with publish even if photo move fails
 
                 # Change status to active
                 db.update_listing_status(draft_id, 'active')

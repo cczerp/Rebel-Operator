@@ -476,6 +476,17 @@
         </div>
     </div>
 </div>
+
+<!-- Image Zoom Modal -->
+<div id="imageZoomModal" class="image-zoom-modal" onclick="closeImageZoom(event)" style="display: none;">
+    <div class="image-zoom-container">
+        <button class="btn btn-outline-light zoom-close-btn" onclick="closeImageZoom(event)">
+            <i class="fas fa-times"></i>
+        </button>
+        <img id="zoomImage" src="" alt="Zoomed image">
+        <div class="zoom-hint">Click anywhere to close</div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -1049,6 +1060,44 @@ function resetPhoto() {
 
     showAlert('Photo reset to original', 'info');
 }
+
+// Zoom modal functions
+function openImageZoom(imageSrc) {
+    const modal = document.getElementById('imageZoomModal');
+    const zoomImage = document.getElementById('zoomImage');
+    if (modal && zoomImage) {
+        zoomImage.src = imageSrc;
+        modal.style.display = 'flex';
+
+        // Prevent body scroll when modal is open
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeImageZoom(event) {
+    // Prevent closing if clicking on the image itself
+    if (event && event.target.id === 'zoomImage') {
+        return;
+    }
+
+    const modal = document.getElementById('imageZoomModal');
+    if (modal) {
+        modal.style.display = 'none';
+
+        // Restore body scroll
+        document.body.style.overflow = 'auto';
+    }
+}
+
+// Close zoom modal on Escape key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modal = document.getElementById('imageZoomModal');
+        if (modal && modal.style.display === 'flex') {
+            closeImageZoom();
+        }
+    }
+});
 
 function updatePhotoAfterEdit(newImageData, newFilepath) {
     // Update the modal image
@@ -2156,7 +2205,7 @@ function refreshPhotoPreviews() {
         const img = document.createElement('img');
         img.src = photoUrl;  // Use URL from Supabase Storage
         img.className = 'photo-preview';
-        img.title = 'Click to edit photo';
+        img.title = 'Click to edit | Right-click to zoom';
         img.style.cursor = 'pointer';
         img.onerror = function() {
             console.error('[PREVIEW] Failed to load image:', photoUrl);
@@ -2166,6 +2215,12 @@ function refreshPhotoPreviews() {
         // Make photo clickable to open editor
         img.onclick = function() {
             openPhotoEditor(index, photoUrl);
+        };
+        
+        // Right-click to zoom
+        img.oncontextmenu = function(e) {
+            e.preventDefault();
+            openImageZoom(photoUrl);
         };
         
         // Create remove button (X)

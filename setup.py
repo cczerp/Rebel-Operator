@@ -30,7 +30,6 @@ setup(
         "requests>=2.31.0",
     ],
     extras_require={
-        "mercari-automation": ["playwright>=1.40.0"],
         "image-processing": ["Pillow>=10.0.0"],
         "dev": [
             "pytest>=7.4.0",

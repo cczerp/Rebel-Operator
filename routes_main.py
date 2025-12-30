@@ -3,12 +3,16 @@ routes_main.py
 Main application routes: listings, drafts, notifications, storage, settings
 """
 
-from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash, session
+from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
 from flask_login import login_required, current_user
 from pathlib import Path
 from functools import wraps
-from datetime import datetime
 import json
+import os
+import uuid
+from werkzeug.utils import secure_filename
+from PIL import Image
+import io
 
 
 # Create blueprint
@@ -44,6 +48,390 @@ def admin_required(f):
 # -------------------------------------------------------------------------
 # DELETE DRAFT
 # -------------------------------------------------------------------------
+
+# -------------------------------------------------------------------------
+# PHOTO UPLOAD API ENDPOINTS
+# -------------------------------------------------------------------------
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'heic'}
+
+def allowed_file(filename):
+    """Check if file extension is allowed"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def compress_image(image_file, max_size_mb=2, quality=85):
+    """Compress image to reduce file size"""
+    try:
+        # Read image
+        img = Image.open(image_file)
+
+        # Convert RGBA to RGB if needed
+        if img.mode in ('RGBA', 'LA', 'P'):
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+            img = background
+
+        # Resize if too large (max 2048px on longest side)
+        max_dimension = 2048
+        if max(img.size) > max_dimension:
+            ratio = max_dimension / max(img.size)
+            new_size = tuple(int(dim * ratio) for dim in img.size)
+            img = img.resize(new_size, Image.Resampling.LANCZOS)
+
+        # Save compressed image to bytes
+        output = io.BytesIO()
+        img.save(output, format='JPEG', quality=quality, optimize=True)
+        output.seek(0)
+
+        # If still too large, reduce quality
+        if len(output.getvalue()) > max_size_mb * 1024 * 1024 and quality > 60:
+            output = io.BytesIO()
+            img.save(output, format='JPEG', quality=60, optimize=True)
+            output.seek(0)
+
+        return output, 'jpg'
+    except Exception as e:
+        print(f"Compression error: {e}")
+        # Return original if compression fails
+        image_file.seek(0)
+        return image_file, image_file.filename.rsplit('.', 1)[1].lower()
+
+
+@main_bp.route("/api/upload-photos", methods=["POST"])
+@login_required
+def api_upload_photos():
+    """Handle photo uploads for listings with compression"""
+    try:
+        if 'photos' not in request.files:
+            return jsonify({"error": "No photos provided"}), 400
+
+        files = request.files.getlist('photos')
+        if not files or files[0].filename == '':
+            return jsonify({"error": "No files selected"}), 400
+
+        # Create uploads directory if it doesn't exist
+        upload_dir = Path('./data/uploads')
+        upload_dir.mkdir(parents=True, exist_ok=True)
+
+        uploaded_paths = []
+        for file in files:
+            if file and allowed_file(file.filename):
+                # Compress image before saving
+                compressed_file, ext = compress_image(file)
+
+                # Generate unique filename
+                filename = f"{uuid.uuid4().hex}.{ext}"
+                filepath = upload_dir / filename
+
+                # Save compressed file
+                with open(filepath, 'wb') as f:
+                    f.write(compressed_file.read())
+
+                # Return web-accessible path
+                uploaded_paths.append(f"/uploads/{filename}")
+
+        if not uploaded_paths:
+            return jsonify({"error": "No valid images uploaded"}), 400
+
+        return jsonify({
+            "success": True,
+            "paths": uploaded_paths,
+            "count": len(uploaded_paths)
+        })
+
+    except Exception as e:
+        print(f"Upload error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/uploads/<filename>")
+def serve_upload(filename):
+    """Serve uploaded files"""
+    try:
+        from flask import send_from_directory
+        upload_dir = Path('./data/uploads')
+        return send_from_directory(upload_dir, filename)
+    except Exception as e:
+        return jsonify({"error": "File not found"}), 404
+
+
+@main_bp.route("/api/edit-photo", methods=["POST"])
+@login_required
+def api_edit_photo():
+    """Handle photo editing (crop, resize, background removal)"""
+    try:
+        data = request.json
+        operation = data.get('operation')
+        image_path = data.get('image')
+
+        if not operation or not image_path:
+            return jsonify({"error": "Missing parameters"}), 400
+
+        # Extract filename from path (e.g., "/uploads/abc123.jpg" -> "abc123.jpg")
+        filename = image_path.split('/')[-1]
+        upload_dir = Path('./data/uploads')
+        filepath = upload_dir / filename
+
+        if not filepath.exists():
+            return jsonify({"error": "Image file not found"}), 404
+
+        # Open the image
+        img = Image.open(filepath)
+
+        # Handle different operations
+        if operation == 'crop':
+            # Get crop parameters
+            crop_data = data.get('cropData', {})
+            x = int(crop_data.get('x', 0))
+            y = int(crop_data.get('y', 0))
+            width = int(crop_data.get('width', img.width))
+            height = int(crop_data.get('height', img.height))
+
+            # Crop the image
+            img = img.crop((x, y, x + width, y + height))
+
+        elif operation == 'resize':
+            # Get resize parameters (e.g., 2x = enlarge by 2x)
+            scale = data.get('scale', 2.0)
+            new_size = (int(img.width * scale), int(img.height * scale))
+            img = img.resize(new_size, Image.Resampling.LANCZOS)
+
+        elif operation == 'remove-bg':
+            # Background removal using simple thresholding
+            # For better results, you could integrate rembg library
+            # This is a basic implementation
+            try:
+                # Try to import rembg if available
+                from rembg import remove
+                img_bytes = io.BytesIO()
+                img.save(img_bytes, format='PNG')
+                img_bytes.seek(0)
+                result = remove(img_bytes.read())
+                img = Image.open(io.BytesIO(result))
+            except ImportError:
+                # Fallback: convert to RGBA and make white background transparent
+                img = img.convert('RGBA')
+                data_img = img.getdata()
+                new_data = []
+                for item in data_img:
+                    # Change white (also shades of whites) to transparent
+                    if item[0] > 200 and item[1] > 200 and item[2] > 200:
+                        new_data.append((255, 255, 255, 0))
+                    else:
+                        new_data.append(item)
+                img.putdata(new_data)
+
+        else:
+            return jsonify({"error": f"Unknown operation: {operation}"}), 400
+
+        # Save edited image (create new file to preserve original)
+        new_filename = f"{uuid.uuid4().hex}.{'png' if operation == 'remove-bg' else 'jpg'}"
+        new_filepath = upload_dir / new_filename
+
+        if operation == 'remove-bg':
+            img.save(new_filepath, format='PNG')
+        else:
+            # Convert RGBA to RGB if needed
+            if img.mode == 'RGBA':
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                background.paste(img, mask=img.split()[-1])
+                img = background
+            img.save(new_filepath, format='JPEG', quality=85, optimize=True)
+
+        return jsonify({
+            "success": True,
+            "filepath": f"/uploads/{new_filename}",
+            "message": f"Photo {operation} completed successfully"
+        })
+
+    except Exception as e:
+        print(f"Photo editing error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# -------------------------------------------------------------------------
+# STORAGE API ENDPOINTS
+# -------------------------------------------------------------------------
+
+@main_bp.route("/api/storage/find", methods=["GET"])
+@login_required
+def api_find_storage_item():
+    """Find a storage item by ID"""
+    try:
+        storage_id = request.args.get("storage_id", "").strip()
+        if not storage_id:
+            return jsonify({"error": "Storage ID required"}), 400
+
+        item = db.find_storage_item(current_user.id, storage_id)
+
+        if item:
+            return jsonify({"success": True, "item": item})
+        else:
+            return jsonify({"success": False, "error": "Item not found"}), 404
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/save-draft", methods=["POST"])
+@login_required
+def api_save_draft():
+    """Save or update a draft listing"""
+    try:
+        data = request.json
+
+        # Extract form data with safe type conversions
+        title = data.get('title', 'Untitled')
+        description = data.get('description', '')
+
+        # Safe float conversion for price
+        try:
+            price_val = data.get('price', '0')
+            price = float(price_val) if price_val not in [None, ''] else 0.0
+        except (ValueError, TypeError):
+            price = 0.0
+
+        # Safe float conversion for cost
+        try:
+            cost_val = data.get('cost', '')
+            cost = float(cost_val) if cost_val not in [None, ''] else None
+        except (ValueError, TypeError):
+            cost = None
+
+        condition = data.get('condition', 'good')
+        item_type = data.get('item_type', 'general')
+
+        # Safe int conversion for quantity
+        try:
+            quantity_val = data.get('quantity', '1')
+            quantity = int(quantity_val) if quantity_val not in [None, ''] else 1
+        except (ValueError, TypeError):
+            quantity = 1
+
+        storage_location = data.get('storage_location', '')
+        sku = data.get('sku', '')
+        upc = data.get('upc', '')
+        status = data.get('status', 'draft')
+
+        # Get photos array (should already be web paths like "/uploads/abc123.jpg")
+        photos = data.get('photos', [])
+
+        # Build attributes from additional fields
+        attributes = {
+            'brand': data.get('brand', ''),
+            'size': data.get('size', ''),
+            'color': data.get('color', ''),
+            'shipping_cost': data.get('shipping_cost', 0)
+        }
+
+        # Check if we're updating an existing draft
+        draft_id = data.get('draft_id')
+        listing_uuid = data.get('listing_uuid')
+
+        if draft_id:
+            # Update existing draft
+            db.update_listing(
+                listing_id=draft_id,
+                title=title,
+                description=description,
+                price=price,
+                cost=cost,
+                condition=condition,
+                item_type=item_type,
+                attributes=attributes,
+                photos=photos,
+                quantity=quantity,
+                storage_location=storage_location,
+                sku=sku,
+                upc=upc,
+                status=status
+            )
+            return jsonify({
+                "success": True,
+                "listing_id": draft_id,
+                "listing_uuid": listing_uuid,
+                "message": "Draft updated successfully"
+            })
+        else:
+            # Create new draft
+            listing_uuid = uuid.uuid4().hex
+            listing_id = db.create_listing(
+                listing_uuid=listing_uuid,
+                user_id=current_user.id,
+                title=title,
+                description=description,
+                price=price,
+                cost=cost,
+                condition=condition,
+                item_type=item_type,
+                attributes=attributes,
+                photos=photos,
+                quantity=quantity,
+                storage_location=storage_location,
+                sku=sku,
+                upc=upc,
+                status=status
+            )
+            return jsonify({
+                "success": True,
+                "listing_id": listing_id,
+                "listing_uuid": listing_uuid,
+                "message": "Draft saved successfully"
+            })
+
+    except Exception as e:
+        print(f"Save draft error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/get-draft/<int:listing_id>", methods=["GET"])
+@login_required
+def api_get_draft(listing_id):
+    """Retrieve a draft listing for editing"""
+    try:
+        listing = db.get_listing(listing_id)
+
+        if not listing:
+            return jsonify({"error": "Draft not found"}), 404
+
+        if listing["user_id"] != current_user.id:
+            return jsonify({"error": "Unauthorized"}), 403
+
+        # Parse JSON fields
+        if listing.get('photos'):
+            if isinstance(listing['photos'], str):
+                listing['photos'] = json.loads(listing['photos'])
+        else:
+            listing['photos'] = []
+
+        if listing.get('attributes'):
+            if isinstance(listing['attributes'], str):
+                attributes = json.loads(listing['attributes'])
+            else:
+                attributes = listing['attributes']
+
+            # Merge attributes into main listing object for frontend
+            listing['brand'] = attributes.get('brand', '')
+            listing['size'] = attributes.get('size', '')
+            listing['color'] = attributes.get('color', '')
+            listing['shipping_cost'] = attributes.get('shipping_cost', 0)
+        else:
+            listing['brand'] = ''
+            listing['size'] = ''
+            listing['color'] = ''
+            listing['shipping_cost'] = 0
+
+        return jsonify({
+            "success": True,
+            "listing": listing
+        })
+
+    except Exception as e:
+        print(f"Get draft error: {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 @main_bp.route("/api/delete-draft/<int:listing_id>", methods=["DELETE"])
 @login_required
@@ -102,7 +490,7 @@ VALID_MARKETPLATFORMS = [
     "facebook", "tiktok_shop", "woocommerce", "nextdoor", "varagesale",
     "ruby_lane", "ecrater", "bonanza", "kijiji", "personal_website",
     "grailed", "vinted", "mercado_libre", "tradesy", "vestiaire",
-    "rebag", "thredup", "poshmark_ca", "ebay", "mercari", "other"
+    "rebag", "thredup", "poshmark_ca", "other"
 ]
 
 
@@ -111,15 +499,12 @@ VALID_MARKETPLATFORMS = [
 def save_marketplace_credentials():
     try:
         data = request.json
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-            
         platform = data.get("platform", "").lower()
         username = data.get("username")
         password = data.get("password")
 
         if platform not in VALID_MARKETPLATFORMS:
-            return jsonify({"error": f"Invalid platform. Valid platforms: {', '.join(VALID_MARKETPLATFORMS)}"}), 400
+            return jsonify({"error": "Invalid platform"}), 400
         if not username or not password:
             return jsonify({"error": "Username and password required"}), 400
 
@@ -129,9 +514,7 @@ def save_marketplace_credentials():
         return jsonify({"success": True})
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": f"Failed to save credentials: {str(e)}"}), 500
+        return jsonify({"error": str(e)}), 500
 
 
 @main_bp.route("/api/settings/marketplace-credentials/<platform>", methods=["DELETE"])
@@ -149,7 +532,7 @@ def delete_marketplace_credentials(platform):
 # API CREDENTIALS CRUD (Etsy/Shopify/WooCommerce/Facebook)
 # -------------------------------------------------------------------------
 
-VALID_API_PLATFORMS = ["etsy", "shopify", "woocommerce", "facebook", "ebay", "mercari"]
+VALID_API_PLATFORMS = ["etsy", "shopify", "woocommerce", "facebook"]
 
 
 @main_bp.route("/api/settings/api-credentials", methods=["POST"])
@@ -200,54 +583,15 @@ def get_api_credentials(platform):
 
 
 # -------------------------------------------------------------------------
-# BABY BIRD — KNOWLEDGE DISTILLATION API
+# CARD ANALYSIS (TCG + Sports) - QUICK ANALYSIS
 # -------------------------------------------------------------------------
 
-@main_bp.route("/api/baby-bird/status", methods=["GET"])
+@main_bp.route("/api/analyze", methods=["POST"])
 @login_required
-def baby_bird_status():
+def api_analyze():
+    """Analyze general items with Gemini (fast, cheap)"""
     try:
-        from src.ai.knowledge_distillation import get_baby_bird_status
-        return jsonify(get_baby_bird_status(db))
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@main_bp.route("/api/baby-bird/export", methods=["POST"])
-@admin_required
-def baby_bird_export():
-    try:
-        path = request.json.get("output_path", "./data/training_dataset.jsonl")
-        count = db.export_training_dataset(path, format="jsonl")
-        return jsonify({
-            "success": True,
-            "sample_count": count,
-            "output_path": path,
-            "message": f"Exported {count} training samples!"
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# -------------------------------------------------------------------------
-# CARD COLLECTION DASHBOARD
-# -------------------------------------------------------------------------
-
-@main_bp.route("/cards")
-@login_required
-def cards_collection():
-    return render_template("cards.html")
-
-
-# -------------------------------------------------------------------------
-# CARD ANALYSIS (TCG + Sports)
-# -------------------------------------------------------------------------
-
-@main_bp.route("/api/analyze-card", methods=["POST"])
-def api_analyze_card():
-    """Analyze card photos - returns job_id immediately, use /api/analyze-card-status/<job_id> to poll"""
-    try:
-        from src.workers.job_manager import get_job_manager
+        from src.ai.gemini_classifier import GeminiClassifier
         from src.schema.unified_listing import Photo
 
         data = request.get_json()
@@ -255,1240 +599,202 @@ def api_analyze_card():
         if not paths:
             return jsonify({"error": "No photos provided"}), 400
 
-        # Create background job
-        job_manager = get_job_manager()
-        job_id = job_manager.create_job("analyze_card", {
-            "photo_paths": paths
-        })
+        photos = [Photo(url=p, local_path=f"./data{p}") for p in paths]
+        classifier = GeminiClassifier.from_env()
+        result = classifier.analyze_item(photos)
 
-        # Start processing in background
-        def card_analyze_worker(job_data):
-            from src.ai.gemini_classifier import analyze_card
-            
-            paths = job_data["photo_paths"]
-            # Create Photo objects - paths are now Supabase Storage URLs, not local paths
-            photos = []
-            for i, path in enumerate(paths):
-                if path.startswith('http://') or path.startswith('https://'):
-                    # Supabase Storage URL - use as url
-                    photos.append(Photo(url=path, local_path=None, order=i, is_primary=(i == 0)))
-                else:
-                    # Legacy local path - keep for backwards compatibility
-                    photos.append(Photo(url="", local_path=path, order=i, is_primary=(i == 0)))
-            result = analyze_card(photos)
+        if result.get("error"):
+            return jsonify(result), 500
 
-            # Check for API key errors
-            if result.get("error"):
-                error_msg = result.get("error", "Unknown error")
-                if "API" in error_msg or "api_key" in error_msg.lower():
-                    return {
-                        "success": False,
-                        "card_data": None,
-                        "error": "AI service not configured. Please check your GEMINI_API_KEY environment variable.",
-                        "details": error_msg
-                    }
-                return {
-                    "success": False,
-                    "card_data": None,
-                    "error": error_msg
-                }
+        return jsonify({"success": True, "analysis": result})
 
-            return {
-                "success": True,
-                "card_data": result
-            }
-
-        job_manager.start_job(job_id, card_analyze_worker)
-
-        return jsonify({
-            "success": True,
-            "job_id": job_id,
-            "status": "pending",
-            "message": "Card analysis started. Poll /api/analyze-card-status/" + job_id + " for results."
-        })
-
-    except Exception as e:
-        print(f"Error creating card analysis job: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-
-
-@main_bp.route("/api/analyze-card-status/<job_id>", methods=["GET"])
-def api_analyze_card_status(job_id):
-    """Get card analysis job status and results"""
-    try:
-        from src.workers.job_manager import get_job_manager
-        
-        job_manager = get_job_manager()
-        job = job_manager.get_job(job_id)
-        
-        if not job:
-            return jsonify({"error": "Job not found"}), 404
-        
-        response = {
-            "job_id": job_id,
-            "status": job["status"],
-        }
-        
-        if job["status"] == "completed":
-            response.update(job["result"])
-        elif job["status"] == "failed":
-            response["error"] = job["error"]
-        
-        return jsonify(response)
-    
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-# -------------------------------------------------------------------------
-# GENERAL AI ANALYZE (Gemini -> Claude deep analysis)
-# -------------------------------------------------------------------------
-
-
-@main_bp.route("/api/analyze", methods=["POST"])
-def api_analyze():
-    """
-    Stage 1 — Regular AI Scanner (Classification)
-    
-    SYSTEM CONTRACT REQUIREMENTS:
-    - Text input (required) - at least 3 distinct key details must be provided
-    - Images (optional)
-    - If fewer than 3 details are present, the scan must not run
-    
-    Returns job_id immediately, use /api/analyze-status/<job_id> to poll
-    """
+@main_bp.route("/api/analyze-card", methods=["POST"])
+@login_required
+def api_analyze_card():
+    """Legacy card analysis endpoint (use /api/enhanced-scan instead)"""
     try:
-        from src.workers.job_manager import get_job_manager
+        from src.ai.gemini_classifier import analyze_card
         from src.schema.unified_listing import Photo
 
-        data = request.get_json() or {}
-        photo_paths = data.get("photos") or []
-        force_enhanced = data.get("force_enhanced", False)
-        stage1_already_run = data.get("stage1_already_run", False)  # Flag: Stage 1 has run and marked as collectible
-        
-        # SYSTEM CONTRACT: Stage 2 Enhanced Analyzer inputs are Images only
-        # If stage1_already_run=True, this is Stage 2 - skip Stage 1 text requirement
-        is_stage2_only = stage1_already_run and force_enhanced
-        
-        if not is_stage2_only:
-            # SYSTEM CONTRACT: Stage 1 requires text input (required) with at least 3 distinct key details
-            # Extract text details from request
-            text_details = []
-            if data.get("title"):
-                text_details.append("title")
-            if data.get("description"):
-                text_details.append("description")
-            if data.get("brand"):
-                text_details.append("brand")
-            if data.get("category"):
-                text_details.append("category")
-            if data.get("size"):
-                text_details.append("size")
-            if data.get("color"):
-                text_details.append("color")
-            if data.get("item_name"):
-                text_details.append("item_name")
-            
-            # Check if at least 3 distinct key details are provided
-            distinct_details = len(set(text_details))
-            if distinct_details < 3:
-                return jsonify({
-                    "error": "Stage 1 Regular AI Scanner requires text input with at least 3 distinct key details (e.g., title, description, brand, category, size, color). Images are optional but text is required.",
-                    "error_type": "insufficient_text_details",
-                    "provided_details": distinct_details,
-                    "required_details": 3
-                }), 400
-        
-        # SYSTEM CONTRACT: Stage 2 requires images (Stage 1 text requirement skipped above)
-        if is_stage2_only and not photo_paths:
-            return jsonify({
-                "error": "Stage 2 Enhanced Analyzer requires images. Prerequisites: Stage 1 has run and marked item as collectible.",
-                "error_type": "stage2_no_images"
-            }), 400
-
-        # Create background job
-        job_manager = get_job_manager()
-        job_id = job_manager.create_job("analyze", {
-            "photo_paths": photo_paths,
-            "force_enhanced": force_enhanced,
-            "is_stage2_only": is_stage2_only  # Flag: Stage 2 only (images, skip Stage 1)
-        })
-
-        # Start processing in background
-        def analyze_worker(job_data):
-            from src.ai.gemini_classifier import GeminiClassifier
-            from src.ai.claude_collectible_analyzer import ClaudeCollectibleAnalyzer
-            from src.database import Database
-            
-            photo_paths = job_data["photo_paths"]
-            force_enhanced = job_data.get("force_enhanced", False)
-            is_stage2_only = job_data.get("is_stage2_only", False)
-            
-            # Create a new Database instance for this worker thread
-            # CRITICAL: Background workers don't have Flask request context, so we can't use get_db_instance()
-            # Creating a fresh Database instance is safe because:
-            # - Database instances don't store connections (they use global connection pool)
-            # - All database operations use _get_connection() context managers
-            # - Connections are automatically returned to pool after use
-            worker_db = Database()
-            
-            # Create Photo objects - paths are now Supabase Storage URLs, not local paths
-            # Detect if path is a URL (starts with http) or local path
-            photos = []
-            for i, path in enumerate(photo_paths):
-                if path.startswith('http://') or path.startswith('https://'):
-                    # Supabase Storage URL - use as url
-                    photos.append(Photo(url=path, local_path=None, order=i, is_primary=(i == 0)))
-                else:
-                    # Legacy local path - keep for backwards compatibility
-                    photos.append(Photo(url="", local_path=path, order=i, is_primary=(i == 0)))
-
-            # SYSTEM CONTRACT: Stage 2 Enhanced Analyzer inputs are Images only
-            # If is_stage2_only=True, skip Stage 1 and go straight to Stage 2
-            if is_stage2_only:
-                # Stage 2 only - prerequisites already verified on frontend
-                # Create minimal Stage 1 analysis result indicating collectible=True
-                analysis = {
-                    "collectible": True,  # Prerequisite already verified
-                    "item_name": "Collectible Item",  # Placeholder
-                    "category": "collectible"
-                }
-            else:
-                # Run Stage 1 fast classification
-                try:
-                    classifier = GeminiClassifier()
-                    analysis = classifier.analyze_item(photos)
-                except ValueError as e:
-                    # API key not configured
-                    error_msg = str(e)
-                    if "API_KEY" in error_msg:
-                        return {
-                            "success": False,
-                            "error": "Gemini API key not configured. Please set GEMINI_API_KEY environment variable. See AI_SETUP.md for instructions.",
-                            "error_type": "config"
-                        }
-                    raise
-                except Exception as e:
-                    return {
-                        "success": False,
-                        "error": f"Gemini classifier initialization failed: {str(e)}",
-                        "error_type": "init_error"
-                    }
-
-            # Check for errors
-            if analysis.get("error"):
-                return {
-                    "success": False,
-                    "analysis": None,
-                    "collectible_analysis": None,
-                    "error": analysis.get("error", "Unknown error"),
-                    "error_type": analysis.get("error_type")
-                }
-
-            # Deep analysis if needed
-            # SYSTEM CONTRACT: Stage 2 (Enhanced Analyzer) must only run if Stage 1 marked item as collectible
-            # Violation fixed: Removed force_enhanced bypass - Stage 2 cannot run on non-collectible items
-            collectible_analysis = None
-            if analysis.get("collectible") is True:  # Explicit True check - no force_enhanced bypass
-                try:
-                    claude = ClaudeCollectibleAnalyzer.from_env()
-                    collectible_analysis = claude.deep_analyze_collectible(photos, analysis, worker_db)
-                except ValueError as e:
-                    # API key not configured
-                    error_msg = str(e)
-                    if "API_KEY" in error_msg or "ANTHROPIC" in error_msg or "CLAUDE" in error_msg:
-                        collectible_analysis = {
-                            "error": "Claude API key not configured. Please set ANTHROPIC_API_KEY environment variable. See AI_SETUP.md for instructions.",
-                            "error_type": "config"
-                        }
-                    else:
-                        collectible_analysis = {"error": str(e)}
-                except Exception as e:
-                    collectible_analysis = {"error": f"Claude analyzer error: {str(e)}"}
-            elif force_enhanced:
-                # Log violation attempt but don't run Stage 2
-                print(f"[AI CONTRACT VIOLATION] Attempted to run Stage 2 Enhanced Analyzer on non-collectible item. Rejected per system contract.", flush=True)
-                collectible_analysis = {
-                    "error": "Enhanced Analyzer can only run on items marked as collectible by Stage 1 Regular Scanner."
-                }
-
-            return {
-                "success": True,
-                "analysis": analysis,
-                "collectible_analysis": collectible_analysis,
-            }
-
-        job_manager.start_job(job_id, analyze_worker)
-
-        return jsonify({
-            "success": True,
-            "job_id": job_id,
-            "status": "pending",
-            "message": "Analysis started. Poll /api/analyze-status/" + job_id + " for results."
-        })
-
-    except Exception as e:
-        print(f"Error creating analysis job: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-
-
-@main_bp.route("/api/analyze-status/<job_id>", methods=["GET"])
-def api_analyze_status(job_id):
-    """Get analysis job status and results"""
-    try:
-        from src.workers.job_manager import get_job_manager
-        
-        job_manager = get_job_manager()
-        job = job_manager.get_job(job_id)
-        
-        if not job:
-            return jsonify({"error": "Job not found"}), 404
-        
-        response = {
-            "job_id": job_id,
-            "status": job["status"],
-        }
-        
-        if job["status"] == "completed":
-            response["result"] = job["result"]
-        elif job["status"] == "failed":
-            response["error"] = job["error"]
-        
-        return jsonify(response)
-    
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# -------------------------------------------------------------------------
-# AI API KEY STATUS CHECK
-# -------------------------------------------------------------------------
-
-@main_bp.route("/api/ai-status", methods=["GET"])
-@login_required
-def api_ai_status():
-    """Check status of AI API keys (Gemini and Claude)"""
-    import os
-    
-    status = {
-        "gemini": {
-            "configured": False,
-            "key_present": False,
-            "message": ""
-        },
-        "claude": {
-            "configured": False,
-            "key_present": False,
-            "message": ""
-        }
-    }
-    
-    # Check Gemini
-    gemini_key = os.getenv("GOOGLE_AI_API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("GEMENI_API_KEY")
-    if gemini_key:
-        status["gemini"]["key_present"] = True
-        status["gemini"]["configured"] = True
-        status["gemini"]["message"] = "Gemini API key is configured"
-    else:
-        status["gemini"]["message"] = "Gemini API key not found. Set GEMINI_API_KEY environment variable."
-    
-    # Check Claude
-    claude_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY")
-    if claude_key:
-        status["claude"]["key_present"] = True
-        status["claude"]["configured"] = True
-        status["claude"]["message"] = "Claude API key is configured"
-    else:
-        status["claude"]["message"] = "Claude API key not found. Set ANTHROPIC_API_KEY environment variable."
-    
-    return jsonify({
-        "success": True,
-        "status": status,
-        "basic_ai_available": status["gemini"]["configured"],
-        "enhanced_ai_available": status["claude"]["configured"]
-    })
-
-
-# -------------------------------------------------------------------------
-# SUPABASE STORAGE DIAGNOSTICS
-# -------------------------------------------------------------------------
-
-@main_bp.route('/api/supabase-diagnostics', methods=['GET'])
-def supabase_diagnostics():
-    """
-    Diagnostic endpoint to check Supabase Storage configuration.
-    Helps troubleshoot upload issues.
-    
-    Usage:
-        Visit: https://your-app.com/api/supabase-diagnostics
-        Or use curl: curl https://your-app.com/api/supabase-diagnostics
-        
-    Returns JSON with:
-        - environment_variables: Status of SUPABASE_URL, keys
-        - client_status: Whether Supabase client initialized
-        - bucket_status: Available buckets and if listing-images exists
-        - errors: Any errors encountered
-    """
-    # Don't require login - this is a diagnostic tool
-    # But we can check if user is logged in for additional context
-    import os
-    from src.storage.supabase_storage import _get_supabase_storage_client
-    
-    diagnostics = {
-        "environment_variables": {},
-        "client_status": None,
-        "bucket_status": None,
-        "errors": []
-    }
-    
-    # Check environment variables
-    supabase_url = os.getenv("SUPABASE_URL", "").strip()
-    service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
-    anon_key = os.getenv("SUPABASE_ANON_KEY", "").strip()
-    
-    diagnostics["environment_variables"] = {
-        "SUPABASE_URL": {
-            "set": bool(supabase_url),
-            "value_preview": supabase_url[:30] + "..." if supabase_url else None,
-            "valid_format": supabase_url.startswith("http") if supabase_url else False
-        },
-        "SUPABASE_SERVICE_ROLE_KEY": {
-            "set": bool(service_role_key),
-            "length": len(service_role_key) if service_role_key else 0,
-            "prefix": service_role_key[:30] + "..." if service_role_key else None,
-            "is_temp_key": service_role_key.startswith("sb_temp_") if service_role_key else False,
-            "looks_like_jwt": service_role_key.startswith("eyJ") if service_role_key else False,
-            "note": "Service role keys are JWT tokens (start with 'eyJ') found in Settings → API → Project API keys → service_role (secret). They are NOT in a separate JWT section." if service_role_key else None,
-            "warning": (
-                "❌ CRITICAL: Temporary/invalid key detected (starts with 'sb_temp_'). Get the permanent service_role key from Supabase Dashboard → Settings → API → Project API keys → service_role (click 'Reveal' to show the secret key)" if service_role_key and service_role_key.startswith("sb_temp_") else
-                "⚠️ Key doesn't start with 'eyJ' (JWT format). Verify you copied the full service_role key from Settings → API → Project API keys → service_role (secret)" if service_role_key and not service_role_key.startswith("eyJ") else
-                "⚠️ Key seems short. Service role keys are usually 200+ characters. Make sure you copied the entire key." if service_role_key and len(service_role_key) < 200 else
-                None
-            )
-        },
-        "SUPABASE_ANON_KEY": {
-            "set": bool(anon_key),
-            "length": len(anon_key) if anon_key else 0
-        }
-    }
-    
-    # Try to initialize client
-    try:
-        supabase = _get_supabase_storage_client()
-        if supabase:
-            diagnostics["client_status"] = "✅ Client initialized successfully"
-            
-            # Try to list buckets (this tests if the key actually works)
-            try:
-                buckets_response = supabase.storage.list_buckets()
-                buckets_list = []
-                if isinstance(buckets_response, dict):
-                    buckets_list = buckets_response.get('data', []) or []
-                elif hasattr(buckets_response, 'data'):
-                    buckets_list = buckets_response.data or []
-                elif isinstance(buckets_response, list):
-                    buckets_list = buckets_response
-                
-                bucket_names = []
-                for bucket in buckets_list:
-                    if isinstance(bucket, dict):
-                        bucket_names.append(bucket.get('name', ''))
-                    elif hasattr(bucket, 'name'):
-                        bucket_names.append(bucket.name)
-                    elif isinstance(bucket, str):
-                        bucket_names.append(bucket)
-                
-                # If we got here, the key works!
-                diagnostics["client_status"] = "✅ Client initialized and key validated (can list buckets)"
-                
-                # Check for both listing-images and logs buckets
-                # Check both SUPABASE_BUCKET_LOGS (user's preference) and SUPABASE_LOGS_BUCKET (backwards compat)
-                logs_bucket_name = os.getenv("SUPABASE_BUCKET_LOGS") or os.getenv("SUPABASE_LOGS_BUCKET", "log-ride")
-                
-                # Check if user is logged in (optional context)
-                user_logged_in = False
-                user_id = None
-                try:
-                    from flask_login import current_user
-                    if current_user.is_authenticated:
-                        user_logged_in = True
-                        user_id = str(current_user.id)
-                except:
-                    pass
-                
-                diagnostics["bucket_status"] = {
-                    "can_list": True,
-                    "available_buckets": bucket_names,
-                    "listing_images_exists": "listing-images" in bucket_names,
-                    "logs_bucket_exists": logs_bucket_name in bucket_names,
-                    "logs_bucket_name": logs_bucket_name
-                }
-                diagnostics["user_context"] = {
-                    "logged_in": user_logged_in,
-                    "user_id": user_id
-                }
-            except Exception as bucket_error:
-                error_msg = str(bucket_error)
-                error_lower = error_msg.lower()
-                
-                # Check for authentication/permission errors
-                is_auth_error = (
-                    "invalid" in error_lower or 
-                    "unauthorized" in error_lower or 
-                    "401" in error_msg or 
-                    "403" in error_msg or
-                    "permission" in error_lower or
-                    "authentication" in error_lower
-                )
-                
-                diagnostics["bucket_status"] = {
-                    "can_list": False,
-                    "error": error_msg,
-                    "error_type": type(bucket_error).__name__,
-                    "is_auth_error": is_auth_error,
-                    "suggestion": "❌ API key appears invalid! Get the correct 'service_role' key from Supabase Dashboard → Settings → API → service_role key (NOT anon key)" if is_auth_error else None
-                }
-        else:
-            diagnostics["client_status"] = "❌ Failed to initialize client"
-            diagnostics["errors"].append("Could not initialize Supabase client. Check environment variables.")
-    except Exception as client_error:
-        diagnostics["client_status"] = f"❌ Error: {type(client_error).__name__}: {str(client_error)}"
-        diagnostics["errors"].append(f"Client initialization error: {str(client_error)}")
-    
-    return jsonify(diagnostics)
-
-
-# -------------------------------------------------------------------------
-# UPLOAD PHOTOS
-# -------------------------------------------------------------------------
-
-@main_bp.route('/api/upload-photos', methods=['POST'])
-def api_upload_photos():
-    """
-    Upload photos for a listing or a temporary session to Supabase Storage.
-
-    IMAGE_CONTRACT REQUIREMENTS (updated for temp sessions):
-    - Step 1: User uploads image → Image uploaded to storage
-    - Step 2: For committed listings, image is attached to user_id and listing_id
-    - Step 3: UI reflects stored image list (listing or temp session)
-
-    TEMP SESSION MODE (pre-save, new listing):
-    - If listing_id is not provided but session_id is, images are uploaded under:
-      temp/{user_id}/{session_id}/filename
-    - These images are NOT attached to a listing yet and may be cleaned up later.
-    - This allows AI analysis before a listing is created.
-
-    SYSTEM_CONTRACT:
-    - Provider: Supabase Storage
-    - Bucket: listing-images
-    - Paths namespaced by user_id
-    - Database stores image references (URLs), not binaries
-    """
-    try:
-        import uuid
-        import json
-        from werkzeug.utils import secure_filename
-        from src.storage.supabase_storage import upload_to_supabase_storage
-
-        # Debug authentication status
-        print(f"[UPLOAD DEBUG] ========== AUTHENTICATION CHECK ==========", flush=True)
-        print(f"[UPLOAD DEBUG] current_user type: {type(current_user)}", flush=True)
-        print(f"[UPLOAD DEBUG] current_user.is_authenticated: {current_user.is_authenticated}", flush=True)
-        print(f"[UPLOAD DEBUG] current_user class: {current_user.__class__.__name__}", flush=True)
-        if hasattr(current_user, 'id'):
-            print(f"[UPLOAD DEBUG] current_user.id: {current_user.id}", flush=True)
-        else:
-            print(f"[UPLOAD DEBUG] current_user has no 'id' attribute", flush=True)
-        print(f"[UPLOAD DEBUG] session keys: {list(session.keys())}", flush=True)
-        print(f"[UPLOAD DEBUG] request headers - Cookie present: {bool(request.headers.get('Cookie'))}", flush=True)
-        print(f"[UPLOAD DEBUG] =========================================", flush=True)
-
-        # IMAGE_CONTRACT: "No anonymous writes to the database" - require authentication
-        # Add retry logic for connection pool exhaustion during auth check
-        max_auth_retries = 3
-        user_authenticated = False
-        for auth_attempt in range(max_auth_retries):
-            try:
-                user_authenticated = current_user.is_authenticated
-                break
-            except Exception as auth_error:
-                error_str = str(auth_error)
-                if "connection pool exhausted" in error_str.lower() and auth_attempt < max_auth_retries - 1:
-                    print(f"[UPLOAD] Connection pool exhausted during auth check (attempt {auth_attempt + 1}/{max_auth_retries}), waiting 0.1s and retrying...", flush=True)
-                    import time
-                    time.sleep(0.1)
-                    continue
-                else:
-                    print(f"[UPLOAD ERROR] Error checking authentication: {auth_error}", flush=True)
-                    import traceback
-                    traceback.print_exc()
-                    return jsonify({
-                        "error": "Authentication check failed. Please try again.",
-                        "error_type": "auth_check_failed"
-                    }), 500
-        
-        if not user_authenticated:
-            print(f"[UPLOAD ERROR] ❌ User not authenticated", flush=True)
-            print(f"[UPLOAD ERROR] This is a Flask-Login session issue. User needs to log in first.", flush=True)
-            return jsonify({
-                "error": "Authentication required to upload photos. Please log in first.",
-                "error_type": "flask_auth_required",
-                "hint": "Make sure you're logged in. If you just logged in, try refreshing the page."
-            }), 401
-
-        # Get user_id with retry for connection pool exhaustion
-        user_id = None
-        for user_id_attempt in range(max_auth_retries):
-            try:
-                user_id = str(current_user.id)
-                break
-            except Exception as user_id_error:
-                error_str = str(user_id_error)
-                if "connection pool exhausted" in error_str.lower() and user_id_attempt < max_auth_retries - 1:
-                    print(f"[UPLOAD] Connection pool exhausted getting user_id (attempt {user_id_attempt + 1}/{max_auth_retries}), waiting 0.1s and retrying...", flush=True)
-                    import time
-                    time.sleep(0.1)
-                    continue
-                else:
-                    print(f"[UPLOAD ERROR] Error getting user_id: {user_id_error}", flush=True)
-                    import traceback
-                    traceback.print_exc()
-                    return jsonify({
-                        "error": "Failed to get user ID. Please try again.",
-                        "error_type": "user_id_failed"
-                    }), 500
-        
-        if not user_id:
-            return jsonify({
-                "error": "Failed to get user ID. Please log in again.",
-                "error_type": "user_id_missing"
-            }), 401
-
-        # Support two modes:
-        # 1) Committed listing mode: listing_id provided -> attach directly to listing
-        # 2) Temp session mode: session_id provided without listing_id -> upload under temp/
-        listing_id_raw = request.form.get('listing_id') or request.args.get('listing_id')
-        session_id = request.form.get('session_id') or request.args.get('session_id')
-
-        if not listing_id_raw and not session_id:
-            return jsonify({"error": "listing_id or session_id is required to upload photos"}), 400
-
-        if 'photos' not in request.files:
-            print(f"[UPLOAD ERROR] No 'photos' field in request.files", flush=True)
-            return jsonify({"error": "No photos provided"}), 400
-
-        files = request.files.getlist('photos')
-        print(f"[UPLOAD] Found {len(files)} files", flush=True)
-
-        if not files or len(files) == 0:
-            print(f"[UPLOAD ERROR] File list is empty", flush=True)
-            return jsonify({"error": "No photos provided"}), 400
-
-        mode = "temp" if session_id and not listing_id_raw else "listing"
-
-        listing = None
-        listing_uuid = None
-        existing_photos = []
-
-        if mode == "listing":
-            # Resolve and validate listing
-            try:
-                listing_id = int(listing_id_raw)
-            except (ValueError, TypeError):
-                return jsonify({"error": "Invalid listing_id"}), 400
-
-            print(f"[UPLOAD] Received upload request for listing_id={listing_id}", flush=True)
-
-            if not db:
-                return jsonify({"error": "Database not initialized"}), 500
-
-            # Get listing with retry for connection pool exhaustion
-            listing = None
-            for listing_attempt in range(max_auth_retries):
-                try:
-                    listing = db.get_listing(listing_id)
-                    break
-                except Exception as listing_error:
-                    error_str = str(listing_error)
-                    if "connection pool exhausted" in error_str.lower() and listing_attempt < max_auth_retries - 1:
-                        print(f"[UPLOAD] Connection pool exhausted getting listing (attempt {listing_attempt + 1}/{max_auth_retries}), waiting 0.1s and retrying...", flush=True)
-                        import time
-                        time.sleep(0.1)
-                        continue
-                    else:
-                        print(f"[UPLOAD ERROR] Error getting listing: {listing_error}", flush=True)
-                        import traceback
-                        traceback.print_exc()
-                        return jsonify({
-                            "error": "Failed to get listing. Please try again.",
-                            "error_type": "listing_fetch_failed"
-                        }), 500
-            
-            if not listing:
-                return jsonify({"error": "Listing not found"}), 404
-
-            if listing.get('user_id') != str(current_user.id):
-                return jsonify({"error": "Unauthorized: Listing does not belong to user"}), 403
-
-            listing_uuid = listing.get('listing_uuid')
-            print(f"[UPLOAD] Listing verified: uuid={listing_uuid}, user={user_id}", flush=True)
-
-            if listing.get('photos'):
-                try:
-                    existing_photos = json.loads(listing['photos']) if isinstance(listing['photos'], str) else listing['photos']
-                except (json.JSONDecodeError, TypeError):
-                    existing_photos = []
-
-        saved_urls = []
-        for file in files:
-            if file and file.filename:
-                filename = secure_filename(file.filename)
-                # Add timestamp to prevent collisions
-                from datetime import datetime
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                filename = f"{timestamp}_{filename}"
-
-                # Read file data
-                file_data = file.read()
-                print(f"[UPLOAD] Uploading {filename} ({len(file_data)} bytes) to Supabase Storage", flush=True)
-
-                # Decide storage path based on mode
-                override_path = None
-                if mode == "temp":
-                    if not session_id:
-                        return jsonify({"error": "session_id is required for temp image uploads"}), 400
-                    override_path = f"temp/{user_id}/{session_id}/{filename}"
-
-                # Upload to Supabase Storage bucket using either listing_uuid (committed)
-                # or temp/{user_id}/{session_id}/... (pre-save sandbox)
-                success, result = upload_to_supabase_storage(
-                    file_data=file_data,
-                    filename=filename,
-                    user_id=user_id,
-                    listing_uuid=listing_uuid,  # None in temp mode
-                    bucket_name="listing-images",
-                    override_path=override_path,
-                )
-
-                if success:
-                    # result is the public URL
-                    saved_urls.append(result)
-                    print(f"[UPLOAD] ✅ Saved to Supabase Storage: {result}", flush=True)
-                else:
-                    # result is error message
-                    print(f"[UPLOAD ERROR] Failed to upload {filename}: {result}", flush=True)
-                    # Store error for detailed reporting
-                    if not hasattr(api_upload_photos, '_upload_errors'):
-                        api_upload_photos._upload_errors = []
-                    api_upload_photos._upload_errors.append(f"{filename}: {result}")
-                    # Continue with other files, but log the error
-
-        if not saved_urls:
-            error_msg = "Failed to upload any photos. "
-            if len(files) > 0:
-                error_msg += f"Attempted to upload {len(files)} file(s), but all failed. "
-            
-            # Include specific error details if available
-            upload_errors = []
-            if hasattr(api_upload_photos, '_upload_errors'):
-                upload_errors = api_upload_photos._upload_errors.copy()
-                delattr(api_upload_photos, '_upload_errors')
-            
-            if upload_errors:
-                error_msg += "\n\nDetailed errors:\n"
-                for err in upload_errors:
-                    error_msg += f"  - {err}\n"
-            else:
-                error_msg += "Please check: 1) Supabase Storage bucket 'listing-images' exists and is public, "
-                error_msg += "2) SUPABASE_URL and SUPABASE_ANON_KEY (or SUPABASE_SERVICE_ROLE_KEY) environment variables are set correctly. "
-                error_msg += "Check server logs for details."
-            
-            print(f"[UPLOAD ERROR] {error_msg}", flush=True)
-            
-            # Log error to Supabase Storage logs bucket
-            try:
-                from src.storage.log_storage import log_error
-                import traceback
-                log_error(
-                    error_message=error_msg,
-                    error_type="PhotoUploadFailed",
-                    traceback=traceback.format_exc(),
-                    context={
-                        "files_attempted": len(files),
-                        "upload_errors": upload_errors,
-                        "user_id": user_id,
-                        "mode": mode,
-                        "listing_id": listing_id_raw,
-                        "session_id": session_id,
-                    },
-                    user_id=user_id,
-                )
-            except Exception as log_exception:
-                print(f"[UPLOAD ERROR] Failed to log error to storage: {log_exception}", flush=True)
-            
-            return jsonify({"error": error_msg}), 500
-        
-        # Clear any stored errors on success
-        if hasattr(api_upload_photos, '_upload_errors'):
-            delattr(api_upload_photos, '_upload_errors')
-
-        if mode == "listing":
-            # Append new photos to existing ones and update listing in DB
-            updated_photos = existing_photos + saved_urls
-            # Update listing with retry for connection pool exhaustion
-            for update_attempt in range(max_auth_retries):
-                try:
-                    db.update_listing(listing_id, photos=updated_photos)
-                    print(f"[UPLOAD] ✅ Updated listing {listing_id} with {len(updated_photos)} photos in database", flush=True)
-                    break
-                except Exception as update_error:
-                    error_str = str(update_error)
-                    if "connection pool exhausted" in error_str.lower() and update_attempt < max_auth_retries - 1:
-                        print(f"[UPLOAD] Connection pool exhausted updating listing (attempt {update_attempt + 1}/{max_auth_retries}), waiting 0.1s and retrying...", flush=True)
-                        import time
-                        time.sleep(0.1)
-                        continue
-                    else:
-                        print(f"[UPLOAD ERROR] Error updating listing: {update_error}", flush=True)
-                        import traceback
-                        traceback.print_exc()
-                        # Still return success for uploads, but warn about DB update failure
-                        return jsonify({
-                            "success": True,
-                            "mode": "listing",
-                            "paths": saved_urls,
-                            "all_photos": updated_photos,
-                            "count": len(saved_urls),
-                            "warning": "Photos uploaded but database update failed. Please refresh the page."
-                        }), 200
-
-            print(f"[UPLOAD SUCCESS] Uploaded {len(saved_urls)} files, listing now has {len(updated_photos)} total photos", flush=True)
-            return jsonify({
-                "success": True,
-                "mode": "listing",
-                "paths": saved_urls,   # Newly uploaded URLs
-                "all_photos": updated_photos,  # All photos including existing ones (for UI refresh)
-                "count": len(saved_urls)
-            })
-
-        # Temp session mode: no DB writes, just return URLs to frontend
-        print(f"[UPLOAD] Temp session upload complete: {len(saved_urls)} photo(s) for session_id={session_id}", flush=True)
-        return jsonify({
-            "success": True,
-            "mode": "temp",
-            "paths": saved_urls,
-            "count": len(saved_urls)
-        })
-
-    except Exception as e:
-        print(f"[UPLOAD ERROR] Exception: {e}", flush=True)
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-
-
-# -------------------------------------------------------------------------
-# UPDATE LISTING PHOTOS
-# -------------------------------------------------------------------------
-
-@main_bp.route('/api/update-listing-photos/<int:listing_id>', methods=['POST'])
-@login_required
-def api_update_listing_photos(listing_id):
-    """Update the photos array for a listing (used when removing photos)"""
-    try:
-        if not current_user.is_authenticated:
-            return jsonify({"error": "Authentication required"}), 401
-        
-        # Verify listing belongs to user
-        listing = db.get_listing(listing_id)
-        if not listing:
-            return jsonify({"error": "Listing not found"}), 404
-        
-        if listing.get('user_id') != str(current_user.id):
-            return jsonify({"error": "Unauthorized: Listing does not belong to user"}), 403
-        
-        # Get new photos array from request
-        data = request.get_json() or {}
-        new_photos = data.get('photos', [])
-        
-        if not isinstance(new_photos, list):
-            return jsonify({"error": "photos must be an array"}), 400
-        
-        # Update listing photos
-        db.update_listing(listing_id, photos=new_photos)
-        print(f"[UPDATE PHOTOS] ✅ Updated listing {listing_id} with {len(new_photos)} photos", flush=True)
-        
-        return jsonify({
-            "success": True,
-            "photos": new_photos,
-            "count": len(new_photos)
-        })
-    except Exception as e:
-        print(f"[UPDATE PHOTOS ERROR] Exception: {e}", flush=True)
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-
-
-# -------------------------------------------------------------------------
-# EDIT PHOTO
-# -------------------------------------------------------------------------
-
-@main_bp.route('/api/edit-photo', methods=['POST'])
-def api_edit_photo():
-    """Edit photo (crop, remove background, resize)"""
-    try:
-        import base64
-        import io
-        from PIL import Image
-        from pathlib import Path
-        import uuid
-        from datetime import datetime
-
         data = request.get_json()
-        image_data = data.get('image')
-        operation = data.get('operation')
+        paths = data.get("photos", [])
+        if not paths:
+            return jsonify({"error": "No photos provided"}), 400
 
-        if not image_data or not operation:
-            return jsonify({"error": "Missing image data or operation"}), 400
+        photos = [Photo(url=p, local_path=f"./data{p}") for p in paths]
+        result = analyze_card(photos)
 
-        # Parse base64 image
-        if image_data.startswith('data:image'):
-            image_data = image_data.split(',')[1]
+        if result.get("error"):
+            return jsonify(result), 500
 
-        img_bytes = base64.b64decode(image_data)
-        img = Image.open(io.BytesIO(img_bytes))
-
-        # Perform operation
-        if operation == 'crop':
-            crop_data = data.get('crop', {})
-            x = crop_data.get('x', 0)
-            y = crop_data.get('y', 0)
-            width = crop_data.get('width', img.width)
-            height = crop_data.get('height', img.height)
-
-            img = img.crop((x, y, x + width, y + height))
-
-        elif operation == 'resize':
-            new_width = int(data.get('width', img.width))
-            new_height = int(data.get('height', img.height))
-            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-
-        elif operation == 'remove-bg':
-            try:
-                from rembg import remove
-                img_bytes_io = io.BytesIO()
-                img.save(img_bytes_io, format='PNG')
-                img_bytes_io.seek(0)
-                output = remove(img_bytes_io.read())
-                img = Image.open(io.BytesIO(output))
-            except ImportError:
-                return jsonify({"error": "Background removal not available (rembg not installed)"}), 501
-            except Exception as e:
-                return jsonify({"error": f"Background removal failed: {str(e)}"}), 500
-
-        # Save edited image
-        upload_dir = Path('data/draft_photos') / 'edited'
-        upload_dir.mkdir(parents=True, exist_ok=True)
-
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"edited_{timestamp}_{uuid.uuid4().hex[:8]}.png"
-        filepath = upload_dir / filename
-
-        img.save(str(filepath), 'PNG')
-
-        # Convert to base64 for preview
-        buffer = io.BytesIO()
-        img.save(buffer, format='PNG')
-        buffer.seek(0)
-        img_base64 = base64.b64encode(buffer.read()).decode()
-
-        return jsonify({
-            "success": True,
-            "image": f"data:image/png;base64,{img_base64}",
-            "filepath": f"data/draft_photos/edited/{filename}"
-        })
+        return jsonify({"success": True, "card_data": result})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 # -------------------------------------------------------------------------
-# GET DRAFT
+# ENHANCED SCANNER - Unified Card & Collectible Deep Analysis
 # -------------------------------------------------------------------------
 
-@main_bp.route('/api/get-drafts', methods=['GET'])
+@main_bp.route("/api/enhanced-scan", methods=["POST"])
 @login_required
-def api_get_drafts():
-    """Get all drafts for current user"""
-    try:
-        user_id_str = str(current_user.id) if current_user and current_user.id else None
-        if not user_id_str:
-            return jsonify({"error": "User not authenticated"}), 401
-        
-        drafts = db.get_drafts(user_id=user_id_str, limit=100)
-        return jsonify({"success": True, "drafts": drafts})
-    except Exception as e:
-        print(f"Error getting drafts: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-
-
-@main_bp.route('/api/get-draft/<int:draft_id>', methods=['GET'])
-@login_required
-def api_get_draft(draft_id):
-    """Get draft details for editing"""
-    try:
-        listing = db.get_listing(draft_id)
-
-        if not listing:
-            return jsonify({"error": "Draft not found"}), 404
-
-        if listing['user_id'] != current_user.id:
-            return jsonify({"error": "Unauthorized"}), 403
-
-        return jsonify({
-            "success": True,
-            "listing": listing
-        })
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# -------------------------------------------------------------------------
-# SAVE DRAFT / CREATE LISTING
-# -------------------------------------------------------------------------
-
-
-@main_bp.route('/api/save-draft', methods=['POST'])
-@login_required
-def api_save_draft():
+def api_enhanced_scan():
     """
-    Save a listing as draft or post it (status).
-    
-    Supports two flows:
-    - Existing listing: listing_id provided → update listing in-place
-    - New listing from temp session: no listing_id, but session_id + temp photos provided
+    Enhanced scanner for deep collectible analysis.
+    Auto-detects: Card vs Collectible vs Standard Item
+    Routes to appropriate analyzer and saves to databases.
     """
     try:
-        import uuid
-        import json
-        data = request.get_json() or {}
-        session_id = data.get('session_id')
-
-        # Decide flow: existing listing vs new listing from temp session
-        listing_id_raw = data.get('listing_id') or data.get('draft_id')
-        listing = None
-        listing_id = None
-        listing_uuid = None
-
-        if listing_id_raw:
-            # Existing listing flow
-            try:
-                listing_id = int(listing_id_raw)
-            except (ValueError, TypeError):
-                return jsonify({"error": "Invalid listing_id"}), 400
-
-            # Verify listing exists and belongs to user
-            listing = db.get_listing(listing_id)
-            if not listing:
-                return jsonify({"error": "Listing not found"}), 404
-            
-            if listing.get('user_id') != str(current_user.id):
-                return jsonify({"error": "Unauthorized: Listing does not belong to user"}), 403
-
-            # Get listing_uuid from existing listing (don't generate new one)
-            listing_uuid = listing.get('listing_uuid')
-            if not listing_uuid:
-                return jsonify({"error": "Listing missing listing_uuid"}), 500
-        else:
-            # New listing flow requires a temp session
-            if not session_id:
-                return jsonify({"error": "session_id is required when listing_id is missing"}), 400
-
-        # Required fields
-        title = data.get('title') or 'Untitled'
-        price = float(data.get('price') or 0)
-        condition = data.get('condition') or 'good'
-        status = data.get('status', 'draft')
+        from src.collectibles.enhanced_scanner import EnhancedScanner
+        from src.schema.unified_listing import Photo
         
-        # Photos may come from:
-        # - existing listing (committed paths)
-        # - temp session uploads (temp/{user_id}/{session_id}/...)
-        photos = data.get('photos')
-        if photos is None:
-            # Use existing photos from listing if available
-            if listing and listing.get('photos'):
-                try:
-                    photos = json.loads(listing['photos']) if isinstance(listing['photos'], str) else listing['photos']
-                except (json.JSONDecodeError, TypeError):
-                    photos = []
-            else:
-                photos = []
+        data = request.json
+        photo_paths = data.get('photos', [])
+        
+        if not photo_paths:
+            return jsonify({'error': 'No photos provided'}), 400
 
-        # Optional fields
-        description = data.get('description')
-        cost = float(data.get('cost')) if data.get('cost') else None
-        item_type = data.get('item_type')
-        attributes = {
-            'brand': data.get('brand'),
-            'size': data.get('size'),
-            'color': data.get('color')
-        }
-        quantity = int(data.get('quantity') or 1)
-        storage_location = data.get('storage_location')
-        sku = data.get('sku')
-        upc = data.get('upc')
+        # Create Photo objects
+        photos = [Photo(url=p, local_path=f"./data{p}") for p in photo_paths]
 
-        # Handle AI analysis data if present
-        collectible_id = None
-        enhanced_analysis = data.get('enhanced_analysis')
-        if enhanced_analysis:
-            # Extract key info from enhanced analysis
-            name = title  # Use listing title as collectible name
-            category_val = item_type
-            brand_val = attributes.get('brand') if attributes else None
-
-            # Extract values from enhanced analysis
-            condition_val = condition
-            value_low = None
-            value_high = None
-            if enhanced_analysis.get('market_analysis'):
-                market = enhanced_analysis['market_analysis']
-                value_low = market.get('estimated_value_low')
-                value_high = market.get('estimated_value_high')
-
-            # Get historical context
-            year_val = None
-            if enhanced_analysis.get('historical_context'):
-                year_val = enhanced_analysis['historical_context'].get('release_year')
-
-            # Get authentication confidence
-            confidence = 0.0
-            if enhanced_analysis.get('authentication'):
-                confidence = enhanced_analysis['authentication'].get('confidence_score', 0.0)
-
-            # Create collectible entry
-            collectible_id = db.add_collectible(
-                name=name,
-                category=category_val,
-                brand=brand_val,
-                year=year_val,
-                condition=condition_val,
-                estimated_value_low=value_low,
-                estimated_value_high=value_high,
-                market_data=enhanced_analysis.get('market_analysis'),
-                attributes=enhanced_analysis.get('rarity'),
-                image_urls=photos,
-                identified_by='claude',
-                confidence_score=confidence,
-                notes=description
+        # Run enhanced scanner
+        scanner = EnhancedScanner.from_env()
+        result = scanner.scan(photos)
+        
+        # Check if standard item (not collectible)
+        if result.get('type') == 'standard_item':
+            return jsonify({
+                'success': False,
+                'type': 'standard_item',
+                'message': 'Not a collectible. Use quick analysis for listing.',
+                'classification': result.get('classification')
+            })
+        
+        # Check for errors
+        if result.get('error'):
+            return jsonify({
+                'success': False,
+                'error': result['error'],
+                'raw_response': result.get('raw_response'),
+                'type': result.get('type')
+            }), 500
+        
+        # Save to public database
+        public_db_id = None
+        try:
+            public_db_id = db.add_to_public_collectibles(
+                item_type=result['type'],
+                data=result['data'],
+                scanned_by=current_user.id
             )
-
-            # Save deep analysis to collectible
-            db.save_deep_analysis(collectible_id, enhanced_analysis)
-
-        # If this is a new listing (no existing listing_id), we need to:
-        # - create a new listing_uuid
-        # - move temp images (if any) into permanent listing path
-        # - create the listing record
-        if listing_id is None:
-            from src.storage.supabase_storage import move_supabase_object
-            from urllib.parse import urlparse
-
-            user_id_str = str(current_user.id)
-            listing_uuid = uuid.uuid4().hex
-            final_photos = []
-
-            for url in photos or []:
-                if not isinstance(url, str):
-                    continue
-
-                parsed = urlparse(url)
-                # Expect URLs like: .../storage/v1/object/public/listing-images/<path>
-                path = parsed.path or ""
-                marker = "/storage/v1/object/public/listing-images/"
-                if marker in path:
-                    storage_path = path.split(marker, 1)[1]
-                else:
-                    # If we can't find the marker, just keep the URL as-is
-                    final_photos.append(url)
-                    continue
-
-                # Only move temp session images; keep others as-is
-                if not storage_path.startswith(f"temp/{user_id_str}/{session_id}/"):
-                    final_photos.append(url)
-                    continue
-
-                filename = storage_path.split("/")[-1]
-                to_path = f"{user_id_str}/{listing_uuid}/{filename}"
-
-                success, new_url = move_supabase_object(
-                    from_path=storage_path,
-                    to_path=to_path,
-                    bucket_name="listing-images",
+        except Exception as e:
+            print(f"Warning: Failed to save to public database: {e}")
+        
+        # Save to user's personal collection
+        user_collection_id = None
+        try:
+            if result['type'] == 'card':
+                # Save to cards collection
+                from src.cards import add_card_to_collection
+                user_collection_id = add_card_to_collection(
+                    result['data'],
+                    current_user.id,
+                    photos=photo_paths,
+                    storage_location=data.get('storage_location')
                 )
-                if success:
-                    final_photos.append(new_url)
-                else:
-                    # If move fails, fall back to original URL to avoid losing the image
-                    final_photos.append(url)
-
-            if not final_photos:
-                final_photos = photos or []
-
-            listing_id = db.create_listing(
-                listing_uuid=listing_uuid,
-                title=title,
-                description=description,
-                price=price,
-                condition=condition,
-                photos=final_photos,
-                user_id=current_user.id,
-                collectible_id=collectible_id,
-                cost=cost,
-                category=item_type,
-                item_type=item_type,
-                attributes=attributes,
-                quantity=quantity,
-                storage_location=storage_location,
-                sku=sku,
-                upc=upc,
-                status=status,
-            )
-        else:
-            # Existing listing: update in-place
-            db.update_listing(
-                listing_id=listing_id,
-                title=title,
-                description=description,
-                price=price,
-                condition=condition,
-                photos=photos,
-                collectible_id=collectible_id,
-                cost=cost,
-                category=item_type,
-                attributes=attributes,
-                quantity=quantity,
-                storage_location=storage_location,
-                sku=sku,
-                upc=upc,
-                status=status,
-            )
-
-        return jsonify({"success": True, "listing_id": listing_id})
-
+            else:
+                # Save to collectibles collection
+                user_collection_id = db.add_to_user_collectibles(
+                    current_user.id,
+                    result['data'],
+                    photos=photo_paths
+                )
+        except Exception as e:
+            print(f"Warning: Failed to save to user collection: {e}")
+        
+        # Log activity
+        db.log_activity(
+            action="enhanced_scan",
+            user_id=current_user.id,
+            resource_type=result['type'],
+            resource_id=user_collection_id,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get("User-Agent")
+        )
+        
+        return jsonify({
+            'success': True,
+            'type': result['type'],
+            'data': result['data'],
+            'market_prices': result.get('market_prices'),
+            'ai_provider': result.get('ai_provider', 'claude'),
+            'public_db_id': public_db_id,
+            'user_collection_id': user_collection_id
+        })
+        
     except Exception as e:
-        print(f"Error saving draft: {e}")
         import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        print(f"Enhanced scan error: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+# -------------------------------------------------------------------------
+# ADD COLLECTIBLE TO COLLECTION
+# -------------------------------------------------------------------------
+
+@main_bp.route("/api/collectibles/add", methods=["POST"])
+@login_required
+def api_add_collectible():
+    """
+    Add collectible to user's personal collection.
+    Used by "Store Only" and "Store + List" buttons.
+    """
+    try:
+        data = request.json
+        ai_result = data.get('ai_result')
+        photos = data.get('photos', [])
+        storage_location = data.get('storage_location')
+        
+        if not ai_result:
+            return jsonify({'error': 'No collectible data provided'}), 400
+        
+        # Add to user's collectibles
+        collectible_id = db.add_to_user_collectibles(
+            current_user.id,
+            ai_result,
+            photos=photos,
+            storage_location=storage_location
+        )
+        
+        if not collectible_id:
+            return jsonify({'error': 'Failed to add collectible'}), 500
+        
+        db.log_activity(
+            action="add_collectible",
+            user_id=current_user.id,
+            resource_type="collectible",
+            resource_id=collectible_id,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get("User-Agent")
+        )
+        
+        return jsonify({
+            'success': True,
+            'collectible_id': collectible_id
+        })
+        
+    except Exception as e:
+        print(f"Add collectible error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 # -------------------------------------------------------------------------
@@ -1498,271 +804,6 @@ def api_save_draft():
 @main_bp.route("/api/cards/add", methods=["POST"])
 @login_required
 def api_add_card():
-    try:
-        from src.cards import add_card_to_collection, CardCollectionManager, UnifiedCard
-
-        data = request.get_json()
-
-        # AI path
-        if data.get("ai_result"):
-            card_id = add_card_to_collection(
-                data["ai_result"],
-                current_user.id,
-                photos=data.get("photos", []),
-                storage_location=data.get("storage_location")
-            )
-            if not card_id:
-                return jsonify({"error": "Invalid card"}), 400
-
-            return jsonify({"success": True, "card_id": card_id})
-
-        # Manual path
-        manager = CardCollectionManager()
-        entry = data.get("manual_entry", data)
-
-        card = UnifiedCard(
-            user_id=current_user.id,
-            card_type=entry.get("card_type", "unknown"),
-            title=entry.get("title", "Unknown Card"),
-            card_number=entry.get("card_number"),
-            quantity=entry.get("quantity", 1),
-            organization_mode=entry.get("organization_mode", "by_set"),
-
-            # TCG
-            game_name=entry.get("game_name"),
-            set_name=entry.get("set_name"),
-            set_code=entry.get("set_code"),
-            rarity=entry.get("rarity"),
-
-            # Sports
-            sport=entry.get("sport"),
-            year=entry.get("year"),
-            brand=entry.get("brand"),
-            series=entry.get("series"),
-            player_name=entry.get("player_name"),
-            is_rookie_card=entry.get("is_rookie_card", False),
-
-            # Grading
-            grading_company=entry.get("grading_company"),
-            grading_score=entry.get("grading_score"),
-
-            # Other
-            estimated_value=entry.get("estimated_value"),
-            storage_location=entry.get("storage_location"),
-            photos=entry.get("photos", []),
-            notes=entry.get("notes")
-        )
-
-        card_id = manager.add_card(card)
-        return jsonify({"success": True, "card_id": card_id})
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# -------------------------------------------------------------------------
-# LIST CARDS
-# -------------------------------------------------------------------------
-
-@main_bp.route("/api/cards/list", methods=["GET"])
-@login_required
-def api_list_cards():
-    try:
-        from src.cards import CardCollectionManager
-
-        manager = CardCollectionManager()
-
-        cards = manager.get_user_cards(
-            current_user.id,
-            card_type=request.args.get("card_type"),
-            organization_mode=request.args.get("organization_mode"),
-            limit=int(request.args.get("limit", 100)),
-            offset=int(request.args.get("offset", 0))
-        )
-
-        return jsonify({
-            "success": True,
-            "cards": [c.to_dict() for c in cards],
-            "count": len(cards)
-        })
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# -------------------------------------------------------------------------
-# ORGANIZED CARD GROUPS
-# -------------------------------------------------------------------------
-
-@main_bp.route("/api/cards/organized", methods=["GET"])
-@login_required
-def api_get_organized_cards():
-    try:
-        from src.cards import CardCollectionManager
-
-        manager = CardCollectionManager()
-
-        mode = request.args.get("organization_mode")
-        card_type = request.args.get("card_type")
-
-        if not mode:
-            return jsonify({"error": "organization_mode required"}), 400
-
-        groups = manager.get_cards_by_organization(
-            current_user.id, mode, card_type=card_type
-        )
-
-        return jsonify({
-            "success": True,
-            "organized": {
-                category: [card.to_dict() for card in cards]
-                for category, cards in groups.items()
-            }
-        })
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# -------------------------------------------------------------------------
-# CARD SEARCH
-# -------------------------------------------------------------------------
-
-@main_bp.route("/api/cards/search", methods=["GET"])
-@login_required
-def api_search_cards():
-    try:
-        from src.cards import CardCollectionManager
-
-        query = request.args.get("q", "").strip()
-        if not query:
-            return jsonify({"error": "Search query required"}), 400
-
-        manager = CardCollectionManager()
-        cards = manager.search_cards(
-            current_user.id,
-            query=query,
-            card_type=request.args.get("card_type")
-        )
-
-        return jsonify({
-            "success": True,
-            "cards": [c.to_dict() for c in cards]
-        })
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# -------------------------------------------------------------------------
-# EXPORT CARDS CSV
-# -------------------------------------------------------------------------
-
-@main_bp.route("/api/cards/export", methods=["GET"])
-@login_required
-def api_export_cards():
-    try:
-        from src.cards import CardCollectionManager
-        from flask import make_response
-
-        manager = CardCollectionManager()
-        csv_data = manager.export_to_csv(
-            current_user.id,
-            card_type=request.args.get("card_type"),
-            organization_mode=request.args.get("organization_mode")
-        )
-
-        if not csv_data:
-            return jsonify({"error": "No cards to export"}), 404
-
-        response = make_response(csv_data)
-        response.headers["Content-Type"] = "text/csv"
-        response.headers["Content-Disposition"] = "attachment; filename=card_collection.csv"
-        return response
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# -------------------------------------------------------------------------
-# IMPORT CARDS CSV
-# -------------------------------------------------------------------------
-
-@main_bp.route("/api/cards/import", methods=["POST"])
-@login_required
-def api_import_cards():
-    try:
-        from src.cards import CardCollectionManager
-
-        if "file" not in request.files:
-            return jsonify({"error": "No file uploaded"}), 400
-
-        file = request.files["file"]
-        if not file.filename:
-            return jsonify({"error": "No file selected"}), 400
-
-        csv_content = file.read().decode("utf-8")
-        manager = CardCollectionManager()
-
-        result = manager.import_from_csv(
-            current_user.id,
-            csv_content,
-            card_type=request.form.get("card_type")
-        )
-
-        return jsonify({
-            "success": True,
-            "imported": result["imported"],
-            "errors": result["errors"]
-        })
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# -------------------------------------------------------------------------
-# SWITCH ORGANIZATION MODE
-# -------------------------------------------------------------------------
-
-@main_bp.route("/api/cards/switch-organization", methods=["POST"])
-@login_required
-def api_switch_organization():
-    try:
-        from src.cards import CardCollectionManager
-
-        data = request.json
-        new_mode = data.get("new_mode")
-        card_type = data.get("card_type")
-
-        valid = [
-            "by_set", "by_year", "by_sport", "by_brand", "by_game",
-            "by_rarity", "by_number", "by_grading",
-            "by_value", "by_binder", "custom"
-        ]
-
-        if new_mode not in valid:
-            return jsonify({
-                "error": f"Invalid mode. Valid: {', '.join(valid)}"
-            }), 400
-
-        manager = CardCollectionManager()
-        manager.switch_organization_mode(
-            current_user.id, new_mode, card_type=card_type
-        )
-
-        return jsonify({"success": True})
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# -------------------------------------------------------------------------
-# CARD STATS
-# -------------------------------------------------------------------------
-
-@main_bp.route("/api/cards/stats", methods=["GET"])
-@login_required
-def api_card_stats():
     try:
         from src.cards import CardCollectionManager
         stats = CardCollectionManager().get_collection_stats(current_user.id)
@@ -2604,8 +1645,8 @@ def api_generate_feed():
     """Generate product feed for catalog platforms (Facebook, Google Shopping, Pinterest)"""
     try:
         import io
-        from flask import make_response
-        from ..src.adapters.all_platforms import FacebookShopsAdapter, GoogleShoppingAdapter, PinterestAdapter
+        from flask import make_response  # type: ignore
+        from ..src.adapters.all_platforms import FacebookShopsAdapter, GoogleShoppingAdapter, PinterestAdapter  # type: ignore
         from ..src.schema.unified_listing import UnifiedListing, Price, ListingCondition, Photo
 
         data = request.get_json()
@@ -3609,10 +2650,10 @@ def billing():
         can_create_listing, limit_message = billing_manager.check_listing_limit(current_user.id)
 
         return render_template('billing.html',
-                             user_tier=user_tier.value,
-                             tier_limits=tier_limits,
-                             can_create_listing=can_create_listing,
-                             limit_message=limit_message)
+                user_tier=user_tier.value,
+                tier_limits=tier_limits,
+                can_create_listing=can_create_listing,
+                limit_message=limit_message)
 
     except Exception as e:
         flash(f'Error loading billing page: {str(e)}', 'error')

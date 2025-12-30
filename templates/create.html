@@ -319,6 +319,22 @@ let editingListingUuid = null;
 
 // Generic photo handling function for both camera and file upload
 async function handlePhotoSelect(e) {
+    console.log('[UPLOAD] handlePhotoSelect called', e);
+
+    // Defensive check: ensure event and target exist
+    if (!e || !e.target) {
+        console.error('[UPLOAD ERROR] Invalid event object:', e);
+        showAlert('Error: Invalid file selection event. Please try again.', 'danger');
+        return;
+    }
+
+    // Defensive check: ensure files property exists
+    if (!e.target.files) {
+        console.error('[UPLOAD ERROR] No files property on target:', e.target);
+        showAlert('Error: Unable to access selected files. Please try again.', 'danger');
+        return;
+    }
+
     const files = e.target.files;
     if (files.length === 0) return;
 

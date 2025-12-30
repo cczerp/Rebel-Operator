@@ -1,0 +1,10 @@
+| Page                 | Purpose      | Buttons on Page              | Global Nav |
+| -------------------- | ------------ | ---------------------------- | ---------- |
+| Landing (logged out) | Marketing    | Try AI / Sign Up             | Minimal    |
+| Landing (logged in)  | Hub          | Create / Inventory / Storage | Yes        |
+| Create               | Focused work | AI / AI / Save Draft         | Menu only  |
+| Inventory            | Management   | Edit / Move / Delete         | Menu only  |
+| Storage              | Assets       | Upload / Select              | Menu only  |
+
+
+well shit i guess while youre t it on the create page, its not just an ai for image to txt. it should be able to grab minimal details on what the item is and give a good guess for the item without needing a picture

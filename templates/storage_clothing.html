@@ -5,7 +5,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0"><i class="fas fa-tshirt"></i> Clothing Storage</h2>
-    <a href="{{ url_for('storage') }}" class="btn btn-outline-secondary">
+    <a href="{{ url_for('storage') }}" class="btn btn-secondary">
         <i class="fas fa-arrow-left"></i> Back
     </a>
 </div>
@@ -17,7 +17,7 @@
 
 <!-- Create New Bin -->
 <div class="card mb-4">
-    <div class="card-header bg-primary text-white">
+    <div class="card-header" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">
         <i class="fas fa-plus-circle"></i> Create New Bin
     </div>
     <div class="card-body">
@@ -65,7 +65,7 @@
                                    placeholder="1, 2, 3 or A1, A2, A3...">
                         </div>
                         <div class="col-4">
-                            <button class="btn btn-success w-100" onclick="createSection({{ bin.id }})">
+                            <button class="btn btn-hero-outline w-100" onclick="createSection({{ bin.id }})">
                                 <i class="fas fa-plus"></i> Add
                             </button>
                         </div>
@@ -78,7 +78,7 @@
                 </div>
 
                 <!-- Add Item Form -->
-                <div class="border p-3 mt-3 bg-info bg-opacity-10">
+                <div class="border p-3 mt-3" style="background: rgba(71, 85, 105, 0.1);">
                     <h6>Add Item to Bin {{ bin.bin_name }}</h6>
                     <div class="mb-2">
                         <label class="form-label">Compartment</label>
@@ -105,7 +105,7 @@
                         <input type="text" class="form-control" id="itemNotes-{{ bin.id }}"
                                placeholder="Size M, good condition">
                     </div>
-                    <button class="btn btn-primary" onclick="addItem({{ bin.id }}, '{{ bin.bin_name }}')">
+                    <button class="btn btn-secondary" onclick="addItem({{ bin.id }}, '{{ bin.bin_name }}')">
                         <i class="fas fa-plus"></i> Add Item
                     </button>
                 </div>
@@ -247,7 +247,8 @@ async function loadSections(binId) {
             sectionsListDiv.innerHTML = '<h6>Compartments:</h6>';
             sections.forEach(section => {
                 const badge = document.createElement('span');
-                badge.className = 'badge bg-secondary me-2';
+                badge.className = 'badge me-2';
+                badge.style.cssText = 'background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%); color: var(--off-white-text);';
                 badge.textContent = section;
                 sectionsListDiv.appendChild(badge);
             });

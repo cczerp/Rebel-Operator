@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Login - ResellGenie</title>
+    <title>Login - Resell Rebel</title>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -13,12 +13,19 @@
 
     <style>
         :root {
-            --primary: #4CAF50;
-            --secondary: #2196F3;
+            --red-primary: #DC2626;
+            --red-primary-dark: #991B1B;
+            --red-primary-light: #EF4444;
+            --charcoal: #1F2937;
+            --charcoal-light: #374151;
+            --charcoal-dark: #111827;
+            --steel-blue-grey: #475569;
+            --off-white: #F9FAFB;
+            --off-white-text: #E5E7EB;
         }
 
         body {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            background: linear-gradient(135deg, var(--charcoal-dark) 0%, var(--charcoal) 50%, var(--charcoal-light) 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -26,12 +33,13 @@
         }
 
         .login-card {
-            background: white;
+            background: linear-gradient(145deg, var(--charcoal-light) 0%, var(--charcoal) 100%);
             border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
             padding: 40px;
             max-width: 400px;
             width: 90%;
+            border: 1px solid rgba(220, 38, 38, 0.2);
         }
 
         .login-header {
@@ -41,7 +49,7 @@
 
         .login-header i {
             font-size: 60px;
-            color: var(--primary);
+            color: var(--red-primary);
             margin-bottom: 10px;
         }
 
@@ -49,51 +57,187 @@
             font-size: 28px;
             font-weight: bold;
             margin-bottom: 5px;
+            color: var(--off-white);
         }
 
         .login-header p {
-            color: #666;
+            color: var(--off-white-text);
             font-size: 14px;
         }
 
         .btn-primary {
-            background: var(--primary);
-            border-color: var(--primary);
+            background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%);
+            border: none;
+            color: white;
             width: 100%;
             padding: 12px;
             font-size: 16px;
-            font-weight: bold;
+            font-weight: 600;
+            position: relative;
+            box-shadow: 
+                0 2px 4px rgba(0, 0, 0, 0.15),
+                0 4px 8px rgba(220, 38, 38, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.25) 20%, 
+                rgba(255, 255, 255, 0.3) 50%, 
+                rgba(255, 255, 255, 0.25) 80%, 
+                transparent
+            );
         }
 
         .btn-primary:hover {
-            background: #45a049;
-            border-color: #45a049;
+            background: linear-gradient(180deg, var(--red-primary-light) 0%, var(--red-primary) 100%);
+            transform: translateY(-2px);
+            box-shadow: 
+                0 4px 8px rgba(0, 0, 0, 0.2),
+                0 8px 16px rgba(220, 38, 38, 0.35),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-primary:active {
+            background: linear-gradient(180deg, var(--red-primary-dark) 0%, #7F1D1D 100%);
+            transform: translateY(0px) scale(0.98);
+            box-shadow: 
+                0 1px 2px rgba(0, 0, 0, 0.2),
+                0 2px 4px rgba(220, 38, 38, 0.25),
+                inset 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .form-control {
             padding: 12px;
             border-radius: 10px;
+            background: var(--charcoal-dark);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--off-white);
         }
 
         .form-control:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 0.2rem rgba(76, 175, 80, 0.25);
+            border-color: var(--red-primary);
+            box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.25);
+            background: var(--charcoal-dark);
+            color: var(--off-white);
+        }
+
+        .form-label {
+            color: var(--off-white-text);
+        }
+
+        .input-group-text {
+            background: var(--charcoal-dark);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--off-white-text);
         }
 
         .register-link {
             text-align: center;
             margin-top: 20px;
-            color: #666;
+            color: var(--off-white-text);
         }
 
         .register-link a {
-            color: var(--primary);
+            color: var(--red-primary);
             text-decoration: none;
             font-weight: bold;
         }
 
         .register-link a:hover {
             text-decoration: underline;
+            color: var(--red-primary-light);
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 20px 0;
+            color: var(--off-white-text);
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .divider span {
+            padding: 0 10px;
+            font-size: 14px;
+        }
+
+        .btn-google {
+            background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%);
+            border: none;
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            box-shadow: 
+                0 1px 3px rgba(0, 0, 0, 0.12),
+                0 2px 6px rgba(71, 85, 105, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-google::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.2) 20%, 
+                rgba(255, 255, 255, 0.25) 50%, 
+                rgba(255, 255, 255, 0.2) 80%, 
+                transparent
+            );
+        }
+
+        .btn-google:hover {
+            background: linear-gradient(180deg, var(--steel-blue-grey-light) 0%, var(--steel-blue-grey) 100%);
+            transform: translateY(-1px);
+            box-shadow: 
+                0 2px 6px rgba(0, 0, 0, 0.15),
+                0 4px 12px rgba(71, 85, 105, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.12),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+        }
+
+        .btn-google:active {
+            background: linear-gradient(180deg, var(--steel-blue-grey-dark) 0%, #1E293B 100%);
+            transform: translateY(0px) scale(0.98);
+            box-shadow: 
+                0 1px 2px rgba(0, 0, 0, 0.15),
+                0 2px 4px rgba(71, 85, 105, 0.2),
+                inset 0 2px 4px rgba(0, 0, 0, 0.25);
+        }
+
+        .btn-google img {
+            width: 20px;
+            height: 20px;
         }
     </style>
 </head>
@@ -116,12 +260,12 @@
             {% endif %}
         {% endwith %}
 
-        <form method="POST" id="loginForm">
+        <form method="POST" action="{{ url_for('auth.login') }}" id="loginForm">
             <div class="mb-3">
-                <label for="username" class="form-label">Username</label>
+                <label for="email" class="form-label">Email</label>
                 <div class="input-group">
-                    <span class="input-group-text"><i class="fas fa-user"></i></span>
-                    <input type="text" class="form-control" id="username" name="username" required autofocus>
+                    <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                    <input type="email" class="form-control" id="email" name="email" required autofocus placeholder="your@email.com">
                 </div>
             </div>
 
@@ -138,8 +282,23 @@
             </button>
         </form>
 
+        <div class="divider">
+            <span>OR</span>
+        </div>
+
+        <a href="{{ url_for('auth.login_google') }}" class="btn btn-google" style="text-decoration: none;">
+            <svg width="20" height="20" viewBox="0 0 48 48">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                <path fill="none" d="M0 0h48v48H0z"></path>
+            </svg>
+            Sign in with Google
+        </a>
+
         <div class="text-center mt-3">
-            <a href="{{ url_for('auth.forgot_password') }}" style="color: #666; text-decoration: none; font-size: 14px;">
+            <a href="{{ url_for('auth.forgot_password') }}" style="color: var(--off-white-text); text-decoration: none; font-size: 14px;">
                 Forgot Password?
             </a>
         </div>

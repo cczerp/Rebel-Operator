@@ -27,7 +27,7 @@
                         <strong>{{ storage_map.clothing_bins|length }} bins</strong> created
                     </small>
                 </div>
-                <a href="{{ url_for('storage_clothing') }}" class="btn btn-primary w-100">
+                <a href="{{ url_for('storage_clothing') }}" class="btn btn-hero-outline w-100">
                     <i class="fas fa-arrow-right"></i> Manage Clothing Storage
                 </a>
             </div>
@@ -49,7 +49,7 @@
                         <strong>{{ storage_map.card_bins|length }} bins</strong> created
                     </small>
                 </div>
-                <a href="{{ url_for('storage_cards') }}" class="btn btn-success w-100">
+                <a href="{{ url_for('storage_cards') }}" class="btn btn-hero-outline w-100">
                     <i class="fas fa-arrow-right"></i> Manage Card Storage
                 </a>
             </div>
@@ -59,7 +59,7 @@
 
 <!-- Quick Stats -->
 <div class="card mb-4">
-    <div class="card-header bg-primary text-white">
+    <div class="card-header" style="background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%); color: white;">
         <i class="fas fa-chart-bar"></i> Storage Overview
     </div>
     <div class="card-body">
@@ -99,7 +99,7 @@
             <input type="text" class="form-control" id="searchStorageId"
                    placeholder="Enter storage ID (e.g., A2-14, FB-A1-12)"
                    autocomplete="off">
-            <button class="btn btn-primary" onclick="findStorageItem()">
+            <button class="btn btn-hero-outline" onclick="findStorageItem()">
                 <i class="fas fa-search"></i> Find
             </button>
         </div>
@@ -109,7 +109,7 @@
 
 <!-- Quick Link to Map -->
 <div class="text-center">
-    <a href="{{ url_for('storage_map') }}" class="btn btn-outline-primary btn-lg">
+    <a href="{{ url_for('storage_map') }}" class="btn btn-secondary btn-lg">
         <i class="fas fa-map"></i> View Full Storage Map
     </a>
 </div>

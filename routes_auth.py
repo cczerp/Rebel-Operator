@@ -33,14 +33,18 @@ def login():
     # POST — authenticate user
     try:
         data = request.form
-        username = data.get('username')
+        username_or_email = data.get('username', '').strip()
         password = data.get('password')
 
-        if not username or not password:
-            flash("Username and password required.", "error")
+        if not username_or_email or not password:
+            flash("Username/Email and password required.", "error")
             return render_template('login.html')
 
-        user_data = db.get_user_by_username(username)
+        # Try username first, then email
+        user_data = db.get_user_by_username(username_or_email)
+        if not user_data:
+            # If not found by username, try email
+            user_data = db.get_user_by_email(username_or_email)
 
         if not user_data:
             flash("User not found.", "error")
@@ -60,7 +64,24 @@ def login():
             user_data.get('tier', 'FREE')
         )
 
-        login_user(user)
+        # Verify user is active before login
+        if not user.is_active:
+            flash("Account is inactive. Please contact support.", "error")
+            return render_template('login.html')
+
+        # Login user with remember=True for persistent sessions
+        try:
+            login_result = login_user(user, remember=True)
+            
+            if not login_result:
+                flash("Failed to create session. Please try again.", "error")
+                return render_template('login.html')
+        except Exception as login_error:
+            import logging
+            logging.error(f"Login_user error: {login_error}")
+            flash(f"Login error: {str(login_error)}", "error")
+            return render_template('login.html')
+        
         try:
             db.log_activity(
                 action="login",
@@ -75,7 +96,16 @@ def login():
             import logging
             logging.error(f"Failed to log login activity: {e}")
 
-        return redirect(url_for('index'))
+        # Redirect to create listing page after successful login
+        # Verify user is authenticated before redirect
+        from flask_login import current_user
+        import logging
+        logging.info(f"Login successful for user {user.id} ({user.username}). Authenticated: {current_user.is_authenticated}")
+        
+        next_page = request.args.get('next')
+        if next_page:
+            return redirect(next_page)
+        return redirect(url_for('create_listing'))
     except Exception as e:
         import logging
         import traceback
@@ -141,7 +171,8 @@ def register():
         import logging
         logging.error(f"Failed to log register activity: {e}")
 
-    return redirect(url_for('index'))
+    # Redirect to create listing page after successful registration
+    return redirect(url_for('create_listing'))
 
 
 # =============================================================================
@@ -200,13 +231,18 @@ def api_login():
     """Login through fetch/XHR with JSON."""
     data = request.json or {}
 
-    username = data.get("username")
+    username_or_email = data.get("username", "").strip()
     password = data.get("password")
 
-    if not username or not password:
+    if not username_or_email or not password:
         return jsonify({"error": "Missing credentials"}), 400
 
-    user_data = db.get_user_by_username(username)
+    # Try username first, then email
+    user_data = db.get_user_by_username(username_or_email)
+    if not user_data:
+        # If not found by username, try email
+        user_data = db.get_user_by_email(username_or_email)
+
     if not user_data:
         return jsonify({"error": "User not found"}), 404
 
@@ -221,7 +257,11 @@ def api_login():
         user_data.get('is_active', True),
         user_data.get('tier', 'FREE')
     )
-    login_user(user)
+    # Login user with remember=True for persistent sessions
+    login_result = login_user(user, remember=True)
+    
+    if not login_result:
+        return jsonify({"error": "Failed to create session"}), 500
 
     try:
         db.log_activity(

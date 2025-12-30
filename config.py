@@ -4,14 +4,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
-    MERCARI_EMAIL = os.getenv("MERCARI_EMAIL")
-    MERCARI_PASSWORD = os.getenv("MERCARI_PASSWORD")
+    """
+    Configuration for ResellGenie application.
 
-    POSH_EMAIL = os.getenv("POSH_EMAIL")
-    POSH_PASSWORD = os.getenv("POSH_PASSWORD")
+    NOTE: This file previously contained password-based credentials for
+    browser automation, which has been removed for TOS compliance.
 
-    FACEBOOK_EMAIL = os.getenv("FB_EMAIL")
-    FACEBOOK_PASSWORD = os.getenv("FB_PASSWORD")
-
-    EBAY_EMAIL = os.getenv("EBAY_EMAIL")
-    EBAY_PASSWORD = os.getenv("EBAY_PASSWORD")
+    All platform integrations now use official APIs with OAuth or API keys.
+    See .env.example for the proper credential format.
+    """
+    pass

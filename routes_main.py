@@ -1081,7 +1081,11 @@ def api_add_storage_item():
         return jsonify({"error": str(e)}), 500
 
 
-@main_bp.route('/api/storage/find', methods=['GET'])
+@main_bp.route(
+    "/api/storage/find",
+    methods=["GET"],
+    endpoint="storage_find_get"
+)
 @login_required
 def api_find_storage_item():
     """Find an item by storage ID"""

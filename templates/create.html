@@ -342,10 +342,63 @@ async function handlePhotoSelect(e) {
     const files = e.target.files;
     if (files.length === 0) return;
 
-    const formData = new FormData();
+    // Validate files before upload (Gemini requirements)
+    const validFiles = [];
+    const supportedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    
     for (let file of files) {
+        // Quick self-test (as per Gemini requirements)
+        const fileCheck = {
+            fileExists: !!file,
+            type: file?.type,
+            size: file?.size,
+            instance: file instanceof File
+        };
+        console.log('[FILE VALIDATION]', fileCheck);
+        
+        // Validate file is a File instance
+        if (!(file instanceof File)) {
+            console.error('[UPLOAD ERROR] Not a File object:', file);
+            showAlert(`Error: Invalid file object. Please try selecting the file again.`, 'danger');
+            continue;
+        }
+        
+        // Validate file type (only safe formats for Gemini)
+        if (!file.type || !supportedTypes.includes(file.type)) {
+            console.warn(`[FILE VALIDATION] Unsupported type: ${file.type}, will be converted to JPEG on server`);
+            // Continue anyway - server will convert it
+        }
+        
+        // Validate file size
+        if (!file.size || file.size === 0) {
+            console.error('[UPLOAD ERROR] Empty file:', file.name);
+            showAlert(`Error: File "${file.name}" is empty. Please select a valid image.`, 'danger');
+            continue;
+        }
+        
+        // Check file size limit (20MB for Gemini)
+        const maxSize = 20 * 1024 * 1024; // 20MB
+        if (file.size > maxSize) {
+            console.error('[UPLOAD ERROR] File too large:', file.name, file.size);
+            showAlert(`Error: File "${file.name}" exceeds 20MB limit. Please compress or resize the image.`, 'danger');
+            continue;
+        }
+        
+        validFiles.push(file);
+    }
+    
+    if (validFiles.length === 0) {
+        hideLoading();
+        return;
+    }
+    
+    // Create FormData with validated files
+    const formData = new FormData();
+    for (let file of validFiles) {
         formData.append('photos', file);
     }
+    
+    console.log(`[UPLOAD] Validated ${validFiles.length} of ${files.length} files`);
 
     showLoading();
 
@@ -375,10 +428,16 @@ async function handlePhotoSelect(e) {
 
                 // Create image
                 const img = document.createElement('img');
-                // Use actual file path from server instead of blob URL
-                // Server returns paths like "data/draft_photos/uuid/filename"
-                // Route /data/<path:filename> serves these files
-                img.src = '/' + data.paths[i];
+                // Use Supabase Storage URL directly (already a full URL)
+                // Or use local path if it's not a Supabase URL
+                const imageUrl = data.paths[i];
+                if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+                    // It's a Supabase Storage URL - use directly
+                    img.src = imageUrl;
+                } else {
+                    // It's a local path - prepend '/' for local serving
+                    img.src = '/' + imageUrl;
+                }
                 img.className = 'photo-preview';
                 img.title = 'Click to edit | Right-click to zoom';
 
@@ -683,7 +742,12 @@ function removePhoto(index) {
 
             // Create image
             const img = document.createElement('img');
-            img.src = photoPath;
+            // Handle both Supabase Storage URLs and local paths
+            if (photoPath.startsWith('http://') || photoPath.startsWith('https://')) {
+                img.src = photoPath;  // Supabase Storage URL
+            } else {
+                img.src = photoPath.startsWith('/') ? photoPath : '/' + photoPath;  // Local path
+            }
             img.className = 'photo-preview';
             img.title = 'Click to edit | Right-click to zoom';
 
@@ -1528,8 +1592,12 @@ async function loadDraftData() {
 
                     // Create image
                     const img = document.createElement('img');
-                    // Convert server path to URL
-                    img.src = '/' + photoPath;
+                    // Handle both Supabase Storage URLs and local paths
+                    if (photoPath.startsWith('http://') || photoPath.startsWith('https://')) {
+                        img.src = photoPath;  // Supabase Storage URL
+                    } else {
+                        img.src = photoPath.startsWith('/') ? photoPath : '/' + photoPath;  // Local path
+                    }
                     img.className = 'photo-preview';
                     img.title = 'Click to edit | Right-click to zoom';
 

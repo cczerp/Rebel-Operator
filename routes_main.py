@@ -595,21 +595,56 @@ def api_analyze():
         from src.schema.unified_listing import Photo
 
         data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+            
         paths = data.get("photos", [])
         if not paths:
             return jsonify({"error": "No photos provided"}), 400
 
-        photos = [Photo(url=p, local_path=f"./data{p}") for p in paths]
-        classifier = GeminiClassifier.from_env()
-        result = classifier.analyze_item(photos)
+        # Validate and convert paths to local file paths
+        photo_objects = []
+        for path in paths:
+            # Path comes as "/uploads/filename.jpg"
+            # Convert to "./data/uploads/filename.jpg"
+            if path.startswith('/'):
+                local_path = f"./data{path}"
+            else:
+                local_path = f"./data/{path}"
+            
+            # Verify file exists
+            from pathlib import Path
+            if not Path(local_path).exists():
+                return jsonify({"error": f"Photo file not found: {local_path}"}), 404
+            
+            photo_objects.append(Photo(url=path, local_path=local_path))
+        
+        if not photo_objects:
+            return jsonify({"error": "No valid photos found"}), 400
+
+        # Initialize classifier
+        try:
+            classifier = GeminiClassifier.from_env()
+        except ValueError as e:
+            return jsonify({"error": f"AI service not configured: {str(e)}"}), 500
+
+        # Analyze photos
+        result = classifier.analyze_item(photo_objects)
 
         if result.get("error"):
-            return jsonify(result), 500
+            return jsonify({"success": False, "error": result.get("error")}), 500
 
         return jsonify({"success": True, "analysis": result})
 
+    except ImportError as e:
+        import logging
+        logging.error(f"Import error in analyzer: {e}")
+        return jsonify({"error": f"Module import failed: {str(e)}"}), 500
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        import logging
+        import traceback
+        logging.error(f"Analyzer error: {e}\n{traceback.format_exc()}")
+        return jsonify({"error": f"Analysis failed: {str(e)}"}), 500
 
 
 @main_bp.route("/api/analyze-card", methods=["POST"])

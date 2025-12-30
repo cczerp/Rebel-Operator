@@ -106,6 +106,11 @@ class Database:
     def _get_cursor(self):
         """Get PostgreSQL cursor with RealDictCursor for dict-like row access"""
         self._ensure_connection()
+        # Rollback any failed transactions before creating new cursor
+        try:
+            self.conn.rollback()
+        except Exception:
+            pass  # Ignore rollback errors
         return self.conn.cursor(cursor_factory=self.cursor_factory)
 
     def _create_tables(self):
@@ -1499,19 +1504,36 @@ class Database:
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
     ):
-        """Log a user activity"""
-        cursor = self._get_cursor()
-        cursor.execute("""
-            INSERT INTO activity_logs (
-                user_id, action, resource_type, resource_id, details,
+        """Log a user activity - non-blocking, won't fail if there's an error"""
+        try:
+            cursor = self._get_cursor()
+            # Handle UUID user_id if database uses UUID
+            # Try to cast user_id appropriately
+            user_id_param = user_id
+            if user_id is not None:
+                # Check if we need to convert to UUID (if database column is UUID)
+                # For now, just pass as-is and let database handle it
+                pass
+            
+            cursor.execute("""
+                INSERT INTO activity_logs (
+                    user_id, action, resource_type, resource_id, details,
+                    ip_address, user_agent
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (
+                user_id_param, action, resource_type, resource_id,
+                json.dumps(details) if details else None,
                 ip_address, user_agent
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (
-            user_id, action, resource_type, resource_id,
-            json.dumps(details) if details else None,
-            ip_address, user_agent
-        ))
-        self.conn.commit()
+            ))
+            self.conn.commit()
+        except Exception as e:
+            # Log activity is non-critical - don't fail the request
+            import logging
+            logging.error(f"Failed to log activity: {e}")
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass  # Ignore rollback errors
 
     def get_activity_logs(
         self,

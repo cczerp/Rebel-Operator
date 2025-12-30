@@ -46,70 +46,81 @@ class ClaudeCollectibleAnalyzer:
         self.model = os.getenv("CLAUDE_MODEL", "claude-3-5-sonnet-20241022")
         self.api_url = "https://api.anthropic.com/v1/messages"
 
-    def _encode_image_to_base64(self, image_path: str) -> str:
-        """Encode local image to base64"""
-        with open(image_path, "rb") as image_file:
-            return base64.b64encode(image_file.read()).decode("utf-8")
-
-    def _download_image_from_url(self, url: str) -> bytes:
-        """Download image from URL (Supabase Storage or any HTTP URL)"""
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-        return response.content
-
-    def _get_image_mime_type(self, image_path_or_url: str) -> str:
-        """Get MIME type from file extension or URL"""
-        # Extract extension from path or URL
-        if '?' in image_path_or_url:
-            # Remove query params from URL
-            image_path_or_url = image_path_or_url.split('?')[0]
-        ext = Path(image_path_or_url).suffix.lower()
-        mime_types = {
-            ".jpg": "image/jpeg",
-            ".jpeg": "image/jpeg",
-            ".png": "image/png",
-            ".gif": "image/gif",
-            ".webp": "image/webp",
-        }
-        return mime_types.get(ext, "image/jpeg")
-
-    def _prepare_photo_for_ai(self, photo: Photo) -> Optional[Dict[str, Any]]:
+    def _convert_to_claude_format(self, image_path: str) -> tuple[bytes, str]:
         """
-        Prepare a Photo object for AI analysis.
-        Handles both Supabase Storage URLs and local paths.
+        Convert image to Claude-compatible format (JPEG, PNG, or GIF).
+        Claude only accepts: image/jpeg, image/png, image/gif
         
         Returns:
-            Dict with 'mime_type' and 'data' (base64) or None if photo can't be processed
+            (image_bytes, mime_type) tuple
         """
+        from PIL import Image
+        import io
+        
         try:
-            image_b64 = None
-            mime_type = "image/jpeg"
+            img = Image.open(image_path)
+            original_format = img.format
             
-            # Priority: Use URL if available (Supabase Storage)
-            if photo.url and (photo.url.startswith('http://') or photo.url.startswith('https://')):
-                print(f"[CLAUDE] Downloading image from URL: {photo.url[:50]}...", flush=True)
-                image_bytes = self._download_image_from_url(photo.url)
-                image_b64 = base64.b64encode(image_bytes).decode("utf-8")
-                mime_type = self._get_image_mime_type(photo.url)
-                print(f"[CLAUDE] ✅ Downloaded and encoded image from URL", flush=True)
-            # Fallback: Use local_path for backwards compatibility
-            elif photo.local_path:
-                print(f"[CLAUDE] Using local path: {photo.local_path}", flush=True)
-                image_b64 = self._encode_image_to_base64(photo.local_path)
-                mime_type = self._get_image_mime_type(photo.local_path)
-            else:
-                print(f"[CLAUDE WARNING] Photo has neither URL nor local_path, skipping", flush=True)
-                return None
+            # If already in supported format, return as-is
+            if original_format in ('JPEG', 'PNG', 'GIF'):
+                with open(image_path, "rb") as f:
+                    image_bytes = f.read()
+                
+                mime_type = {
+                    'JPEG': 'image/jpeg',
+                    'PNG': 'image/png',
+                    'GIF': 'image/gif'
+                }[original_format]
+                
+                return image_bytes, mime_type
             
-            return {
-                "mime_type": mime_type,
-                "data": image_b64
-            }
+            # Convert unsupported formats to JPEG
+            if img.mode in ('RGBA', 'LA', 'P'):
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+                background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+                img = background
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+            
+            output = io.BytesIO()
+            img.save(output, format='JPEG', quality=95, optimize=True)
+            image_bytes = output.getvalue()
+            
+            return image_bytes, 'image/jpeg'
+            
         except Exception as e:
-            print(f"[CLAUDE ERROR] Failed to prepare photo: {e}", flush=True)
-            import traceback
-            traceback.print_exc()
-            return None
+            print(f"Warning: Image conversion failed for {image_path}: {e}")
+            with open(image_path, "rb") as f:
+                return f.read(), "image/jpeg"
+
+    def _encode_image_to_base64(self, image_path: str) -> str:
+        """Encode local image to base64, converting to Claude-compatible format if needed"""
+        image_bytes, _ = self._convert_to_claude_format(image_path)
+        return base64.b64encode(image_bytes).decode("utf-8")
+
+    def _get_image_mime_type(self, image_path: str) -> str:
+        """
+        Get MIME type for Claude (only JPEG, PNG, GIF supported).
+        Images are converted to JPEG if not already in a supported format.
+        """
+        from PIL import Image
+        
+        try:
+            img = Image.open(image_path)
+            original_format = img.format
+            
+            if original_format in ('JPEG', 'PNG', 'GIF'):
+                return {
+                    'JPEG': 'image/jpeg',
+                    'PNG': 'image/png',
+                    'GIF': 'image/gif'
+                }[original_format]
+            
+            return 'image/jpeg'
+        except Exception:
+            return 'image/jpeg'
 
     def deep_analyze_collectible(
         self,
@@ -189,17 +200,18 @@ class ClaudeCollectibleAnalyzer:
             return {"error": "No photos provided"}
 
         # Prepare images for Claude
-        # Now supports Supabase Storage URLs via photo.url
         image_parts = []
         for photo in photos[:4]:  # Claude supports multiple images
-            photo_data = self._prepare_photo_for_ai(photo)
-            if photo_data:
+            if photo.local_path:
+                # Convert to Claude-compatible format and encode
+                image_bytes, mime_type = self._convert_to_claude_format(photo.local_path)
+                image_b64 = base64.b64encode(image_bytes).decode("utf-8")
                 image_parts.append({
                     "type": "image",
                     "source": {
                         "type": "base64",
-                        "media_type": photo_data["mime_type"],
-                        "data": photo_data["data"]
+                        "media_type": mime_type,
+                        "data": image_b64
                     }
                 })
 

@@ -447,16 +447,16 @@ class AIListerGUI(ctk.CTk):
                 self.after(0, lambda: self.apply_gemini_classification(analysis))
 
             except FileNotFoundError as e:
-                err = str(e)
-                self.after(0, lambda err=err: messagebox.showerror("File Error", err))
+                self.after(0, lambda: messagebox.showerror("File Error", str(e)))
                 self.after(0, lambda: self.update_status("❌ Photo file not found"))
             except Exception as e:
                 import traceback
-                err_str = str(e)
                 error_details = traceback.format_exc()
-                error_msg = f"Unexpected error:\n\n{err_str}\n\nDetails:\n{error_details[:500]}"
-                self.after(0, lambda error_msg=error_msg: messagebox.showerror("AI Error", error_msg))
-                self.after(0, lambda err_str=err_str: self.update_status(f"❌ AI failed: {err_str}"))
+                self.after(0, lambda: messagebox.showerror(
+                    "AI Error",
+                    f"Unexpected error:\n\n{str(e)}\n\nDetails:\n{error_details[:500]}"
+                ))
+                self.after(0, lambda: self.update_status(f"❌ AI failed: {e}"))
 
         threading.Thread(target=enhance, daemon=True).start()
 
@@ -726,9 +726,8 @@ Return ONLY the description text, no JSON, no formatting, just the description."
                     self.after(0, lambda: self.update_status("❌ Regeneration failed"))
 
             except Exception as e:
-                err_str = str(e)
-                self.after(0, lambda err_str=err_str: messagebox.showerror("Error", f"Failed to regenerate description:\n\n{err_str}"))
-                self.after(0, lambda err_str=err_str: self.update_status(f"❌ Regeneration failed: {err_str}"))
+                self.after(0, lambda: messagebox.showerror("Error", f"Failed to regenerate description:\n\n{str(e)}"))
+                self.after(0, lambda: self.update_status(f"❌ Regeneration failed: {e}"))
 
         threading.Thread(target=regenerate, daemon=True).start()
 
@@ -809,11 +808,12 @@ Return ONLY the description text, no JSON, no formatting, just the description."
 
             except Exception as e:
                 import traceback
-                err_str = str(e)
                 error_details = traceback.format_exc()
-                error_msg = f"Unexpected error:\n\n{err_str}\n\nDetails:\n{error_details[:500]}"
-                self.after(0, lambda error_msg=error_msg: messagebox.showerror("Deep Analysis Error", error_msg))
-                self.after(0, lambda err_str=err_str: self.update_status(f"❌ Deep analysis failed: {err_str}"))
+                self.after(0, lambda: messagebox.showerror(
+                    "Deep Analysis Error",
+                    f"Unexpected error:\n\n{str(e)}\n\nDetails:\n{error_details[:500]}"
+                ))
+                self.after(0, lambda: self.update_status(f"❌ Deep analysis failed: {e}"))
 
         threading.Thread(target=analyze, daemon=True).start()
 
@@ -1098,9 +1098,8 @@ Return ONLY the description text, no JSON, no formatting, just the description."
                     self.after(0, self.clear_listing_form)
 
             except Exception as e:
-                err_str = str(e)
-                self.after(0, lambda err_str=err_str: messagebox.showerror("Error", f"Failed to post: {err_str}"))
-                self.after(0, lambda err_str=err_str: self.update_status(f"❌ Post failed: {err_str}"))
+                self.after(0, lambda: messagebox.showerror("Error", f"Failed to post: {e}"))
+                self.after(0, lambda: self.update_status(f"❌ Post failed: {e}"))
 
         threading.Thread(target=post, daemon=True).start()
 
@@ -1190,9 +1189,8 @@ Return ONLY the description text, no JSON, no formatting, just the description."
                 self.after(0, self.clear_listing_form)
 
             except Exception as e:
-                err_str = str(e)
-                self.after(0, lambda err_str=err_str: messagebox.showerror("Error", f"Failed to save draft: {err_str}"))
-                self.after(0, lambda err_str=err_str: self.update_status(f"❌ Save failed: {err_str}"))
+                self.after(0, lambda: messagebox.showerror("Error", f"Failed to save draft: {e}"))
+                self.after(0, lambda: self.update_status(f"❌ Save failed: {e}"))
 
         threading.Thread(target=save, daemon=True).start()
 
@@ -1241,8 +1239,7 @@ Return ONLY the description text, no JSON, no formatting, just the description."
                 drafts = self.db.get_drafts(limit=100)
                 self.after(0, lambda: self.display_drafts(drafts))
             except Exception as e:
-                err_str = str(e)
-                self.after(0, lambda err_str=err_str: messagebox.showerror("Error", f"Failed to load drafts: {err_str}"))
+                self.after(0, lambda: messagebox.showerror("Error", f"Failed to load drafts: {e}"))
 
         threading.Thread(target=refresh, daemon=True).start()
 
@@ -1576,8 +1573,7 @@ Return ONLY the description text, no JSON, no formatting, just the description."
                 self.after(0, self.refresh_drafts)
 
             except Exception as e:
-                err_str = str(e)
-                self.after(0, lambda err_str=err_str: messagebox.showerror("Error", f"Failed to post draft: {err_str}"))
+                self.after(0, lambda: messagebox.showerror("Error", f"Failed to post draft: {e}"))
                 self.after(0, lambda: self.update_status("❌ Failed to post draft"))
 
         threading.Thread(target=post, daemon=True).start()
@@ -1757,10 +1753,9 @@ Return ONLY the description text, no JSON, no formatting, just the description."
                 self.after(0, lambda: self.show_collectible_results(is_collectible, collectible_id, analysis))
 
             except Exception as e:
-                err_str = str(e)
                 self.after(0, lambda: self.collectible_results.delete("1.0", tk.END))
-                self.after(0, lambda err_str=err_str: self.collectible_results.insert("1.0", f"❌ Error: {err_str}"))
-                self.after(0, lambda err_str=err_str: self.update_status(f"❌ Identification failed: {err_str}"))
+                self.after(0, lambda: self.collectible_results.insert("1.0", f"❌ Error: {e}"))
+                self.after(0, lambda: self.update_status(f"❌ Identification failed: {e}"))
 
         threading.Thread(target=identify, daemon=True).start()
 
@@ -1965,8 +1960,7 @@ Return ONLY the description text, no JSON, no formatting, just the description."
                 self.after(0, lambda: self.display_search_results(results))
 
             except Exception as e:
-                err_str = str(e)
-                self.after(0, lambda err_str=err_str: messagebox.showerror("Error", f"Search failed: {err_str}"))
+                self.after(0, lambda: messagebox.showerror("Error", f"Search failed: {e}"))
 
         threading.Thread(target=search, daemon=True).start()
 
@@ -2030,8 +2024,7 @@ Return ONLY the description text, no JSON, no formatting, just the description."
                 self.after(0, lambda: self.display_profit_results(result, asking_price))
 
             except Exception as e:
-                err_str = str(e)
-                self.after(0, lambda err_str=err_str: messagebox.showerror("Error", f"Calculation failed: {err_str}"))
+                self.after(0, lambda: messagebox.showerror("Error", f"Calculation failed: {e}"))
 
         threading.Thread(target=calc, daemon=True).start()
 
@@ -2107,8 +2100,7 @@ Return ONLY the description text, no JSON, no formatting, just the description."
                 self.after(0, lambda: self.display_listings(listings))
 
             except Exception as e:
-                err_str = str(e)
-                self.after(0, lambda err_str=err_str: messagebox.showerror("Error", f"Failed to load listings: {err_str}"))
+                self.after(0, lambda: messagebox.showerror("Error", f"Failed to load listings: {e}"))
 
         threading.Thread(target=refresh, daemon=True).start()
 
@@ -2197,8 +2189,7 @@ Return ONLY the description text, no JSON, no formatting, just the description."
                 self.after(0, lambda: self.display_notifications(notifications))
 
             except Exception as e:
-                err_str = str(e)
-                self.after(0, lambda err_str=err_str: messagebox.showerror("Error", f"Failed to load notifications: {err_str}"))
+                self.after(0, lambda: messagebox.showerror("Error", f"Failed to load notifications: {e}"))
 
         threading.Thread(target=refresh, daemon=True).start()
 
@@ -2241,8 +2232,7 @@ Return ONLY the description text, no JSON, no formatting, just the description."
                 self.after(0, lambda: self.update_status("All notifications marked as read"))
 
             except Exception as e:
-                err_str = str(e)
-                self.after(0, lambda err_str=err_str: messagebox.showerror("Error", f"Failed: {err_str}"))
+                self.after(0, lambda: messagebox.showerror("Error", f"Failed: {e}"))
 
         threading.Thread(target=mark, daemon=True).start()
 

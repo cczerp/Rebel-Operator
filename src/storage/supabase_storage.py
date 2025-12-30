@@ -224,28 +224,82 @@ class SupabaseStorageManager:
         try:
             # Extract bucket and path from URL
             # URL format: https://{project}.supabase.co/storage/v1/object/public/{bucket}/{path}
+            # Or: https://{project}.supabase.co/storage/v1/object/sign/{bucket}/{path}?token=...
+            
+            logger.info(f"Downloading from URL: {public_url[:100]}...")  # Log first 100 chars
+            
             parts = public_url.split('/')
-            if 'public' not in parts:
-                logger.error(f"Invalid Supabase Storage URL: {public_url}")
+            
+            # Find the bucket name - it's after 'public' or 'sign'
+            bucket = None
+            path_start_idx = None
+            
+            if 'public' in parts:
+                public_idx = parts.index('public')
+                if public_idx + 1 < len(parts):
+                    bucket = parts[public_idx + 1]
+                    path_start_idx = public_idx + 2
+            elif 'sign' in parts:
+                sign_idx = parts.index('sign')
+                if sign_idx + 1 < len(parts):
+                    bucket = parts[sign_idx + 1]
+                    path_start_idx = sign_idx + 2
+            
+            if not bucket or path_start_idx is None:
+                logger.error(f"Could not parse Supabase Storage URL: {public_url}")
+                logger.error(f"URL parts: {parts}")
                 return None
             
-            public_idx = parts.index('public')
-            bucket = parts[public_idx + 1]
-            path = '/'.join(parts[public_idx + 2:])
+            # Extract path (everything after bucket, but remove query params if present)
+            path_parts = parts[path_start_idx:]
+            path = '/'.join(path_parts)
             
-            # Download file
-            response = self.client.storage.from_(bucket).download(path)
+            # Remove query parameters if present
+            if '?' in path:
+                path = path.split('?')[0]
             
-            if isinstance(response, bytes):
-                return response
-            else:
-                # If response is a file-like object, read it
-                if hasattr(response, 'read'):
-                    return response.read()
-                return None
+            logger.info(f"Extracted bucket: {bucket}, path: {path}")
+            
+            # Download file using Supabase SDK
+            try:
+                response = self.client.storage.from_(bucket).download(path)
+                
+                if isinstance(response, bytes):
+                    logger.info(f"✅ Downloaded {len(response)} bytes from {bucket}/{path}")
+                    return response
+                elif hasattr(response, 'read'):
+                    data = response.read()
+                    logger.info(f"✅ Downloaded {len(data)} bytes from {bucket}/{path}")
+                    return data
+                else:
+                    logger.error(f"Unexpected response type: {type(response)}")
+                    return None
+                    
+            except Exception as download_error:
+                logger.error(f"❌ Supabase download error: {download_error}")
+                logger.error(f"   Bucket: {bucket}, Path: {path}")
+                import traceback
+                logger.error(f"   Traceback: {traceback.format_exc()}")
+                
+                # Try alternative: use requests to download from public URL directly
+                try:
+                    import requests
+                    logger.info("Attempting direct HTTP download from public URL...")
+                    http_response = requests.get(public_url, timeout=30)
+                    if http_response.status_code == 200:
+                        logger.info(f"✅ Direct HTTP download successful: {len(http_response.content)} bytes")
+                        return http_response.content
+                    else:
+                        logger.error(f"Direct HTTP download failed: {http_response.status_code}")
+                        return None
+                except Exception as http_error:
+                    logger.error(f"Direct HTTP download also failed: {http_error}")
+                    return None
                 
         except Exception as e:
             logger.error(f"❌ Download failed for {public_url}: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return None
 
     def move_photo(

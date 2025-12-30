@@ -734,22 +734,28 @@ def api_analyze():
             use_supabase = False
             storage = None
 
-        for path in paths:
+        for i, path in enumerate(paths):
             local_path = None
             
             # Check if it's a Supabase Storage URL
             if use_supabase and storage and 'supabase.co' in path:
+                import logging
+                logging.info(f"Downloading image {i+1}/{len(paths)} from Supabase: {path[:100]}...")
+                
                 # Download from Supabase Storage to temp file
                 file_data = storage.download_photo(path)
-                if file_data:
+                if file_data and len(file_data) > 0:
                     # Create temp file
                     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
                     temp_file.write(file_data)
                     temp_file.close()
                     local_path = temp_file.name
                     temp_files.append(local_path)
+                    logging.info(f"✅ Downloaded image {i+1} ({len(file_data)} bytes) to {local_path}")
                 else:
-                    return jsonify({"error": f"Failed to download photo from Supabase: {path}"}), 404
+                    import logging
+                    logging.error(f"Failed to download image {i+1} from Supabase: {path}")
+                    return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage. URL may be invalid or file may not exist."}), 404
             else:
                 # Assume local path (legacy support)
                 if path.startswith('/'):

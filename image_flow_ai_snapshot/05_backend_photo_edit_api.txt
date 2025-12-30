@@ -1,0 +1,97 @@
+========================================
+BACKEND PHOTO EDIT API
+========================================
+File: routes_main.py (lines 160-252)
+Purpose: Handle photo editing (crop, background removal)
+
+@main_bp.route("/api/edit-photo", methods=["POST"])
+@login_required
+def api_edit_photo():
+    """Handle photo editing (crop, resize, background removal)"""
+    try:
+        data = request.json
+        operation = data.get('operation')
+        image_path = data.get('image')
+
+        if not operation or not image_path:
+            return jsonify({"error": "Missing parameters"}), 400
+
+        # Extract filename from path (e.g., "/uploads/abc123.jpg" -> "abc123.jpg")
+        filename = image_path.split('/')[-1]
+        upload_dir = Path('./data/uploads')
+        filepath = upload_dir / filename
+
+        if not filepath.exists():
+            return jsonify({"error": "Image file not found"}), 404
+
+        # Open the image
+        img = Image.open(filepath)
+
+        # Handle different operations
+        if operation == 'crop':
+            # Get crop parameters
+            crop_data = data.get('cropData', {})
+            x = int(crop_data.get('x', 0))
+            y = int(crop_data.get('y', 0))
+            width = int(crop_data.get('width', img.width))
+            height = int(crop_data.get('height', img.height))
+
+            # Crop the image
+            img = img.crop((x, y, x + width, y + height))
+
+        elif operation == 'resize':
+            # Get resize parameters (e.g., 2x = enlarge by 2x)
+            scale = data.get('scale', 2.0)
+            new_size = (int(img.width * scale), int(img.height * scale))
+            img = img.resize(new_size, Image.Resampling.LANCZOS)
+
+        elif operation == 'remove-bg':
+            # Background removal using rembg library
+            try:
+                # Try to import rembg if available
+                from rembg import remove
+                img_bytes = io.BytesIO()
+                img.save(img_bytes, format='PNG')
+                img_bytes.seek(0)
+                result = remove(img_bytes.read())
+                img = Image.open(io.BytesIO(result))
+            except ImportError:
+                # Fallback: convert to RGBA and make white background transparent
+                img = img.convert('RGBA')
+                data_img = img.getdata()
+                new_data = []
+                for item in data_img:
+                    # Change white (also shades of whites) to transparent
+                    if item[0] > 200 and item[1] > 200 and item[2] > 200:
+                        new_data.append((255, 255, 255, 0))
+                    else:
+                        new_data.append(item)
+                img.putdata(new_data)
+
+        else:
+            return jsonify({"error": f"Unknown operation: {operation}"}), 400
+
+        # Save edited image (create new file to preserve original)
+        new_filename = f"{uuid.uuid4().hex}.{'png' if operation == 'remove-bg' else 'jpg'}"
+        new_filepath = upload_dir / new_filename
+
+        if operation == 'remove-bg':
+            img.save(new_filepath, format='PNG')
+        else:
+            # Convert RGBA to RGB if needed
+            if img.mode == 'RGBA':
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                background.paste(img, mask=img.split()[-1])
+                img = background
+            img.save(new_filepath, format='JPEG', quality=85, optimize=True)
+
+        return jsonify({
+            "success": True,
+            "filepath": f"/uploads/{new_filename}",
+            "message": f"Photo {operation} completed successfully"
+        })
+
+    except Exception as e:
+        print(f"Photo editing error: {e}")
+        return jsonify({"error": str(e)}), 500
+

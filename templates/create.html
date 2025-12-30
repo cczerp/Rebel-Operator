@@ -34,11 +34,8 @@
                 </div>
             </div>
             <div id="photoPreview" class="mt-3 d-flex flex-wrap"></div>
-            <button type="button" class="btn btn-info mt-2" id="analyzeBtn" disabled title="Upload photos first to enable AI analysis">
+            <button type="button" class="btn btn-primary mt-2" id="analyzeBtn" style="display:none;">
                 <i class="fas fa-magic"></i> Analyze with AI
-            </button>
-            <button type="button" class="btn btn-warning mt-2 ms-2" id="enhancedAnalyzerBtn" disabled title="Run AI analysis first to enable this feature">
-                <i class="fas fa-gem"></i> Enhanced Analyzer
             </button>
         </div>
     </div>
@@ -146,12 +143,7 @@
             <div class="row">
                 <div class="col-6">
                     <label class="form-label">SKU / Custom ID</label>
-                    <div class="input-group">
-                        <input type="text" class="form-control" id="sku" name="sku" placeholder="Optional">
-                        <button class="btn btn-outline-secondary" type="button" onclick="generateSKU()" title="Generate random SKU">
-                            <i class="fas fa-random"></i> Generate
-                        </button>
-                    </div>
+                    <input type="text" class="form-control" id="sku" name="sku" placeholder="Optional">
                 </div>
                 <div class="col-6">
                     <label class="form-label">UPC / Barcode</label>
@@ -160,244 +152,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Platform Selection -->
-    {% if not is_guest %}
-    <div class="card mb-3">
-        <div class="card-header">
-            <i class="fas fa-store-alt"></i> Select Platforms to Post
-        </div>
-        <div class="card-body">
-            <p class="text-muted small mb-3">
-                Choose where you want to list this item. <span class="badge bg-success">API</span> platforms post automatically.
-                <span class="badge bg-info">CSV</span> platforms generate a file for manual upload.
-            </p>
-
-            <div class="row">
-                <!-- API Platforms -->
-                <div class="col-md-6">
-                    <h6 class="text-success mb-2"><i class="fas fa-robot"></i> Automated (API)</h6>
-                    <div class="platform-checkboxes">
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_etsy" value="etsy">
-                            <label class="form-check-label" for="platform_etsy">
-                                <i class="fas fa-store text-warning"></i> Etsy
-                                <span class="badge bg-success ms-2">API</span>
-                            </label>
-                        </div>
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_shopify" value="shopify">
-                            <label class="form-check-label" for="platform_shopify">
-                                <i class="fas fa-shopping-cart text-success"></i> Shopify
-                                <span class="badge bg-success ms-2">API</span>
-                            </label>
-                        </div>
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_woocommerce" value="woocommerce">
-                            <label class="form-check-label" for="platform_woocommerce">
-                                <i class="fas fa-wordpress text-primary"></i> WooCommerce
-                                <span class="badge bg-success ms-2">API</span>
-                            </label>
-                        </div>
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_facebook" value="facebook">
-                            <label class="form-check-label" for="platform_facebook">
-                                <i class="fab fa-facebook text-primary"></i> Facebook Shops
-                                <span class="badge bg-success ms-2">API</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- CSV Platforms -->
-                <div class="col-md-6">
-                    <h6 class="text-info mb-2"><i class="fas fa-file-csv"></i> Manual Upload (CSV)</h6>
-                    <div class="platform-checkboxes">
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_poshmark" value="poshmark">
-                            <label class="form-check-label" for="platform_poshmark">
-                                <i class="fas fa-tshirt text-danger"></i> Poshmark
-                                <span class="badge bg-info ms-2">CSV</span>
-                            </label>
-                        </div>
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_mercari" value="mercari">
-                            <label class="form-check-label" for="platform_mercari">
-                                <i class="fas fa-shopping-bag text-primary"></i> Mercari
-                                <span class="badge bg-info ms-2">CSV</span>
-                            </label>
-                        </div>
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_ebay" value="ebay">
-                            <label class="form-check-label" for="platform_ebay">
-                                <i class="fab fa-ebay text-warning"></i> eBay
-                                <span class="badge bg-info ms-2">CSV</span>
-                            </label>
-                        </div>
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_grailed" value="grailed">
-                            <label class="form-check-label" for="platform_grailed">
-                                <i class="fas fa-tshirt text-dark"></i> Grailed
-                                <span class="badge bg-info ms-2">CSV</span>
-                            </label>
-                        </div>
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_depop" value="depop">
-                            <label class="form-check-label" for="platform_depop">
-                                <i class="fas fa-store text-danger"></i> Depop
-                                <span class="badge bg-info ms-2">CSV</span>
-                            </label>
-                        </div>
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_bonanza" value="bonanza">
-                            <label class="form-check-label" for="platform_bonanza">
-                                <i class="fas fa-gem text-warning"></i> Bonanza
-                                <span class="badge bg-info ms-2">CSV</span>
-                            </label>
-                        </div>
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_ecrater" value="ecrater">
-                            <label class="form-check-label" for="platform_ecrater">
-                                <i class="fas fa-store text-info"></i> Ecrater
-                                <span class="badge bg-info ms-2">CSV</span>
-                            </label>
-                        </div>
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_rubylane" value="ruby_lane">
-                            <label class="form-check-label" for="platform_rubylane">
-                                <i class="fas fa-gem text-danger"></i> Ruby Lane
-                                <span class="badge bg-info ms-2">CSV</span>
-                            </label>
-                        </div>
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_offerup" value="offerup">
-                            <label class="form-check-label" for="platform_offerup">
-                                <i class="fas fa-mobile-alt text-success"></i> OfferUp
-                                <span class="badge bg-info ms-2">CSV</span>
-                            </label>
-                        </div>
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_vinted" value="vinted">
-                            <label class="form-check-label" for="platform_vinted">
-                                <i class="fas fa-tshirt text-primary"></i> Vinted
-                                <span class="badge bg-info ms-2">CSV</span>
-                            </label>
-                        </div>
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_tradesy" value="tradesy">
-                            <label class="form-check-label" for="platform_tradesy">
-                                <i class="fas fa-hand-holding-usd text-warning"></i> Tradesy
-                                <span class="badge bg-info ms-2">CSV</span>
-                            </label>
-                        </div>
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_thredup" value="thredup">
-                            <label class="form-check-label" for="platform_thredup">
-                                <i class="fas fa-recycle text-success"></i> ThredUp
-                                <span class="badge bg-info ms-2">CSV</span>
-                            </label>
-                        </div>
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_vestiaire" value="vestiaire">
-                            <label class="form-check-label" for="platform_vestiaire">
-                                <i class="fas fa-tshirt text-info"></i> Vestiaire Collective
-                                <span class="badge bg-info ms-2">CSV</span>
-                            </label>
-                        </div>
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_rebag" value="rebag">
-                            <label class="form-check-label" for="platform_rebag">
-                                <i class="fas fa-handbag text-dark"></i> Rebag
-                                <span class="badge bg-info ms-2">CSV</span>
-                            </label>
-                        </div>
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_mercado_libre" value="mercado_libre">
-                            <label class="form-check-label" for="platform_mercado_libre">
-                                <i class="fas fa-globe-americas text-primary"></i> Mercado Libre
-                                <span class="badge bg-info ms-2">CSV</span>
-                            </label>
-                        </div>
-                        <div class="form-check platform-item">
-                            <input class="form-check-input" type="checkbox" id="platform_poshmark_ca" value="poshmark_ca">
-                            <label class="form-check-label" for="platform_poshmark_ca">
-                                <i class="fas fa-tshirt text-danger"></i> Poshmark CA
-                                <span class="badge bg-info ms-2">CSV</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Template Platforms -->
-                <div class="col-md-12 mt-3">
-                    <h6 class="text-secondary mb-2"><i class="fas fa-file-alt"></i> Template Platforms (Copy & Paste)</h6>
-                    <div class="platform-checkboxes">
-                        <div class="row">
-                            <div class="col-md-3">
-                                <div class="form-check platform-item">
-                                    <input class="form-check-input" type="checkbox" id="platform_craigslist" value="craigslist">
-                                    <label class="form-check-label" for="platform_craigslist">
-                                        <i class="fas fa-list text-success"></i> Craigslist
-                                        <span class="badge bg-secondary ms-2">Template</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check platform-item">
-                                    <input class="form-check-input" type="checkbox" id="platform_nextdoor" value="nextdoor">
-                                    <label class="form-check-label" for="platform_nextdoor">
-                                        <i class="fas fa-home text-primary"></i> Nextdoor
-                                        <span class="badge bg-secondary ms-2">Template</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check platform-item">
-                                    <input class="form-check-input" type="checkbox" id="platform_varagesale" value="varagesale">
-                                    <label class="form-check-label" for="platform_varagesale">
-                                        <i class="fas fa-users text-info"></i> VarageSale
-                                        <span class="badge bg-secondary ms-2">Template</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check platform-item">
-                                    <input class="form-check-input" type="checkbox" id="platform_kijiji" value="kijiji">
-                                    <label class="form-check-label" for="platform_kijiji">
-                                        <i class="fas fa-map-marker-alt text-danger"></i> Kijiji
-                                        <span class="badge bg-secondary ms-2">Template</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check platform-item">
-                                    <input class="form-check-input" type="checkbox" id="platform_tiktok_shop" value="tiktok_shop">
-                                    <label class="form-check-label" for="platform_tiktok_shop">
-                                        <i class="fab fa-tiktok text-dark"></i> TikTok Shop
-                                        <span class="badge bg-secondary ms-2">Template</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check platform-item">
-                                    <input class="form-check-input" type="checkbox" id="platform_personal_website" value="personal_website">
-                                    <label class="form-check-label" for="platform_personal_website">
-                                        <i class="fas fa-globe text-primary"></i> Personal Website
-                                        <span class="badge bg-secondary ms-2">Template</span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="alert alert-warning mt-3 mb-0">
-                <i class="fas fa-info-circle"></i> <strong>Configure credentials in <a href="{{ url_for('settings') }}">Settings</a></strong> to enable automated posting!
-            </div>
-        </div>
-    </div>
-    {% endif %}
 
     <!-- Actions -->
     <div class="d-grid gap-2">
@@ -412,10 +166,10 @@
             You can test the AI photo analysis above without signing up!
         </small>
         {% else %}
-        <button type="button" class="btn btn-success btn-lg" id="postNowBtn">
+        <button type="button" class="btn btn-primary btn-lg" id="postNowBtn">
             <i class="fas fa-rocket"></i> Post Now (Make Active)
         </button>
-        <button type="button" class="btn btn-outline-primary btn-lg" id="saveDraftBtn">
+        <button type="button" class="btn btn-secondary btn-lg" id="saveDraftBtn">
             <i class="fas fa-save"></i> Save as Draft
         </button>
         <small class="text-muted text-center mt-2">
@@ -452,9 +206,6 @@
             <button class="btn btn-warning" onclick="removeBackground()">
                 <i class="fas fa-magic"></i> Remove Background
             </button>
-            <button class="btn btn-info" onclick="enlargePhoto()">
-                <i class="fas fa-search-plus"></i> Enlarge (2x)
-            </button>
             <button class="btn btn-secondary" onclick="resetPhoto()">
                 <i class="fas fa-undo"></i> Reset
             </button>
@@ -465,114 +216,202 @@
         </div>
     </div>
 </div>
+
+<!-- Image Zoom Modal -->
+<div id="imageZoomModal" class="image-zoom-modal" onclick="closeImageZoom()" style="display: none;">
+    <div class="image-zoom-container">
+        <button class="btn btn-outline-light zoom-close-btn" onclick="closeImageZoom()">
+            <i class="fas fa-times"></i>
+        </button>
+        <img id="zoomImage" src="" alt="Zoomed image">
+        <div class="zoom-hint">Click image to zoom | Right-click to see details</div>
+    </div>
+</div>
+
+<style>
+.image-zoom-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+}
+
+.image-zoom-container {
+    position: relative;
+    max-width: 95%;
+    max-height: 95%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.zoom-close-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    border: 2px solid white;
+}
+
+#zoomImage {
+    max-width: 100%;
+    max-height: 90vh;
+    object-fit: contain;
+    cursor: zoom-in;
+}
+
+.zoom-hint {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+.photo-preview {
+    cursor: pointer;
+    transition: transform 0.2s;
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 5px;
+    margin: 5px;
+}
+
+.photo-preview:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.photo-preview-container {
+    position: relative;
+    display: inline-block;
+    margin: 5px;
+}
+
+.photo-delete-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    padding: 2px 6px;
+    font-size: 12px;
+}
+</style>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-console.log('========================================');
-console.log('CREATE.HTML JAVASCRIPT LOADED');
-console.log('Current user authenticated:', {{ 'true' if current_user.is_authenticated else 'false' }});
-console.log('Is guest:', {{ 'true' if is_guest else 'false' }});
-console.log('========================================');
-
 let uploadedPhotos = [];
-let editingDraftId = {{ draft_id if draft_id else 'null' }};
+let editingDraftId = {% if draft_id %}{{ draft_id }}{% else %}null{% endif %};
 let editingListingUuid = null;
 
 // Generic photo handling function for both camera and file upload
 async function handlePhotoSelect(e) {
-    console.log('[UPLOAD] handlePhotoSelect called');
     const files = e.target.files;
-    console.log('[UPLOAD] Selected files:', files.length);
-    if (files.length === 0) {
-        console.log('[UPLOAD] No files selected, returning');
-        return;
-    }
+    if (files.length === 0) return;
 
     const formData = new FormData();
     for (let file of files) {
-        console.log('[UPLOAD] Adding file:', file.name, file.size, 'bytes');
         formData.append('photos', file);
     }
 
-    // Show loading spinner (with error handling)
-    try {
-        console.log('[UPLOAD] Showing loading spinner');
-        showLoading();
-    } catch (err) {
-        console.warn('[UPLOAD] showLoading error:', err);
-    }
+    showLoading();
 
     try {
-        console.log('[UPLOAD] Sending fetch request to /api/upload-photos');
         const response = await fetch('/api/upload-photos', {
             method: 'POST',
             body: formData
         });
 
-        console.log('[UPLOAD] Response status:', response.status);
         const data = await response.json();
-        console.log('[UPLOAD] Response data:', data);
 
         if (data.success) {
-            console.log('[UPLOAD] Upload successful, paths:', data.paths);
             // Append to existing photos instead of replacing
             uploadedPhotos = uploadedPhotos.concat(data.paths);
 
             // Show previews (append to existing)
             const previewDiv = document.getElementById('photoPreview');
+<<<<<<< HEAD
             console.log('[UPLOAD] Creating', files.length, 'preview images');
             for (let i = 0; i < data.paths.length; i++) {
+=======
+            for (let i = 0; i < files.length; i++) {
+                const photoIndex = uploadedPhotos.length - data.paths.length + i;
+
+                // Create container for photo + delete button
+                const container = document.createElement('div');
+                container.className = 'photo-preview-container';
+                container.style.position = 'relative';
+                container.style.display = 'inline-block';
+                container.style.margin = '5px';
+
+                // Create image
+>>>>>>> origin
                 const img = document.createElement('img');
                 // Use actual file path from server instead of blob URL
                 // Server returns paths like "data/draft_photos/uuid/filename"
                 // Route /data/<path:filename> serves these files
                 img.src = '/' + data.paths[i];
                 img.className = 'photo-preview';
-                img.title = 'Click to edit photo';
+                img.title = 'Click to edit | Right-click to zoom';
 
                 // Make photo clickable to open editor
-                const photoIndex = uploadedPhotos.length - data.paths.length + i;
-                img.onclick = function() {
+                img.onclick = function(e) {
+                    e.preventDefault();
                     openPhotoEditor(photoIndex, this.src);
                 };
 
-                previewDiv.appendChild(img);
+                // Right-click to zoom
+                img.oncontextmenu = function(e) {
+                    e.preventDefault();
+                    openImageZoom(data.paths[i]);
+                };
+
+                // Create delete button
+                const deleteBtn = document.createElement('button');
+                deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
+                deleteBtn.className = 'btn btn-danger btn-sm photo-delete-btn';
+                deleteBtn.style.position = 'absolute';
+                deleteBtn.style.top = '5px';
+                deleteBtn.style.right = '5px';
+                deleteBtn.style.padding = '2px 6px';
+                deleteBtn.style.fontSize = '12px';
+                deleteBtn.title = 'Remove photo';
+                deleteBtn.onclick = function(e) {
+                    e.preventDefault();
+                    removePhoto(photoIndex);
+                };
+
+                container.appendChild(img);
+                container.appendChild(deleteBtn);
+                previewDiv.appendChild(container);
             }
 
-            // Enable the analyze button when photos are uploaded
-            const analyzeBtn = document.getElementById('analyzeBtn');
-            analyzeBtn.disabled = false;
-            analyzeBtn.title = 'Click to analyze photos with AI';
-            console.log('[UPLOAD] Enabled analyze button');
+            document.getElementById('analyzeBtn').style.display = 'block';
             showAlert(`${data.count} photo(s) added! Total: ${uploadedPhotos.length}`, 'success');
         } else {
-            console.error('[UPLOAD] Upload failed:', data.error);
             showAlert(data.error, 'danger');
         }
     } catch (error) {
-        console.error('[UPLOAD] Exception caught:', error);
-        const errorMessage = (error && typeof error === 'object' && 'message' in error)
-            ? error.message
-            : String(error);
-        const errorStack = (error && typeof error === 'object' && 'stack' in error)
-            ? error.stack
-            : undefined;
-        console.error('[UPLOAD] Error details:', errorMessage, errorStack);
-        showAlert('Upload failed: ' + errorMessage, 'danger');
+        showAlert('Upload failed: ' + error, 'danger');
     } finally {
-        // Hide loading spinner (with error handling)
-        try {
-            console.log('[UPLOAD] Hiding loading spinner');
-            hideLoading();
-        } catch (err) {
-            console.warn('[UPLOAD] hideLoading error:', err);
-        }
+        hideLoading();
     }
 
     // Reset input so same file can be selected again
     e.target.value = '';
-    console.log('[UPLOAD] Reset file input');
 }
 
 // ========================================
@@ -750,7 +589,7 @@ async function removeBackground() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                image: currentEditingPhotoSrc,
+                image: uploadedPhotos[currentEditingPhotoIndex],
                 operation: 'remove-bg'
             }),
             signal: controller.signal
@@ -765,7 +604,11 @@ async function removeBackground() {
         const data = await response.json();
 
         if (data.success) {
-            updatePhotoAfterEdit(data.image, data.filepath);
+            // Update the photo in uploadedPhotos array
+            uploadedPhotos[currentEditingPhotoIndex] = data.filepath;
+            // Update the editor image
+            document.getElementById('photoEditorImage').src = data.filepath;
+            currentEditingPhotoSrc = data.filepath;
             showAlert('Background removed! (FREE feature worth $5-20/mo)', 'success');
         } else {
             showAlert('Background removal failed: ' + (data.error || 'Unknown error'), 'danger');
@@ -775,58 +618,6 @@ async function removeBackground() {
             showAlert('Background removal timed out. The image may be too large. Try a smaller image or crop it first.', 'warning');
         } else {
             showAlert('Background removal failed: ' + error.message, 'danger');
-        }
-    } finally {
-        hideLoading();
-    }
-}
-
-async function enlargePhoto() {
-    if (!currentEditingPhotoSrc) return;
-
-    showLoading();
-
-    try {
-        // Get current image dimensions
-        const img = document.getElementById('photoEditorImage');
-        const currentWidth = img.naturalWidth;
-        const currentHeight = img.naturalHeight;
-
-        // Create abort controller for timeout
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 20000); // 20 second timeout
-
-        const response = await fetch('/api/edit-photo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                image: currentEditingPhotoSrc,
-                operation: 'resize',
-                width: currentWidth * 2,
-                height: currentHeight * 2
-            }),
-            signal: controller.signal
-        });
-
-        clearTimeout(timeout);
-
-        if (!response.ok) {
-            throw new Error(`Server error: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (data.success) {
-            updatePhotoAfterEdit(data.image, data.filepath);
-            showAlert('Photo enlarged to 2x size!', 'success');
-        } else {
-            showAlert('Enlarge failed: ' + (data.error || 'Unknown error'), 'danger');
-        }
-    } catch (error) {
-        if (error.name === 'AbortError') {
-            showAlert('Enlarge timed out. The image may be too large.', 'warning');
-        } else {
-            showAlert('Enlarge failed: ' + error.message, 'danger');
         }
     } finally {
         hideLoading();
@@ -854,6 +645,106 @@ function resetPhoto() {
     showAlert('Photo reset to original', 'info');
 }
 
+// Remove photo function
+function removePhoto(index) {
+    if (confirm('Remove this photo?')) {
+        // Remove from uploadedPhotos array
+        uploadedPhotos.splice(index, 1);
+
+        // Rebuild preview display
+        const previewDiv = document.getElementById('photoPreview');
+        previewDiv.innerHTML = '';
+
+        // Re-render all photos with updated indices
+        for (let i = 0; i < uploadedPhotos.length; i++) {
+            const photoPath = uploadedPhotos[i];
+
+            // Create container
+            const container = document.createElement('div');
+            container.className = 'photo-preview-container';
+            container.style.position = 'relative';
+            container.style.display = 'inline-block';
+            container.style.margin = '5px';
+
+            // Create image
+            const img = document.createElement('img');
+            img.src = photoPath;
+            img.className = 'photo-preview';
+            img.title = 'Click to edit | Right-click to zoom';
+
+            // Click to edit
+            const photoIndex = i;
+            img.onclick = function(e) {
+                e.preventDefault();
+                openPhotoEditor(photoIndex, this.src);
+            };
+
+            // Right-click to zoom
+            img.oncontextmenu = function(e) {
+                e.preventDefault();
+                openImageZoom(photoPath);
+            };
+
+            // Create delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
+            deleteBtn.className = 'btn btn-danger btn-sm photo-delete-btn';
+            deleteBtn.style.position = 'absolute';
+            deleteBtn.style.top = '5px';
+            deleteBtn.style.right = '5px';
+            deleteBtn.style.padding = '2px 6px';
+            deleteBtn.style.fontSize = '12px';
+            deleteBtn.title = 'Remove photo';
+            deleteBtn.onclick = function(e) {
+                e.preventDefault();
+                removePhoto(photoIndex);
+            };
+
+            container.appendChild(img);
+            container.appendChild(deleteBtn);
+            previewDiv.appendChild(container);
+        }
+
+        showAlert('Photo removed', 'info');
+
+        // Hide analyze button if no photos left
+        if (uploadedPhotos.length === 0) {
+            document.getElementById('analyzeBtn').style.display = 'none';
+        }
+    }
+}
+
+// Zoom modal functions
+function openImageZoom(imageSrc) {
+    const modal = document.getElementById('imageZoomModal');
+    const zoomImage = document.getElementById('zoomImage');
+    zoomImage.src = imageSrc;
+    modal.style.display = 'flex';
+
+    // Prevent body scroll when modal is open
+    document.body.style.overflow = 'hidden';
+}
+
+function closeImageZoom(event) {
+    // Prevent closing if clicking on the close button (handled by button's onclick)
+    if (event && event.target.classList.contains('zoom-close-btn')) {
+        return;
+    }
+
+    const modal = document.getElementById('imageZoomModal');
+    modal.style.display = 'none';
+
+    // Restore body scroll
+    document.body.style.overflow = 'auto';
+}
+
+// Close zoom modal on Escape key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeImageZoom();
+    }
+});
+
 function updatePhotoAfterEdit(newImageData, newFilepath) {
     // Update the modal image
     const img = document.getElementById('photoEditorImage');
@@ -873,220 +764,146 @@ function updatePhotoAfterEdit(newImageData, newFilepath) {
 }
 
 // ========================================
-// AI Analysis
-let detectedCardData = null; // Store card data if detected
-let enhancedAnalysisData = null; // Store enhanced collectible analysis
+// AI ANALYSIS - TWO-TIER SYSTEM
+// ========================================
 
+let detectedCardData = null;
+let detectedCollectibleData = null;
+let enhancedScanData = null;
+
+// TIER 1: Quick Analysis (Gemini - Fast & Cheap)
 document.getElementById('analyzeBtn').addEventListener('click', async function() {
-    const analyzeBtn = document.getElementById('analyzeBtn');
-    const originalText = analyzeBtn.innerHTML;
-    
-    // Show loading state
-    analyzeBtn.disabled = true;
-    analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
-    showLoading();
-
-    // Create abort controller for timeout
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+    showLoading('Running quick analysis...');
 
     try {
-        // Try card analysis first - now returns job_id
-        const cardResponse = await fetch('/api/analyze-card', {
+        const response = await fetch('/api/analyze', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 photos: uploadedPhotos
-            }),
-            signal: controller.signal
+            })
         });
 
-        clearTimeout(timeout);
+        const data = await response.json();
 
-        if (!cardResponse.ok) {
-            throw new Error(`Card analysis failed: ${cardResponse.statusText}`);
+        if (!data.success) {
+            showAlert(data.error || 'Analysis failed', 'danger');
+            hideLoading();
+            return;
         }
 
-        const cardJob = await cardResponse.json();
-        
-        // If job_id is returned, poll for results
-        if (cardJob.job_id) {
-            const cardData = await pollJobStatus('/api/analyze-card-status/' + cardJob.job_id, 60);
-            
-            // Log response for debugging
-            console.log('Card analysis response:', cardData);
+        const analysis = data.analysis;
 
-            // Check if it's a card
-            if (cardData.success && cardData.card_data && cardData.card_data.is_card) {
-            // Store card data for later
-            detectedCardData = cardData.card_data;
-
-            // Store enhanced analysis if available
-            if (cardData.collectible_analysis) {
-                enhancedAnalysisData = cardData.collectible_analysis;
-            }
-
-            // Show card detection banner
-            showCardDetectionBanner(cardData.card_data);
-
-            // Fill form with card data
-            fillFormFromCardData(cardData.card_data);
-
-            // Enable enhanced analyzer button
-            const enhancedBtn = document.getElementById('enhancedAnalyzerBtn');
-            enhancedBtn.disabled = false;
-            enhancedBtn.classList.remove('btn-outline-warning');
-            enhancedBtn.classList.add('btn-warning');
-            enhancedBtn.title = 'Click for detailed card analysis';
-
-            showAlert('Card detected and analyzed!', 'success');
-        } else {
-            // Not a card, do regular item analysis
-            // Create new abort controller for general analysis
-            const generalController = new AbortController();
-            const generalTimeout = setTimeout(() => generalController.abort(), 60000); // 60 second timeout
-            
-            const response = await fetch('/api/analyze', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ photos: uploadedPhotos }),
-                signal: generalController.signal
-            });
-
-            clearTimeout(generalTimeout);
-
-            if (!response.ok) {
-                throw new Error(`Analysis failed: ${response.statusText}`);
-            }
-
-            const jobResponse = await response.json();
-            
-            // If job_id is returned, poll for results
-            if (jobResponse.job_id) {
-                const data = await pollJobStatus('/api/analyze-status/' + jobResponse.job_id, 90);
-                
-                // Log response for debugging
-                console.log('General analysis response:', data);
-
-                if (data.result && data.result.success) {
-                    const analysis = data.result.analysis;
-
-                // Store enhanced analysis if available
-                if (data.result && data.result.collectible_analysis) {
-                    enhancedAnalysisData = data.result.collectible_analysis;
-                }
-
-                // Fill form
-                if (analysis.suggested_title) document.getElementById('title').value = analysis.suggested_title;
-                if (analysis.description) document.getElementById('description').value = analysis.description;
-                if (analysis.brand) document.getElementById('brand').value = analysis.brand;
-                if (analysis.size) document.getElementById('size').value = analysis.size;
-                if (analysis.color) document.getElementById('color').value = analysis.color;
-                if (analysis.suggested_price) document.getElementById('price').value = analysis.suggested_price;
-                if (analysis.condition) {
-                    const condition = analysis.condition.replace(' ', '_').toLowerCase();
-                    document.getElementById('condition').value = condition;
-                }
-
-                // Check for collectible items
-                if (analysis.collectible) {
-                    const confidence = analysis.collectible_confidence || 0;
-                    const indicators = analysis.collectible_indicators || [];
-                    const franchise = analysis.franchise || '';
-
-                    let collectibleMsg = `🎯 <strong>COLLECTIBLE DETECTED!</strong><br>`;
-                    collectibleMsg += `Confidence: ${(confidence * 100).toFixed(0)}%<br>`;
-
-                    if (franchise) {
-                        collectibleMsg += `Franchise: ${franchise}<br>`;
-                    }
-
-                    if (indicators.length > 0) {
-                        collectibleMsg += `Indicators: ${indicators.join(', ')}`;
-                    }
-
-                    // Create custom alert div
-                    const alertDiv = document.createElement('div');
-                    alertDiv.className = 'alert alert-warning alert-dismissible fade show mt-3';
-                    alertDiv.style.cssText = 'position: sticky; top: 10px; z-index: 1000; border: 3px solid #ff6b6b;';
-                    alertDiv.innerHTML = `
-                        ${collectibleMsg}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    `;
-
-                    // Insert after form
-                    document.getElementById('listingForm').insertAdjacentElement('beforebegin', alertDiv);
-
-                    // Auto-set item type to collectible
-                    document.getElementById('item_type').value = 'collectible';
-
-                    // Enable enhanced analyzer button (collectible detected)
-                    const enhancedBtn = document.getElementById('enhancedAnalyzerBtn');
-                    enhancedBtn.disabled = false;
-                    enhancedBtn.classList.remove('btn-outline-warning');
-                    enhancedBtn.classList.add('btn-warning');
-                    enhancedBtn.title = 'Click for detailed collectible analysis';
-                }
-                // Don't enable enhanced analyzer if no collectible detected
-
-                // Show market analysis (sell-through rate)
-                if (analysis.market_analysis) {
-                    const market = analysis.market_analysis;
-                    let demandColor = market.demand_level === 'High' ? 'success' :
-                                     market.demand_level === 'Low' ? 'danger' : 'warning';
-
-                    let marketMsg = `📊 <strong>MARKET ANALYSIS</strong><br>`;
-                    marketMsg += `<strong>Sell-Through Rate:</strong> ${market.sell_through_rate}% ${getDemandEmoji(market.demand_level)}<br>`;
-                    marketMsg += `<strong>Demand:</strong> <span class="badge bg-${demandColor}">${market.demand_level}</span><br>`;
-                    marketMsg += `<strong>Est. Days to Sell:</strong> ${market.days_to_sell_estimate} days<br>`;
-                    if (market.average_sold_price > 0) {
-                        marketMsg += `<strong>Avg Sold Price:</strong> $${market.average_sold_price.toFixed(2)}<br>`;
-                    }
-                    if (market.market_insights && market.market_insights.length > 0) {
-                        marketMsg += `<small class="text-muted">${market.market_insights.join(' • ')}</small>`;
-                    }
-
-                    const marketAlert = document.createElement('div');
-                    marketAlert.className = 'alert alert-info alert-dismissible fade show mt-3';
-                    marketAlert.innerHTML = `
-                        ${marketMsg}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    `;
-
-                    document.getElementById('listingForm').insertAdjacentElement('beforebegin', marketAlert);
-                }
-
-                showAlert('AI analysis complete!', 'success');
-                } else {
-                    // Show detailed error message
-                    const errorMsg = (data.result && data.result.error) || data.error || 'Unknown error occurred';
-                    const errorDetails = (data.result && data.result.details) ? ' - ' + data.result.details : '';
-                    console.error('Analysis error:', errorMsg, errorDetails);
-                    showAlert('AI analysis error: ' + errorMsg + errorDetails, 'danger');
-                }
-            } else {
-                // Legacy response format (shouldn't happen with new API)
-                const data = jobResponse;
-                if (data.success) {
-                    const analysis = data.analysis;
-                    // ... handle legacy format
-                }
-            }
+        // Fill form with basic info
+        if (analysis.suggested_title) document.getElementById('title').value = analysis.suggested_title;
+        if (analysis.description) document.getElementById('description').value = analysis.description;
+        if (analysis.brand) document.getElementById('brand').value = analysis.brand;
+        if (analysis.size) document.getElementById('size').value = analysis.size;
+        if (analysis.color) document.getElementById('color').value = analysis.color;
+        if (analysis.suggested_price) document.getElementById('price').value = analysis.suggested_price;
+        if (analysis.condition) {
+            const condition = analysis.condition.replace(' ', '_').toLowerCase();
+            document.getElementById('condition').value = condition;
         }
+
+        // Check if Enhanced Scan would be helpful
+        const isCard = analysis.category === 'Trading Cards' || analysis.category === 'Sports Cards';
+        const isCollectible = analysis.collectible === true;
+
+        if (isCard || isCollectible) {
+            showEnhancedScanOption(isCard, isCollectible, analysis);
+        }
+
+        // Show market analysis if available
+        if (analysis.market_analysis) {
+            showMarketAnalysis(analysis.market_analysis);
+        }
+
+        showAlert('Quick analysis complete!', 'success');
+
     } catch (error) {
-        if (error.name === 'AbortError') {
-            showAlert('Analysis timed out. Please try again with fewer photos or check your connection.', 'warning');
-        } else {
-            console.error('Analysis error:', error);
-            showAlert('Analysis failed: ' + (error.message || error), 'danger');
-        }
+        showAlert('Analysis failed: ' + error, 'danger');
     } finally {
-        clearTimeout(timeout);
         hideLoading();
-        analyzeBtn.disabled = false;
-        analyzeBtn.innerHTML = originalText;
     }
 });
+
+// Show subtle Enhanced Scan option
+function showEnhancedScanOption(isCard, isCollectible, analysis) {
+    // Remove existing if present
+    document.getElementById('enhancedScanCard')?.remove();
+
+    let scanType = isCard ? 'card' : 'collectible';
+    let icon = isCard ? 'fa-id-card' : 'fa-star';
+    let message = isCard 
+        ? 'Get detailed card analysis, TCGPlayer prices, and authentication'
+        : 'Get rarity info, franchise history, and authentication markers';
+
+    const enhancedScanCard = `
+        <div class="card border-primary mb-3" id="enhancedScanCard">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">
+                            <i class="fas ${icon} text-primary"></i> 
+                            Enhanced Scanner Available
+                        </h6>
+                        <small class="text-muted">${message}</small>
+                    </div>
+                    <button class="btn btn-primary" onclick="runEnhancedScan()">
+                        <i class="fas fa-microscope"></i> Enhanced Scan
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Insert after photo card
+    document.querySelector('.card-header').closest('.card').insertAdjacentHTML('afterend', enhancedScanCard);
+}
+
+// Show market analysis
+function showMarketAnalysis(market) {
+    // Remove existing if present
+    document.getElementById('marketAnalysisCard')?.remove();
+
+    let demandColor = market.demand_level === 'High' ? 'success' :
+                     market.demand_level === 'Low' ? 'danger' : 'warning';
+
+    let marketCard = `
+        <div class="card border-info mb-3" id="marketAnalysisCard">
+            <div class="card-header bg-info text-white">
+                <i class="fas fa-chart-line"></i> Market Analysis
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <strong>Sell-Through Rate:</strong><br>
+                        <span class="h4">${market.sell_through_rate}%</span> ${getDemandEmoji(market.demand_level)}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Demand:</strong><br>
+                        <span class="badge bg-${demandColor} fs-6">${market.demand_level}</span>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Est. Days to Sell:</strong><br>
+                        <span class="h5">${market.days_to_sell_estimate}</span> days
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Avg Sold Price:</strong><br>
+                        <span class="h5 text-success">$${market.average_sold_price?.toFixed(2) || 'N/A'}</span>
+                    </div>
+                </div>
+                ${market.market_insights?.length > 0 ? `
+                    <hr>
+                    <small class="text-muted">${market.market_insights.join(' • ')}</small>
+                ` : ''}
+            </div>
+        </div>
+    `;
+
+    document.getElementById('enhancedScanCard')?.insertAdjacentHTML('afterend', marketCard);
+}
 
 function getDemandEmoji(demand) {
     if (demand === 'High') return '🔥';
@@ -1094,347 +911,218 @@ function getDemandEmoji(demand) {
     return '📈';
 }
 
-// Poll job status until complete or failed
-async function pollJobStatus(statusUrl, maxSeconds = 60) {
-    const startTime = Date.now();
-    const maxTime = maxSeconds * 1000;
-    const pollInterval = 2000; // Poll every 2 seconds
-    
-    while (Date.now() - startTime < maxTime) {
-        try {
-            const response = await fetch(statusUrl);
-            if (!response.ok) {
-                throw new Error(`Status check failed: ${response.statusText}`);
-            }
-            
-            const data = await response.json();
-            
-            if (data.status === 'completed') {
-                return data;
-            } else if (data.status === 'failed') {
-                throw new Error(data.error || 'Job failed');
-            } else if (data.status === 'processing' || data.status === 'pending') {
-                // Still processing, wait and poll again
-                await new Promise(resolve => setTimeout(resolve, pollInterval));
-                continue;
-            }
-        } catch (error) {
-            if (error.message.includes('Job failed') || error.message.includes('failed')) {
-                throw error;
-            }
-            // Network error, retry
-            await new Promise(resolve => setTimeout(resolve, pollInterval));
-        }
-    }
-    
-    throw new Error('Job timed out after ' + maxSeconds + ' seconds');
-}
+// TIER 2: Enhanced Scanner (Claude - Deep Dive)
+async function runEnhancedScan() {
+    showLoading('Running enhanced scan... This may take 10-20 seconds');
 
-// ========================================
-// ENHANCED ANALYZER FOR COLLECTIBLES
-// ========================================
+    try {
+        const response = await fetch('/api/enhanced-scan', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                photos: uploadedPhotos
+            })
+        });
 
-document.getElementById('enhancedAnalyzerBtn').addEventListener('click', async function() {
-    const enhancedBtn = document.getElementById('enhancedAnalyzerBtn');
-    const originalText = enhancedBtn.innerHTML;
-    
-    // If we don't have enhanced data yet, try to get it
-    if (!enhancedAnalysisData) {
-        enhancedBtn.disabled = true;
-        enhancedBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running Deep Analysis...';
-        showLoading();
-        showAlert('Running enhanced analysis... This may take 10-30 seconds', 'info');
+        const data = await response.json();
 
-        // Create abort controller for timeout
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 90000); // 90 second timeout for deep analysis
-
-        try {
-            const response = await fetch('/api/analyze', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    photos: uploadedPhotos,
-                    force_enhanced: true  // Request enhanced analysis even if not collectible
-                }),
-                signal: controller.signal
-            });
-
-            clearTimeout(timeout);
-
-            if (!response.ok) {
-                throw new Error(`Enhanced analysis failed: ${response.statusText}`);
-            }
-
-            const jobResponse = await response.json();
-            
-            // If job_id is returned, poll for results
-            if (jobResponse.job_id) {
-                const data = await pollJobStatus('/api/analyze-status/' + jobResponse.job_id, 120);
-                
-                if (data.result && data.result.success) {
-                    if (data.result.collectible_analysis && !data.result.collectible_analysis.error) {
-                        enhancedAnalysisData = data.result.collectible_analysis;
-                        showAlert('Enhanced analysis complete!', 'success');
-                    } else if (data.result.collectible_analysis && data.result.collectible_analysis.error) {
-                        showAlert('Enhanced analysis failed: ' + data.result.collectible_analysis.error, 'danger');
-                        return;
-                    } else {
-                        showAlert('Enhanced analysis not available for this item. This feature works best with collectibles, trading cards, and sports memorabilia.', 'warning');
-                        return;
-                    }
-                } else if (data.error || (data.result && data.result.error)) {
-                    showAlert('Enhanced analysis failed: ' + (data.error || data.result.error), 'danger');
-                    return;
-                } else {
-                    showAlert('Enhanced analysis not available for this item. This feature works best with collectibles, trading cards, and sports memorabilia.', 'warning');
-                    return;
-                }
+        if (!data.success) {
+            if (data.type === 'standard_item') {
+                showAlert('Not a collectible. Quick analysis is sufficient for this item.', 'info');
             } else {
-                // Legacy format
-                const data = jobResponse;
-                if (data.success) {
-                    if (data.collectible_analysis && !data.collectible_analysis.error) {
-                        enhancedAnalysisData = data.collectible_analysis;
-                        showAlert('Enhanced analysis complete!', 'success');
-                    } else {
-                        showAlert('Enhanced analysis not available for this item.', 'warning');
-                        return;
-                    }
-                } else if (data.error) {
-                    showAlert('Enhanced analysis failed: ' + data.error, 'danger');
-                    return;
-                } else {
-                    showAlert('Enhanced analysis not available for this item. This feature works best with collectibles, trading cards, and sports memorabilia.', 'warning');
-                    enhancedBtn.disabled = false;
-                    enhancedBtn.innerHTML = originalText;
-                    hideLoading();
-                    return;
-                }
+                showAlert(data.error || data.message || 'Enhanced scan failed', 'danger');
             }
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                showAlert('Enhanced analysis timed out. Please try again or use the basic analysis.', 'warning');
-            } else {
-                console.error('Enhanced analysis error:', error);
-                showAlert('Enhanced analysis failed: ' + (error.message || error), 'danger');
-            }
-            enhancedBtn.disabled = false;
-            enhancedBtn.innerHTML = originalText;
             hideLoading();
             return;
         }
-    }
 
-    // Build detailed analysis HTML
-    let html = '<div class="enhanced-analysis-details">';
+        // Store enhanced scan data
+        enhancedScanData = data;
 
-    // Authentication
-    if (enhancedAnalysisData.authentication) {
-        const auth = enhancedAnalysisData.authentication;
-        html += `<div class="card mb-3">
-            <div class="card-header bg-success text-white"><i class="fas fa-certificate"></i> Authentication</div>
-            <div class="card-body">
-                <p><strong>Authentic:</strong> ${auth.is_authentic ? '✅ Yes' : '❌ Questionable'}</p>
-                <p><strong>Confidence:</strong> ${auth.confidence_level || 'N/A'}</p>
-                ${auth.red_flags ? `<p class="text-danger"><strong>Red Flags:</strong> ${auth.red_flags}</p>` : ''}
-            </div>
-        </div>`;
-    }
+        // Remove the "run enhanced scan" card
+        document.getElementById('enhancedScanCard')?.remove();
 
-    // Grading
-    if (enhancedAnalysisData.grading) {
-        const grade = enhancedAnalysisData.grading;
-        html += `<div class="card mb-3">
-            <div class="card-header bg-primary text-white"><i class="fas fa-award"></i> Grading</div>
-            <div class="card-body">
-                ${grade.overall_grade ? `<p><strong>Grade:</strong> ${grade.overall_grade}</p>` : ''}
-                ${grade.centering ? `<p><strong>Centering:</strong> ${grade.centering}</p>` : ''}
-                ${grade.corners ? `<p><strong>Corners:</strong> ${grade.corners}</p>` : ''}
-                ${grade.edges ? `<p><strong>Edges:</strong> ${grade.edges}</p>` : ''}
-                ${grade.surface ? `<p><strong>Surface:</strong> ${grade.surface}</p>` : ''}
-            </div>
-        </div>`;
-    }
-
-    // Rarity
-    if (enhancedAnalysisData.rarity) {
-        const rarity = enhancedAnalysisData.rarity;
-        html += `<div class="card mb-3">
-            <div class="card-header bg-warning text-dark"><i class="fas fa-star"></i> Rarity</div>
-            <div class="card-body">
-                ${rarity.rarity_level ? `<p><strong>Rarity:</strong> ${rarity.rarity_level}</p>` : ''}
-                ${rarity.print_run ? `<p><strong>Print Run:</strong> ${rarity.print_run}</p>` : ''}
-                ${rarity.variants ? `<p><strong>Variants:</strong> ${rarity.variants}</p>` : ''}
-            </div>
-        </div>`;
-    }
-
-    // Market Analysis
-    if (enhancedAnalysisData.market_analysis) {
-        const market = enhancedAnalysisData.market_analysis;
-        html += `<div class="card mb-3">
-            <div class="card-header bg-info text-white"><i class="fas fa-chart-line"></i> Market Analysis</div>
-            <div class="card-body">
-                ${market.price_range ? `<p><strong>Price Range:</strong> ${market.price_range}</p>` : ''}
-                ${market.recent_sales ? `<p><strong>Recent Sales:</strong> ${market.recent_sales}</p>` : ''}
-                ${market.market_trend ? `<p><strong>Trend:</strong> ${market.market_trend}</p>` : ''}
-                ${market.demand_level ? `<p><strong>Demand:</strong> ${market.demand_level}</p>` : ''}
-            </div>
-        </div>`;
-    }
-
-    // Recommendations
-    if (enhancedAnalysisData.recommendations) {
-        const rec = enhancedAnalysisData.recommendations;
-        html += `<div class="card mb-3">
-            <div class="card-header bg-secondary text-white"><i class="fas fa-lightbulb"></i> Recommendations</div>
-            <div class="card-body">
-                ${rec.suggested_price ? `<p><strong>Suggested Price:</strong> ${rec.suggested_price}</p>` : ''}
-                ${rec.best_platforms ? `<p><strong>Best Platforms:</strong> ${rec.best_platforms}</p>` : ''}
-                ${rec.target_buyers ? `<p><strong>Target Buyers:</strong> ${rec.target_buyers}</p>` : ''}
-                ${rec.selling_tips ? `<p><strong>Tips:</strong> ${rec.selling_tips}</p>` : ''}
-            </div>
-        </div>`;
-    }
-
-    // Fraud Check
-    if (enhancedAnalysisData.fraud_check) {
-        const fraud = enhancedAnalysisData.fraud_check;
-        html += `<div class="card mb-3">
-            <div class="card-header bg-danger text-white"><i class="fas fa-shield-alt"></i> Fraud Check</div>
-            <div class="card-body">
-                ${fraud.authentication_concerns ? `<p><strong>Concerns:</strong> ${fraud.authentication_concerns}</p>` : ''}
-                ${fraud.grading_recommended ? `<p><strong>Grading Recommended:</strong> ${fraud.grading_recommended ? 'Yes' : 'No'}</p>` : ''}
-            </div>
-        </div>`;
-    }
-
-    html += '</div>';
-
-    // Create modal
-    const modalHtml = `
-        <div class="modal fade" id="enhancedAnalysisModal" tabindex="-1">
-            <div class="modal-dialog modal-lg modal-dialog-scrollable">
-                <div class="modal-content">
-                    <div class="modal-header bg-warning">
-                        <h5 class="modal-title"><i class="fas fa-gem"></i> Enhanced Collectible Analysis</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        ${html}
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    // Remove existing modal if any
-    const existingModal = document.getElementById('enhancedAnalysisModal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-
-    // Add modal to body
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('enhancedAnalysisModal'));
-    modal.show();
-});
-
-// ========================================
-// CARD COLLECTION FUNCTIONS
-// ========================================
-
-function showCardDetectionBanner(cardData) {
-    // Remove any existing banner
-    const existingBanner = document.getElementById('cardDetectionBanner');
-    if (existingBanner) {
-        existingBanner.remove();
-    }
-
-    // Build card info display
-    let cardType = cardData.card_type || 'unknown';
-    let cardName = cardData.card_name || cardData.player_name || 'Unknown Card';
-    let cardDetails = [];
-
-    // Add type-specific details
-    if (cardData.player_name) {
-        // Sports card
-        if (cardData.year) cardDetails.push(`${cardData.year}`);
-        if (cardData.brand) cardDetails.push(cardData.brand);
-        if (cardData.is_rookie_card) cardDetails.push('RC');
-    } else {
-        // TCG card
-        if (cardData.set_name) cardDetails.push(cardData.set_name);
-        if (cardData.card_number) cardDetails.push(`#${cardData.card_number}`);
-        if (cardData.rarity) cardDetails.push(cardData.rarity);
-    }
-
-    // Grading info
-    if (cardData.is_graded && cardData.grading_company) {
-        cardDetails.push(`${cardData.grading_company} ${cardData.grading_score || ''}`);
-    }
-
-    // Value estimate
-    let valueText = '';
-    if (cardData.estimated_value_low || cardData.estimated_value_high) {
-        const low = cardData.estimated_value_low || 0;
-        const high = cardData.estimated_value_high || 0;
-        if (low > 0 && high > 0) {
-            valueText = `<strong>Est. Value:</strong> $${low} - $${high}`;
-        } else if (low > 0) {
-            valueText = `<strong>Est. Value:</strong> $${low}+`;
+        // Display results based on type
+        if (data.type === 'card') {
+            detectedCardData = data.data;
+            showCardResults(data);
+        } else if (data.type === 'collectible') {
+            detectedCollectibleData = data.data;
+            showCollectibleResults(data);
         }
+
+        showAlert('Enhanced scan complete!', 'success');
+
+    } catch (error) {
+        showAlert('Enhanced scan failed: ' + error, 'danger');
+    } finally {
+        hideLoading();
     }
-
-    const cardInfo = cardDetails.join(' • ');
-    const confidence = cardData.confidence ? `${(cardData.confidence * 100).toFixed(0)}%` : 'N/A';
-
-    const banner = document.createElement('div');
-    banner.id = 'cardDetectionBanner';
-    banner.className = 'alert alert-success alert-dismissible fade show mt-3';
-    banner.style.cssText = 'position: sticky; top: 10px; z-index: 1000; border: 3px solid #28a745; background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);';
-    banner.innerHTML = `
-        <div>
-            <h5 class="alert-heading mb-3">
-                <i class="fas fa-id-card"></i> <strong>TRADING CARD DETECTED!</strong>
-            </h5>
-            <div class="row">
-                <div class="col-md-7">
-                    <p class="mb-2">
-                        <strong>${cardName}</strong><br>
-                        <small class="text-muted">${cardInfo}</small>
-                    </p>
-                    ${valueText ? `<p class="mb-2">${valueText}</p>` : ''}
-                    <small class="text-muted">Confidence: ${confidence}</small>
-                </div>
-                <div class="col-md-5">
-                    <div class="d-grid gap-2">
-                        <button type="button" class="btn btn-success btn-lg pulse-glow" onclick="storeCardOnly()">
-                            <i class="fas fa-box"></i> Store Only
-                        </button>
-                        <button type="button" class="btn btn-outline-success" onclick="storeAndList()">
-                            <i class="fas fa-plus-circle"></i> Store + Create Listing
-                        </button>
-                        <small class="text-muted text-center">
-                            Or just create a listing below without storing
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-
-    document.getElementById('listingForm').insertAdjacentElement('beforebegin', banner);
 }
 
-function fillFormFromCardData(cardData) {
+// Display Card Results
+function showCardResults(data) {
+    const cardData = data.data;
+    const prices = data.market_prices || {};
+
+    const statsCard = `
+        <div class="card border-success mb-3" id="enhancedResultsCard">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-id-card"></i> Card Analysis Complete
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>${cardData.card_name || cardData.player_name || 'Unknown Card'}</h5>
+                        ${cardData.set_name ? `<p class="mb-1"><strong>Set:</strong> ${cardData.set_name}</p>` : ''}
+                        ${cardData.card_number ? `<p class="mb-1"><strong>Number:</strong> #${cardData.card_number}</p>` : ''}
+                        ${cardData.rarity ? `<p class="mb-1"><strong>Rarity:</strong> ${cardData.rarity}</p>` : ''}
+                        ${cardData.year ? `<p class="mb-1"><strong>Year:</strong> ${cardData.year}</p>` : ''}
+                        ${cardData.brand ? `<p class="mb-1"><strong>Brand:</strong> ${cardData.brand}</p>` : ''}
+                        ${cardData.is_rookie_card ? `<p class="mb-1"><span class="badge bg-warning">ROOKIE CARD</span></p>` : ''}
+                        ${cardData.is_graded ? `<p class="mb-1"><strong>Graded:</strong> ${cardData.grading_company} ${cardData.grading_score}</p>` : ''}
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Market Prices</h6>
+                        ${prices.tcgplayer ? `<p class="mb-1"><strong>TCGPlayer:</strong> $${prices.tcgplayer.market || 'N/A'}</p>` : ''}
+                        ${prices.ebay ? `<p class="mb-1"><strong>eBay Sold Avg:</strong> $${prices.ebay.avg || 'N/A'}</p>` : ''}
+                        ${prices.actual_selling ? `<p class="mb-1 text-success"><strong>Actual Selling:</strong> $${prices.actual_selling}</p>` : ''}
+                        ${prices.quick_sale ? `<p class="mb-1 text-warning"><strong>Quick Sale:</strong> $${prices.quick_sale}</p>` : ''}
+                        ${cardData.estimated_value_low && cardData.estimated_value_high ? `
+                            <p class="mb-1"><strong>Est. Range:</strong> $${cardData.estimated_value_low} - $${cardData.estimated_value_high}</p>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="d-flex gap-2">
+                    <button class="btn btn-success" onclick="storeCardOnly()">
+                        <i class="fas fa-box"></i> Store in Collection
+                    </button>
+                    <button class="btn btn-outline-success" onclick="storeAndList()">
+                        <i class="fas fa-plus-circle"></i> Store + Create Listing
+                    </button>
+                    ${data.public_db_id ? `
+                        <button class="btn btn-outline-info" onclick="window.open('/collectibles-database/${data.public_db_id}', '_blank')">
+                            <i class="fas fa-database"></i> View in Database
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing results
+    document.getElementById('enhancedResultsCard')?.remove();
+    
+    // Insert after market analysis or enhanced scan card
+    const insertAfter = document.getElementById('marketAnalysisCard') || document.querySelector('.card');
+    insertAfter.insertAdjacentHTML('afterend', statsCard);
+
+    // Fill form with detailed card info
+    fillFormFromCardData(cardData, prices);
+}
+
+// Display Collectible Results
+function showCollectibleResults(data) {
+    const collectibleData = data.data;
+    const prices = data.market_prices || {};
+
+    const collectibleCard = `
+        <div class="card border-warning mb-3" id="enhancedResultsCard">
+            <div class="card-header bg-warning text-dark">
+                <i class="fas fa-star"></i> Collectible Analysis Complete
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h5>${collectibleData.item_name || 'Unknown Collectible'}</h5>
+                        <p class="mb-2"><strong>Franchise:</strong> ${collectibleData.franchise}</p>
+                        
+                        ${collectibleData.item_significance ? `
+                            <h6 class="mt-3">About This Item</h6>
+                            <p class="small">${collectibleData.item_significance}</p>
+                        ` : ''}
+                        
+                        ${collectibleData.rarity_info ? `
+                            <h6 class="mt-3">Rarity Analysis</h6>
+                            <p class="small">${collectibleData.rarity_info}</p>
+                        ` : ''}
+                        
+                        ${collectibleData.authentication_markers?.length > 0 ? `
+                            <h6 class="mt-3">Authentication Markers</h6>
+                            <ul class="small">
+                                ${collectibleData.authentication_markers.map(m => `<li>${m}</li>`).join('')}
+                            </ul>
+                        ` : ''}
+                    </div>
+                    <div class="col-md-4">
+                        <h6>Market Analysis</h6>
+                        ${prices.retail ? `
+                            <div class="mb-2">
+                                <small class="text-muted">Retail Price</small>
+                                <div class="h5">$${prices.retail}</div>
+                            </div>
+                        ` : ''}
+                        ${prices.actual_selling ? `
+                            <div class="mb-2">
+                                <small class="text-muted">Actual Selling</small>
+                                <div class="h5 text-success">$${prices.actual_selling}</div>
+                            </div>
+                        ` : ''}
+                        ${prices.quick_sale ? `
+                            <div class="mb-2">
+                                <small class="text-muted">Quick Sale</small>
+                                <div class="h5 text-warning">$${prices.quick_sale}</div>
+                            </div>
+                        ` : ''}
+                        
+                        ${collectibleData.rarity_score ? `
+                            <div class="mt-3">
+                                <small class="text-muted">Rarity Score</small>
+                                <div class="progress">
+                                    <div class="progress-bar bg-warning" style="width: ${collectibleData.rarity_score}%">
+                                        ${collectibleData.rarity_score}/100
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="d-flex gap-2">
+                    <button class="btn btn-warning" onclick="storeCollectibleOnly()">
+                        <i class="fas fa-archive"></i> Add to Collection
+                    </button>
+                    <button class="btn btn-outline-warning" onclick="storeCollectibleAndList()">
+                        <i class="fas fa-plus-circle"></i> Store + Create Listing
+                    </button>
+                    ${data.public_db_id ? `
+                        <button class="btn btn-outline-info" onclick="window.open('/collectibles-database/${data.public_db_id}', '_blank')">
+                            <i class="fas fa-database"></i> View in Database
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing results
+    document.getElementById('enhancedResultsCard')?.remove();
+    
+    // Insert after market analysis or enhanced scan card
+    const insertAfter = document.getElementById('marketAnalysisCard') || document.querySelector('.card');
+    insertAfter.insertAdjacentHTML('afterend', collectibleCard);
+
+    // Fill form with collectible info
+    fillFormFromCollectible(collectibleData, prices);
+}
+
+// Fill form from card data
+function fillFormFromCardData(cardData, prices) {
     // Build title
     let title = '';
     if (cardData.player_name) {
@@ -1451,42 +1139,34 @@ function fillFormFromCardData(cardData) {
         if (cardData.card_number) title = `${title} #${cardData.card_number}`;
     }
 
-    document.getElementById('title').value = title;
+    document.getElementById('title').value = title.substring(0, 80);
 
     // Build description
     let description = '';
-    if (cardData.set_name) {
-        description += `Set: ${cardData.set_name}\n`;
-    }
-    if (cardData.rarity) {
-        description += `Rarity: ${cardData.rarity}\n`;
-    }
+    if (cardData.set_name) description += `Set: ${cardData.set_name}\n`;
+    if (cardData.rarity) description += `Rarity: ${cardData.rarity}\n`;
     if (cardData.is_graded && cardData.grading_company) {
         description += `Graded: ${cardData.grading_company} ${cardData.grading_score || ''}\n`;
     }
-    if (cardData.parallel) {
-        description += `Parallel: ${cardData.parallel}\n`;
-    }
+    if (cardData.parallel) description += `Parallel: ${cardData.parallel}\n`;
 
     document.getElementById('description').value = description;
 
     // Set brand
-    if (cardData.brand) {
-        document.getElementById('brand').value = cardData.brand;
-    }
+    if (cardData.brand) document.getElementById('brand').value = cardData.brand;
 
-    // Set price from estimated value
-    if (cardData.estimated_value_low && cardData.estimated_value_high) {
+    // Set price from market data
+    if (prices.actual_selling) {
+        document.getElementById('price').value = prices.actual_selling;
+    } else if (cardData.estimated_value_low && cardData.estimated_value_high) {
         const avgValue = (cardData.estimated_value_low + cardData.estimated_value_high) / 2;
         document.getElementById('price').value = avgValue.toFixed(2);
-    } else if (cardData.estimated_value_low) {
-        document.getElementById('price').value = cardData.estimated_value_low.toFixed(2);
     }
 
-    // Set item type to trading card
+    // Set item type
     document.getElementById('item_type').value = 'trading_card';
 
-    // Set condition based on grading
+    // Set condition
     if (cardData.is_graded && cardData.grading_score) {
         if (cardData.grading_score >= 9) {
             document.getElementById('condition').value = 'excellent';
@@ -1498,6 +1178,36 @@ function fillFormFromCardData(cardData) {
     }
 }
 
+// Fill form from collectible data
+function fillFormFromCollectible(collectibleData, prices) {
+    // Set title
+    if (collectibleData.item_name) {
+        document.getElementById('title').value = collectibleData.item_name.substring(0, 80);
+    }
+
+    // Set description
+    let description = '';
+    if (collectibleData.franchise) description += `Franchise: ${collectibleData.franchise}\n\n`;
+    if (collectibleData.item_significance) description += `${collectibleData.item_significance}\n\n`;
+    if (collectibleData.rarity_info) description += `Rarity: ${collectibleData.rarity_info}\n`;
+
+    document.getElementById('description').value = description;
+
+    // Set brand
+    if (collectibleData.brand) document.getElementById('brand').value = collectibleData.brand;
+
+    // Set price
+    if (prices.actual_selling) {
+        document.getElementById('price').value = prices.actual_selling;
+    } else if (prices.retail) {
+        document.getElementById('price').value = prices.retail;
+    }
+
+    // Set item type
+    document.getElementById('item_type').value = 'collectible';
+}
+
+// Store card only (no listing)
 async function storeCardOnly() {
     if (!detectedCardData) {
         showAlert('No card data available', 'danger');
@@ -1521,10 +1231,9 @@ async function storeCardOnly() {
 
         if (data.success) {
             showAlert('Card stored in your collection! Redirecting...', 'success');
-            // Redirect to cards collection page after 1 second
-            setTimeout(() => window.location.href = '/cards', 1000);
+            setTimeout(() => window.location.href = '/cards', 1500);
         } else {
-            showAlert(data.error || 'Failed to add card to collection', 'danger');
+            showAlert(data.error || 'Failed to add card', 'danger');
             hideLoading();
         }
     } catch (error) {
@@ -1533,6 +1242,7 @@ async function storeCardOnly() {
     }
 }
 
+// Store card + create listing
 async function storeAndList() {
     if (!detectedCardData) {
         showAlert('No card data available', 'danger');
@@ -1555,30 +1265,19 @@ async function storeAndList() {
         const data = await response.json();
 
         if (data.success) {
-            showAlert('Card added to collection! You can now create a listing below.', 'success');
-
-            // Update the banner to show it's been stored
-            const banner = document.getElementById('cardDetectionBanner');
-            if (banner) {
-                banner.classList.remove('alert-success');
-                banner.classList.add('alert-info');
-                banner.innerHTML = `
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="alert-heading mb-0">
-                                <i class="fas fa-check-circle"></i> <strong>Card Stored!</strong>
-                            </h5>
-                            <small class="text-muted">Continue filling out the form below to create a listing.</small>
-                        </div>
-                        <a href="/cards" class="btn btn-info">
-                            <i class="fas fa-box-open"></i> View Collection
-                        </a>
-                    </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                `;
+            showAlert('Card added! Continue filling out the form to create a listing.', 'success');
+            
+            // Update the results card
+            const resultsCard = document.getElementById('enhancedResultsCard');
+            if (resultsCard) {
+                resultsCard.classList.remove('border-success');
+                resultsCard.classList.add('border-info');
+                resultsCard.querySelector('.card-header').classList.remove('bg-success');
+                resultsCard.querySelector('.card-header').classList.add('bg-info');
+                resultsCard.querySelector('.card-header').innerHTML = '<i class="fas fa-check-circle"></i> Card Stored - Create Listing Below';
             }
         } else {
-            showAlert(data.error || 'Failed to add card to collection', 'danger');
+            showAlert(data.error || 'Failed to add card', 'danger');
         }
     } catch (error) {
         showAlert('Failed to add card: ' + error, 'danger');
@@ -1587,6 +1286,84 @@ async function storeAndList() {
     }
 }
 
+// Store collectible only (no listing)
+async function storeCollectibleOnly() {
+    if (!detectedCollectibleData) {
+        showAlert('No collectible data available', 'danger');
+        return;
+    }
+
+    showLoading();
+
+    try {
+        const response = await fetch('/api/collectibles/add', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                ai_result: detectedCollectibleData,
+                photos: uploadedPhotos,
+                storage_location: document.getElementById('storage_location').value || null
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('Collectible stored! Redirecting...', 'success');
+            setTimeout(() => window.location.href = '/my-collection', 1500);
+        } else {
+            showAlert(data.error || 'Failed to add collectible', 'danger');
+            hideLoading();
+        }
+    } catch (error) {
+        showAlert('Failed to add collectible: ' + error, 'danger');
+        hideLoading();
+    }
+}
+
+// Store collectible + create listing
+async function storeCollectibleAndList() {
+    if (!detectedCollectibleData) {
+        showAlert('No collectible data available', 'danger');
+        return;
+    }
+
+    showLoading();
+
+    try {
+        const response = await fetch('/api/collectibles/add', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                ai_result: detectedCollectibleData,
+                photos: uploadedPhotos,
+                storage_location: document.getElementById('storage_location').value || null
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('Collectible added! Continue filling out the form to create a listing.', 'success');
+            
+            // Update the results card
+            const resultsCard = document.getElementById('enhancedResultsCard');
+            if (resultsCard) {
+                resultsCard.classList.remove('border-warning');
+                resultsCard.classList.add('border-info');
+                resultsCard.querySelector('.card-header').classList.remove('bg-warning');
+                resultsCard.querySelector('.card-header').classList.add('bg-info');
+                resultsCard.querySelector('.card-header').innerHTML = '<i class="fas fa-check-circle"></i> Collectible Stored - Create Listing Below';
+            }
+        } else {
+            showAlert(data.error || 'Failed to add collectible', 'danger');
+        }
+    } catch (error) {
+        showAlert('Failed to add collectible: ' + error, 'danger');
+    } finally {
+        hideLoading();
+    }
+}
 // Save Listing (common function)
 async function saveListing(status = 'draft') {
     if (uploadedPhotos.length === 0) {
@@ -1595,13 +1372,7 @@ async function saveListing(status = 'draft') {
     }
 
     const formData = collectFormData();
-    // include uploaded server photo paths
-    formData.photos = uploadedPhotos;
     formData.status = status;
-    // Include AI analysis data if available
-    if (enhancedAnalysisData) {
-        formData.enhanced_analysis = enhancedAnalysisData;
-    }
     showLoading();
 
     try {
@@ -1611,23 +1382,22 @@ async function saveListing(status = 'draft') {
             body: JSON.stringify(formData)
         });
 
-        // Handle authentication errors
-        if (response.status === 401 || response.status === 403) {
-            hideLoading();
-            showAlert('You must be logged in to save listings. Redirecting to login...', 'warning');
-            setTimeout(() => window.location.href = '/login', 2000);
-            return;
-        }
-
         const data = await response.json();
 
         if (data.success) {
-            const msg = status === 'active' ? 'Listing posted successfully!' : 'Listing saved as draft!';
-            const redirect = status === 'active' ? '/listings' : '/drafts';
+            // Update draft ID so next save is an update, not a new draft
+            editingDraftId = data.listing_id;
+            editingListingUuid = data.listing_uuid;
+
+            const msg = status === 'active' ? 'Listing posted successfully!' : 'Draft saved successfully!';
             showAlert(msg, 'success');
-            setTimeout(() => window.location.href = redirect, 1500);
+
+            // Only redirect if posting as active
+            if (status === 'active') {
+                setTimeout(() => window.location.href = '/listings', 1500);
+            }
         } else {
-            showAlert(data.error || 'Failed to save listing', 'danger');
+            showAlert(data.error, 'danger');
         }
     } catch (error) {
         showAlert('Save failed: ' + error, 'danger');
@@ -1638,35 +1408,6 @@ async function saveListing(status = 'draft') {
 
 // Save as Draft button
 document.getElementById('saveDraftBtn').addEventListener('click', async function() {
-    // If a card was detected, ask if user wants to store it
-    if (detectedCardData && detectedCardData.is_card) {
-        const shouldStore = confirm('A trading card was detected. Would you like to store this card in your collection when saving as draft?');
-        if (shouldStore) {
-            // Store the card first
-            try {
-                showLoading();
-                const storeResponse = await fetch('/api/cards/add', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        ai_result: detectedCardData,
-                        photos: uploadedPhotos,
-                        storage_location: document.getElementById('storage_location').value || null
-                    })
-                });
-                const storeData = await storeResponse.json();
-                if (storeData.success) {
-                    showAlert('Card stored in collection!', 'success');
-                } else {
-                    showAlert('Card storage failed: ' + (storeData.error || 'Unknown error'), 'warning');
-                }
-            } catch (error) {
-                showAlert('Failed to store card: ' + error, 'warning');
-            } finally {
-                hideLoading();
-            }
-        }
-    }
     await saveListing('draft');
 });
 
@@ -1690,7 +1431,8 @@ function collectFormData() {
         storage_location: document.getElementById('storage_location').value,
         quantity: document.getElementById('quantity').value,
         sku: document.getElementById('sku').value,
-        upc: document.getElementById('upc').value
+        upc: document.getElementById('upc').value,
+        photos: uploadedPhotos  // CRITICAL: Include photos array
     };
 
     // Include draft_id if editing
@@ -1758,29 +1500,60 @@ async function loadDraftData() {
 
                 for (let i = 0; i < listing.photos.length; i++) {
                     const photoPath = listing.photos[i];
+                    const photoIndex = i;
+
+                    // Create container for photo + delete button
+                    const container = document.createElement('div');
+                    container.className = 'photo-preview-container';
+                    container.style.position = 'relative';
+                    container.style.display = 'inline-block';
+                    container.style.margin = '5px';
+
+                    // Create image
                     const img = document.createElement('img');
                     // Convert server path to URL
                     img.src = '/' + photoPath;
                     img.className = 'photo-preview';
-                    img.title = 'Click to edit photo';
+                    img.title = 'Click to edit | Right-click to zoom';
 
                     // Make photo clickable to open editor
-                    const photoIndex = i;
-                    img.onclick = function() {
+                    img.onclick = function(e) {
+                        e.preventDefault();
                         openPhotoEditor(photoIndex, this.src);
+                    };
+
+                    // Right-click to zoom
+                    img.oncontextmenu = function(e) {
+                        e.preventDefault();
+                        openImageZoom(this.src);
                     };
 
                     img.onerror = function() {
                         // Fallback: try different path formats
                         this.src = '/data/draft_photos/' + listing.listing_uuid + '/' + photoPath.split('/').pop();
                     };
-                    previewDiv.appendChild(img);
+
+                    // Create delete button
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
+                    deleteBtn.className = 'btn btn-danger btn-sm photo-delete-btn';
+                    deleteBtn.style.position = 'absolute';
+                    deleteBtn.style.top = '5px';
+                    deleteBtn.style.right = '5px';
+                    deleteBtn.style.padding = '2px 6px';
+                    deleteBtn.style.fontSize = '12px';
+                    deleteBtn.title = 'Remove photo';
+                    deleteBtn.onclick = function(e) {
+                        e.preventDefault();
+                        removePhoto(photoIndex);
+                    };
+
+                    container.appendChild(img);
+                    container.appendChild(deleteBtn);
+                    previewDiv.appendChild(container);
                 }
 
-                // Enable the analyze button when photos are loaded from draft
-                const analyzeBtn = document.getElementById('analyzeBtn');
-                analyzeBtn.disabled = false;
-                analyzeBtn.title = 'Click to analyze photos with AI';
+                document.getElementById('analyzeBtn').style.display = 'block';
             }
 
             showAlert('Draft loaded for editing', 'info');
@@ -1798,180 +1571,5 @@ async function loadDraftData() {
 if (editingDraftId) {
     document.addEventListener('DOMContentLoaded', loadDraftData);
 }
-
-// Generate random SKU
-function generateSKU() {
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    const sku = `SKU-${timestamp}-${random}`;
-    document.getElementById('sku').value = sku;
-}
-
-// ============================================================================
-// AUTO-SAVE FUNCTIONALITY
-// ============================================================================
-
-const AUTOSAVE_KEY = 'draft_autosave';
-const AUTOSAVE_INTERVAL = 5000; // Save every 5 seconds
-let autoSaveTimer = null;
-let hasUnsavedChanges = false;
-
-// Create auto-save indicator
-const autoSaveIndicator = document.createElement('div');
-autoSaveIndicator.id = 'autoSaveIndicator';
-autoSaveIndicator.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: rgba(40, 167, 69, 0.9);
-    color: white;
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 12px;
-    z-index: 9999;
-    display: none;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-`;
-autoSaveIndicator.innerHTML = '<i class="fas fa-check-circle"></i> Auto-saved';
-document.body.appendChild(autoSaveIndicator);
-
-function showAutoSaveIndicator(text = 'Auto-saved', color = 'rgba(40, 167, 69, 0.9)') {
-    autoSaveIndicator.style.background = color;
-    autoSaveIndicator.innerHTML = `<i class="fas fa-check-circle"></i> ${text}`;
-    autoSaveIndicator.style.display = 'block';
-    setTimeout(() => {
-        autoSaveIndicator.style.display = 'none';
-    }, 2000);
-}
-
-function autoSaveToLocalStorage() {
-    // Don't auto-save if we're editing an existing draft (use manual save instead)
-    if (editingDraftId) return;
-
-    const formData = {
-        title: document.getElementById('title').value,
-        description: document.getElementById('description').value,
-        price: document.getElementById('price').value,
-        cost: document.getElementById('cost').value,
-        condition: document.getElementById('condition').value,
-        item_type: document.getElementById('item_type').value,
-        brand: document.getElementById('brand').value,
-        size: document.getElementById('size').value,
-        color: document.getElementById('color').value,
-        shipping_cost: document.getElementById('shipping_cost').value,
-        storage_location: document.getElementById('storage_location').value,
-        quantity: document.getElementById('quantity').value,
-        sku: document.getElementById('sku').value,
-        upc: document.getElementById('upc').value,
-        timestamp: new Date().toISOString()
-    };
-
-    // Only save if there's some content
-    if (formData.title || formData.description || formData.price) {
-        try {
-            localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(formData));
-            showAutoSaveIndicator('Auto-saved');
-            hasUnsavedChanges = false;
-        } catch (e) {
-            console.error('Auto-save failed:', e);
-        }
-    }
-}
-
-function loadFromLocalStorage() {
-    // Don't load from localStorage if we're editing an existing draft
-    if (editingDraftId) return;
-
-    try {
-        const saved = localStorage.getItem(AUTOSAVE_KEY);
-        if (saved) {
-            const formData = JSON.parse(saved);
-
-            // Ask user if they want to restore
-            const savedDate = new Date(formData.timestamp);
-            const message = `Found auto-saved draft from ${savedDate.toLocaleString()}. Would you like to restore it?`;
-
-            if (confirm(message)) {
-                // Restore form data
-                document.getElementById('title').value = formData.title || '';
-                document.getElementById('description').value = formData.description || '';
-                document.getElementById('price').value = formData.price || '';
-                document.getElementById('cost').value = formData.cost || '';
-                document.getElementById('condition').value = formData.condition || 'excellent';
-                document.getElementById('item_type').value = formData.item_type || 'general';
-                document.getElementById('brand').value = formData.brand || '';
-                document.getElementById('size').value = formData.size || '';
-                document.getElementById('color').value = formData.color || '';
-                document.getElementById('shipping_cost').value = formData.shipping_cost || '0';
-                document.getElementById('storage_location').value = formData.storage_location || '';
-                document.getElementById('quantity').value = formData.quantity || '1';
-                document.getElementById('sku').value = formData.sku || '';
-                document.getElementById('upc').value = formData.upc || '';
-
-                showAutoSaveIndicator('Draft restored', 'rgba(13, 110, 253, 0.9)');
-            } else {
-                // Clear if user doesn't want to restore
-                localStorage.removeItem(AUTOSAVE_KEY);
-            }
-        }
-    } catch (e) {
-        console.error('Failed to load auto-save:', e);
-    }
-}
-
-function clearAutoSave() {
-    try {
-        localStorage.removeItem(AUTOSAVE_KEY);
-    } catch (e) {
-        console.error('Failed to clear auto-save:', e);
-    }
-}
-
-// Schedule auto-save when form changes
-function scheduleAutoSave() {
-    hasUnsavedChanges = true;
-    if (autoSaveTimer) {
-        clearTimeout(autoSaveTimer);
-    }
-    autoSaveTimer = setTimeout(autoSaveToLocalStorage, AUTOSAVE_INTERVAL);
-}
-
-// Add change listeners to all form fields
-document.addEventListener('DOMContentLoaded', function() {
-    // Load any saved draft
-    loadFromLocalStorage();
-
-    // Add listeners to form fields
-    const formFields = [
-        'title', 'description', 'price', 'cost', 'condition', 'item_type',
-        'brand', 'size', 'color', 'shipping_cost', 'storage_location',
-        'quantity', 'sku', 'upc'
-    ];
-
-    formFields.forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        if (field) {
-            field.addEventListener('input', scheduleAutoSave);
-            field.addEventListener('change', scheduleAutoSave);
-        }
-    });
-
-    // Warn user about unsaved changes when leaving page
-    window.addEventListener('beforeunload', function(e) {
-        if (hasUnsavedChanges && !editingDraftId) {
-            e.preventDefault();
-            e.returnValue = '';
-            return '';
-        }
-    });
-});
-
-// Clear auto-save after successful save to server
-const originalSaveListing = saveListing;
-saveListing = async function(status = 'draft') {
-    await originalSaveListing(status);
-    // Clear auto-save after successful save
-    clearAutoSave();
-};
 </script>
 {% endblock %}

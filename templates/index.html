@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Home - Resell Rebel{% endblock %}
+{% block title %}Home - ResellGenie{% endblock %}
 
 {% block content %}
 
@@ -10,10 +10,10 @@
     <div class="container text-center py-5">
         <div class="hero-content">
             <div class="hero-icon mb-4">
-                <img src="/static/resell-rebel-logo.png" onerror="this.onerror=null; this.src='/static/resell-rebel-icon.svg';" alt="Resell Rebel Logo" style="width: 180px; height: auto;">
+                <i class="fas fa-brain fa-5x"></i>
             </div>
-            <h1 class="display-2 fw-bold mb-3" style="background: linear-gradient(to right, #fff, #f0e6ff, #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Resell Rebel</h1>
-            <p class="hero-tagline mb-2">Sell smarter, not harder.</p>
+            <h1 class="display-2 fw-bold mb-3">ResellGenie</h1>
+            <p class="hero-tagline mb-2">Everything you sell, perfectly organized.</p>
             <p class="hero-subtitle mb-4">AI handles the listings. You handle the profits.</p>
 
             <div class="hero-cta mt-4">
@@ -206,17 +206,10 @@
     <div class="container text-center py-4">
         <div class="hero-content">
             <div class="hero-icon mb-3">
-                <img src="/static/resell-rebel-logo.png" onerror="this.onerror=null; this.src='/static/resell-rebel-icon.svg';" alt="Resell Rebel Logo" style="width: 150px; height: auto;">
+                <i class="fas fa-brain fa-4x"></i>
             </div>
-            <h1 class="display-2 fw-bold mb-3" style="background: linear-gradient(to right, #fff, #f0e6ff, #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Resell Rebel</h1>
-            <p class="display-6 mb-2" style="color: rgba(255,255,255,0.95);">
-                {% if current_user and current_user.is_authenticated and current_user.username %}
-                    Welcome Back, <strong>{{ current_user.username }}</strong>!
-                {% else %}
-                    Welcome!
-                {% endif %}
-            </p>
-            <p class="hero-subtitle mb-1">Ready to make bold moves today?</p>
+            <h1 class="display-4 fw-bold mb-2" style="color: white;">Welcome Back!</h1>
+            <p class="hero-subtitle mb-1">Hey <strong>{{ current_user.username }}</strong>, ready to crush it today?</p>
             <div class="hero-badges mt-3">
                 <span class="badge-pill"><i class="fas fa-rocket me-1"></i> Let's make some sales</span>
             </div>
@@ -229,14 +222,14 @@
     <div class="row g-4">
         <!-- Create Listing - Primary Action -->
         <div class="col-12">
-            <div class="feature-card" style="background: linear-gradient(135deg, #0A0A0A 0%, #1a0a1f 15%, #4C1D95 35%, #5B21B6 55%, #991B1B 80%, #7F1D1D 100%); color: white; padding: 50px 40px;">
+            <div class="feature-card" style="background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%); color: white; padding: 50px 40px;">
                 <div class="text-center">
                     <div class="hero-icon mb-3">
                         <i class="fas fa-camera fa-5x" style="color: white;"></i>
                     </div>
                     <h3 class="fw-bold mb-3">Create New Listing</h3>
                     <p class="mb-4" style="font-size: 1.1rem; opacity: 0.95;">Snap photos and let AI handle the magic ✨</p>
-                    <a href="{{ url_for('create_listing') }}" class="btn btn-light btn-lg px-5 pulse-glow" style="color: #991B1B; font-weight: 700;">
+                    <a href="{{ url_for('listings') }}" class="btn btn-light btn-lg px-5 pulse-glow" style="color: #DC2626; font-weight: 700;">
                         <i class="fas fa-plus-circle me-2"></i> Start Listing Now
                     </a>
                 </div>
@@ -293,7 +286,57 @@
     </div>
 </div>
 
-<!-- Quick Stats Section - Removed redundant section as these are already in bottom menu -->
+<!-- Quick Stats Section -->
+<div class="section-alt py-4">
+    <div class="container">
+        <div class="text-center mb-4">
+            <h3 class="section-title" style="font-size: 1.8rem;">Your Command Center</h3>
+            <p class="section-subtitle">Everything you need, right at your fingertips</p>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-6 col-md-3">
+                <a href="{{ url_for('cards.cards_collection') }}" class="text-decoration-none">
+                    <div class="step-card" style="cursor: pointer; padding: 30px 20px;">
+                        <div class="step-icon">🎴</div>
+                        <h6 class="step-title" style="font-size: 1rem;">Cards</h6>
+                        <p class="step-text" style="font-size: 0.85rem;">Collection manager</p>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <a href="{{ url_for('notifications') }}" class="text-decoration-none">
+                    <div class="step-card" style="cursor: pointer; padding: 30px 20px;">
+                        <div class="step-icon">🔔</div>
+                        <h6 class="step-title" style="font-size: 1rem;">Alerts</h6>
+                        <p class="step-text" style="font-size: 0.85rem;">Stay updated</p>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <a href="{{ url_for('index') }}" class="text-decoration-none">
+                    <div class="step-card" style="cursor: pointer; padding: 30px 20px;">
+                        <div class="step-icon">⚡</div>
+                        <h6 class="step-title" style="font-size: 1rem;">Quick Post</h6>
+                        <p class="step-text" style="font-size: 0.85rem;">Fast listing</p>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <a href="{{ url_for('auth.logout') }}" class="text-decoration-none">
+                    <div class="step-card" style="cursor: pointer; padding: 30px 20px; border: 2px solid #ef4444;">
+                        <div class="step-icon">🚪</div>
+                        <h6 class="step-title" style="font-size: 1rem; color: #ef4444;">Logout</h6>
+                        <p class="step-text" style="font-size: 0.85rem;">See you soon!</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Pro Tip Section -->
 <div class="container my-4">

@@ -343,10 +343,6 @@ async function handlePhotoSelect(e) {
 
             // Show previews (append to existing)
             const previewDiv = document.getElementById('photoPreview');
-<<<<<<< HEAD
-            console.log('[UPLOAD] Creating', files.length, 'preview images');
-            for (let i = 0; i < data.paths.length; i++) {
-=======
             for (let i = 0; i < files.length; i++) {
                 const photoIndex = uploadedPhotos.length - data.paths.length + i;
 
@@ -358,7 +354,6 @@ async function handlePhotoSelect(e) {
                 container.style.margin = '5px';
 
                 // Create image
->>>>>>> origin
                 const img = document.createElement('img');
                 // Use actual file path from server instead of blob URL
                 // Server returns paths like "data/draft_photos/uuid/filename"

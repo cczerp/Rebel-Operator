@@ -102,14 +102,50 @@ class SupabaseStorageManager:
             bucket = bucket.strip()
             
             # Upload to Supabase Storage
-            response = self.client.storage.from_(bucket).upload(
-                path=filename,
-                file=file_data,
-                file_options={
-                    'content-type': content_type,
-                    'upsert': False  # Don't overwrite existing files
-                }
-            )
+            # Ensure file_data is bytes (Supabase SDK accepts bytes or file-like objects)
+            if not isinstance(file_data, bytes):
+                if hasattr(file_data, 'read'):
+                    # It's a file-like object, read it
+                    file_data = file_data.read()
+                elif isinstance(file_data, (str, int, bool)):
+                    # Invalid type - log and return error
+                    logger.error(f"Invalid file_data type: {type(file_data)}, value: {file_data}")
+                    return False, f"Invalid file data type: {type(file_data)}"
+                else:
+                    # Try to convert to bytes
+                    try:
+                        file_data = bytes(file_data)
+                    except (TypeError, ValueError) as e:
+                        logger.error(f"Could not convert file_data to bytes: {e}")
+                        return False, f"Could not convert file data to bytes: {str(e)}"
+            
+            try:
+                # Supabase Python SDK upload method
+                # Try without file_options first, then with minimal options
+                try:
+                    # Attempt upload with content-type only
+                    response = self.client.storage.from_(bucket).upload(
+                        path=filename,
+                        file=file_data,
+                        file_options={'content-type': content_type}
+                    )
+                except Exception as e1:
+                    # If that fails, try without file_options
+                    logger.warning(f"Upload with file_options failed: {e1}, trying without options")
+                    response = self.client.storage.from_(bucket).upload(
+                        path=filename,
+                        file=file_data
+                    )
+                    
+            except Exception as upload_error:
+                logger.error(f"Supabase upload error: {upload_error}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                # Check if error message gives us a clue
+                error_str = str(upload_error)
+                if 'encode' in error_str.lower() and 'bool' in error_str.lower():
+                    return False, "Upload failed: Invalid data type passed to Supabase. Please check file data format."
+                return False, str(upload_error)
             
             # Get public URL and strip any whitespace/newlines
             public_url = self.client.storage.from_(bucket).get_public_url(filename).strip()

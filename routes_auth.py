@@ -31,45 +31,57 @@ def login():
         return render_template('login.html')
 
     # POST — authenticate user
-    data = request.form
-    username = data.get('username')
-    password = data.get('password')
+    try:
+        data = request.form
+        username = data.get('username')
+        password = data.get('password')
 
-    if not username or not password:
-        flash("Username and password required.", "error")
+        if not username or not password:
+            flash("Username and password required.", "error")
+            return render_template('login.html')
+
+        user_data = db.get_user_by_username(username)
+
+        if not user_data:
+            flash("User not found.", "error")
+            return render_template('login.html')
+
+        if not check_password_hash(user_data['password_hash'], password):
+            flash("Incorrect password.", "error")
+            return render_template('login.html')
+
+        # Create User object for Flask-Login
+        user = User(
+            user_data['id'],
+            user_data['username'],
+            user_data['email'],
+            user_data.get('is_admin', False),
+            user_data.get('is_active', True),
+            user_data.get('tier', 'FREE')
+        )
+
+        login_user(user)
+        try:
+            db.log_activity(
+                action="login",
+                user_id=user.id,
+                resource_type="user",
+                resource_id=user.id,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get("User-Agent")
+            )
+        except Exception as e:
+            # Log activity is non-critical, don't fail login if it errors
+            import logging
+            logging.error(f"Failed to log login activity: {e}")
+
+        return redirect(url_for('index'))
+    except Exception as e:
+        import logging
+        import traceback
+        logging.error(f"Login error: {e}\n{traceback.format_exc()}")
+        flash(f"An error occurred during login: {str(e)}", "error")
         return render_template('login.html')
-
-    user_data = db.get_user_by_username(username)
-
-    if not user_data:
-        flash("User not found.", "error")
-        return render_template('login.html')
-
-    if not check_password_hash(user_data['password_hash'], password):
-        flash("Incorrect password.", "error")
-        return render_template('login.html')
-
-    # Create User object for Flask-Login
-    user = User(
-        user_data['id'],
-        user_data['username'],
-        user_data['email'],
-        user_data.get('is_admin', False),
-        user_data.get('is_active', True),
-        user_data.get('tier', 'FREE')
-    )
-
-    login_user(user)
-    db.log_activity(
-        action="login",
-        user_id=user.id,
-        resource_type="user",
-        resource_id=user.id,
-        ip_address=request.remote_addr,
-        user_agent=request.headers.get("User-Agent")
-    )
-
-    return redirect(url_for('index'))
 
 
 # =============================================================================
@@ -115,14 +127,19 @@ def register():
     )
     login_user(user)
 
-    db.log_activity(
-        action="register",
-        user_id=user.id,
-        resource_type="user",
-        resource_id=user.id,
-        ip_address=request.remote_addr,
-        user_agent=request.headers.get("User-Agent")
-    )
+    try:
+        db.log_activity(
+            action="register",
+            user_id=user.id,
+            resource_type="user",
+            resource_id=user.id,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get("User-Agent")
+        )
+    except Exception as e:
+        # Log activity is non-critical, don't fail registration if it errors
+        import logging
+        logging.error(f"Failed to log register activity: {e}")
 
     return redirect(url_for('index'))
 
@@ -135,14 +152,19 @@ def register():
 @login_required
 def logout():
     """Log out the current user."""
-    db.log_activity(
-        action="logout",
-        user_id=current_user.id,
-        resource_type="user",
-        resource_id=current_user.id,
-        ip_address=request.remote_addr,
-        user_agent=request.headers.get("User-Agent")
-    )
+    try:
+        db.log_activity(
+            action="logout",
+            user_id=current_user.id,
+            resource_type="user",
+            resource_id=current_user.id,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get("User-Agent")
+        )
+    except Exception as e:
+        # Log activity is non-critical, don't fail logout if it errors
+        import logging
+        logging.error(f"Failed to log logout activity: {e}")
 
     logout_user()
     return redirect(url_for('auth.login'))
@@ -201,14 +223,19 @@ def api_login():
     )
     login_user(user)
 
-    db.log_activity(
-        action="api_login",
-        user_id=user.id,
-        resource_type="user",
-        resource_id=user.id,
-        ip_address=request.remote_addr,
-        user_agent=request.headers.get("User-Agent")
-    )
+    try:
+        db.log_activity(
+            action="api_login",
+            user_id=user.id,
+            resource_type="user",
+            resource_id=user.id,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get("User-Agent")
+        )
+    except Exception as e:
+        # Log activity is non-critical, don't fail login if it errors
+        import logging
+        logging.error(f"Failed to log api_login activity: {e}")
 
     return jsonify({
         "success": True,
@@ -254,14 +281,19 @@ def forgot_password():
         return render_template('forgot_password.html')
 
     # In full version, generate token + email instructions here
-    db.log_activity(
-        action="password_reset_requested",
-        user_id=user_data['id'],
-        resource_type="user",
-        resource_id=user_data['id'],
-        ip_address=request.remote_addr,
-        user_agent=request.headers.get("User-Agent")
-    )
+    try:
+        db.log_activity(
+            action="password_reset_requested",
+            user_id=user_data['id'],
+            resource_type="user",
+            resource_id=user_data['id'],
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get("User-Agent")
+        )
+    except Exception as e:
+        # Log activity is non-critical
+        import logging
+        logging.error(f"Failed to log password_reset_requested activity: {e}")
 
     flash("Password reset instructions sent to your email.", "info")
     return render_template('forgot_password.html')

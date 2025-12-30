@@ -144,16 +144,32 @@ def api_upload_photos():
                 }
                 content_type = content_type_map.get(ext.lower(), 'image/jpeg')
                 
-                # Read compressed file bytes
+                # Ensure compressed_file is a BytesIO object and reset position
                 compressed_file.seek(0)
-                file_data = compressed_file.read()
                 
-                # Upload to Supabase Storage (temp bucket)
-                success, result = storage.upload_photo(
-                    file_data=file_data,
-                    folder='temp',
-                    content_type=content_type
-                )
+                # Try passing BytesIO directly first (Supabase SDK prefers file-like objects)
+                # If that doesn't work, fall back to bytes
+                try:
+                    success, result = storage.upload_photo(
+                        file_data=compressed_file,  # Pass BytesIO directly
+                        folder='temp',
+                        content_type=content_type
+                    )
+                except Exception as upload_error:
+                    # Fall back to bytes if BytesIO doesn't work
+                    import logging
+                    logging.warning(f"Upload with BytesIO failed: {upload_error}, trying with bytes")
+                    compressed_file.seek(0)
+                    file_data = compressed_file.read()
+                    
+                    if not isinstance(file_data, bytes):
+                        return jsonify({"error": f"Invalid file data type: {type(file_data)}"}), 500
+                    
+                    success, result = storage.upload_photo(
+                        file_data=file_data,
+                        folder='temp',
+                        content_type=content_type
+                    )
                 
                 if success:
                     uploaded_urls.append(result)  # result is the public URL

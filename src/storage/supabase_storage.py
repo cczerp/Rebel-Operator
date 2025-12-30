@@ -29,8 +29,8 @@ class SupabaseStorageManager:
         try:
             from supabase import create_client, Client
             
-            self.supabase_url = os.getenv('SUPABASE_URL')
-            self.supabase_key = os.getenv('SUPABASE_KEY') or os.getenv('SUPABASE_ANON_KEY')
+            self.supabase_url = os.getenv('SUPABASE_URL', '').strip()
+            self.supabase_key = (os.getenv('SUPABASE_KEY') or os.getenv('SUPABASE_ANON_KEY') or '').strip()
             
             if not self.supabase_url or not self.supabase_key:
                 raise ValueError(
@@ -40,10 +40,10 @@ class SupabaseStorageManager:
             # Initialize Supabase client
             self.client: Client = create_client(self.supabase_url, self.supabase_key)
             
-            # Bucket names
-            self.temp_bucket = os.getenv('SUPABASE_BUCKET_TEMP', 'temp-photos')
-            self.drafts_bucket = os.getenv('SUPABASE_BUCKET_DRAFTS', 'draft-images')
-            self.listings_bucket = os.getenv('SUPABASE_BUCKET_LISTINGS', 'listing-images')
+            # Bucket names (strip whitespace to prevent newline issues)
+            self.temp_bucket = os.getenv('SUPABASE_BUCKET_TEMP', 'temp-photos').strip()
+            self.drafts_bucket = os.getenv('SUPABASE_BUCKET_DRAFTS', 'draft-images').strip()
+            self.listings_bucket = os.getenv('SUPABASE_BUCKET_LISTINGS', 'listing-images').strip()
             
             logger.info(f"✅ Supabase Storage initialized")
             logger.info(f"   Temp bucket: {self.temp_bucket}")
@@ -97,6 +97,10 @@ class SupabaseStorageManager:
                 ext = ext_map.get(content_type, '.jpg')
                 filename = f"{uuid.uuid4().hex}{ext}"
             
+            # Strip any whitespace/newlines from filename and bucket
+            filename = filename.strip()
+            bucket = bucket.strip()
+            
             # Upload to Supabase Storage
             response = self.client.storage.from_(bucket).upload(
                 path=filename,
@@ -107,8 +111,8 @@ class SupabaseStorageManager:
                 }
             )
             
-            # Get public URL
-            public_url = self.client.storage.from_(bucket).get_public_url(filename)
+            # Get public URL and strip any whitespace/newlines
+            public_url = self.client.storage.from_(bucket).get_public_url(filename).strip()
             
             logger.info(f"✅ Uploaded {filename} to {bucket}")
             return True, public_url
@@ -276,9 +280,12 @@ class SupabaseStorageManager:
             path: File path within bucket
 
         Returns:
-            Public URL
+            Public URL (stripped of whitespace)
         """
-        return self.client.storage.from_(bucket).get_public_url(path)
+        # Strip whitespace to prevent newline issues
+        bucket = bucket.strip()
+        path = path.strip()
+        return self.client.storage.from_(bucket).get_public_url(path).strip()
 
     def list_temp_photos(self, user_id: Optional[int] = None) -> List[str]:
         """

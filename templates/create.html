@@ -15,21 +15,21 @@
 <form id="listingForm">
     <!-- Photo Upload -->
     <div class="card mb-3">
-        <div class="card-header bg-primary text-white">
-            <i class="fas fa-camera"></i> Photos
+        <div class="card-header" style="background: var(--carbon-matte-surface); border-bottom: 2px solid var(--alert-crimson);">
+            <i class="fas fa-camera" style="color: var(--alert-crimson);"></i> Photos
         </div>
         <div class="card-body">
             <div class="row mb-3">
                 <div class="col-6">
-                    <button type="button" class="btn btn-outline-primary w-100" onclick="document.getElementById('cameraInput').click()">
-                        <i class="fas fa-camera"></i><br>Take Photo
-                    </button>
+            <button type="button" class="btn btn-outline-primary w-100" onclick="document.getElementById('cameraInput').click()">
+                <i class="fas fa-camera"></i><br>Take Photo
+            </button>
                     <input type="file" class="d-none" id="cameraInput" name="photos" accept="image/*" capture="environment" onchange="handlePhotoSelect(event)">
                 </div>
                 <div class="col-6">
-                    <button type="button" class="btn btn-outline-secondary w-100" onclick="document.getElementById('photoInput').click()">
-                        <i class="fas fa-upload"></i><br>Upload Files
-                    </button>
+            <button type="button" class="btn btn-outline-secondary w-100" onclick="document.getElementById('photoInput').click()">
+                <i class="fas fa-upload"></i><br>Upload Files
+            </button>
                     <input type="file" class="d-none" id="photoInput" name="photos" multiple accept="image/*" onchange="handlePhotoSelect(event)">
                 </div>
             </div>
@@ -122,8 +122,8 @@
 
     <!-- Inventory Management -->
     <div class="card mb-3">
-        <div class="card-header bg-warning text-white">
-            <i class="fas fa-box"></i> Inventory Management
+        <div class="card-header" style="background: var(--carbon-matte-surface); border-bottom: 2px solid var(--cold-steel-accent);">
+            <i class="fas fa-box" style="color: var(--cold-steel-light);"></i> Inventory Management
         </div>
         <div class="card-body">
             <div class="mb-3">
@@ -183,7 +183,7 @@
 <div id="photoEditorModal" class="photo-editor-modal">
     <div class="photo-editor-container">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4><i class="fas fa-magic"></i> Edit Photo (FREE!)</h4>
+            <h4 style="color: var(--off-white-text);"><i class="fas fa-magic" style="color: var(--alert-crimson);"></i> Edit Photo (FREE!)</h4>
             <button class="btn btn-outline-danger" onclick="closePhotoEditor()">
                 <i class="fas fa-times"></i> Close
             </button>
@@ -211,7 +211,7 @@
             </button>
         </div>
 
-        <div class="alert alert-info mt-3">
+        <div class="alert alert-info mt-3" style="background: rgba(95, 122, 138, 0.15); border-color: var(--cold-steel-accent); color: var(--cold-steel-light);">
             <i class="fas fa-gift"></i> <strong>FREE Feature!</strong> Other apps charge $5-20/month for background removal. We give it to you free!
         </div>
     </div>
@@ -220,7 +220,7 @@
 <!-- Image Zoom Modal -->
 <div id="imageZoomModal" class="image-zoom-modal" onclick="closeImageZoom()" style="display: none;">
     <div class="image-zoom-container">
-        <button class="btn btn-outline-light zoom-close-btn" onclick="closeImageZoom()">
+        <button class="btn btn-outline-danger zoom-close-btn" onclick="closeImageZoom()">
             <i class="fas fa-times"></i>
         </button>
         <img id="zoomImage" src="" alt="Zoomed image">
@@ -235,7 +235,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.95);
+    background: rgba(26, 26, 26, 0.98);
     z-index: 9999;
     display: flex;
     align-items: center;
@@ -257,7 +257,6 @@
     top: 20px;
     right: 20px;
     z-index: 10000;
-    border: 2px solid white;
 }
 
 #zoomImage {
@@ -272,8 +271,9 @@
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    color: white;
-    background: rgba(0, 0, 0, 0.7);
+    color: var(--off-white-text);
+    background: var(--carbon-matte-surface);
+    border: 1px solid var(--cold-steel-dark);
     padding: 10px 20px;
     border-radius: 5px;
     font-size: 14px;
@@ -291,7 +291,8 @@
 
 .photo-preview:hover {
     transform: scale(1.05);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 8px rgba(220, 20, 60, 0.5);
+    border: 2px solid var(--alert-crimson);
 }
 
 .photo-preview-container {
@@ -306,6 +307,9 @@
     right: 5px;
     padding: 2px 6px;
     font-size: 12px;
+    background: var(--alert-crimson) !important;
+    border-color: var(--alert-crimson) !important;
+    color: white !important;
 }
 </style>
 
@@ -851,12 +855,12 @@ function showEnhancedScanOption(isCard, isCollectible, analysis) {
         : 'Get rarity info, franchise history, and authentication markers';
 
     const enhancedScanCard = `
-        <div class="card border-primary mb-3" id="enhancedScanCard">
+        <div class="card border-primary mb-3" id="enhancedScanCard" style="border-color: var(--alert-crimson);">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="mb-1">
-                            <i class="fas ${icon} text-primary"></i> 
+                        <h6 class="mb-1" style="color: var(--off-white-text);">
+                            <i class="fas ${icon}" style="color: var(--alert-crimson);"></i> 
                             Enhanced Scanner Available
                         </h6>
                         <small class="text-muted">${message}</small>
@@ -882,8 +886,8 @@ function showMarketAnalysis(market) {
                      market.demand_level === 'Low' ? 'danger' : 'warning';
 
     let marketCard = `
-        <div class="card border-info mb-3" id="marketAnalysisCard">
-            <div class="card-header bg-info text-white">
+        <div class="card border-info mb-3" id="marketAnalysisCard" style="border-color: var(--cold-steel-accent);">
+            <div class="card-header" style="background: var(--carbon-matte-surface); border-bottom: 2px solid var(--cold-steel-accent); color: var(--cold-steel-light);">
                 <i class="fas fa-chart-line"></i> Market Analysis
             </div>
             <div class="card-body">
@@ -977,8 +981,8 @@ function showCardResults(data) {
     const prices = data.market_prices || {};
 
     const statsCard = `
-        <div class="card border-success mb-3" id="enhancedResultsCard">
-            <div class="card-header bg-success text-white">
+        <div class="card border-success mb-3" id="enhancedResultsCard" style="border-color: #4CAF50;">
+            <div class="card-header" style="background: var(--carbon-matte-surface); border-bottom: 2px solid #4CAF50; color: #81C784;">
                 <i class="fas fa-id-card"></i> Card Analysis Complete
             </div>
             <div class="card-body">
@@ -990,7 +994,7 @@ function showCardResults(data) {
                         ${cardData.rarity ? `<p class="mb-1"><strong>Rarity:</strong> ${cardData.rarity}</p>` : ''}
                         ${cardData.year ? `<p class="mb-1"><strong>Year:</strong> ${cardData.year}</p>` : ''}
                         ${cardData.brand ? `<p class="mb-1"><strong>Brand:</strong> ${cardData.brand}</p>` : ''}
-                        ${cardData.is_rookie_card ? `<p class="mb-1"><span class="badge bg-warning">ROOKIE CARD</span></p>` : ''}
+                        ${cardData.is_rookie_card ? `<p class="mb-1"><span class="badge" style="background: #FF9800; color: white;">ROOKIE CARD</span></p>` : ''}
                         ${cardData.is_graded ? `<p class="mb-1"><strong>Graded:</strong> ${cardData.grading_company} ${cardData.grading_score}</p>` : ''}
                     </div>
                     <div class="col-md-6">
@@ -1041,8 +1045,8 @@ function showCollectibleResults(data) {
     const prices = data.market_prices || {};
 
     const collectibleCard = `
-        <div class="card border-warning mb-3" id="enhancedResultsCard">
-            <div class="card-header bg-warning text-dark">
+        <div class="card border-warning mb-3" id="enhancedResultsCard" style="border-color: #FF9800;">
+            <div class="card-header" style="background: var(--carbon-matte-surface); border-bottom: 2px solid #FF9800; color: #FFB74D;">
                 <i class="fas fa-star"></i> Collectible Analysis Complete
             </div>
             <div class="card-body">
@@ -1093,7 +1097,7 @@ function showCollectibleResults(data) {
                             <div class="mt-3">
                                 <small class="text-muted">Rarity Score</small>
                                 <div class="progress">
-                                    <div class="progress-bar bg-warning" style="width: ${collectibleData.rarity_score}%">
+                                    <div class="progress-bar" style="background: #FF9800; width: ${collectibleData.rarity_score}%">
                                         ${collectibleData.rarity_score}/100
                                     </div>
                                 </div>
@@ -1283,8 +1287,9 @@ async function storeAndList() {
             if (resultsCard) {
                 resultsCard.classList.remove('border-success');
                 resultsCard.classList.add('border-info');
-                resultsCard.querySelector('.card-header').classList.remove('bg-success');
-                resultsCard.querySelector('.card-header').classList.add('bg-info');
+                resultsCard.querySelector('.card-header').style.background = 'var(--carbon-matte-surface)';
+                resultsCard.querySelector('.card-header').style.borderBottom = '2px solid var(--cold-steel-accent)';
+                resultsCard.querySelector('.card-header').style.color = 'var(--cold-steel-light)';
                 resultsCard.querySelector('.card-header').innerHTML = '<i class="fas fa-check-circle"></i> Card Stored - Create Listing Below';
             }
         } else {
@@ -1362,8 +1367,9 @@ async function storeCollectibleAndList() {
             if (resultsCard) {
                 resultsCard.classList.remove('border-warning');
                 resultsCard.classList.add('border-info');
-                resultsCard.querySelector('.card-header').classList.remove('bg-warning');
-                resultsCard.querySelector('.card-header').classList.add('bg-info');
+                resultsCard.querySelector('.card-header').style.background = 'var(--carbon-matte-surface)';
+                resultsCard.querySelector('.card-header').style.borderBottom = '2px solid var(--cold-steel-accent)';
+                resultsCard.querySelector('.card-header').style.color = 'var(--cold-steel-light)';
                 resultsCard.querySelector('.card-header').innerHTML = '<i class="fas fa-check-circle"></i> Collectible Stored - Create Listing Below';
             }
         } else {

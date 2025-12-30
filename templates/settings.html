@@ -40,7 +40,7 @@
                     You'll receive notifications when items sell, offers arrive, etc.
                 </small>
             </div>
-            <button type="submit" class="btn btn-secondary">
+            <button type="submit" class="btn btn-primary">
                 <i class="fas fa-save"></i> Save Notification Email
             </button>
         </form>
@@ -49,7 +49,7 @@
 
 <!-- API Platform Credentials (Automated Posting) -->
 <div class="card mb-3">
-    <div class="card-header" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">
+    <div class="card-header bg-success text-white">
         <h5 class="mb-0"><i class="fas fa-robot"></i> API Platforms (Fully Automated Posting)</h5>
     </div>
     <div class="card-body">
@@ -62,11 +62,7 @@
         <div class="border rounded p-3 mb-3">
             <h6 class="d-flex justify-content-between align-items-center">
                 <span><i class="fas fa-store text-warning"></i> Etsy API</span>
-                {% if api_credentials.get('etsy') %}
-                <span class="badge" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">Configured</span>
-                {% else %}
-                <span class="badge" style="background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%); color: var(--off-white-text);">Not Configured</span>
-                {% endif %}
+                <span class="badge bg-secondary">Not Configured</span>
             </h6>
             <p class="small text-muted">
                 Get your API key from: <a href="https://www.etsy.com/developers" target="_blank">Etsy Developer Portal</a>
@@ -74,13 +70,13 @@
             <form class="api-credentials-form" data-platform="etsy">
                 <div class="mb-2">
                     <label class="form-label small">API Key</label>
-                    <input type="text" class="form-control form-control-sm" name="api_key" placeholder="Your Etsy API Key" value="{{ api_credentials.get('etsy', {}).get('api_key', '') }}">
+                    <input type="text" class="form-control form-control-sm" name="api_key" placeholder="Your Etsy API Key">
                 </div>
                 <div class="mb-2">
                     <label class="form-label small">Shop ID</label>
-                    <input type="text" class="form-control form-control-sm" name="shop_id" placeholder="Your Etsy Shop ID" value="{{ api_credentials.get('etsy', {}).get('shop_id', '') }}">
+                    <input type="text" class="form-control form-control-sm" name="shop_id" placeholder="Your Etsy Shop ID">
                 </div>
-                <button type="submit" class="btn btn-sm btn-secondary">
+                <button type="submit" class="btn btn-sm btn-success">
                     <i class="fas fa-save"></i> Save Etsy API
                 </button>
             </form>
@@ -90,11 +86,7 @@
         <div class="border rounded p-3 mb-3">
             <h6 class="d-flex justify-content-between align-items-center">
                 <span><i class="fas fa-shopping-cart text-success"></i> Shopify API</span>
-                {% if api_credentials.get('shopify') %}
-                <span class="badge" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">Configured</span>
-                {% else %}
-                <span class="badge" style="background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%); color: var(--off-white-text);">Not Configured</span>
-                {% endif %}
+                <span class="badge bg-secondary">Not Configured</span>
             </h6>
             <p class="small text-muted">
                 Get your API key from: Shopify Admin → Apps → Develop Apps
@@ -102,13 +94,13 @@
             <form class="api-credentials-form" data-platform="shopify">
                 <div class="mb-2">
                     <label class="form-label small">Store URL</label>
-                    <input type="text" class="form-control form-control-sm" name="store_url" placeholder="yourstore.myshopify.com" value="{{ api_credentials.get('shopify', {}).get('store_url', '') }}">
+                    <input type="text" class="form-control form-control-sm" name="store_url" placeholder="yourstore.myshopify.com">
                 </div>
                 <div class="mb-2">
                     <label class="form-label small">Access Token</label>
-                    <input type="password" class="form-control form-control-sm" name="access_token" placeholder="Your Shopify Access Token" value="{{ api_credentials.get('shopify', {}).get('access_token', '') }}">
+                    <input type="password" class="form-control form-control-sm" name="access_token" placeholder="Your Shopify Access Token">
                 </div>
-                <button type="submit" class="btn btn-sm btn-secondary">
+                <button type="submit" class="btn btn-sm btn-success">
                     <i class="fas fa-save"></i> Save Shopify API
                 </button>
             </form>
@@ -118,11 +110,7 @@
         <div class="border rounded p-3 mb-3">
             <h6 class="d-flex justify-content-between align-items-center">
                 <span><i class="fas fa-wordpress text-primary"></i> WooCommerce API (resellrage.com)</span>
-                {% if api_credentials.get('woocommerce') %}
-                <span class="badge" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">Configured</span>
-                {% else %}
-                <span class="badge" style="background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%); color: var(--off-white-text);">Not Configured</span>
-                {% endif %}
+                <span class="badge bg-secondary">Not Configured</span>
             </h6>
             <p class="small text-muted">
                 Get your API keys from: WordPress Admin → WooCommerce → Settings → Advanced → REST API
@@ -130,17 +118,17 @@
             <form class="api-credentials-form" data-platform="woocommerce">
                 <div class="mb-2">
                     <label class="form-label small">Store URL</label>
-                    <input type="text" class="form-control form-control-sm" name="store_url" placeholder="https://resellrage.com" value="{{ api_credentials.get('woocommerce', {}).get('store_url', '') }}">
+                    <input type="text" class="form-control form-control-sm" name="store_url" placeholder="https://resellrage.com">
                 </div>
                 <div class="mb-2">
                     <label class="form-label small">Consumer Key</label>
-                    <input type="text" class="form-control form-control-sm" name="consumer_key" placeholder="ck_..." value="{{ api_credentials.get('woocommerce', {}).get('consumer_key', '') }}">
+                    <input type="text" class="form-control form-control-sm" name="consumer_key" placeholder="ck_...">
                 </div>
                 <div class="mb-2">
                     <label class="form-label small">Consumer Secret</label>
-                    <input type="password" class="form-control form-control-sm" name="consumer_secret" placeholder="cs_..." value="{{ api_credentials.get('woocommerce', {}).get('consumer_secret', '') }}">
+                    <input type="password" class="form-control form-control-sm" name="consumer_secret" placeholder="cs_...">
                 </div>
-                <button type="submit" class="btn btn-sm btn-secondary">
+                <button type="submit" class="btn btn-sm btn-success">
                     <i class="fas fa-save"></i> Save WooCommerce API
                 </button>
             </form>
@@ -150,11 +138,7 @@
         <div class="border rounded p-3 mb-3">
             <h6 class="d-flex justify-content-between align-items-center">
                 <span><i class="fab fa-facebook text-primary"></i> Facebook Shops API</span>
-                {% if api_credentials.get('facebook') %}
-                <span class="badge" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">Configured</span>
-                {% else %}
-                <span class="badge" style="background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%); color: var(--off-white-text);">Not Configured</span>
-                {% endif %}
+                <span class="badge bg-secondary">Not Configured</span>
             </h6>
             <p class="small text-muted">
                 Get your access token from: <a href="https://developers.facebook.com/" target="_blank">Facebook for Developers</a>
@@ -162,89 +146,14 @@
             <form class="api-credentials-form" data-platform="facebook">
                 <div class="mb-2">
                     <label class="form-label small">Page Access Token</label>
-                    <input type="password" class="form-control form-control-sm" name="access_token" placeholder="Your Facebook Page Access Token" value="{{ api_credentials.get('facebook', {}).get('access_token', '') }}">
+                    <input type="password" class="form-control form-control-sm" name="access_token" placeholder="Your Facebook Page Access Token">
                 </div>
                 <div class="mb-2">
                     <label class="form-label small">Catalog ID</label>
-                    <input type="text" class="form-control form-control-sm" name="catalog_id" placeholder="Your Facebook Catalog ID" value="{{ api_credentials.get('facebook', {}).get('catalog_id', '') }}">
+                    <input type="text" class="form-control form-control-sm" name="catalog_id" placeholder="Your Facebook Catalog ID">
                 </div>
-                <button type="submit" class="btn btn-sm btn-secondary">
+                <button type="submit" class="btn btn-sm btn-success">
                     <i class="fas fa-save"></i> Save Facebook API
-                </button>
-            </form>
-        </div>
-
-        <!-- eBay API -->
-        <div class="border rounded p-3 mb-3">
-            <h6 class="d-flex justify-content-between align-items-center">
-                <span><i class="fab fa-ebay text-warning"></i> eBay API</span>
-                {% if api_credentials.get('ebay') %}
-                <span class="badge" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">Configured</span>
-                {% else %}
-                <span class="badge" style="background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%); color: var(--off-white-text);">Not Configured</span>
-                {% endif %}
-            </h6>
-            <p class="small text-muted">
-                Get your API credentials from: <a href="https://developer.ebay.com/" target="_blank">eBay Developers Program</a>
-            </p>
-            <form class="api-credentials-form" data-platform="ebay">
-                <div class="mb-2">
-                    <label class="form-label small">App ID (Client ID)</label>
-                    <input type="text" class="form-control form-control-sm" name="app_id" placeholder="Your eBay App ID" value="{{ api_credentials.get('ebay', {}).get('app_id', '') }}">
-                </div>
-                <div class="mb-2">
-                    <label class="form-label small">Dev ID</label>
-                    <input type="text" class="form-control form-control-sm" name="dev_id" placeholder="Your eBay Dev ID" value="{{ api_credentials.get('ebay', {}).get('dev_id', '') }}">
-                </div>
-                <div class="mb-2">
-                    <label class="form-label small">Cert ID (Client Secret)</label>
-                    <input type="password" class="form-control form-control-sm" name="cert_id" placeholder="Your eBay Cert ID" value="{{ api_credentials.get('ebay', {}).get('cert_id', '') }}">
-                </div>
-                <div class="mb-2">
-                    <label class="form-label small">OAuth Token (Optional - will be generated if not provided)</label>
-                    <input type="password" class="form-control form-control-sm" name="oauth_token" placeholder="OAuth Token (optional)" value="{{ api_credentials.get('ebay', {}).get('oauth_token', '') }}">
-                </div>
-                <div class="mb-2">
-                    <label class="form-label small">Environment</label>
-                    <select class="form-control form-control-sm" name="environment">
-                        <option value="sandbox" {% if api_credentials.get('ebay', {}).get('environment') == 'sandbox' %}selected{% endif %}>Sandbox (Testing)</option>
-                        <option value="production" {% if not api_credentials.get('ebay', {}).get('environment') or api_credentials.get('ebay', {}).get('environment') == 'production' %}selected{% endif %}>Production</option>
-                    </select>
-                </div>
-                <button type="submit" class="btn btn-sm btn-secondary">
-                    <i class="fas fa-save"></i> Save eBay API
-                </button>
-            </form>
-        </div>
-
-        <!-- Mercari API -->
-        <div class="border rounded p-3 mb-3">
-            <h6 class="d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-shopping-bag text-primary"></i> Mercari API</span>
-                {% if api_credentials.get('mercari') %}
-                <span class="badge" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">Configured</span>
-                {% else %}
-                <span class="badge" style="background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%); color: var(--off-white-text);">Not Configured</span>
-                {% endif %}
-            </h6>
-            <p class="small text-muted">
-                Mercari API credentials for automated posting. Contact Mercari for API access.
-            </p>
-            <form class="api-credentials-form" data-platform="mercari">
-                <div class="mb-2">
-                    <label class="form-label small">API Key</label>
-                    <input type="text" class="form-control form-control-sm" name="api_key" placeholder="Your Mercari API Key" value="{{ api_credentials.get('mercari', {}).get('api_key', '') }}">
-                </div>
-                <div class="mb-2">
-                    <label class="form-label small">API Secret</label>
-                    <input type="password" class="form-control form-control-sm" name="api_secret" placeholder="Your Mercari API Secret" value="{{ api_credentials.get('mercari', {}).get('api_secret', '') }}">
-                </div>
-                <div class="mb-2">
-                    <label class="form-label small">Access Token (Optional - will be generated if not provided)</label>
-                    <input type="password" class="form-control form-control-sm" name="access_token" placeholder="Access Token (optional)" value="{{ api_credentials.get('mercari', {}).get('access_token', '') }}">
-                </div>
-                <button type="submit" class="btn btn-sm btn-secondary">
-                    <i class="fas fa-save"></i> Save Mercari API
                 </button>
             </form>
         </div>
@@ -259,7 +168,7 @@
 
 <!-- Marketplace Credentials (CSV Platforms) -->
 <div class="card mb-3">
-    <div class="card-header" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">
+    <div class="card-header bg-primary text-white">
         <h5 class="mb-0"><i class="fas fa-file-csv"></i> CSV Platforms (Manual Upload)</h5>
     </div>
     <div class="card-body">
@@ -274,9 +183,9 @@
             <h6 class="d-flex justify-content-between align-items-center">
                 <span><i class="{{ platform.icon }} {{ platform.color }}"></i> {{ platform.name }}</span>
                 {% if credentials.get(platform.id) %}
-                <span class="badge" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">Connected</span>
+                <span class="badge bg-success">Connected</span>
                 {% else %}
-                <span class="badge" style="background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%); color: var(--off-white-text);">Not Connected</span>
+                <span class="badge bg-secondary">Not Connected</span>
                 {% endif %}
             </h6>
 
@@ -430,19 +339,10 @@ document.querySelectorAll('.api-credentials-form').forEach(form => {
             credentials[key] = value;
         }
 
-        // Validate required fields (skip empty optional fields)
-        // Remove empty values before validation
-        const cleanedCredentials = {};
-        for (const [key, value] of Object.entries(credentials)) {
-            if (value && value.trim()) {
-                cleanedCredentials[key] = value.trim();
-            }
-        }
-        
-        // Check if we have at least one field filled
-        if (Object.keys(cleanedCredentials).length === 0) {
+        // Validate required fields
+        if (Object.values(credentials).some(val => !val.trim())) {
             hideLoading();
-            showAlert('Please fill in at least one field', 'warning');
+            showAlert('Please fill in all required fields', 'warning');
             return;
         }
 
@@ -452,7 +352,7 @@ document.querySelectorAll('.api-credentials-form').forEach(form => {
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     platform,
-                    credentials: cleanedCredentials
+                    credentials
                 })
             });
 

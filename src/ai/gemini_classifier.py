@@ -202,14 +202,35 @@ class GeminiClassifier:
         for i, photo in enumerate(photos[:4]):
             if photo.local_path:
                 try:
+                    # Debug logging (as per user's suggestion)
+                    file_path = photo.local_path
+                    file_exists = Path(file_path).exists()
+                    file_size = Path(file_path).stat().st_size if file_exists else 0
+                    
+                    debug_info = {
+                        'hasFile': bool(photo.local_path),
+                        'filePath': file_path,
+                        'exists': file_exists,
+                        'fileSize': file_size,
+                        'isFile': Path(file_path).is_file() if file_exists else False
+                    }
+                    logger.info(f"[GEMINI DEBUG] Image {i+1} before encoding: {debug_info}")
+                    
                     # Validate file exists
-                    if not Path(photo.local_path).exists():
-                        logger.error(f"Image file not found: {photo.local_path}")
+                    if not file_exists:
+                        logger.error(f"❌ Image file not found: {file_path}")
+                        continue
+                    
+                    if file_size == 0:
+                        logger.error(f"❌ Image file is empty: {file_path}")
                         continue
                     
                     # Prepare and encode image (validates, converts, encodes)
-                    image_b64 = self._encode_image_to_base64(photo.local_path)
-                    mime_type = self._get_image_mime_type(photo.local_path)  # Always 'image/jpeg' after conversion
+                    image_b64 = self._encode_image_to_base64(file_path)
+                    mime_type = self._get_image_mime_type(file_path)  # Always 'image/jpeg' after conversion
+                    
+                    # Debug after encoding
+                    logger.info(f"[GEMINI DEBUG] Image {i+1} after encoding: mime_type={mime_type}, base64_length={len(image_b64)}, starts_with_data={image_b64.startswith('data:')}")
                     
                     # Gemini requirement: mimeType MUST be present (non-negotiable)
                     if not mime_type:
@@ -223,13 +244,29 @@ class GeminiClassifier:
                     
                     # Ensure base64 is clean (no data:image prefix)
                     if image_b64.startswith('data:image'):
+                        logger.warning(f"⚠️ Base64 had data: prefix, stripping it")
                         image_b64 = image_b64.split(',')[1] if ',' in image_b64 else image_b64
                     
+                    # Final validation before adding to payload (as per user's suggestion)
+                    if not mime_type:
+                        logger.error(f"❌ mime_type is missing for image {i+1}")
+                        continue
+                    
+                    if not image_b64 or len(image_b64) == 0:
+                        logger.error(f"❌ base64 data is empty for image {i+1}")
+                        continue
+                    
+                    # Create inline_data part (Gemini requirement)
+                    inline_data = {
+                        "mime_type": mime_type,  # MUST be present (non-negotiable)
+                        "data": image_b64  # Clean base64 string (no prefix)
+                    }
+                    
+                    # Debug the inline_data structure
+                    logger.debug(f"[GEMINI DEBUG] Image {i+1} inline_data: mime_type={inline_data['mime_type']}, data_length={len(inline_data['data'])}")
+                    
                     image_parts.append({
-                        "inline_data": {
-                            "mime_type": mime_type,  # MUST be present (non-negotiable)
-                            "data": image_b64  # Clean base64 string (no prefix)
-                        }
+                        "inline_data": inline_data
                     })
                     logger.info(f"✅ Prepared image {i+1}/{min(len(photos), 4)} for Gemini (mime_type: {mime_type}, data_len: {len(image_b64)})")
                     
@@ -403,13 +440,32 @@ IMPORTANT:
             }
         }
         
-        # Log payload structure for debugging (without full base64 data)
-        logger.debug(f"Payload structure: {len(image_parts)} images, prompt length: {len(prompt)}")
+        # Log payload structure for debugging (as per user's suggestion)
+        logger.info(f"[GEMINI DEBUG] Payload structure: {len(image_parts)} images, prompt length: {len(prompt)}")
         for i, img_part in enumerate(image_parts):
             if 'inline_data' in img_part:
-                mime = img_part['inline_data'].get('mime_type', 'unknown')
-                data_len = len(img_part['inline_data'].get('data', ''))
-                logger.debug(f"  Image {i+1}: mime_type={mime}, data_length={data_len}")
+                inline_data = img_part['inline_data']
+                mime = inline_data.get('mime_type', 'unknown')
+                data = inline_data.get('data', '')
+                data_len = len(data)
+                has_mime = bool(mime)
+                has_data = bool(data)
+                is_base64 = not data.startswith('data:') if data else False
+                
+                logger.info(f"[GEMINI DEBUG] Image {i+1} in payload:")
+                logger.info(f"  - has_inline_data: True")
+                logger.info(f"  - has_mime_type: {has_mime} ({mime})")
+                logger.info(f"  - has_data: {has_data} (length: {data_len})")
+                logger.info(f"  - is_clean_base64: {is_base64}")
+                
+                if not has_mime:
+                    logger.error(f"❌ Image {i+1} missing mime_type in payload!")
+                if not has_data:
+                    logger.error(f"❌ Image {i+1} missing data in payload!")
+                if data.startswith('data:'):
+                    logger.error(f"❌ Image {i+1} data still has data: prefix!")
+            else:
+                logger.error(f"❌ Image {i+1} missing inline_data in payload!")
 
         # Retry logic for rate limits (exponential backoff)
         max_retries = 4

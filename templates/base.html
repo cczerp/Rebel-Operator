@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>{% block title %}Resell Rebel - Multi-Platform Seller{% endblock %}</title>
+    <title>{% block title %}ResellGenie - Multi-Platform Seller{% endblock %}</title>
 
     <!-- PWA Meta Tags -->
-    <meta name="description" content="Smart selling, bold moves - Cross-platform inventory and listing management for resellers">
-    <meta name="theme-color" content="#DC2626">
+    <meta name="description" content="Cross-platform inventory and listing management for resellers">
+    <meta name="theme-color" content="#6366F1">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Resell Rebel">
+    <meta name="apple-mobile-web-app-title" content="ResellGenie">
     <link rel="manifest" href="/static/manifest.json">
     <link rel="apple-touch-icon" href="/static/icon-192.png">
 
@@ -22,97 +22,33 @@
 
     <style>
         :root {
-            /* Brand Color Hierarchy - Design Contract */
-            --red-primary: #DC2626;        /* Primary brand + primary actions only */
-            --red-primary-dark: #991B1B;   /* Darker red for pressed states */
-            --red-primary-light: #EF4444;  /* Lighter red for hover states */
-            --charcoal: #1F2937;          /* Foundational background / app canvas */
-            --charcoal-light: #374151;     /* Lighter charcoal for surfaces */
-            --charcoal-dark: #111827;      /* Darker charcoal for depth */
-            --steel-blue-grey: #475569;    /* Functional UI surfaces and secondary actions */
-            --steel-blue-grey-light: #64748B; /* Lighter steel for hover */
-            --steel-blue-grey-dark: #334155;   /* Darker steel for pressed */
-            --off-white: #F9FAFB;          /* Accent + light canvas */
-            --off-white-text: #E5E7EB;     /* Off-white for text on dark backgrounds */
-            
-            /* Legacy compatibility (mapped to new system) */
-            --primary: #DC2626;
-            --primary-dark: #991B1B;
-            --secondary: #475569;
-            --accent: #F9FAFB;
-            --crimson: #DC2626;
-            --crimson-dark: #991B1B;
-            --black: #1F2937;
-            --success: #DC2626;  /* Success uses red for primary actions */
-            --danger: #DC2626;
-            --warning: #475569;  /* Warning uses steel blue-grey */
-
-            /* Light mode surfaces (brighter, same palette) */
-            --bg-primary: var(--off-white);            /* Canvas */
-            --bg-secondary: var(--off-white-text);     /* Sub-surface */
-            --bg-tertiary: var(--steel-blue-grey-light); /* Cards / panels */
-            --text-primary: var(--charcoal);           
-            --text-secondary: var(--steel-blue-grey);  
-            --text-tertiary: var(--charcoal-light);    
-            --border-color: rgba(31, 41, 55, 0.08);     /* Charcoal at low opacity */
-            --card-bg: var(--steel-blue-grey-light);    
-            --card-shadow: rgba(0,0,0,0.12);
-        }
-
-        [data-theme="dark"] {
-            /* Dark mode stays heavy/industrial */
-            --bg-primary: #111827;
-            --bg-secondary: #0A0F1A;
-            --bg-tertiary: #1F2937;
-            --text-primary: #F9FAFB;
-            --text-secondary: #E5E7EB;
-            --text-tertiary: #9CA3AF;
-            --border-color: rgba(255,255,255,0.15);
-            --card-bg: #1F2937;
-            --card-shadow: rgba(0,0,0,0.5);
-        }
-
-        /* Dark mode overrides for cards */
-        [data-theme="dark"] .feature-card {
-            background: linear-gradient(145deg, #262626 0%, #1a1a1a 100%);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-        }
-
-        [data-theme="dark"] .step-card {
-            background: linear-gradient(145deg, #262626 0%, #1a1a1a 100%);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-        }
-
-        [data-theme="dark"] .step-title,
-        [data-theme="dark"] .feature-title {
-            color: #e5e5e5;
-        }
-
-        [data-theme="dark"] .step-text,
-        [data-theme="dark"] .feature-text {
-            color: #a3a3a3;
-        }
-
-        [data-theme="dark"] .benefit-item {
-            background: #262626;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            --primary: #6366F1;
+            --primary-dark: #4F46E5;
+            --secondary: #8B5CF6;
+            --accent: #EC4899;
+            --success: #10B981;
+            --danger: #EF4444;
+            --warning: #F59E0B;
+            --gradient: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
         }
 
         .logo {
             font-size: 1.5rem;
             font-weight: bold;
-            color: var(--red-primary);
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .logo i {
-            color: var(--red-primary);
+            color: #6366F1;
+            -webkit-text-fill-color: #6366F1;
         }
 
         body {
             padding-bottom: 80px; /* Space for bottom nav */
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            transition: background-color 0.3s ease, color 0.3s ease;
+            background: #f5f5f5;
         }
 
         .bottom-nav {
@@ -120,14 +56,13 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: var(--card-bg);
+            background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.98) 100%);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border-top: 1px solid var(--border-color);
+            border-top: 1px solid rgba(0,0,0,0.05);
             padding: 12px 8px 18px 8px;
             z-index: 1000;
-            box-shadow: 0 -5px 20px var(--card-shadow);
-            transition: background-color 0.3s ease, border-color 0.3s ease;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.08);
         }
 
         .bottom-nav .nav-item {
@@ -152,19 +87,19 @@
         }
 
         .bottom-nav .nav-link:hover {
-            background: rgba(220, 38, 38, 0.1);
+            background: rgba(102, 126, 234, 0.08);
             transform: translateY(-2px);
         }
 
         .bottom-nav .nav-link.active {
             color: white;
-            background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%);
-            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.45);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
         }
 
         .bottom-nav .nav-link.active:hover {
             transform: translateY(-3px);
-            box-shadow: 0 6px 16px rgba(153, 27, 27, 0.65);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.45);
         }
 
         .bottom-nav .nav-link i {
@@ -222,374 +157,20 @@
             }
         }
 
-        /* Primary AI Button (Red) - Material depth with elevation */
         .btn-primary {
-            background: linear-gradient(180deg, var(--red-primary-dark) 0%, var(--red-primary) 100%);
-            border: none;
-            color: white;
-            font-weight: 600;
-            position: relative;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            /* Base elevation: layered shadows for depth */
-            box-shadow: 
-                0 2px 4px rgba(0, 0, 0, 0.15),
-                0 4px 8px rgba(220, 38, 38, 0.2),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-        }
-
-        /* Edge highlight for material feel */
-        .btn-primary::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(255, 255, 255, 0.25) 20%, 
-                rgba(255, 255, 255, 0.3) 50%, 
-                rgba(255, 255, 255, 0.25) 80%, 
-                transparent
-            );
-            opacity: 1;
-            transition: opacity 0.25s ease;
+            background: var(--primary);
+            border-color: var(--primary);
         }
 
         .btn-primary:hover {
-            /* Elevated state: brighter base, higher shadow */
-            background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-light) 100%);
-            transform: translateY(-2px);
-            /* Increased elevation: deeper shadows */
-            box-shadow: 
-                0 4px 8px rgba(0, 0, 0, 0.2),
-                0 8px 16px rgba(220, 38, 38, 0.35),
-                inset 0 1px 0 rgba(255, 255, 255, 0.15),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
-        }
-
-        .btn-primary:hover::before {
-            opacity: 1;
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(255, 255, 255, 0.35) 20%, 
-                rgba(255, 255, 255, 0.4) 50%, 
-                rgba(255, 255, 255, 0.35) 80%, 
-                transparent
-            );
-        }
-
-        .btn-primary:active {
-            /* Pressed state: compressed, darker material */
-            background: linear-gradient(180deg, var(--red-primary-dark) 0%, #7F1D1D 100%);
-            transform: translateY(0px) scale(0.98);
-            /* Reduced elevation: flatter shadow */
-            box-shadow: 
-                0 1px 2px rgba(0, 0, 0, 0.2),
-                0 2px 4px rgba(220, 38, 38, 0.25),
-                inset 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        .btn-primary:active::before {
-            opacity: 0.5;
-        }
-
-        /* Primary action buttons (Post Now, etc.) - same material depth as .btn-primary */
-        /* SYSTEM CONTRACT: Red buttons → black text (not white) */
-        .btn-success.btn-lg,
-        .btn-success#postNowBtn {
-            background: linear-gradient(180deg, var(--red-primary-dark) 0%, var(--red-primary) 100%);
-            border: none;
-            color: black;  /* SYSTEM CONTRACT: Red buttons use black text, not white */
-            font-weight: 600;
-            position: relative;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            /* Base elevation: layered shadows for depth */
-            box-shadow: 
-                0 2px 4px rgba(0, 0, 0, 0.15),
-                0 4px 8px rgba(220, 38, 38, 0.2),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-        }
-
-        .btn-success.btn-lg::before,
-        .btn-success#postNowBtn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(255, 255, 255, 0.25) 20%, 
-                rgba(255, 255, 255, 0.3) 50%, 
-                rgba(255, 255, 255, 0.25) 80%, 
-                transparent
-            );
-            transition: opacity 0.25s ease;
-        }
-
-        .btn-success.btn-lg:hover,
-        .btn-success#postNowBtn:hover {
-            background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-light) 100%);
-            transform: translateY(-2px);
-            box-shadow: 
-                0 4px 8px rgba(0, 0, 0, 0.2),
-                0 8px 16px rgba(220, 38, 38, 0.35),
-                inset 0 1px 0 rgba(255, 255, 255, 0.15),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
-        }
-
-        .btn-success.btn-lg:hover::before,
-        .btn-success#postNowBtn:hover::before {
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(255, 255, 255, 0.35) 20%, 
-                rgba(255, 255, 255, 0.4) 50%, 
-                rgba(255, 255, 255, 0.35) 80%, 
-                transparent
-            );
-        }
-
-        .btn-success.btn-lg:active,
-        .btn-success#postNowBtn:active {
-            background: linear-gradient(180deg, var(--red-primary-dark) 0%, #7F1D1D 100%);
-            transform: translateY(0px) scale(0.98);
-            box-shadow: 
-                0 1px 2px rgba(0, 0, 0, 0.2),
-                0 2px 4px rgba(220, 38, 38, 0.25),
-                inset 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        .btn-success.btn-lg:active::before,
-        .btn-success#postNowBtn:active::before {
-            opacity: 0.5;
-        }
-
-        /* Secondary Buttons (Steel Blue-Grey) - Lower elevation than primary */
-        /* SYSTEM CONTRACT: Steel / grey-blue buttons → black text (not white) */
-        .btn-secondary {
-            background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%);
-            border: 1px solid rgba(71, 85, 105, 0.3);
-            color: black;  /* SYSTEM CONTRACT: Steel buttons use black text, not white */
-            font-weight: 600;
-            position: relative;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            /* Lower elevation than primary: softer shadows */
-            box-shadow: 
-                0 1px 3px rgba(0, 0, 0, 0.12),
-                0 2px 6px rgba(71, 85, 105, 0.2),
-                inset 0 1px 0 rgba(255, 255, 255, 0.08),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
-        }
-
-        /* Top edge highlight for material sheen */
-        .btn-secondary::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(255, 255, 255, 0.2) 20%, 
-                rgba(255, 255, 255, 0.25) 50%, 
-                rgba(255, 255, 255, 0.2) 80%, 
-                transparent
-            );
-            transition: opacity 0.25s ease;
-        }
-
-        .btn-secondary:hover {
-            /* Elevated: brighter material, subtle lift */
-            background: linear-gradient(180deg, var(--steel-blue-grey-light) 0%, var(--steel-blue-grey) 100%);
-            transform: translateY(-1px);
-            /* Increased elevation */
-            box-shadow: 
-                0 2px 6px rgba(0, 0, 0, 0.15),
-                0 4px 12px rgba(71, 85, 105, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.12),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.12);
-        }
-
-        .btn-secondary:hover::before {
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(255, 255, 255, 0.25) 20%, 
-                rgba(255, 255, 255, 0.3) 50%, 
-                rgba(255, 255, 255, 0.25) 80%, 
-                transparent
-            );
-        }
-
-        .btn-secondary:active {
-            /* Pressed: darker material, compressed */
-            background: linear-gradient(180deg, var(--steel-blue-grey-dark) 0%, #1E293B 100%);
-            transform: translateY(0px) scale(0.98);
-            /* Flattened elevation */
-            box-shadow: 
-                0 1px 2px rgba(0, 0, 0, 0.15),
-                0 2px 4px rgba(71, 85, 105, 0.2),
-                inset 0 2px 4px rgba(0, 0, 0, 0.25);
-        }
-
-        .btn-secondary:active::before {
-            opacity: 0.4;
-        }
-
-        /* Utility Buttons (Save Draft, camera triggers, etc.) - Charcoal material with defined shine */
-        .btn-outline-primary,
-        .btn-utility {
-            background: linear-gradient(
-                180deg,
-                var(--charcoal-light) 0%,
-                var(--charcoal) 45%,
-                var(--charcoal-dark) 100%
-            );
-            border: 1px solid rgba(15, 23, 42, 0.7);
-            color: var(--off-white-text);
-            font-weight: 500;
-            border-radius: 10px;
-            position: relative;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            /* Minimal elevation: clear but compact */
-            box-shadow:
-                0 1px 2px rgba(0, 0, 0, 0.18),
-                0 3px 6px rgba(15, 23, 42, 0.4),
-                inset 0 1px 0 rgba(255, 255, 255, 0.06),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.25);
-        }
-
-        /* Thin edge highlight for subtle forged edge */
-        .btn-outline-primary::before,
-        .btn-utility::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(
-                90deg,
-                transparent,
-                rgba(255, 255, 255, 0.18) 25%,
-                rgba(255, 255, 255, 0.22) 50%,
-                rgba(255, 255, 255, 0.18) 75%,
-                transparent
-            );
-            opacity: 0.9;
-            transition: opacity 0.25s ease;
-        }
-
-        .btn-outline-primary:hover,
-        .btn-utility:hover {
-            /* Slightly elevated: brighter face, stronger edge */
-            background: linear-gradient(
-                180deg,
-                var(--charcoal-light) 0%,
-                var(--charcoal) 35%,
-                var(--charcoal-dark) 100%
-            );
-            color: var(--off-white);
-            transform: translateY(-1px);
-            box-shadow:
-                0 2px 6px rgba(0, 0, 0, 0.2),
-                0 4px 10px rgba(15, 23, 42, 0.55),
-                inset 0 1px 0 rgba(255, 255, 255, 0.08),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.3);
-        }
-
-        .btn-outline-primary:hover::before,
-        .btn-utility:hover::before {
-            opacity: 1;
-            background: linear-gradient(
-                90deg,
-                transparent,
-                rgba(255, 255, 255, 0.24) 25%,
-                rgba(255, 255, 255, 0.3) 50%,
-                rgba(255, 255, 255, 0.24) 75%,
-                transparent
-            );
-        }
-
-        .btn-outline-primary:active,
-        .btn-utility:active {
-            /* Pressed: darker, compressed */
-            background: linear-gradient(180deg, var(--charcoal) 0%, var(--charcoal-dark) 100%);
-            transform: translateY(0px) scale(0.98);
-            /* Flattened */
-            box-shadow: 
-                0 1px 2px rgba(0, 0, 0, 0.15),
-                inset 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        .btn-outline-primary:active::before,
-        .btn-utility:active::before {
-            opacity: 0.3;
+            background: #45a049;
+            border-color: #45a049;
         }
 
         .card {
-            border: 1px solid var(--border-color);
-            box-shadow: 0 2px 4px var(--card-shadow);
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             margin-bottom: 15px;
-            background: var(--card-bg);
-            color: var(--text-primary);
-            transition: background-color 0.3s ease, border-color 0.3s ease;
-        }
-
-        .card-header {
-            background: var(--bg-tertiary) !important;
-            color: var(--text-primary) !important;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .card-body {
-            background: var(--card-bg);
-        }
-
-        .form-control, .form-select {
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            border-color: var(--border-color);
-        }
-
-        .form-control:focus, .form-select:focus {
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            border-color: var(--red-primary);
-            box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.25);
-        }
-
-        /* Dark mode toggle button */
-        .theme-toggle {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            z-index: 9999;
-            background: var(--card-bg);
-            border: 2px solid var(--border-color);
-            border-radius: 50%;
-            width: 45px;
-            height: 45px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 12px var(--card-shadow);
-            transition: all 0.3s ease;
-        }
-
-        .theme-toggle:hover {
-            transform: scale(1.1) rotate(15deg);
-            box-shadow: 0 6px 20px var(--card-shadow);
-        }
-
-        .theme-toggle i {
-            font-size: 20px;
-            color: var(--red-primary);
         }
 
         .photo-preview {
@@ -606,7 +187,7 @@
         .photo-preview:hover {
             transform: scale(1.05);
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            border-color: var(--red-primary);
+            border-color: var(--primary);
         }
 
         .photo-editor-modal {
@@ -668,121 +249,6 @@
             display: inline-block;
         }
 
-        /* Account Menu Modal */
-        .account-menu {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            top: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 10000;
-            animation: fadeIn 0.2s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .account-menu-content {
-            position: absolute;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--card-bg);
-            border-radius: 20px 20px 0 0;
-            width: 90%;
-            max-width: 400px;
-            box-shadow: 0 -5px 30px rgba(0, 0, 0, 0.3);
-            animation: slideUp 0.3s ease;
-        }
-
-        @keyframes slideUp {
-            from {
-                bottom: -300px;
-                opacity: 0;
-            }
-            to {
-                bottom: 80px;
-                opacity: 1;
-            }
-        }
-
-        .account-menu-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .account-menu-header h5 {
-            margin: 0;
-            color: var(--text-primary);
-            font-weight: 700;
-        }
-
-        .btn-close-menu {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 0;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-        }
-
-        .btn-close-menu:hover {
-            color: var(--text-primary);
-            transform: rotate(90deg);
-        }
-
-        .account-menu-body {
-            padding: 10px;
-        }
-
-        .account-menu-item {
-            display: flex;
-            align-items: center;
-            padding: 15px 20px;
-            color: var(--text-primary);
-            text-decoration: none;
-            border-radius: 12px;
-            transition: all 0.2s ease;
-            margin-bottom: 5px;
-        }
-
-        .account-menu-item:hover {
-            background: var(--bg-tertiary);
-            transform: translateX(5px);
-        }
-
-        .account-menu-item i {
-            font-size: 1.2rem;
-            margin-right: 15px;
-            width: 25px;
-            text-align: center;
-        }
-
-        .account-menu-item.text-danger {
-            color: var(--red-primary) !important;
-        }
-
-        .account-menu-item.text-danger:hover {
-            background: rgba(220, 38, 38, 0.1);
-        }
-
-        .account-menu hr {
-            margin: 10px 20px;
-            border-color: var(--border-color);
-        }
-
         .loading {
             display: none;
             position: fixed;
@@ -800,19 +266,18 @@
            LANDING PAGE REDESIGN STYLES
            ======================================== */
 
-        /* Hero Section - Charcoal with red accent */
+        /* Hero Section - Full Width Gradient */
         .hero-section {
-            background: linear-gradient(135deg, var(--charcoal-dark) 0%, var(--charcoal) 50%, var(--charcoal-light) 100%);
-            color: var(--off-white);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #F093FB 100%);
+            color: white;
             border-radius: 0 0 30px 30px;
             margin-top: -24px;
             margin-left: calc(-50vw + 50%);
             margin-right: calc(-50vw + 50%);
             padding: 80px 20px;
-            box-shadow: 0 10px 40px rgba(220, 38, 38, 0.3);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
             position: relative;
             overflow: hidden;
-            border-bottom: 2px solid var(--red-primary);
         }
 
         .hero-section::before {
@@ -872,170 +337,37 @@
         }
 
         .btn-hero {
-            background: linear-gradient(180deg, var(--red-primary-dark) 0%, var(--red-primary) 100%);
-            color: white;
+            background: white;
+            color: #667eea;
             font-weight: 700;
             padding: 14px 32px;
             border-radius: 30px;
             border: none;
-            position: relative;
-            box-shadow: 
-                0 2px 4px rgba(0, 0, 0, 0.15),
-                0 4px 8px rgba(220, 38, 38, 0.2),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .btn-hero::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(255, 255, 255, 0.25) 20%, 
-                rgba(255, 255, 255, 0.3) 50%, 
-                rgba(255, 255, 255, 0.25) 80%, 
-                transparent
-            );
-            border-radius: 30px 30px 0 0;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
         }
 
         .btn-hero:hover {
-            background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-light) 100%);
-            transform: translateY(-2px);
-            box-shadow: 
-                0 4px 8px rgba(0, 0, 0, 0.2),
-                0 8px 16px rgba(220, 38, 38, 0.35),
-                inset 0 1px 0 rgba(255, 255, 255, 0.15),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.3);
+            background: #f8f9ff;
+            color: #667eea;
         }
 
-        .btn-hero:active {
-            background: linear-gradient(180deg, var(--red-primary-dark) 0%, #7F1D1D 100%);
-            transform: translateY(0px) scale(0.98);
-            box-shadow: 
-                0 1px 2px rgba(0, 0, 0, 0.2),
-                0 2px 4px rgba(220, 38, 38, 0.25),
-                inset 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        /* Secondary Button (Steel Blue-Grey) - Material depth with subtle elevation */
-        /* SYSTEM CONTRACT: Steel / grey-blue buttons → black text (not white) */
-        .btn-hero-outline,
-        .btn-secondary-action {
-            background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%);
-            color: black;  /* SYSTEM CONTRACT: Steel buttons use black text, not white */
-            border: none;
-            font-weight: 600;
+        .btn-hero-outline {
+            background: transparent;
+            color: white;
+            border: 2px solid white;
+            font-weight: 700;
             padding: 14px 32px;
             border-radius: 30px;
-            position: relative;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            /* Enhanced elevation for better visibility */
-            box-shadow: 
-                0 2px 4px rgba(0, 0, 0, 0.15),
-                0 4px 10px rgba(71, 85, 105, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.12),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
         }
 
-        /* Top edge highlight for material sheen - more prominent */
-        .btn-hero-outline::before,
-        .btn-secondary-action::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(255, 255, 255, 0.3) 20%, 
-                rgba(255, 255, 255, 0.35) 50%, 
-                rgba(255, 255, 255, 0.3) 80%, 
-                transparent
-            );
-            border-radius: 30px 30px 0 0;
-            transition: all 0.25s ease;
-        }
-
-        .btn-hero-outline:hover,
-        .btn-secondary-action:hover {
-            /* Elevated: brighter material, subtle lift */
-            background: linear-gradient(180deg, var(--steel-blue-grey-light) 0%, var(--steel-blue-grey) 100%);
-            transform: translateY(-2px);
-            /* Increased elevation with glow effect */
-            box-shadow: 
-                0 4px 8px rgba(0, 0, 0, 0.2),
-                0 8px 20px rgba(71, 85, 105, 0.4),
-                0 0 25px rgba(100, 116, 139, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.15),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
-        }
-
-        .btn-hero-outline:hover::before,
-        .btn-secondary-action:hover::before {
-            height: 3px;
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(255, 255, 255, 0.35) 20%, 
-                rgba(255, 255, 255, 0.4) 50%, 
-                rgba(255, 255, 255, 0.35) 80%, 
-                transparent
-            );
-        }
-
-        .btn-hero-outline:active,
-        .btn-secondary-action:active {
-            /* Pressed: darker material, compressed */
-            background: linear-gradient(180deg, var(--steel-blue-grey-dark) 0%, #1E293B 100%);
-            transform: translateY(0px) scale(0.98);
-            /* Flattened elevation */
-            box-shadow: 
-                0 1px 2px rgba(0, 0, 0, 0.15),
-                0 2px 4px rgba(71, 85, 105, 0.2),
-                inset 0 2px 4px rgba(0, 0, 0, 0.25);
-        }
-
-        .btn-hero-outline:active::before,
-        .btn-secondary-action:active::before {
-            opacity: 0.4;
-            height: 1px;
-        }
-
-        /* Disabled state for AI buttons - clearly shows unavailable */
-        .btn-hero-outline:disabled,
-        .btn-secondary-action:disabled {
-            background: linear-gradient(180deg, var(--charcoal-light) 0%, var(--charcoal) 100%);
-            color: rgba(229, 231, 235, 0.4);
-            cursor: not-allowed;
-            opacity: 0.5;
-            box-shadow: 
-                0 1px 2px rgba(0, 0, 0, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.02);
-            transform: none;
-        }
-
-        .btn-hero-outline:disabled::before,
-        .btn-secondary-action:disabled::before {
-            opacity: 0.2;
-            height: 1px;
-        }
-
-        /* Icon animation for AI buttons */
-        .btn-hero-outline i,
-        .btn-secondary-action i {
-            transition: transform 0.25s ease;
-            display: inline-block;
-        }
-
-        .btn-hero-outline:hover:not(:disabled) i,
-        .btn-secondary-action:hover:not(:disabled) i {
-            transform: scale(1.1) rotate(5deg);
+        .btn-hero-outline:hover {
+            background: white;
+            color: #667eea;
+            transform: translateY(-3px);
         }
 
         .pulse-glow {
@@ -1048,30 +380,7 @@
                 box-shadow: 0 8px 25px rgba(0,0,0,0.2), 0 0 0 0 rgba(255,255,255,0.7);
             }
             50% {
-                box-shadow: 0 8px 35px rgba(124, 58, 237, 0.6), 0 0 0 10px rgba(255,255,255,0);
-            }
-        }
-
-        /* Subtle ready pulse for AI buttons when enabled */
-        .ai-ready {
-            animation: ai-ready-pulse 2s ease-in-out infinite;
-        }
-
-        @keyframes ai-ready-pulse {
-            0%, 100% {
-                box-shadow: 
-                    0 2px 4px rgba(0, 0, 0, 0.15),
-                    0 4px 10px rgba(71, 85, 105, 0.3),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-                    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-            }
-            50% {
-                box-shadow: 
-                    0 2px 4px rgba(0, 0, 0, 0.15),
-                    0 4px 10px rgba(71, 85, 105, 0.3),
-                    0 0 15px rgba(100, 116, 139, 0.4),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-                    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+                box-shadow: 0 8px 35px rgba(102, 126, 234, 0.6), 0 0 0 10px rgba(255,255,255,0);
             }
         }
 
@@ -1090,11 +399,11 @@
 
         /* Feature Cards - Enhanced */
         .feature-card {
-            background: linear-gradient(145deg, var(--card-bg) 0%, var(--charcoal-light) 100%);
+            background: linear-gradient(145deg, #ffffff 0%, #f8f9ff 100%);
             border-radius: 20px;
             padding: 40px 30px;
             text-align: center;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             height: 100%;
             animation: fadeInUp 0.6s ease both;
@@ -1110,7 +419,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: var(--red-primary);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             opacity: 0;
             transition: opacity 0.4s ease;
             z-index: 0;
@@ -1127,42 +436,51 @@
 
         .feature-card:hover {
             transform: translateY(-12px) scale(1.02);
-            box-shadow: 0 20px 50px rgba(220, 38, 38, 0.35);
-            border-color: var(--red-primary);
+            box-shadow: 0 20px 50px rgba(102, 126, 234, 0.35);
+            border-color: #667eea;
         }
 
         .feature-card:hover::before {
-            opacity: 0.05;
+            opacity: 0.03;
         }
 
         .feature-icon {
-            color: var(--red-primary);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
             margin-bottom: 20px;
             transition: all 0.3s ease;
         }
 
         .feature-card:hover .feature-icon {
             transform: scale(1.15) rotate(5deg);
-            filter: drop-shadow(0 8px 20px rgba(220, 38, 38, 0.5));
+            filter: drop-shadow(0 8px 20px rgba(102, 126, 234, 0.5));
         }
 
         .feature-icon.warning {
-            color: var(--steel-blue-grey);
+            background: linear-gradient(135deg, #F59E0B 0%, #EF4444 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .feature-icon.success {
-            color: var(--steel-blue-grey);
+            background: linear-gradient(135deg, #10B981 0%, #3B82F6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .feature-title {
             font-size: 1.4rem;
             font-weight: 700;
             margin-bottom: 15px;
-            color: var(--text-primary);
+            color: #1f2937;
         }
 
         .feature-text {
-            color: var(--text-secondary);
+            color: #6b7280;
             font-size: 1rem;
             line-height: 1.6;
         }
@@ -1180,20 +498,16 @@
 
         /* Section Backgrounds */
         .section-alt {
-            background: var(--charcoal-light);
+            background: #f9fafb;
             margin-left: calc(-50vw + 50%);
             margin-right: calc(-50vw + 50%);
             padding-left: calc(50vw - 50%);
             padding-right: calc(50vw - 50%);
         }
 
-        [data-theme="dark"] .section-alt {
-            background: var(--charcoal);
-        }
-
         .section-dark {
-            background: linear-gradient(135deg, var(--charcoal-dark) 0%, var(--charcoal) 50%, var(--charcoal-light) 100%);
-            color: var(--off-white);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #F093FB 100%);
+            color: white;
             margin-left: calc(-50vw + 50%);
             margin-right: calc(-50vw + 50%);
             padding-left: calc(50vw - 50%);
@@ -1221,21 +535,21 @@
 
         .section-subtitle {
             font-size: 1.2rem;
-            color: var(--text-secondary);
+            color: #6b7280;
             margin-bottom: 0;
         }
 
         .section-dark .section-subtitle {
-            color: var(--off-white-text);
+            color: #d1d5db;
         }
 
         /* Step Cards - How It Works */
         .step-card {
-            background: linear-gradient(145deg, var(--card-bg) 0%, var(--charcoal-light) 100%);
+            background: linear-gradient(145deg, #ffffff 0%, #fafbff 100%);
             border-radius: 20px;
             padding: 40px 30px;
             text-align: center;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             position: relative;
             height: 100%;
@@ -1244,15 +558,15 @@
 
         .step-card:hover {
             transform: translateY(-8px) scale(1.03);
-            box-shadow: 0 15px 40px rgba(220, 38, 38, 0.25);
-            border-color: var(--red-primary);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.25);
+            border-color: rgba(102, 126, 234, 0.3);
         }
 
         .step-number {
             position: absolute;
             top: 15px;
             left: 20px;
-            background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             width: 45px;
             height: 45px;
@@ -1262,13 +576,13 @@
             justify-content: center;
             font-weight: 800;
             font-size: 1.2rem;
-            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
             transition: all 0.3s ease;
         }
 
         .step-card:hover .step-number {
             transform: scale(1.1) rotate(10deg);
-            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.6);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
         }
 
         .step-icon {
@@ -1286,31 +600,31 @@
             font-size: 1.3rem;
             font-weight: 700;
             margin-bottom: 12px;
-            color: var(--text-primary);
+            color: #1f2937;
         }
 
         .step-text {
-            color: var(--text-secondary);
+            color: #6b7280;
             font-size: 1rem;
         }
 
         /* Why Section */
         .why-card {
-            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, rgba(71, 85, 105, 0.1) 100%);
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
             border-radius: 16px;
             padding: 30px;
             margin-bottom: 20px;
-            border-left: 4px solid var(--red-primary);
+            border-left: 4px solid #667eea;
             transition: all 0.3s ease;
         }
 
         .why-card:hover {
             transform: translateX(8px);
-            box-shadow: 0 5px 20px rgba(220, 38, 38, 0.15);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.15);
         }
 
         .why-card h5 {
-            color: var(--red-primary);
+            color: #667eea;
             font-weight: 700;
             margin-bottom: 10px;
         }
@@ -1345,22 +659,22 @@
 
         .rating-text {
             font-size: 1.1rem;
-            color: var(--text-secondary);
+            color: #6b7280;
         }
 
         /* Storage Tips */
         .tip-card {
-            background: var(--card-bg);
+            background: white;
             border-radius: 16px;
             padding: 25px;
-            box-shadow: 0 3px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 3px 12px rgba(0,0,0,0.08);
             transition: all 0.3s ease;
             height: 100%;
         }
 
         .tip-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(220, 38, 38, 0.15);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);
         }
 
         .tip-icon {
@@ -1372,11 +686,11 @@
             font-size: 1.2rem;
             font-weight: 700;
             margin-bottom: 10px;
-            color: var(--text-primary);
+            color: #1f2937;
         }
 
         .tip-text {
-            color: var(--text-secondary);
+            color: #6b7280;
             font-size: 0.95rem;
         }
 
@@ -1390,9 +704,9 @@
             align-items: start;
             margin-bottom: 30px;
             padding: 25px;
-            background: linear-gradient(145deg, var(--card-bg) 0%, var(--charcoal-light) 100%);
+            background: linear-gradient(145deg, #ffffff 0%, #f8f9ff 100%);
             border-radius: 20px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             border: 2px solid transparent;
             position: relative;
@@ -1406,7 +720,7 @@
             top: 0;
             bottom: 0;
             width: 5px;
-            background: var(--red-primary);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             transform: scaleY(0);
             transition: transform 0.3s ease;
         }
@@ -1417,8 +731,8 @@
 
         .benefit-item:hover {
             transform: translateX(10px) scale(1.02);
-            box-shadow: 0 8px 30px rgba(220, 38, 38, 0.2);
-            border-color: var(--red-primary);
+            box-shadow: 0 8px 30px rgba(102, 126, 234, 0.2);
+            border-color: rgba(102, 126, 234, 0.3);
         }
 
         .benefit-icon {
@@ -1436,13 +750,13 @@
 
         .benefit-title {
             font-weight: 700;
-            color: var(--text-primary);
+            color: #2d3748;
             margin-bottom: 8px;
             font-size: 1.3rem;
         }
 
         .benefit-text {
-            color: var(--text-secondary);
+            color: #718096;
             margin: 0;
             line-height: 1.6;
         }
@@ -1467,15 +781,14 @@
 
         /* CTA Section */
         .cta-section {
-            background: linear-gradient(135deg, var(--charcoal-dark) 0%, var(--charcoal) 50%, var(--charcoal-light) 100%);
-            color: var(--off-white);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
             padding: 60px 0;
             margin-left: calc(-50vw + 50%);
             margin-right: calc(-50vw + 50%);
             padding-left: calc(50vw - 50%);
             padding-right: calc(50vw - 50%);
             text-align: center;
-            border-top: 2px solid var(--red-primary);
         }
 
         .cta-section h2 {
@@ -1493,17 +806,17 @@
         /* STORAGE TIPS */
         .storage-tips-card {
             border: none;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
             border-radius: 20px;
             overflow: hidden;
-            background: linear-gradient(145deg, var(--card-bg) 0%, var(--charcoal-light) 100%);
-            border: 2px solid rgba(220, 38, 38, 0.1);
+            background: linear-gradient(145deg, #ffffff 0%, #f8f9ff 100%);
+            border: 2px solid rgba(102, 126, 234, 0.1);
             transition: all 0.3s ease;
         }
 
         .storage-tips-card:hover {
-            box-shadow: 0 12px 35px rgba(220, 38, 38, 0.2);
-            border-color: var(--red-primary);
+            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.2);
+            border-color: rgba(102, 126, 234, 0.3);
         }
 
         .storage-badges {
@@ -1513,25 +826,25 @@
         }
 
         .storage-badge {
-            background: linear-gradient(180deg, var(--red-primary) 0%, var(--red-primary-dark) 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 12px 24px;
             border-radius: 25px;
             font-weight: 600;
             display: inline-block;
-            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             font-size: 1.1rem;
         }
 
         .storage-badge:hover {
             transform: translateY(-5px) scale(1.05);
-            box-shadow: 0 8px 25px rgba(220, 38, 38, 0.5);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
         }
 
         .tip-icon i {
-            color: var(--red-primary);
-            filter: drop-shadow(0 8px 20px rgba(220, 38, 38, 0.5));
+            color: #fbbf24;
+            filter: drop-shadow(0 8px 20px rgba(251, 191, 36, 0.5));
             animation: pulse-light 2s ease-in-out infinite;
         }
 
@@ -1594,11 +907,6 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Dark Mode Toggle -->
-    <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
-        <i class="fas fa-moon"></i>
-    </button>
-
     <!-- Loading Spinner -->
     <div class="loading" id="loading">
         <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
@@ -1608,7 +916,7 @@
 
     <!-- Admin Banner -->
     {% if current_user.is_authenticated and current_user.is_admin %}
-    <div class="text-center py-2" style="background: linear-gradient(180deg, var(--steel-blue-grey) 0%, var(--steel-blue-grey-dark) 100%); color: white;">
+    <div class="bg-danger text-white text-center py-2">
         <small>
             <i class="fas fa-shield-alt"></i> Admin Mode
             <a href="{{ url_for('admin.admin_dashboard') }}" class="text-white ms-3">
@@ -1635,12 +943,31 @@
     </div>
 
 
-    <!-- Bottom Navigation -->
+  
+  
+  
+  
+  
+  
+  
+  
+  {% if current_user.is_authenticated and current_user.is_admin %}
+<div class="bg-danger text-white text-center py-2">
+    <small>
+        <i class="fas fa-shield-alt"></i> Admin Mode
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="text-white ms-3">
+            <u>Go to Admin Dashboard</u>
+        </a>
+    </small>
+</div>
+{% endif %}
+
+<!-- Bottom Navigation -->
 {% if current_user.is_authenticated %}
 <nav class="bottom-nav">
     <div class="d-flex">
         <div class="nav-item">
-            <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">
+            <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'main.index' %}active{% endif %}">
                 <i class="fas fa-home"></i>
                 <span>Home</span>
             </a>
@@ -1654,66 +981,48 @@
         </div>
 
         <div class="nav-item">
-            <a href="#" class="nav-link" onclick="toggleAccountMenu(event)">
-                <i class="fas fa-user-circle"></i>
-                <span>Account</span>
-            </a>
-        </div>
-    </div>
-</nav>
-
-<!-- Account Menu Modal -->
-<div id="accountMenu" class="account-menu" style="display: none;">
-    <div class="account-menu-content">
-        <div class="account-menu-header">
-            <h5><i class="fas fa-user-circle"></i> Account</h5>
-            <button onclick="toggleAccountMenu(event)" class="btn-close-menu">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="account-menu-body">
-            <a href="{{ url_for('listings') }}" class="account-menu-item">
-                <i class="fas fa-list"></i>
-                <span>Listings</span>
-            </a>
-            <a href="{{ url_for('main.inventory') }}" class="account-menu-item">
-                <i class="fas fa-boxes"></i>
-                <span>Inventory</span>
-            </a>
-            <a href="{{ url_for('storage') }}" class="account-menu-item">
-                <i class="fas fa-box"></i>
-                <span>Storage</span>
-            </a>
-            <a href="{{ url_for('main.invoicing') }}" class="account-menu-item">
-                <i class="fas fa-file-invoice-dollar"></i>
-                <span>Invoicing</span>
-            </a>
-            <a href="{{ url_for('notifications') }}" class="account-menu-item">
-                <i class="fas fa-bell"></i>
-                <span>Alerts</span>
-            </a>
-            <hr>
-            <a href="{{ url_for('settings') }}" class="account-menu-item">
-                <i class="fas fa-key"></i>
-                <span>Website Credentials</span>
-            </a>
-            <hr>
-            <a href="{{ url_for('drafts') }}" class="account-menu-item">
+            <a href="{{ url_for('drafts') }}" class="nav-link {% if request.endpoint == 'drafts' %}active{% endif %}">
                 <i class="fas fa-folder"></i>
                 <span>Drafts</span>
             </a>
-            <a href="{{ url_for('main.billing') }}" class="account-menu-item">
-                <i class="fas fa-credit-card"></i>
-                <span>Billing & Subscription</span>
+        </div>
+
+        <div class="nav-item">
+            <a href="{{ url_for('listings') }}" class="nav-link {% if request.endpoint == 'listings' %}active{% endif %}">
+                <i class="fas fa-list"></i>
+                <span>Listings</span>
             </a>
-            <hr>
-            <a href="{{ url_for('auth.logout') }}" class="account-menu-item text-danger">
+        </div>
+
+        <div class="nav-item">
+            <a href="{{ url_for('storage') }}" class="nav-link {% if request.endpoint in ['storage','storage_clothing','storage_map'] %}active{% endif %}">
+                <i class="fas fa-box"></i>
+                <span>Storage</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a href="{{ url_for('cards.cards_collection') }}" class="nav-link {% if request.endpoint == 'cards.cards_collection' %}active{% endif %}">
+                <i class="fas fa-id-card"></i>
+                <span>Cards</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a href="{{ url_for('notifications') }}" class="nav-link {% if request.endpoint == 'notifications' %}active{% endif %}">
+                <i class="fas fa-bell"></i>
+                <span>Alerts</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a href="{{ url_for('auth.logout') }}" class="nav-link" style="color: #ef4444 !important;">
                 <i class="fas fa-sign-out-alt"></i>
                 <span>Logout</span>
             </a>
         </div>
     </div>
-</div>
+</nav>
 
 {% else %}
 <!-- Guest Navigation -->
@@ -1727,69 +1036,23 @@
         </div>
 
         <div class="nav-item">
-            <a href="#" class="nav-link" onclick="toggleAccountMenu(event)">
-                <i class="fas fa-user-circle"></i>
-                <span>Account</span>
-            </a>
-        </div>
-    </div>
-</nav>
-
-<!-- Guest Account Menu Modal -->
-<div id="accountMenu" class="account-menu" style="display: none;">
-    <div class="account-menu-content">
-        <div class="account-menu-header">
-            <h5><i class="fas fa-user-circle"></i> Get Started</h5>
-            <button onclick="toggleAccountMenu(event)" class="btn-close-menu">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="account-menu-body">
-            <a href="{{ url_for('auth.register') }}" class="account-menu-item">
+            <a href="{{ url_for('auth.register') }}" class="nav-link">
                 <i class="fas fa-user-plus"></i>
                 <span>Sign Up</span>
             </a>
-            <a href="{{ url_for('auth.login') }}" class="account-menu-item">
+        </div>
+
+        <div class="nav-item">
+            <a href="{{ url_for('auth.login') }}" class="nav-link">
                 <i class="fas fa-sign-in-alt"></i>
                 <span>Login</span>
             </a>
         </div>
     </div>
-</div>
+</nav>
 {% endif %}
 
     <script>
-        // Dark Mode Toggle
-        const themeToggle = document.getElementById('themeToggle');
-        const htmlElement = document.documentElement;
-        const themeIcon = themeToggle.querySelector('i');
-
-        // Check for saved theme preference or default to light mode
-        const currentTheme = localStorage.getItem('theme') || 'light';
-        htmlElement.setAttribute('data-theme', currentTheme);
-        updateThemeIcon(currentTheme);
-
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = htmlElement.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
-            htmlElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            updateThemeIcon(newTheme);
-        });
-
-        function updateThemeIcon(theme) {
-            if (theme === 'dark') {
-                themeIcon.classList.remove('fa-moon');
-                themeIcon.classList.add('fa-sun');
-                themeToggle.title = 'Switch to light mode';
-            } else {
-                themeIcon.classList.remove('fa-sun');
-                themeIcon.classList.add('fa-moon');
-                themeToggle.title = 'Switch to dark mode';
-            }
-        }
-
         // Loading spinner functions
         function showLoading() {
             document.getElementById('loading').style.display = 'block';
@@ -1835,28 +1098,6 @@
             deferredPrompt = e;
             // Show install button (you can add a button to trigger this)
             console.log('PWA install prompt available');
-        });
-
-        // Account Menu Toggle
-        function toggleAccountMenu(e) {
-            e.preventDefault();
-            const menu = document.getElementById('accountMenu');
-            if (menu.style.display === 'none' || menu.style.display === '') {
-                menu.style.display = 'block';
-            } else {
-                menu.style.display = 'none';
-            }
-        }
-
-        // Close menu when clicking outside
-        document.addEventListener('click', function(e) {
-            const menu = document.getElementById('accountMenu');
-            const target = e.target;
-            if (menu && menu.style.display === 'block') {
-                if (!target.closest('.account-menu-content') && !target.closest('[onclick*="toggleAccountMenu"]')) {
-                    menu.style.display = 'none';
-                }
-            }
         });
     </script>
 

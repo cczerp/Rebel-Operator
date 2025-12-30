@@ -63,19 +63,9 @@ class GeminiClassifier:
         with open(image_path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode("utf-8")
 
-    def _download_image_from_url(self, url: str) -> bytes:
-        """Download image from URL (Supabase Storage or any HTTP URL)"""
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-        return response.content
-
-    def _get_image_mime_type(self, image_path_or_url: str) -> str:
-        """Get MIME type from file extension or URL"""
-        # Extract extension from path or URL
-        if '?' in image_path_or_url:
-            # Remove query params from URL
-            image_path_or_url = image_path_or_url.split('?')[0]
-        ext = Path(image_path_or_url).suffix.lower()
+    def _get_image_mime_type(self, image_path: str) -> str:
+        """Get MIME type from file extension"""
+        ext = Path(image_path).suffix.lower()
         mime_types = {
             ".jpg": "image/jpeg",
             ".jpeg": "image/jpeg",
@@ -84,44 +74,6 @@ class GeminiClassifier:
             ".webp": "image/webp",
         }
         return mime_types.get(ext, "image/jpeg")
-
-    def _prepare_photo_for_ai(self, photo: Photo) -> Optional[Dict[str, Any]]:
-        """
-        Prepare a Photo object for AI analysis.
-        Handles both Supabase Storage URLs and local paths.
-        
-        Returns:
-            Dict with 'mime_type' and 'data' (base64) or None if photo can't be processed
-        """
-        try:
-            image_b64 = None
-            mime_type = "image/jpeg"
-            
-            # Priority: Use URL if available (Supabase Storage)
-            if photo.url and (photo.url.startswith('http://') or photo.url.startswith('https://')):
-                print(f"[GEMINI] Downloading image from URL: {photo.url[:50]}...", flush=True)
-                image_bytes = self._download_image_from_url(photo.url)
-                image_b64 = base64.b64encode(image_bytes).decode("utf-8")
-                mime_type = self._get_image_mime_type(photo.url)
-                print(f"[GEMINI] ✅ Downloaded and encoded image from URL", flush=True)
-            # Fallback: Use local_path for backwards compatibility
-            elif photo.local_path:
-                print(f"[GEMINI] Using local path: {photo.local_path}", flush=True)
-                image_b64 = self._encode_image_to_base64(photo.local_path)
-                mime_type = self._get_image_mime_type(photo.local_path)
-            else:
-                print(f"[GEMINI WARNING] Photo has neither URL nor local_path, skipping", flush=True)
-                return None
-            
-            return {
-                "mime_type": mime_type,
-                "data": image_b64
-            }
-        except Exception as e:
-            print(f"[GEMINI ERROR] Failed to prepare photo: {e}", flush=True)
-            import traceback
-            traceback.print_exc()
-            return None
 
     def analyze_item(self, photos: List[Photo]) -> Dict[str, Any]:
         """
@@ -154,15 +106,15 @@ class GeminiClassifier:
             return {"error": "No photos provided"}
 
         # Prepare images for Gemini (limit to 4 photos for speed)
-        # Now supports Supabase Storage URLs via photo.url
         image_parts = []
         for photo in photos[:4]:
-            photo_data = self._prepare_photo_for_ai(photo)
-            if photo_data:
+            if photo.local_path:
+                image_b64 = self._encode_image_to_base64(photo.local_path)
+                mime_type = self._get_image_mime_type(photo.local_path)
                 image_parts.append({
                     "inline_data": {
-                        "mime_type": photo_data["mime_type"],
-                        "data": photo_data["data"]
+                        "mime_type": mime_type,
+                        "data": image_b64
                     }
                 })
 
@@ -483,16 +435,16 @@ IMPORTANT:
         if not photos:
             return {"error": "No photos provided", "is_card": False}
 
-        # Prepare images for card analysis
-        # Now supports Supabase Storage URLs via photo.url
+        # Prepare images
         image_parts = []
         for photo in photos[:4]:
-            photo_data = self._prepare_photo_for_ai(photo)
-            if photo_data:
+            if photo.local_path:
+                image_b64 = self._encode_image_to_base64(photo.local_path)
+                mime_type = self._get_image_mime_type(photo.local_path)
                 image_parts.append({
                     "inline_data": {
-                        "mime_type": photo_data["mime_type"],
-                        "data": photo_data["data"]
+                        "mime_type": mime_type,
+                        "data": image_b64
                     }
                 })
 

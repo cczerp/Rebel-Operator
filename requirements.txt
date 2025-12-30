@@ -1,413 +1,116 @@
 # ============================================================================
-# MAIN REQUIREMENTS FILE
+# WEB APP PRODUCTION REQUIREMENTS (Render Deployment)
 # ============================================================================
-# For Windows: pip install -r requirements-core.txt -r requirements-windows.txt -r requirements.txt
-# For Linux/Render: pip install -r requirements-core.txt -r requirements-linux.txt -r requirements.txt
+# Lean requirements for web app deployment - excludes unused ML libraries
+# Install with: pip install -r requirements-web.txt
 # ============================================================================
-# This file contains all optional/additional dependencies that don't conflict
-# Core dependencies are in requirements-core.txt (NON-NEGOTIABLE)
+# This file contains ONLY what's needed for the web app to run
+# Heavy ML libraries (torch, faiss, chromadb) are excluded if not used
 # ============================================================================
 
 # ============================================================================
-# HTTP & NETWORKING
+# WEB FRAMEWORK (Required)
 # ============================================================================
-# urllib3 pinned in requirements-core.txt (2.0.7) - supports types-requests, kubernetes, and qdrant-client 1.16.2
-aiohttp==3.9.1
-aiohappyeyeballs==2.6.1
-aiosignal==1.4.0
-async-timeout==5.0.1
-httpx==0.27.2
-httpcore==1.0.9
-httplib2==0.31.0
-httptools==0.7.1
-requests==2.31.0
-requests-oauthlib==2.0.0
+Flask==3.1.2
+Werkzeug==3.1.3
+Flask-Login==0.6.3
+Flask-Mail==0.10.0
+Flask-Session==0.8.0
+gunicorn==23.0.0
 
 # ============================================================================
-# ASYNC & CONCURRENCY
+# DATABASE (Required)
 # ============================================================================
-anyio==3.7.1
-asgiref==3.11.0
-gevent==24.2.1
-greenlet==3.0.1
+psycopg2-binary==2.9.9
+SQLAlchemy==2.0.23
 
 # ============================================================================
-# DATA STRUCTURES & UTILITIES
+# AUTH & SECURITY (Required)
 # ============================================================================
-attrs==25.4.0
-bitarray==3.8.0
-cachetools==6.2.2
-cachelib==0.13.0
-diskcache==5.6.3
-frozenlist==1.8.0
-multidict==6.7.0
-toolz==1.1.0
-cytoolz==1.1.0
+bcrypt==4.1.1
+cryptography==41.0.7
+PyJWT==2.10.1
+python-jose==3.3.0
+passlib==1.7.4
 
 # ============================================================================
-# CONFIGURATION & ENVIRONMENT
+# SUPABASE (Required for OAuth & Storage)
+# ============================================================================
+supabase==2.10.0
+supabase-auth==2.24.0
+supabase-functions==2.24.0
+postgrest==0.18.0
+storage3==0.9.0
+gotrue==2.10.0
+realtime==2.25.1
+
+# ============================================================================
+# AI APIs (Required - lightweight API clients only)
+# ============================================================================
+anthropic==0.7.0
+openai==1.3.0
+google-generativeai==0.3.2
+google-ai-generativelanguage==0.4.0
+
+# ============================================================================
+# ESSENTIAL UTILITIES (Required)
 # ============================================================================
 python-dotenv==1.0.0
-dotenv==0.9.9
+requests==2.31.0
 pydantic==2.12.5
 pydantic-settings==2.1.0
 pydantic_core==2.41.5
 
 # ============================================================================
-# WEB FRAMEWORK ADDITIONS
+# HTTP CLIENT (Required)
 # ============================================================================
-fastapi==0.104.1
-starlette==0.27.0
-uvicorn==0.24.0
-Jinja2==3.1.6
-MarkupSafe==3.0.3
-itsdangerous==2.2.0
-blinker==1.9.0
-click==8.1.7
-
-# ============================================================================
-# DATABASE ADDITIONS
-# ============================================================================
-# psycopg2-binary and SQLAlchemy are in core
-
-# ============================================================================
-# AUTH & SECURITY ADDITIONS
-# ============================================================================
-Authlib==1.6.5
-oauthlib==3.3.1
-email-validator==2.3.0
-
-# ============================================================================
-# AI & ML ADDITIONS (beyond core)
-# ============================================================================
-# torch, transformers, etc. are in core
-onnxruntime==1.23.2
-numba==0.63.1
-llvmlite==0.46.0
-joblib==1.5.2
-threadpoolctl==3.6.0
-
-# ============================================================================
-# NLP & TEXT PROCESSING
-# ============================================================================
-spacy==3.7.2
-spacy-legacy==3.0.12
-spacy-loggers==1.0.5
-nltk==3.8.1
-sentencepiece==0.2.1
-regex==2023.10.3
-ftfy==6.1.3
-
-# ============================================================================
-# IMAGE PROCESSING ADDITIONS
-# ============================================================================
-# Pillow and opencv-python-headless are in core
-ImageIO==2.37.2
-rembg==2.0.69
-PyMatting==1.1.14
-tifffile==2025.12.12
-scikit-image==0.25.2
-
-# ============================================================================
-# VECTOR DATABASES (with urllib3 conflict fixed)
-# ============================================================================
-# qdrant-client upgraded to support urllib3 2.x
-qdrant-client==1.16.2  # Latest version supports urllib3 2.x
-pinecone-client==2.2.4
-weaviate-client==3.25.0
-
-# ============================================================================
-# BLOCKCHAIN/WEB3 (if needed)
-# ============================================================================
-web3==7.14.0
-eth-account==0.13.7
-eth-hash==0.7.1
-eth-keyfile==0.8.1
-eth-keys==0.7.0
-eth-rlp==2.2.0
-eth-typing==5.2.1
-eth-utils==5.3.1
-eth_abi==5.2.0
-hexbytes==1.3.1
-rlp==4.1.0
-
-# ============================================================================
-# CLOUD STORAGE
-# ============================================================================
-cloudinary==1.44.1
-cloudpathlib==0.16.0
-fsspec==2025.10.0
-smart-open==6.4.0
-
-# ============================================================================
-# BROWSER AUTOMATION
-# ============================================================================
-playwright==1.40.0
-
-# ============================================================================
-# PARSING & SCRAPING
-# ============================================================================
-beautifulsoup4==4.12.2
-lxml==4.9.3
-soupsieve==2.8
-pytesseract==0.3.13
-
-# ============================================================================
-# GOOGLE APIS
-# ============================================================================
-google-api-core==2.28.1
-google-api-python-client==2.187.0
-google-auth==2.43.0
-google-auth-httplib2==0.2.1
-googleapis-common-protos==1.72.0
-
-# ============================================================================
-# GRPC
-# ============================================================================
-grpcio==1.76.0
-grpcio-status==1.62.3
-grpcio-tools==1.62.3
-
-# ============================================================================
-# REDIS & CACHING
-# ============================================================================
-redis==5.0.1
-
-# ============================================================================
-# KUBERNETES (with urllib3 conflict fixed)
-# ============================================================================
-kubernetes==34.1.0  # Requires urllib3<2.4.0 (fixed above)
-
-# ============================================================================
-# MONITORING & OBSERVABILITY
-# ============================================================================
-opentelemetry-api==1.27.0
-opentelemetry-exporter-otlp-proto-common==1.27.0
-opentelemetry-exporter-otlp-proto-grpc==1.27.0
-opentelemetry-instrumentation==0.48b0
-opentelemetry-instrumentation-asgi==0.48b0
-opentelemetry-instrumentation-fastapi==0.48b0
-opentelemetry-proto==1.27.0
-opentelemetry-sdk==1.27.0
-opentelemetry-semantic-conventions==0.48b0
-opentelemetry-util-http==0.48b0
-
-# ============================================================================
-# UTILITIES
-# ============================================================================
+urllib3==2.0.7
 certifi==2025.11.12
 charset-normalizer==3.4.4
 idna==3.11
-six==1.17.0
-python-dateutil==2.8.2
-pytz==2023.3.post1
-tzdata==2025.2
 
 # ============================================================================
-# FILE HANDLING
+# SESSION & CACHING (Required)
 # ============================================================================
-filelock==3.20.0
-portalocker==2.10.1
-pathspec==0.12.1
+redis==5.0.1
+cachelib==0.13.0
 
 # ============================================================================
-# SERIALIZATION
+# TEMPLATE ENGINE (Required for Flask)
 # ============================================================================
-PyYAML==6.0.1
-msgpack==1.0.7
-srsly==2.5.2
-msgspec==0.20.0
+Jinja2==3.1.6
+MarkupSafe==3.0.3
+click==8.1.7
+itsdangerous==2.2.0
 
 # ============================================================================
-# VALIDATION & SCHEMAS
+# ASYNC & CONCURRENCY (Required)
 # ============================================================================
-jsonschema==4.25.1
-jsonschema-specifications==2025.9.1
-referencing==0.37.0
-validators==0.35.0
+aiohttp==3.9.1
+anyio==3.7.1
+asgiref==3.11.0
 
 # ============================================================================
-# LOGGING & OUTPUT
+# IMAGE PROCESSING (Lightweight - only what's needed)
 # ============================================================================
-rich==13.7.0
-coloredlogs==15.0.1
-colorama==0.4.6
-loguru==0.7.2
-python-json-logger==2.0.7
-tqdm==4.66.1
+Pillow==10.1.0
+opencv-python-headless==4.8.1.78
+numpy==1.26.4  # Required by opencv-python-headless
 
 # ============================================================================
-# TESTING
+# CLOUD STORAGE (If using Cloudinary as fallback)
 # ============================================================================
-pytest==7.4.3
-pytest-asyncio==0.21.1
-pytest-cov==4.1.0
-pytest-mock==3.12.0
-coverage==7.11.3
-Flask-Testing==0.8.1
-factory-boy==3.3.0
-Faker==38.2.0
+cloudinary==1.44.1
 
 # ============================================================================
-# DEVELOPMENT TOOLS
-# ============================================================================
-black==23.11.0
-flake8==6.1.0
-isort==5.12.0
-mypy==1.7.1
-mypy_extensions==1.1.0
-pre-commit==3.5.0
-
-# ============================================================================
-# DOCUMENTATION
-# ============================================================================
-docstring_parser==0.17.0
-markdown-it-py==4.0.0
-mdurl==0.1.2
-Pygments==2.19.2
-
-# ============================================================================
-# MISC UTILITIES
-# ============================================================================
-backoff==2.2.1
-tenacity==8.2.3
-packaging==25.0
-distlib==0.4.0
-platformdirs==4.5.1
-identify==2.6.15
-cfgv==3.5.0
-nodeenv==1.9.1
-virtualenv==20.35.4
-
-# ============================================================================
-# PROTOBUF
-# ============================================================================
-protobuf==4.25.8
-proto-plus==1.26.1
-flatbuffers==25.9.23
-
-# ============================================================================
-# CRYPTOGRAPHY ADDITIONS
-# ============================================================================
-# cryptography and bcrypt are in core
-cffi==2.0.0
-pycparser==2.23
-pycryptodome==3.23.0
-rsa==4.9.1
-ecdsa==0.19.1
-pyasn1==0.6.1
-pyasn1_modules==0.4.2
-
-# ============================================================================
-# STRIPE & PAYMENTS
-# ============================================================================
-stripe==14.0.1
-
-# ============================================================================
-# REPORTING
-# ============================================================================
-reportlab==4.4.6
-tabulate==0.9.0
-
-# ============================================================================
-# WEBSOCKETS
-# ============================================================================
-# REALTIME / WEBSOCKETS
-# ============================================================================
-# Older Supabase realtime versions (<2.x) required websockets 10.x due to
-# importing `websockets.asyncio.client`. As of realtime>=2.25.1 this import
-# has been fixed and websockets>=11 is REQUIRED. Do not pin websockets to 10.x.
-
-
-# ============================================================================
-# MISC
-# ============================================================================
-dnspython==2.8.0
-distro==1.9.0
-pyperclip==1.11.0
-pytweening==1.2.0
-python-multipart==0.0.6
-typer==0.9.4
-typer-slim==0.20.0
-shellingham==1.5.4
-
-# ============================================================================
-# TYPE HINTS
-# ============================================================================
-typing_extensions==4.15.0
-typing-inspection==0.4.2
-types-requests==2.31.0.20240406  # Type stubs for requests (requires urllib3>=2, now satisfied)
-annotated-types==0.7.0
-annotated-doc==0.0.4
-
-# ============================================================================
-# SPACY DEPENDENCIES
-# ============================================================================
-catalogue==2.0.10
-confection==0.1.5
-cymem==2.0.13
-preshed==3.0.12
-murmurhash==1.0.15
-thinc==8.2.5
-wasabi==1.1.3
-srsly==2.5.2
-weasel==0.3.4
-lazy_loader==0.4
-langcodes==3.5.1
-
-# ============================================================================
-# OTHER
-# ============================================================================
-Deprecated==1.3.1
-deprecation==2.1.0
-overrides==7.7.0
-optional-django==0.1.0
-parsimonious==0.10.0
-pooch==1.8.2
-pyee==11.0.1
-rpds-py==0.30.0
-StrEnum==0.4.15
-sympy==1.14.0
-mpmath==1.3.0
-networkx==3.6.1
-watchfiles==1.1.1
-wcwidth==0.2.14
-zipp==3.23.0
-importlib_metadata==8.4.0
-importlib_resources==6.5.2
-iniconfig==2.3.0
-pluggy==1.6.0
-pyparsing==3.2.5
-uritemplate==4.2.0
-durationpy==0.10
-pyunormalize==17.0.0
-jiter==0.12.0
-hf-xet==1.2.0
-ckzg==2.1.5
-chromium==0.0.0
-posthog==7.0.1
-pulsar-client==3.8.0
-psutil==7.1.3
-darkdetect==0.8.0
-tk==0.1.0
-PyPika==0.48.9
-h11==0.16.0
-h2==4.3.0
-hpack==4.1.0
-hyperframe==6.1.0
-supafunc==0.7.0
-zope.event==6.1
-zope.interface==8.1.1
-wrapt==1.17.3
-yarl==1.22.0
-sniffio==1.3.1
-git-filter-repo==2.47.0
-npm==0.1.1
-pycodestyle==2.11.1
-pyflakes==3.1.0
-mccabe==0.7.0
-
-# ============================================================================
-# NOTE: Windows-specific packages (pywin32, customtkinter, etc.) are in
-# requirements-windows.txt and should NOT be installed on Linux/Render
+# NOTE: Excluded heavy dependencies that don't appear to be used:
+# - torch, torchvision (PyTorch - several GB)
+# - faiss-cpu (Vector search - large compilation)
+# - chromadb (Vector database - depends on faiss)
+# - transformers, sentence-transformers (NLP models - large)
+# - spacy (NLP library - downloads models)
+# - playwright (Browser automation - downloads Chromium)
+# - scipy, scikit-learn, pandas (Scientific computing - large)
+# 
+# If you need these later, add them back or use lazy imports
 # ============================================================================

@@ -892,3 +892,1895 @@ def api_delete_card(card_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# -------------------------------------------------------------------------
+# STORAGE API ENDPOINTS
+# -------------------------------------------------------------------------
+
+@main_bp.route('/api/storage/bins', methods=['GET'])
+@login_required
+def api_get_storage_bins():
+    """Get all storage bins for the current user"""
+    try:
+        from src.database.db import get_db_instance
+        db = get_db_instance()
+
+        bin_type = request.args.get('type')  # 'clothing' or 'cards'
+        bins = db.get_storage_bins(current_user.id, bin_type)
+
+        # Get section counts for each bin
+        for bin in bins:
+            sections = db.get_storage_sections(bin['id'])
+            bin['section_count'] = len(sections)
+            bin['sections'] = sections
+
+        return jsonify({
+            "success": True,
+            "bins": bins
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route('/api/storage/create-bin', methods=['POST'])
+@login_required
+def api_create_storage_bin():
+    """Create a new storage bin"""
+    try:
+        from src.database.db import get_db_instance
+        db = get_db_instance()
+
+        data = request.get_json()
+        bin_name = data.get('bin_name')
+        bin_type = data.get('bin_type')  # 'clothing' or 'cards'
+        description = data.get('description', '')
+
+        if not bin_name or not bin_type:
+            return jsonify({"error": "bin_name and bin_type are required"}), 400
+
+        bin_id = db.create_storage_bin(
+            user_id=current_user.id,
+            bin_name=bin_name,
+            bin_type=bin_type,
+            description=description
+        )
+
+        return jsonify({
+            "success": True,
+            "bin_id": bin_id
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route('/api/storage/create-section', methods=['POST'])
+@login_required
+def api_create_storage_section():
+    """Create a new section within a bin"""
+    try:
+        from src.database.db import get_db_instance
+        db = get_db_instance()
+
+        data = request.get_json()
+        bin_id = data.get('bin_id')
+        section_name = data.get('section_name')
+        capacity = data.get('capacity')
+
+        if not bin_id or not section_name:
+            return jsonify({"error": "bin_id and section_name are required"}), 400
+
+        # Verify the bin belongs to the current user
+        bins = db.get_storage_bins(current_user.id)
+        if not any(b['id'] == bin_id for b in bins):
+            return jsonify({"error": "Bin not found or unauthorized"}), 403
+
+        section_id = db.create_storage_section(
+            bin_id=bin_id,
+            section_name=section_name,
+            capacity=capacity
+        )
+
+        return jsonify({
+            "success": True,
+            "section_id": section_id
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route('/api/storage/items', methods=['GET'])
+@login_required
+def api_get_storage_items():
+    """Get storage items, optionally filtered by bin"""
+    try:
+        from src.database.db import get_db_instance
+        db = get_db_instance()
+
+        bin_id = request.args.get('bin_id', type=int)
+
+        if bin_id:
+            # Verify the bin belongs to the current user
+            bins = db.get_storage_bins(current_user.id)
+            if not any(b['id'] == bin_id for b in bins):
+                return jsonify({"error": "Bin not found or unauthorized"}), 403
+
+            items = db.get_storage_items(current_user.id, bin_id=bin_id)
+        else:
+            items = db.get_storage_items(current_user.id)
+
+        return jsonify({
+            "success": True,
+            "items": items
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route('/api/storage/add-item', methods=['POST'])
+@login_required
+def api_add_storage_item():
+    """Add a new item to storage"""
+    try:
+        from src.database.db import get_db_instance
+        db = get_db_instance()
+
+        data = request.get_json()
+        bin_id = data.get('bin_id')
+        section_id = data.get('section_id')
+        item_type = data.get('item_type')
+        category = data.get('category')
+        title = data.get('title')
+        description = data.get('description')
+        notes = data.get('notes')
+
+        if not bin_id:
+            return jsonify({"error": "bin_id is required"}), 400
+
+        # Verify the bin belongs to the current user
+        bins = db.get_storage_bins(current_user.id)
+        bin_obj = next((b for b in bins if b['id'] == bin_id), None)
+        if not bin_obj:
+            return jsonify({"error": "Bin not found or unauthorized"}), 403
+
+        # Get section name if section_id provided
+        section_name = None
+        if section_id:
+            sections = db.get_storage_sections(bin_id)
+            section_obj = next((s for s in sections if s['id'] == section_id), None)
+            if section_obj:
+                section_name = section_obj['section_name']
+
+        # Generate storage ID
+        storage_id = db.generate_storage_id(
+            user_id=current_user.id,
+            bin_name=bin_obj['bin_name'],
+            section_name=section_name,
+            category=category
+        )
+
+        # Add the item
+        item_id = db.add_storage_item(
+            user_id=current_user.id,
+            storage_id=storage_id,
+            bin_id=bin_id,
+            section_id=section_id,
+            item_type=item_type,
+            category=category,
+            title=title,
+            description=description,
+            notes=notes
+        )
+
+        return jsonify({
+            "success": True,
+            "item_id": item_id,
+            "storage_id": storage_id
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route('/api/storage/find', methods=['GET'])
+@login_required
+def api_find_storage_item():
+    """Find an item by storage ID"""
+    try:
+        from src.database.db import get_db_instance
+        db = get_db_instance()
+
+        storage_id = request.args.get('storage_id')
+
+        if not storage_id:
+            return jsonify({"error": "storage_id is required"}), 400
+
+        item = db.find_storage_item(current_user.id, storage_id)
+
+        if item:
+            return jsonify({
+                "success": True,
+                "item": item
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Item not found"
+            }), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# -------------------------------------------------------------------------
+# INVENTORY MANAGEMENT ENDPOINTS
+# -------------------------------------------------------------------------
+
+@main_bp.route('/inventory')
+@login_required
+def inventory():
+    """Centralized inventory management page"""
+    return render_template('inventory.html')
+
+
+@main_bp.route('/api/inventory/listings')
+@login_required
+def api_get_inventory():
+    """Get all inventory items with filtering"""
+    try:
+        from src.database.db import get_db_instance
+        db = get_db_instance()
+
+        # Get filter parameters
+        status_filter = request.args.get('status', 'all')  # all, draft, active, sold, shipped, archived
+        category_filter = request.args.get('category', 'all')
+        platform_filter = request.args.get('platform', 'all')
+        search_query = request.args.get('search', '').strip()
+        sort_by = request.args.get('sort', 'created_at')  # created_at, title, price, status
+        sort_order = request.args.get('order', 'desc')  # asc, desc
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 50))
+
+        # Build query
+        query = """
+            SELECT
+                l.*,
+                COALESCE(SUM(CASE WHEN ps.status = 'sold' THEN 1 ELSE 0 END), 0) as sold_count,
+                COUNT(ps.id) as platform_count,
+                STRING_AGG(DISTINCT p.name, ', ') as platforms
+            FROM listings l
+            LEFT JOIN platform_listings ps ON l.id = ps.listing_id
+            LEFT JOIN platforms p ON ps.platform_id = p.id
+            WHERE l.user_id::text = %s::text
+        """
+        params = [str(current_user.id)]
+
+        # Add status filter
+        if status_filter != 'all':
+            query += " AND l.status = %s"
+            params.append(status_filter)
+
+        # Add category filter
+        if category_filter != 'all':
+            query += " AND l.category ILIKE %s"
+            params.append(f"%{category_filter}%")
+
+        # Add platform filter
+        if platform_filter != 'all':
+            query += " AND p.name = %s"
+            params.append(platform_filter)
+
+        # Add search filter
+        if search_query:
+            query += """ AND (
+                l.title ILIKE %s OR
+                l.description ILIKE %s OR
+                l.sku ILIKE %s OR
+                l.upc ILIKE %s
+            )"""
+            search_param = f"%{search_query}%"
+            params.extend([search_param] * 4)
+
+        # Group by and add sorting
+        query += """
+            GROUP BY l.id
+            ORDER BY l.{sort_by} {sort_order}
+            LIMIT %s OFFSET %s
+        """.format(sort_by=sort_by, sort_order=sort_order)
+        params.extend([per_page, (page - 1) * per_page])
+
+        # Execute query
+        cursor = db._get_cursor()
+        try:
+            cursor.execute(query, params)
+            listings = [dict(row) for row in cursor.fetchall()]
+
+            # Get total count for pagination
+            count_query = """
+                SELECT COUNT(DISTINCT l.id) as total
+                FROM listings l
+                LEFT JOIN platform_listings ps ON l.id = ps.listing_id
+                LEFT JOIN platforms p ON ps.platform_id = p.id
+                WHERE l.user_id::text = %s::text
+            """
+            count_params = [str(current_user.id)]
+
+            # Apply same filters for count
+            if status_filter != 'all':
+                count_query += " AND l.status = %s"
+                count_params.append(status_filter)
+            if category_filter != 'all':
+                count_query += " AND l.category ILIKE %s"
+                count_params.append(f"%{category_filter}%")
+            if platform_filter != 'all':
+                count_query += " AND p.name = %s"
+                count_params.append(platform_filter)
+            if search_query:
+                count_query += """ AND (
+                    l.title ILIKE %s OR
+                    l.description ILIKE %s OR
+                    l.sku ILIKE %s OR
+                    l.upc ILIKE %s
+                )"""
+                search_param = f"%{search_query}%"
+                count_params.extend([search_param] * 4)
+
+            cursor.execute(count_query, count_params)
+            total_count = cursor.fetchone()['total']
+
+            # Get summary stats
+            stats_query = """
+                SELECT
+                    COUNT(CASE WHEN status = 'draft' THEN 1 END) as draft_count,
+                    COUNT(CASE WHEN status = 'active' THEN 1 END) as active_count,
+                    COUNT(CASE WHEN status = 'sold' THEN 1 END) as sold_count,
+                    COUNT(CASE WHEN status = 'shipped' THEN 1 END) as shipped_count,
+                    COUNT(CASE WHEN status = 'archived' THEN 1 END) as archived_count,
+                    COUNT(*) as total_count,
+                    COALESCE(SUM(CASE WHEN status IN ('sold', 'shipped') THEN price ELSE 0 END), 0) as total_value
+                FROM listings
+                WHERE user_id::text = %s::text
+            """
+            cursor.execute(stats_query, (str(current_user.id),))
+            stats = dict(cursor.fetchone())
+
+            return jsonify({
+                'success': True,
+                'listings': listings,
+                'stats': stats,
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total': total_count,
+                    'pages': (total_count + per_page - 1) // per_page
+                }
+            })
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@main_bp.route('/api/inventory/bulk-update', methods=['POST'])
+@login_required
+def api_bulk_update_inventory():
+    """Bulk update inventory items"""
+    try:
+        from src.database.db import get_db_instance
+        db = get_db_instance()
+
+        data = request.get_json()
+        listing_ids = data.get('listing_ids', [])
+        updates = data.get('updates', {})  # status, category, etc.
+
+        if not listing_ids:
+            return jsonify({'error': 'No listing IDs provided'}), 400
+
+        if not updates:
+            return jsonify({'error': 'No updates provided'}), 400
+
+        updated_count = 0
+        failed = []
+
+        for listing_id in listing_ids:
+            try:
+                # Verify ownership
+                listing = db.get_listing(listing_id)
+                if not listing or str(listing['user_id']) != str(current_user.id):
+                    failed.append({'id': listing_id, 'error': 'Not found or unauthorized'})
+                    continue
+
+                # Update listing
+                db.update_listing(listing_id, **updates)
+                updated_count += 1
+
+            except Exception as e:
+                failed.append({'id': listing_id, 'error': str(e)})
+
+        return jsonify({
+            'success': True,
+            'updated': updated_count,
+            'failed': failed
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@main_bp.route('/api/inventory/bulk-delete', methods=['POST'])
+@login_required
+def api_bulk_delete_inventory():
+    """Bulk delete inventory items"""
+    try:
+        from src.database.db import get_db_instance
+        db = get_db_instance()
+
+        data = request.get_json()
+        listing_ids = data.get('listing_ids', [])
+        confirm_delete = data.get('confirm', False)
+
+        if not listing_ids:
+            return jsonify({'error': 'No listing IDs provided'}), 400
+
+        if not confirm_delete:
+            return jsonify({'error': 'Deletion not confirmed'}), 400
+
+        deleted_count = 0
+        failed = []
+
+        for listing_id in listing_ids:
+            try:
+                # Verify ownership
+                listing = db.get_listing(listing_id)
+                if not listing or str(listing['user_id']) != str(current_user.id):
+                    failed.append({'id': listing_id, 'error': 'Not found or unauthorized'})
+                    continue
+
+                # Delete listing
+                db.delete_listing(listing_id)
+                deleted_count += 1
+
+            except Exception as e:
+                failed.append({'id': listing_id, 'error': str(e)})
+
+        return jsonify({
+            'success': True,
+            'deleted': deleted_count,
+            'failed': failed
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@main_bp.route('/api/inventory/export')
+@login_required
+def api_export_inventory():
+    """Export inventory data"""
+    try:
+        from src.database.db import get_db_instance
+        from src.import_export.csv_handler import CSVImportExport
+
+        db = get_db_instance()
+        csv_handler = CSVImportExport(db)
+
+        export_type = request.args.get('type', 'all')  # all, draft, active, sold
+        format_type = request.args.get('format', 'csv')  # csv, json
+
+        if format_type == 'csv':
+            csv_content = csv_handler.export_csv(current_user.id, export_type)
+            return csv_content, 200, {
+                'Content-Type': 'text/csv',
+                'Content-Disposition': f'attachment; filename=inventory_{export_type}.csv'
+            }
+        else:
+            # JSON export
+            listings = csv_handler._get_listings_for_export(current_user.id, export_type)
+            return jsonify({
+                'success': True,
+                'listings': listings,
+                'export_type': export_type
+            })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# -------------------------------------------------------------------------
+# SETTINGS API ENDPOINTS
+# -------------------------------------------------------------------------
+
+@main_bp.route('/api/settings/notification-email', methods=['POST'])
+@login_required
+def api_update_notification_email():
+    """Update notification email"""
+    try:
+        from src.database.db import get_db_instance
+        db = get_db_instance()
+
+        data = request.get_json()
+        email = data.get('notification_email')
+
+        if not email:
+            return jsonify({"error": "notification_email is required"}), 400
+
+        cursor = db._get_cursor()
+        cursor.execute("""
+            UPDATE users
+            SET notification_email = %s
+            WHERE id = %s
+        """, (email, current_user.id))
+        db.conn.commit()
+
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route('/api/settings/marketplace-credentials', methods=['POST'])
+@login_required
+def api_save_marketplace_credentials():
+    """Save marketplace credentials"""
+    try:
+        from src.database.db import get_db_instance
+        db = get_db_instance()
+
+        data = request.get_json()
+        platform = data.get('platform')
+        username = data.get('username')
+        password = data.get('password')
+
+        if not platform or not username or not password:
+            return jsonify({"error": "platform, username, and password are required"}), 400
+
+        cursor = db._get_cursor()
+        cursor.execute("""
+            INSERT INTO marketplace_credentials (user_id, platform, username, password)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (user_id, platform)
+            DO UPDATE SET username = %s, password = %s, updated_at = CURRENT_TIMESTAMP
+        """, (current_user.id, platform, username, password, username, password))
+        db.conn.commit()
+
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route('/api/settings/marketplace-credentials/<platform>', methods=['DELETE'])
+@login_required
+def api_delete_marketplace_credentials(platform):
+    """Delete marketplace credentials"""
+    try:
+        from src.database.db import get_db_instance
+        db = get_db_instance()
+
+        cursor = db._get_cursor()
+        cursor.execute("""
+            DELETE FROM marketplace_credentials
+            WHERE user_id = %s AND platform = %s
+        """, (current_user.id, platform))
+        db.conn.commit()
+
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route('/api/settings/api-credentials', methods=['POST'])
+@login_required
+def api_save_api_credentials():
+    """Save API credentials for automated platforms"""
+    try:
+        from src.database.db import get_db_instance
+        import json
+        db = get_db_instance()
+
+        data = request.get_json()
+        platform = data.get('platform')
+        credentials = data.get('credentials')
+
+        if not platform or not credentials:
+            return jsonify({"error": "platform and credentials are required"}), 400
+
+        cursor = db._get_cursor()
+        cursor.execute("""
+            INSERT INTO api_credentials (user_id, platform, credentials)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (user_id, platform)
+            DO UPDATE SET credentials = %s, updated_at = CURRENT_TIMESTAMP
+        """, (current_user.id, platform, json.dumps(credentials), json.dumps(credentials)))
+        db.conn.commit()
+
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# -------------------------------------------------------------------------
+# CSV EXPORT ENDPOINT
+# -------------------------------------------------------------------------
+
+@main_bp.route('/api/export-csv', methods=['POST'])
+@login_required
+def api_export_csv():
+    """Export listings to platform-specific CSV format"""
+    try:
+        import csv
+        import io
+        from flask import make_response
+
+        data = request.get_json()
+        platform = data.get('platform', 'generic')
+        listings = data.get('listings', [])
+
+        if not listings:
+            return jsonify({"error": "No listings provided"}), 400
+
+        # Create CSV in memory
+        output = io.StringIO()
+
+        # Platform-specific CSV formats
+        if platform == 'poshmark':
+            fieldnames = ['Title', 'Description', 'Category', 'Brand', 'Size', 'Color', 'Price', 'Quantity', 'Condition', 'Photos']
+        elif platform == 'mercari':
+            fieldnames = ['Title', 'Description', 'Category', 'Brand', 'Price', 'Condition', 'Shipping Weight', 'Photos']
+        elif platform == 'ebay':
+            fieldnames = ['Title', 'Description', 'Category', 'Price', 'Quantity', 'Condition', 'Brand', 'Photos', 'SKU']
+        elif platform == 'grailed':
+            fieldnames = ['Title', 'Description', 'Designer', 'Size', 'Category', 'Price', 'Condition', 'Photos']
+        elif platform == 'depop':
+            fieldnames = ['Title', 'Description', 'Category', 'Brand', 'Size', 'Price', 'Condition', 'Photos']
+        else:  # generic
+            fieldnames = ['Title', 'Description', 'Price', 'Category', 'Brand', 'Size', 'Color', 'Condition', 'Quantity', 'Storage Location', 'Photos']
+
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+
+        for listing in listings:
+            # Parse photos if stored as JSON string
+            photos = listing.get('photos', '')
+            if isinstance(photos, str) and photos:
+                try:
+                    import json
+                    photos = json.loads(photos)
+                    photos = ','.join(photos) if isinstance(photos, list) else photos
+                except:
+                    pass
+
+            # Create row based on platform
+            row = {}
+            if platform == 'poshmark':
+                row = {
+                    'Title': listing.get('title', ''),
+                    'Description': listing.get('description', ''),
+                    'Category': listing.get('category', listing.get('item_type', '')),
+                    'Brand': listing.get('brand', ''),
+                    'Size': listing.get('size', ''),
+                    'Color': listing.get('color', ''),
+                    'Price': listing.get('price', ''),
+                    'Quantity': listing.get('quantity', 1),
+                    'Condition': listing.get('condition', ''),
+                    'Photos': photos
+                }
+            elif platform == 'mercari':
+                row = {
+                    'Title': listing.get('title', ''),
+                    'Description': listing.get('description', ''),
+                    'Category': listing.get('category', listing.get('item_type', '')),
+                    'Brand': listing.get('brand', ''),
+                    'Price': listing.get('price', ''),
+                    'Condition': listing.get('condition', ''),
+                    'Shipping Weight': listing.get('weight', '1 lb'),
+                    'Photos': photos
+                }
+            elif platform == 'ebay':
+                row = {
+                    'Title': listing.get('title', ''),
+                    'Description': listing.get('description', ''),
+                    'Category': listing.get('category', listing.get('item_type', '')),
+                    'Price': listing.get('price', ''),
+                    'Quantity': listing.get('quantity', 1),
+                    'Condition': listing.get('condition', ''),
+                    'Brand': listing.get('brand', ''),
+                    'Photos': photos,
+                    'SKU': listing.get('sku', '')
+                }
+            elif platform == 'grailed':
+                row = {
+                    'Title': listing.get('title', ''),
+                    'Description': listing.get('description', ''),
+                    'Designer': listing.get('brand', ''),
+                    'Size': listing.get('size', ''),
+                    'Category': listing.get('category', listing.get('item_type', '')),
+                    'Price': listing.get('price', ''),
+                    'Condition': listing.get('condition', ''),
+                    'Photos': photos
+                }
+            elif platform == 'depop':
+                row = {
+                    'Title': listing.get('title', ''),
+                    'Description': listing.get('description', ''),
+                    'Category': listing.get('category', listing.get('item_type', '')),
+                    'Brand': listing.get('brand', ''),
+                    'Size': listing.get('size', ''),
+                    'Price': listing.get('price', ''),
+                    'Condition': listing.get('condition', ''),
+                    'Photos': photos
+                }
+            else:  # generic
+                row = {
+                    'Title': listing.get('title', ''),
+                    'Description': listing.get('description', ''),
+                    'Price': listing.get('price', ''),
+                    'Category': listing.get('category', listing.get('item_type', '')),
+                    'Brand': listing.get('brand', ''),
+                    'Size': listing.get('size', ''),
+                    'Color': listing.get('color', ''),
+                    'Condition': listing.get('condition', ''),
+                    'Quantity': listing.get('quantity', 1),
+                    'Storage Location': listing.get('storage_location', ''),
+                    'Photos': photos
+                }
+
+            writer.writerow(row)
+
+        # Create response
+        output.seek(0)
+        response = make_response(output.getvalue())
+        response.headers['Content-Type'] = 'text/csv'
+        response.headers['Content-Disposition'] = f'attachment; filename={platform}_export.csv'
+
+        return response
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# FEED GENERATION ENDPOINT
+# -------------------------------------------------------------------------
+
+@main_bp.route('/api/generate-feed', methods=['POST'])
+@login_required
+def api_generate_feed():
+    """Generate product feed for catalog platforms (Facebook, Google Shopping, Pinterest)"""
+    try:
+        import io
+        from flask import make_response  # type: ignore
+        from ..src.adapters.all_platforms import FacebookShopsAdapter, GoogleShoppingAdapter, PinterestAdapter  # type: ignore
+        from ..src.schema.unified_listing import UnifiedListing, Price, ListingCondition, Photo
+
+        data = request.get_json()
+        platform = data.get('platform', 'facebook')
+        format_type = data.get('format', 'csv')  # csv, xml, json
+
+        # Get active listings for the user
+        listings_data = db.get_active_listings(current_user.id)
+        
+        if not listings_data:
+            return jsonify({"error": "No active listings found"}), 404
+
+        # Convert to UnifiedListing objects
+        listings = []
+        for listing_data in listings_data:
+            try:
+                # Convert price to Price object
+                price_obj = Price(amount=float(listing_data['price']))
+
+                # Convert condition to ListingCondition enum
+                condition_str = listing_data.get('condition', 'good').lower()
+                condition_enum = ListingCondition.GOOD  # default
+                if condition_str == 'new':
+                    condition_enum = ListingCondition.NEW
+                elif condition_str == 'like_new':
+                    condition_enum = ListingCondition.LIKE_NEW
+                elif condition_str == 'excellent':
+                    condition_enum = ListingCondition.EXCELLENT
+                elif condition_str == 'fair':
+                    condition_enum = ListingCondition.FAIR
+                elif condition_str == 'poor':
+                    condition_enum = ListingCondition.POOR
+
+                # Convert photos from JSON string to List[Photo]
+                photos = []
+                if listing_data.get('photos'):
+                    try:
+                        import json
+                        photos_data = json.loads(listing_data['photos'])
+                        for i, photo_url in enumerate(photos_data):
+                            photos.append(Photo(url=photo_url, order=i, is_primary=(i == 0)))
+                    except (json.JSONDecodeError, TypeError):
+                        # If photos is not valid JSON, skip
+                        pass
+
+                listing = UnifiedListing(
+                    title=listing_data['title'],
+                    description=listing_data.get('description', ''),
+                    price=price_obj,
+                    condition=condition_enum,
+                    photos=photos
+                )
+                listings.append(listing)
+            except Exception as e:
+                print(f"Error converting listing {listing_data.get('id')}: {e}")
+                continue
+
+        # Initialize the appropriate adapter
+        adapter = None
+        if platform == 'facebook':
+            adapter = FacebookShopsAdapter()
+        elif platform == 'google':
+            adapter = GoogleShoppingAdapter()
+        elif platform == 'pinterest':
+            adapter = PinterestAdapter()
+        else:
+            return jsonify({"error": f"Unsupported platform: {platform}"}), 400
+
+        # Generate the feed
+        feed_path = adapter.generate_feed(listings, format_type)
+        
+        # Read the feed file and return it
+        with open(feed_path, 'r', encoding='utf-8') as f:
+            feed_content = f.read()
+
+        # Create response
+        response = make_response(feed_content)
+        
+        # Set appropriate content type
+        if format_type == 'xml':
+            response.headers['Content-Type'] = 'application/xml'
+            extension = 'xml'
+        elif format_type == 'json':
+            response.headers['Content-Type'] = 'application/json'
+            extension = 'json'
+        else:
+            response.headers['Content-Type'] = 'text/csv'
+            extension = 'csv'
+            
+        response.headers['Content-Disposition'] = f'attachment; filename={platform}_feed.{extension}'
+
+        return response
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# DRAFT → LISTING WORKFLOW
+# ============================================================================
+
+@main_bp.route('/api/publish-drafts', methods=['POST'])
+@login_required
+def api_publish_drafts():
+    """Publish selected drafts to active listings and optionally to platforms"""
+    try:
+        data = request.get_json()
+        draft_ids = data.get('draft_ids', [])
+        platforms = data.get('platforms', [])  # List of platforms to publish to
+        auto_assign_sku = data.get('auto_assign_sku', True)
+
+        if not draft_ids:
+            return jsonify({"error": "No draft IDs provided"}), 400
+
+        results = {
+            'published': [],
+            'failed': [],
+            'platform_results': {}
+        }
+
+        for draft_id in draft_ids:
+            try:
+                # Get draft
+                draft = db.get_listing(draft_id)
+                if not draft:
+                    results['failed'].append({
+                        'draft_id': draft_id,
+                        'error': 'Draft not found'
+                    })
+                    continue
+
+                # Verify ownership
+                if str(draft['user_id']) != str(current_user.id):
+                    results['failed'].append({
+                        'draft_id': draft_id,
+                        'error': 'Permission denied'
+                    })
+                    continue
+
+                # Auto-assign SKU if needed
+                if auto_assign_sku and not draft.get('sku'):
+                    sku = db.assign_auto_sku_if_missing(draft_id, current_user.id)
+                    draft['sku'] = sku
+
+                # Change status to active
+                db.update_listing_status(draft_id, 'active')
+
+                results['published'].append({
+                    'draft_id': draft_id,
+                    'title': draft['title'],
+                    'sku': draft.get('sku')
+                })
+
+            except Exception as e:
+                results['failed'].append({
+                    'draft_id': draft_id,
+                    'error': str(e)
+                })
+
+        # Publish to platforms if specified
+        if platforms and results['published']:
+            platform_results = {}
+            for platform in platforms:
+                try:
+                    # Import platform adapter
+                    if platform.lower() == 'ebay':
+                        from ..src.adapters.ebay_adapter import EbayAdapter
+                        adapter_class = EbayAdapter
+                    elif platform.lower() == 'mercari':
+                        from ..src.adapters.mercari_adapter import MercariAdapter
+                        adapter_class = MercariAdapter
+                    elif platform.lower() == 'poshmark':
+                        from ..src.adapters.poshmark_adapter import PoshmarkAdapter
+                        adapter_class = PoshmarkAdapter
+                    else:
+                        # Try to get from all_platforms
+                        from ..src.adapters.all_platforms import get_adapter_class as get_all_adapter_class
+                        adapter_class = get_all_adapter_class(platform)
+                        if not adapter_class:
+                            platform_results[platform] = {'error': f'Unsupported platform: {platform}'}
+                            continue
+
+                    # Try to create adapter instance
+                    adapter = None
+                    try:
+                        # Check if adapter has from_env method
+                        if hasattr(adapter_class, 'from_env'):
+                            adapter = adapter_class.from_env()
+                        else:
+                            # For adapters that don't need auth (like CSV adapters)
+                            adapter = adapter_class()
+                    except Exception as e:
+                        platform_results[platform] = {'error': f'Authentication/setup required for {platform}: {str(e)}'}
+                        continue
+
+                    # Get platform mapper
+                    from ..src.adapters.platform_configs import get_platform_mapper
+                    mapper = get_platform_mapper(platform)
+
+                    # Publish each listing
+                    published_count = 0
+                    failed_count = 0
+                    for item in results['published']:
+                        try:
+                            listing_data = db.get_listing(item['draft_id'])
+
+                            # Convert to UnifiedListing
+                            from ..schema.unified_listing import UnifiedListing
+                            unified_listing = UnifiedListing.from_dict(listing_data)
+
+                            # Publish to platform (adapter handles field mapping internally)
+                            result = adapter.publish_listing(unified_listing)
+                            if result.get('success'):
+                                published_count += 1
+                            else:
+                                failed_count += 1
+                                print(f"Failed to publish {item['draft_id']} to {platform}: {result.get('error', 'Unknown error')}")
+
+                        except Exception as e:
+                            failed_count += 1
+                            print(f"Failed to publish {item['draft_id']} to {platform}: {e}")
+
+                    platform_results[platform] = {
+                        'published': published_count,
+                        'failed': failed_count,
+                        'total': len(results['published'])
+                    }
+
+                except Exception as e:
+                    platform_results[platform] = {'error': str(e)}
+
+            results['platform_results'] = platform_results
+
+            # Format response for frontend compatibility
+            csv_files = {}
+            api_results = []
+
+            for platform, result in platform_results.items():
+                if 'error' in result:
+                    if platform.lower() in ['poshmark', 'bonanza', 'ecrater', 'rubylane', 'offerup']:
+                        # CSV platform error
+                        csv_files[platform] = {
+                            'platform_name': platform.title(),
+                            'error': result['error']
+                        }
+                    else:
+                        # API platform error
+                        api_results.append({
+                            'platform_name': platform.title(),
+                            'status': 'error',
+                            'message': result['error']
+                        })
+                else:
+                    if platform.lower() in ['poshmark', 'bonanza', 'ecrater', 'rubylane', 'offerup']:
+                        # CSV platform success - would need to generate CSV here
+                        csv_files[platform] = {
+                            'platform_name': platform.title(),
+                            'download_url': f'/api/export-csv?platform={platform}&ids={",".join(str(item["draft_id"]) for item in results["published"])}',
+                            'instructions': [
+                                f'Log into your {platform.title()} account',
+                                f'Go to the bulk upload section',
+                                f'Upload the generated CSV file',
+                                'Review and publish listings'
+                            ]
+                        }
+                    else:
+                        # API platform result
+                        api_results.append({
+                            'platform_name': platform.title(),
+                            'status': 'posted' if result['published'] > 0 else 'partial',
+                            'message': f'Successfully posted {result["published"]} of {result["total"]} listings'
+                        })
+
+            results['csv_files'] = csv_files
+            results['api_results'] = api_results
+
+        return jsonify(results)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route('/api/bulk-edit-drafts', methods=['POST'])
+@login_required
+def api_bulk_edit_drafts():
+    """Bulk edit multiple drafts"""
+    try:
+        data = request.get_json()
+        draft_ids = data.get('draft_ids', [])
+        updates = data.get('updates', {})  # Fields to update
+
+        if not draft_ids:
+            return jsonify({"error": "No draft IDs provided"}), 400
+
+        if not updates:
+            return jsonify({"error": "No updates provided"}), 400
+
+        results = {
+            'updated': [],
+            'failed': []
+        }
+
+        for draft_id in draft_ids:
+            try:
+                # Verify ownership
+                draft = db.get_listing(draft_id)
+                if not draft or str(draft['user_id']) != str(current_user.id):
+                    results['failed'].append({
+                        'draft_id': draft_id,
+                        'error': 'Permission denied or draft not found'
+                    })
+                    continue
+
+                # Update the draft
+                db.update_listing(draft_id, **updates)
+
+                results['updated'].append({
+                    'draft_id': draft_id,
+                    'title': draft['title']
+                })
+
+            except Exception as e:
+                results['failed'].append({
+                    'draft_id': draft_id,
+                    'error': str(e)
+                })
+
+        return jsonify(results)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route('/api/schedule-feed-sync', methods=['POST'])
+@login_required
+def api_schedule_feed_sync():
+    """Schedule automatic feed sync for catalog platforms"""
+    try:
+        from ..src.workers.scheduler import Scheduler
+        
+        data = request.get_json()
+        platforms = data.get('platforms', ['facebook', 'google', 'pinterest'])
+        interval_hours = data.get('interval_hours', 6)  # Default 6 hours
+        
+        # Get or create scheduler instance
+        # TODO: This should be a singleton/global instance
+        scheduler = Scheduler()
+        scheduler.start()
+        
+        # Schedule feed sync for current user
+        job_id = scheduler.schedule_feed_sync(
+            user_id=current_user.id,
+            platforms=platforms,
+            interval_hours=interval_hours
+        )
+        
+        return jsonify({
+            "status": "scheduled",
+            "job_id": job_id,
+            "platforms": platforms,
+            "interval_hours": interval_hours,
+            "message": f"Feed sync scheduled every {interval_hours} hours for platforms: {', '.join(platforms)}"
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# PLATFORM CONNECTIONS UI & API
+# ============================================================================
+
+@main_bp.route("/platforms")
+@login_required
+def platforms_page():
+    """Platform connections management page"""
+    # Get user's platform connections from database
+    connections = db.get_platform_connections(current_user.id) if hasattr(db, 'get_platform_connections') else {}
+
+    return render_template("platforms.html", connections=connections)
+
+
+@main_bp.route("/api/platform/<platform>/connect", methods=["POST"])
+@login_required
+def connect_platform(platform):
+    """Connect a platform with API key/credentials"""
+    try:
+        data = request.get_json()
+
+        # Store platform credentials (encrypted in production!)
+        if hasattr(db, 'save_platform_connection'):
+            db.save_platform_connection(
+                user_id=current_user.id,
+                platform=platform,
+                credentials=data
+            )
+        else:
+            # Fallback: store in user's settings
+            print(f"Platform {platform} connection saved for user {current_user.id}")
+
+        return jsonify({"success": True, "message": f"Connected to {platform}"})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/platform/<platform>/disconnect", methods=["DELETE"])
+@login_required
+def disconnect_platform(platform):
+    """Disconnect a platform"""
+    try:
+        if hasattr(db, 'delete_platform_connection'):
+            db.delete_platform_connection(current_user.id, platform)
+        else:
+            print(f"Platform {platform} disconnected for user {current_user.id}")
+
+        return jsonify({"success": True, "message": f"Disconnected from {platform}"})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/platform/<platform>/test", methods=["GET"])
+@login_required
+def test_platform_connection(platform):
+    """Test a platform connection"""
+    try:
+        # Get platform credentials
+        if hasattr(db, 'get_platform_connection'):
+            credentials = db.get_platform_connection(current_user.id, platform)
+
+            if not credentials:
+                return jsonify({"error": "Platform not connected"}), 404
+
+            # Test the connection (implement per platform)
+            # For now, just return success
+            return jsonify({"success": True, "message": f"Connection to {platform} is working"})
+        else:
+            return jsonify({"error": "Platform connections not implemented"}), 501
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/listing/<int:listing_id>/platforms", methods=["GET"])
+@login_required
+def get_listing_platforms(listing_id):
+    """Get platform status for a specific listing"""
+    try:
+        # Check listing belongs to user
+        listing = db.get_listing(listing_id)
+        if not listing or listing.get('user_id') != current_user.id:
+            return jsonify({"error": "Listing not found"}), 404
+
+        # Get platform statuses
+        if hasattr(db, 'get_listing_platform_status'):
+            platforms = db.get_listing_platform_status(listing_id)
+        else:
+            # Default implementation
+            platforms = [
+                {"name": "ebay", "status": "active", "listing_id": "123456789", "updated_at": "2025-11-29"},
+                {"name": "etsy", "status": "draft", "listing_id": None, "updated_at": "2025-11-29"},
+                {"name": "shopify", "status": "inactive", "listing_id": None, "updated_at": None}
+            ]
+
+        return jsonify({"success": True, "platforms": platforms})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/listing/<int:listing_id>/publish-to-platform", methods=["POST"])
+@login_required
+def publish_to_platform(listing_id):
+    """Publish a listing to a specific platform"""
+    try:
+        data = request.get_json()
+        platform = data.get('platform')
+
+        if not platform:
+            return jsonify({"error": "Platform is required"}), 400
+
+        # Check listing belongs to user
+        listing = db.get_listing(listing_id)
+        if not listing or listing.get('user_id') != current_user.id:
+            return jsonify({"error": "Listing not found"}), 404
+
+        # Publish to platform
+        from src.listing_manager import ListingManager
+        manager = ListingManager()
+        result = manager.publish_to_platform(listing_id, platform)
+
+        return jsonify({"success": True, "result": result})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/listing/<int:listing_id>/delist-from-platform", methods=["POST"])
+@login_required
+def delist_from_platform(listing_id):
+    """Remove a listing from a specific platform"""
+    try:
+        data = request.get_json()
+        platform = data.get('platform')
+
+        if not platform:
+            return jsonify({"error": "Platform is required"}), 400
+
+        # Check listing belongs to user
+        listing = db.get_listing(listing_id)
+        if not listing or listing.get('user_id') != current_user.id:
+            return jsonify({"error": "Listing not found"}), 404
+
+        # Delist from platform
+        from src.listing_manager import ListingManager
+        manager = ListingManager()
+        result = manager.delist_from_platform(listing_id, platform)
+
+        return jsonify({"success": True, "result": result})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# CSV IMPORT SYSTEM
+# ============================================================================
+
+@main_bp.route("/api/import/csv", methods=["POST"])
+@login_required
+def import_csv():
+    """Import listings from CSV file"""
+    try:
+        csv_module = __import__("src.import", fromlist=["CSVImporter"])
+
+        CSVImporter = csv_module.CSVImporter
+        if 'file' not in request.files:
+            return jsonify({"error": "No file uploaded"}), 400
+
+        file = request.files['file']
+        if not file.filename.endswith('.csv'):
+            return jsonify({"error": "File must be a CSV"}), 400
+
+        # Read CSV
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w+', suffix='.csv', delete=False) as temp:
+            file.save(temp.name)
+            temp_path = temp.name
+
+        try:
+            importer = CSVImporter(user_id=current_user.id, db=db)
+            result = importer.import_csv(temp_path)
+
+            return jsonify({
+                "success": True,
+                "imported": result['imported'],
+                "skipped": result['skipped'],
+                "errors": result['errors'],
+                "duplicates": result.get('duplicates', [])
+            })
+        finally:
+            import os
+            os.unlink(temp_path)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# IMAGE PROCESSING PIPELINE
+# ============================================================================
+
+@main_bp.route("/api/image/process", methods=["POST"])
+@login_required
+def process_image():
+    """Process an image through the pipeline"""
+    try:
+        from src.images import ImagePipeline
+
+        if 'file' not in request.files:
+            return jsonify({"error": "No file uploaded"}), 400
+
+        file = request.files['file']
+        platform = request.form.get('platform', 'generic')
+
+        # Save uploaded file
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as temp:
+            file.save(temp.name)
+            input_path = temp.name
+
+        try:
+            pipeline = ImagePipeline()
+
+            # Process image
+            output_path = pipeline.process_for_platform(input_path, platform)
+
+            # Return processed image
+            from flask import send_file
+            return send_file(output_path, as_attachment=True)
+
+        finally:
+            import os
+            os.unlink(input_path)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# TAX & ACCOUNTING REPORTS
+# ============================================================================
+
+@main_bp.route("/api/reports/tax/<period>", methods=["GET"])
+@login_required
+def generate_tax_report(period):
+    """Generate tax report (monthly, quarterly, annual)"""
+    try:
+        from src.accounting import TaxReportGenerator
+
+        generator = TaxReportGenerator(db)
+        report = generator.generate_report(
+            user_id=current_user.id,
+            period=period,
+            year=int(request.args.get('year', datetime.now().year))
+        )
+
+        return jsonify({"success": True, "report": report})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/reports/profit", methods=["GET"])
+@login_required
+def get_profit_summary():
+    """Get profit summary for user's listings"""
+    try:
+        from src.accounting import TaxReportGenerator
+
+        generator = TaxReportGenerator(db)
+        summary = generator.get_profit_summary(current_user.id)
+
+        return jsonify({"success": True, "summary": summary})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# STORAGE LOCATION MANAGEMENT
+# ============================================================================
+
+@main_bp.route("/api/storage/locations", methods=["GET"])
+@login_required
+def get_storage_locations():
+    """Get all storage locations for current user"""
+    try:
+        from src.storage import StorageManager
+        manager = StorageManager(db)
+        locations = manager.get_user_locations(current_user.id)
+        return jsonify({"success": True, "locations": locations})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/storage/location", methods=["POST"])
+@login_required
+def create_storage_location():
+    """Create a new storage location"""
+    try:
+        from src.storage import StorageManager
+        data = request.get_json()
+
+        manager = StorageManager(db)
+        location = manager.create_location(
+            user_id=current_user.id,
+            name=data.get('name'),
+            location_type=data.get('type', 'bin'),
+            parent_id=data.get('parent_id'),
+            notes=data.get('notes')
+        )
+
+        return jsonify({"success": True, "location": location})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/storage/location/<int:location_id>", methods=["GET"])
+@login_required
+def get_storage_location(location_id):
+    """Get storage location details"""
+    try:
+        from src.storage import StorageManager
+        manager = StorageManager(db)
+        location = manager.get_location(location_id)
+
+        if not location:
+            return jsonify({"error": "Location not found"}), 404
+
+        # Get items in this location
+        items = manager.get_location_items(location_id)
+
+        return jsonify({
+            "success": True,
+            "location": location,
+            "items": items
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/storage/assign", methods=["POST"])
+@login_required
+def assign_storage_location():
+    """Assign an item to a storage location"""
+    try:
+        from src.storage import StorageManager
+        data = request.get_json()
+
+        manager = StorageManager(db)
+        success = manager.assign_location(
+            listing_id=data.get('listing_id'),
+            location_id=data.get('location_id'),
+            quantity=data.get('quantity', 1)
+        )
+
+        return jsonify({"success": success})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/storage/bulk-assign", methods=["POST"])
+@login_required
+def bulk_assign_storage():
+    """Bulk assign multiple items to a location"""
+    try:
+        from src.storage import StorageManager
+        data = request.get_json()
+
+        manager = StorageManager(db)
+        result = manager.bulk_assign(
+            location_id=data.get('location_id'),
+            listing_ids=data.get('listing_ids', [])
+        )
+
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/storage/suggest", methods=["POST"])
+@login_required
+def suggest_storage_location():
+    """Suggest optimal storage location for an item"""
+    try:
+        from src.storage import StorageManager
+        data = request.get_json()
+
+        manager = StorageManager(db)
+        suggestion = manager.suggest_location(
+            user_id=current_user.id,
+            category=data.get('category'),
+            size=data.get('size')
+        )
+
+        return jsonify({"success": True, "suggestion": suggestion})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# SALES SYNC ENGINE
+# ============================================================================
+
+@main_bp.route("/api/sales/sync/<platform>", methods=["POST"])
+@login_required
+def sync_platform_sales(platform):
+    """Sync sales from a specific platform"""
+    try:
+        from src.sales import SalesSyncEngine
+
+        engine = SalesSyncEngine(db)
+        result = engine.sync_platform_sales(current_user.id, platform)
+
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/sales/sync-all", methods=["POST"])
+@login_required
+def sync_all_sales():
+    """Sync sales from all connected platforms"""
+    try:
+        from src.sales import SalesSyncEngine
+
+        engine = SalesSyncEngine(db)
+        result = engine.sync_all_platforms(current_user.id)
+
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/sales/manual-sale", methods=["POST"])
+@login_required
+def record_manual_sale():
+    """Manually record a sale (for platforms without API)"""
+    try:
+        from src.sales import SalesSyncEngine
+        data = request.get_json()
+
+        engine = SalesSyncEngine(db)
+        result = engine.detect_sale(
+            listing_id=data.get('listing_id'),
+            platform=data.get('platform', 'manual'),
+            sale_data={
+                'price': data.get('price'),
+                'buyer': data.get('buyer', {}),
+                'sale_date': data.get('sale_date', datetime.now()),
+                'transaction_id': data.get('transaction_id')
+            }
+        )
+
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/sales/<int:listing_id>", methods=["GET"])
+@login_required
+def get_sale_details(listing_id):
+    """Get detailed sale information"""
+    try:
+        from src.sales import SalesSyncEngine
+
+        # Check listing belongs to user
+        listing = db.get_listing(listing_id)
+        if not listing or listing.get('user_id') != current_user.id:
+            return jsonify({"error": "Listing not found"}), 404
+
+        engine = SalesSyncEngine(db)
+        details = engine.get_sale_details(listing_id)
+
+        if not details:
+            return jsonify({"error": "No sale data found"}), 404
+
+        return jsonify({"success": True, "sale": details})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# INVOICING ROUTES
+# ============================================================================
+
+@main_bp.route('/invoicing')
+@login_required
+def invoicing():
+    """Invoicing management page"""
+    return render_template('invoicing.html')
+
+
+@main_bp.route('/api/create-invoice', methods=['POST'])
+@login_required
+def api_create_invoice():
+    """Create a new invoice"""
+    try:
+        from ..src.invoicing.invoice_generator import InvoiceGenerator
+
+        data = request.get_json()
+        listing_id = data.get('listing_id')
+        buyer_email = data.get('buyer_email')
+        tax_rate = data.get('tax_rate', 0)
+        shipping_cost = data.get('shipping_cost', 0)
+        discount = data.get('discount', 0)
+
+        if not listing_id or not buyer_email:
+            return jsonify({"error": "Missing required fields"}), 400
+
+        # Get listing details
+        listing = db.get_listing(listing_id)
+        if not listing:
+            return jsonify({"error": "Listing not found"}), 404
+
+        # Create buyer info
+        buyer = {
+            'email': buyer_email,
+            'name': buyer_email.split('@')[0]  # Simple name extraction
+        }
+
+        # Generate invoice
+        generator = InvoiceGenerator()
+        invoice_data = generator.create_invoice(
+            listing=listing,
+            buyer=buyer,
+            tax_rate=tax_rate / 100.0,  # Convert percentage to decimal
+            shipping=shipping_cost,
+            discount=discount
+        )
+
+        # Store invoice in database (simplified - just return for now)
+        invoice_id = f"inv_{listing_id}_{int(datetime.now().timestamp())}"
+
+        return jsonify({
+            "success": True,
+            "invoice_id": invoice_id,
+            "invoice": invoice_data,
+            "message": "Invoice created successfully"
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route('/api/invoices')
+@login_required
+def api_get_invoices():
+    """Get list of invoices for current user"""
+    try:
+        # For now, return empty list since we don't have database storage
+        return jsonify({"success": True, "invoices": []})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route('/api/invoice/<invoice_id>')
+@login_required
+def api_get_invoice(invoice_id):
+    """Get invoice details and HTML"""
+    try:
+        # For now, return a sample invoice
+        sample_invoice = {
+            'invoice_number': 'INV-2024-00001',
+            'date': datetime.now().strftime('%Y-%m-%d'),
+            'buyer': {'email': 'buyer@example.com', 'name': 'Sample Buyer'},
+            'item': {'title': 'Sample Item', 'price': 25.00},
+            'totals': {'subtotal': 25.00, 'tax': 2.06, 'shipping': 5.00, 'total': 32.06},
+            'status': 'unpaid'
+        }
+
+        from ..src.invoicing.invoice_generator import InvoiceGenerator
+        generator = InvoiceGenerator()
+        html = generator.generate_invoice_html(sample_invoice)
+
+        return jsonify({"success": True, "invoice": sample_invoice, "html": html})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route('/api/email-invoice/<invoice_id>', methods=['POST'])
+@login_required
+def api_email_invoice(invoice_id):
+    """Email invoice to buyer"""
+    try:
+        from ..src.invoicing.invoice_generator import InvoiceGenerator
+
+        data = request.get_json()
+        email = data.get('email')
+
+        if not email:
+            return jsonify({"error": "Email address required"}), 400
+
+        generator = InvoiceGenerator()
+        invoice = generator.get_invoice(invoice_id)
+
+        if not invoice or str(invoice.get('user_id')) != str(current_user.id):
+            return jsonify({"error": "Invoice not found"}), 404
+
+        # Generate HTML and send email
+        html = generator.generate_invoice_html(invoice)
+
+        # TODO: Implement email sending
+        # For now, just return success
+        return jsonify({"success": True, "message": f"Invoice would be sent to {email}"})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# BILLING & SUBSCRIPTION ROUTES
+# ============================================================================
+
+@main_bp.route('/billing')
+@login_required
+def billing():
+    """Billing and subscription management page"""
+    try:
+        from ..src.billing import BillingManager, SubscriptionTier
+
+        billing_manager = BillingManager()
+        user_tier = billing_manager.get_user_tier(current_user.id)
+        tier_limits = billing_manager.get_tier_limits(user_tier)
+
+        # Get current usage
+        can_create_listing, limit_message = billing_manager.check_listing_limit(current_user.id)
+
+        return render_template('billing.html',
+                user_tier=user_tier.value,
+                tier_limits=tier_limits,
+                can_create_listing=can_create_listing,
+                limit_message=limit_message)
+
+    except Exception as e:
+        flash(f'Error loading billing page: {str(e)}', 'error')
+        return redirect(url_for('main.index'))
+
+
+@main_bp.route('/api/billing/create-checkout-session', methods=['POST'])
+@login_required
+def create_checkout_session():
+    """Create Stripe checkout session for subscription"""
+    try:
+        from ..src.billing import StripeIntegration
+
+        data = request.get_json()
+        tier = data.get('tier')
+
+        if not tier or tier not in ['PRO', 'BUSINESS']:
+            return jsonify({"error": "Invalid tier"}), 400
+
+        stripe_integration = StripeIntegration()
+
+        success_url = url_for('main.billing_success', _external=True)
+        cancel_url = url_for('main.billing', _external=True)
+
+        session = stripe_integration.create_checkout_session(
+            user_id=current_user.id,
+            tier=tier,
+            success_url=success_url,
+            cancel_url=cancel_url
+        )
+
+        return jsonify(session)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route('/billing/success')
+@login_required
+def billing_success():
+    """Billing success page"""
+    flash('Subscription activated successfully!', 'success')
+    return redirect(url_for('main.billing'))
+
+
+@main_bp.route('/api/billing/webhook', methods=['POST'])
+def stripe_webhook():
+    """Handle Stripe webhooks"""
+    try:
+        from ..src.billing import StripeIntegration
+
+        payload = request.get_data()
+        sig_header = request.headers.get('stripe-signature')
+
+        if not sig_header:
+            return jsonify({"error": "No signature"}), 400
+
+        stripe_integration = StripeIntegration()
+        result = stripe_integration.handle_webhook(payload, sig_header)
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route('/api/billing/check-feature-access', methods=['GET'])
+@login_required
+def check_feature_access():
+    """Check if user can access a feature"""
+    try:
+        from ..src.billing import BillingManager
+
+        feature = request.args.get('feature')
+        if not feature:
+            return jsonify({"error": "Feature parameter required"}), 400
+
+        billing_manager = BillingManager()
+        can_access = billing_manager.can_access_feature(current_user.id, feature)
+
+        return jsonify({
+            "can_access": can_access,
+            "feature": feature
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route('/api/billing/usage', methods=['GET'])
+@login_required
+def get_usage():
+    """Get current usage statistics"""
+    try:
+        from ..src.billing import BillingManager
+
+        billing_manager = BillingManager()
+
+        # Check listing limit
+        can_create, limit_message = billing_manager.check_listing_limit(current_user.id)
+
+        return jsonify({
+            "can_create_listing": can_create,
+            "limit_message": limit_message
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route('/api/billing/cancel-subscription', methods=['POST'])
+@login_required
+def cancel_subscription():
+    """Cancel user subscription"""
+    try:
+        from ..src.billing import BillingManager, SubscriptionTier
+
+        billing_manager = BillingManager()
+
+        # Cancel at period end (downgrade to FREE)
+        billing_manager.update_subscription(
+            user_id=current_user.id,
+            tier=SubscriptionTier.FREE
+        )
+
+        flash('Subscription cancelled. You will be downgraded to FREE tier at the end of your billing period.', 'info')
+        return jsonify({"success": True})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

@@ -21,11 +21,14 @@ import os
 import base64
 import json
 import time
+import logging
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 import requests
 
 from ..schema.unified_listing import Photo
+
+logger = logging.getLogger(__name__)
 
 
 class GeminiClassifier:
@@ -58,22 +61,103 @@ class GeminiClassifier:
         # Use v1 endpoint for Gemini models
         self.api_url = f"https://generativelanguage.googleapis.com/v1/models/{self.model}:generateContent"
 
+    def _prepare_image_for_gemini(self, image_path: str) -> tuple[bytes, str]:
+        """
+        Validate and convert image to Gemini-compatible format.
+        
+        This function:
+        1. Validates the image exists and is readable
+        2. Detects actual format using PIL (not file extension)
+        3. Converts unsupported formats (HEIC, etc.) to JPEG
+        4. Resizes if dimensions exceed 20MP limit
+        5. Compresses if file size exceeds 20MB
+        6. Converts RGBA/transparency to RGB
+        
+        Returns:
+            (image_bytes, mime_type) tuple
+        """
+        from PIL import Image
+        import io
+        
+        try:
+            # Open and validate image
+            img = Image.open(image_path)
+            
+            # Verify it's actually an image (not corrupted)
+            img.verify()
+            
+            # Reopen after verify (verify() closes the file)
+            img = Image.open(image_path)
+            
+            # Check dimensions (20MP limit = 20,000,000 pixels)
+            total_pixels = img.size[0] * img.size[1]
+            if total_pixels > 20_000_000:
+                # Resize to fit within 20MP
+                ratio = (20_000_000 / total_pixels) ** 0.5
+                new_size = (int(img.size[0] * ratio), int(img.size[1] * ratio))
+                img = img.resize(new_size, Image.Resampling.LANCZOS)
+                logger.info(f"Resized image from {img.size} to {new_size} (20MP limit)")
+            
+            # Convert RGBA/LA/P to RGB (remove alpha channel for JPEG compatibility)
+            if img.mode in ('RGBA', 'LA', 'P'):
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+                background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+                img = background
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+            
+            # Convert to JPEG (most compatible format for Gemini)
+            # Start with quality 85
+            output = io.BytesIO()
+            img.save(output, format='JPEG', quality=85, optimize=True)
+            image_bytes = output.getvalue()
+            
+            # Check file size (20MB limit, but account for base64 overhead ~33%)
+            # So we want to keep under ~15MB to be safe after base64 encoding
+            max_size_bytes = 15 * 1024 * 1024  # 15MB
+            
+            if len(image_bytes) > max_size_bytes:
+                # Reduce quality if still too large
+                output = io.BytesIO()
+                quality = 75
+                img.save(output, format='JPEG', quality=quality, optimize=True)
+                image_bytes = output.getvalue()
+                
+                # If still too large, reduce quality further
+                if len(image_bytes) > max_size_bytes:
+                    output = io.BytesIO()
+                    quality = 60
+                    img.save(output, format='JPEG', quality=quality, optimize=True)
+                    image_bytes = output.getvalue()
+                    logger.info(f"Reduced image quality to {quality}% to meet size limit")
+            
+            return image_bytes, 'image/jpeg'
+            
+        except Exception as e:
+            logger.error(f"Failed to prepare image {image_path}: {e}")
+            raise ValueError(f"Invalid or corrupted image: {str(e)}")
+
     def _encode_image_to_base64(self, image_path: str) -> str:
-        """Encode local image to base64"""
-        with open(image_path, "rb") as image_file:
-            return base64.b64encode(image_file.read()).decode("utf-8")
+        """
+        Prepare and encode image for Gemini API.
+        
+        This validates, converts, and encodes the image to base64.
+        """
+        image_bytes, _ = self._prepare_image_for_gemini(image_path)
+        return base64.b64encode(image_bytes).decode("utf-8")
 
     def _get_image_mime_type(self, image_path: str) -> str:
-        """Get MIME type from file extension"""
-        ext = Path(image_path).suffix.lower()
-        mime_types = {
-            ".jpg": "image/jpeg",
-            ".jpeg": "image/jpeg",
-            ".png": "image/png",
-            ".gif": "image/gif",
-            ".webp": "image/webp",
-        }
-        return mime_types.get(ext, "image/jpeg")
+        """
+        Get MIME type for Gemini API.
+        
+        Note: After _prepare_image_for_gemini, all images are converted to JPEG,
+        so this always returns 'image/jpeg'. The actual format detection happens
+        in _prepare_image_for_gemini.
+        """
+        # All images are converted to JPEG in _prepare_image_for_gemini
+        return "image/jpeg"
 
     def analyze_item(self, photos: List[Photo]) -> Dict[str, Any]:
         """
@@ -107,16 +191,33 @@ class GeminiClassifier:
 
         # Prepare images for Gemini (limit to 4 photos for speed)
         image_parts = []
-        for photo in photos[:4]:
+        for i, photo in enumerate(photos[:4]):
             if photo.local_path:
-                image_b64 = self._encode_image_to_base64(photo.local_path)
-                mime_type = self._get_image_mime_type(photo.local_path)
-                image_parts.append({
-                    "inline_data": {
-                        "mime_type": mime_type,
-                        "data": image_b64
-                    }
-                })
+                try:
+                    # Validate file exists
+                    if not Path(photo.local_path).exists():
+                        logger.error(f"Image file not found: {photo.local_path}")
+                        continue
+                    
+                    # Prepare and encode image (validates, converts, encodes)
+                    image_b64 = self._encode_image_to_base64(photo.local_path)
+                    mime_type = self._get_image_mime_type(photo.local_path)  # Always 'image/jpeg' after conversion
+                    
+                    image_parts.append({
+                        "inline_data": {
+                            "mime_type": mime_type,
+                            "data": image_b64
+                        }
+                    })
+                    logger.info(f"✅ Prepared image {i+1}/{min(len(photos), 4)} for Gemini")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to prepare image {i+1}: {e}")
+                    # Continue with other images instead of failing completely
+                    continue
+        
+        if not image_parts:
+            return {"error": "No valid images could be prepared for analysis"}
 
         # Build comprehensive classification prompt
         prompt = """Analyze these product images and provide a FAST, ACCURATE classification.
@@ -435,18 +536,35 @@ IMPORTANT:
         if not photos:
             return {"error": "No photos provided", "is_card": False}
 
-        # Prepare images
+        # Prepare images for Gemini (with validation and conversion)
         image_parts = []
-        for photo in photos[:4]:
+        for i, photo in enumerate(photos[:4]):
             if photo.local_path:
-                image_b64 = self._encode_image_to_base64(photo.local_path)
-                mime_type = self._get_image_mime_type(photo.local_path)
-                image_parts.append({
-                    "inline_data": {
-                        "mime_type": mime_type,
-                        "data": image_b64
-                    }
-                })
+                try:
+                    # Validate file exists
+                    if not Path(photo.local_path).exists():
+                        logger.error(f"Image file not found: {photo.local_path}")
+                        continue
+                    
+                    # Prepare and encode image (validates, converts, encodes)
+                    image_b64 = self._encode_image_to_base64(photo.local_path)
+                    mime_type = self._get_image_mime_type(photo.local_path)  # Always 'image/jpeg' after conversion
+                    
+                    image_parts.append({
+                        "inline_data": {
+                            "mime_type": mime_type,
+                            "data": image_b64
+                        }
+                    })
+                    logger.info(f"✅ Prepared card image {i+1}/{min(len(photos), 4)} for Gemini")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to prepare card image {i+1}: {e}")
+                    # Continue with other images instead of failing completely
+                    continue
+        
+        if not image_parts:
+            return {"error": "No valid images could be prepared for card analysis", "is_card": False}
 
         # Card-specific analysis prompt
         prompt = """Analyze this image and determine if it's a trading card or sports card.

@@ -31,27 +31,53 @@ class SupabaseStorageManager:
             
             self.supabase_url = os.getenv('SUPABASE_URL', '').strip()
             
-            # For server-side operations, ALWAYS use service_role key (bypasses RLS)
-            # This is required for server-side uploads to work without RLS policies
-            self.supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY', '').strip()
+            # Check all possible key names in priority order
+            # 1. Service role key (bypasses RLS - preferred for server-side)
+            # 2. Secret API key (fallback)
+            # 3. Generic SUPABASE_KEY (fallback)
+            # 4. Anon key (last resort - may fail with RLS)
+            self.supabase_key = (
+                os.getenv('SUPABASE_SERVICE_ROLE_KEY', '').strip() or
+                os.getenv('SUPABASE_SECRET_API_KEY', '').strip() or
+                os.getenv('SUPABASE_KEY', '').strip() or
+                os.getenv('SUPABASE_ANON_KEY', '').strip()
+            )
+            
+            # Determine which key was found (for logging)
+            key_source = None
+            if os.getenv('SUPABASE_SERVICE_ROLE_KEY', '').strip():
+                key_source = 'SUPABASE_SERVICE_ROLE_KEY'
+            elif os.getenv('SUPABASE_SECRET_API_KEY', '').strip():
+                key_source = 'SUPABASE_SECRET_API_KEY'
+            elif os.getenv('SUPABASE_KEY', '').strip():
+                key_source = 'SUPABASE_KEY'
+            elif os.getenv('SUPABASE_ANON_KEY', '').strip():
+                key_source = 'SUPABASE_ANON_KEY'
+            
+            if not self.supabase_url:
+                raise ValueError("SUPABASE_URL must be set in environment")
             
             if not self.supabase_key:
-                # Fallback warning - but service_role should be set
-                logger.warning("SUPABASE_SERVICE_ROLE_KEY not found, trying SUPABASE_KEY as fallback")
-                self.supabase_key = (os.getenv('SUPABASE_KEY') or os.getenv('SUPABASE_ANON_KEY') or '').strip()
-                if self.supabase_key:
-                    logger.warning("⚠️ Using SUPABASE_KEY/SUPABASE_ANON_KEY - uploads may fail due to RLS policies. Set SUPABASE_SERVICE_ROLE_KEY instead.")
-            
-            if not self.supabase_url or not self.supabase_key:
                 raise ValueError(
-                    "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment for server-side uploads"
+                    "No Supabase key found. Set one of: SUPABASE_SERVICE_ROLE_KEY, "
+                    "SUPABASE_SECRET_API_KEY, SUPABASE_KEY, or SUPABASE_ANON_KEY"
                 )
             
-            # Log which key type we're using (for debugging)
-            if os.getenv('SUPABASE_SERVICE_ROLE_KEY'):
-                logger.info("✅ Using SUPABASE_SERVICE_ROLE_KEY (bypasses RLS - correct for server-side)")
+            # Log which key is being used (first 10 chars only for security)
+            key_preview = self.supabase_key[:10] + "..." if len(self.supabase_key) > 10 else "***"
+            logger.info(f"✅ Supabase Storage initialized")
+            logger.info(f"   URL: {self.supabase_url}")
+            logger.info(f"   Key source: {key_source}")
+            logger.info(f"   Key preview: {key_preview}")
+            
+            if key_source == 'SUPABASE_SERVICE_ROLE_KEY':
+                logger.info("   ✅ Using service_role key (bypasses RLS - correct for server-side)")
+            elif key_source == 'SUPABASE_SECRET_API_KEY':
+                logger.info("   ✅ Using secret API key (should bypass RLS)")
+            elif key_source == 'SUPABASE_ANON_KEY':
+                logger.warning("   ⚠️ Using anon key (may fail with RLS policies)")
             else:
-                logger.warning("⚠️ SUPABASE_SERVICE_ROLE_KEY not set - using fallback key (may fail with RLS)")
+                logger.info(f"   Using {key_source}")
             
             # Initialize Supabase client
             self.client: Client = create_client(self.supabase_url, self.supabase_key)
@@ -154,14 +180,26 @@ class SupabaseStorageManager:
                     )
                     
             except Exception as upload_error:
-                logger.error(f"Supabase upload error: {upload_error}")
+                logger.error(f"❌ Supabase upload error: {upload_error}")
                 import traceback
                 logger.error(f"Traceback: {traceback.format_exc()}")
-                # Check if error message gives us a clue
+                
+                # Check for specific error types and provide helpful messages
                 error_str = str(upload_error)
+                
+                # Check for RLS errors
+                if any(keyword in error_str.lower() for keyword in ['row-level security', 'rls', 'unauthorized', 'violates']):
+                    logger.error("🔒 RLS Policy Error Detected!")
+                    logger.error(f"   Current key source: {key_source}")
+                    logger.error("   Solution: Ensure SUPABASE_SERVICE_ROLE_KEY is set (bypasses RLS)")
+                    return False, f"Upload failed: RLS policy violation. Using {key_source}. Ensure SUPABASE_SERVICE_ROLE_KEY is set to bypass RLS."
+                
+                # Check for encode errors
                 if 'encode' in error_str.lower() and 'bool' in error_str.lower():
                     return False, "Upload failed: Invalid data type passed to Supabase. Please check file data format."
-                return False, str(upload_error)
+                
+                # Generic error
+                return False, f"Upload failed: {error_str}"
             
             # Get public URL and strip any whitespace/newlines
             public_url = self.client.storage.from_(bucket).get_public_url(filename).strip()

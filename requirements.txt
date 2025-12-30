@@ -1,56 +1,77 @@
-# Core dependencies
-requests>=2.31.0
-python-dotenv>=1.0.0
-httpx>=0.25.0  # HTTP client for OAuth token exchange
-gotrue==2.10.0
 
-# Browser automation for Mercari (if not using Shops API)
-playwright>=1.40.0
-
-# Data validation
-pydantic>=2.0.0
-
-# Console output formatting
-rich>=13.0.0
-
-# Optional: Image processing
-Pillow>=10.0.0
-rembg>=2.0.50  # Background removal (free, open-source)
-
-# GUI
-customtkinter>=5.2.0
-
-# Web app
+# =========================
+# Web Application Core
+# =========================
 flask>=3.0.0
 flask-login>=0.6.3
-flask-mail>=0.10.0  # Email sending for account verification
-flask-session>=0.8.0  # Redis-backed server-side sessions
+flask-mail>=0.10.0
+flask-session>=0.8.0
 werkzeug>=3.0.0
-gunicorn>=21.2.0  # Production WSGI server for Render deployment
-gevent>=23.9.1  # Async worker for better upload handling
+gunicorn>=21.2.0          # WSGI server for Render
+gevent>=23.9.1            # Async worker for uploads
+python-dotenv>=1.0.0
 
-# Session storage (Upstash Redis)
-redis>=5.0.0  # Redis client for session storage and OAuth state
+# =========================
+# HTTP / Networking
+# =========================
+requests>=2.31.0
+httpx>=0.25.0             # OAuth flows
+redis>=5.0.0              # Session & state storage
 
+# =========================
+# Auth / OAuth / Security
+# =========================
+supabase==2.10.0
+gotrue==2.10.0
+pyjwt>=2.8.0
+passlib[bcrypt]>=1.7.4
+python-jose[cryptography]>=3.3.0
+
+# =========================
 # Database
-psycopg2-binary>=2.9.9  # PostgreSQL adapter
+# =========================
+psycopg2-binary>=2.9.9
 
-# Authentication (Supabase OAuth)
-supabase==2.10.0  # Supabase Python client (pinned to working version)
-pyjwt>=2.8.0  # JWT token handling
-passlib[bcrypt]>=1.7.4  # Password hashing
-python-jose[cryptography]>=3.3.0  # JWT creation and validation
+# =========================
+# Browser Automation
+# =========================
+playwright>=1.40.0
 
-# Cloud Storage
-cloudinary>=1.41.0  # Photo storage (FREE tier: 25GB)
+# =========================
+# Data Validation
+# =========================
+pydantic>=2.0.0
 
-# PDF Generation
-reportlab>=4.0.0  # PDF generation for packing slips, labels, invoices
+# =========================
+# Console UI
+# =========================
+rich>=13.0.0
 
-# Billing & Payments
-stripe>=7.0.0  # Stripe integration for subscriptions
+# =========================
+# Image / Media
+# =========================
+Pillow>=10.0.0
+rembg>=2.0.50
+cloudinary>=1.41.0
 
-# Development dependencies
+# =========================
+# PDF / Docs
+# =========================
+reportlab>=4.0.0
+
+# =========================
+# Billing / Payments
+# =========================
+stripe>=7.0.0
+
+# =========================
+# Testing Tools
+# =========================
 pytest>=7.4.0
 pytest-cov>=4.1.0
 flask-testing>=0.8.0
+
+# =========================
+# GUI (optional local tools)
+# =========================
+customtkinter>=5.2.0

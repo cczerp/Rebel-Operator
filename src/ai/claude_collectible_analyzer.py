@@ -46,22 +46,81 @@ class ClaudeCollectibleAnalyzer:
         self.model = os.getenv("CLAUDE_MODEL", "claude-3-5-sonnet-20241022")
         self.api_url = "https://api.anthropic.com/v1/messages"
 
+    def _convert_to_claude_format(self, image_path: str) -> tuple[bytes, str]:
+        """
+        Convert image to Claude-compatible format (JPEG, PNG, or GIF).
+        Claude only accepts: image/jpeg, image/png, image/gif
+        
+        Returns:
+            (image_bytes, mime_type) tuple
+        """
+        from PIL import Image
+        import io
+        
+        try:
+            img = Image.open(image_path)
+            original_format = img.format
+            
+            # If already in supported format, return as-is
+            if original_format in ('JPEG', 'PNG', 'GIF'):
+                with open(image_path, "rb") as f:
+                    image_bytes = f.read()
+                
+                mime_type = {
+                    'JPEG': 'image/jpeg',
+                    'PNG': 'image/png',
+                    'GIF': 'image/gif'
+                }[original_format]
+                
+                return image_bytes, mime_type
+            
+            # Convert unsupported formats to JPEG
+            if img.mode in ('RGBA', 'LA', 'P'):
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+                background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+                img = background
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+            
+            output = io.BytesIO()
+            img.save(output, format='JPEG', quality=95, optimize=True)
+            image_bytes = output.getvalue()
+            
+            return image_bytes, 'image/jpeg'
+            
+        except Exception as e:
+            print(f"Warning: Image conversion failed for {image_path}: {e}")
+            with open(image_path, "rb") as f:
+                return f.read(), "image/jpeg"
+
     def _encode_image_to_base64(self, image_path: str) -> str:
-        """Encode local image to base64"""
-        with open(image_path, "rb") as image_file:
-            return base64.b64encode(image_file.read()).decode("utf-8")
+        """Encode local image to base64, converting to Claude-compatible format if needed"""
+        image_bytes, _ = self._convert_to_claude_format(image_path)
+        return base64.b64encode(image_bytes).decode("utf-8")
 
     def _get_image_mime_type(self, image_path: str) -> str:
-        """Get MIME type from file extension"""
-        ext = Path(image_path).suffix.lower()
-        mime_types = {
-            ".jpg": "image/jpeg",
-            ".jpeg": "image/jpeg",
-            ".png": "image/png",
-            ".gif": "image/gif",
-            ".webp": "image/webp",
-        }
-        return mime_types.get(ext, "image/jpeg")
+        """
+        Get MIME type for Claude (only JPEG, PNG, GIF supported).
+        Images are converted to JPEG if not already in a supported format.
+        """
+        from PIL import Image
+        
+        try:
+            img = Image.open(image_path)
+            original_format = img.format
+            
+            if original_format in ('JPEG', 'PNG', 'GIF'):
+                return {
+                    'JPEG': 'image/jpeg',
+                    'PNG': 'image/png',
+                    'GIF': 'image/gif'
+                }[original_format]
+            
+            return 'image/jpeg'
+        except Exception:
+            return 'image/jpeg'
 
     def deep_analyze_collectible(
         self,
@@ -144,8 +203,9 @@ class ClaudeCollectibleAnalyzer:
         image_parts = []
         for photo in photos[:4]:  # Claude supports multiple images
             if photo.local_path:
-                image_b64 = self._encode_image_to_base64(photo.local_path)
-                mime_type = self._get_image_mime_type(photo.local_path)
+                # Convert to Claude-compatible format and encode
+                image_bytes, mime_type = self._convert_to_claude_format(photo.local_path)
+                image_b64 = base64.b64encode(image_bytes).decode("utf-8")
                 image_parts.append({
                     "type": "image",
                     "source": {

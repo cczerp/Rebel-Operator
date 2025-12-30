@@ -744,6 +744,16 @@ def api_analyze():
                 
                 # Download from Supabase Storage to temp file
                 file_data = storage.download_photo(path)
+                
+                # Debug logging (as per user's suggestion)
+                debug_info = {
+                    'hasFile': bool(file_data),
+                    'filePath': path,
+                    'dataLength': len(file_data) if file_data else 0,
+                    'isBytes': isinstance(file_data, bytes) if file_data else False
+                }
+                logging.info(f"[ANALYZE DEBUG] Image {i+1}: {debug_info}")
+                
                 if file_data and len(file_data) > 0:
                     # Create temp file
                     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
@@ -751,10 +761,21 @@ def api_analyze():
                     temp_file.close()
                     local_path = temp_file.name
                     temp_files.append(local_path)
+                    
+                    # Verify file was written and exists
+                    from pathlib import Path
+                    file_exists = Path(local_path).exists()
+                    file_size = Path(local_path).stat().st_size if file_exists else 0
+                    
                     logging.info(f"✅ Downloaded image {i+1} ({len(file_data)} bytes) to {local_path}")
+                    logging.info(f"[ANALYZE DEBUG] Temp file exists: {file_exists}, size: {file_size} bytes")
+                    
+                    if not file_exists or file_size == 0:
+                        logging.error(f"❌ Temp file was not created properly: {local_path}")
+                        return jsonify({"error": f"Failed to create temp file for image {i+1}"}), 500
                 else:
-                    import logging
-                    logging.error(f"Failed to download image {i+1} from Supabase: {path}")
+                    logging.error(f"❌ Failed to download image {i+1} from Supabase: {path}")
+                    logging.error(f"[ANALYZE DEBUG] file_data is None or empty: {file_data}")
                     return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage. URL may be invalid or file may not exist."}), 404
             else:
                 # Assume local path (legacy support)

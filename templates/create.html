@@ -522,9 +522,12 @@ async function handlePhotoSelect(e) {
             // Show previews (append to existing)
             const previewDiv = document.getElementById('photoPreview');
             console.log('[UPLOAD] Creating', files.length, 'preview images');
-            for (let i = 0; i < files.length; i++) {
+            for (let i = 0; i < data.paths.length; i++) {
                 const img = document.createElement('img');
-                img.src = URL.createObjectURL(files[i]);
+                // Use actual file path from server instead of blob URL
+                // Server returns paths like "data/draft_photos/uuid/filename"
+                // Route /data/<path:filename> serves these files
+                img.src = '/' + data.paths[i];
                 img.className = 'photo-preview';
                 img.title = 'Click to edit photo';
 

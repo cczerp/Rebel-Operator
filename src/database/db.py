@@ -94,10 +94,17 @@ class Database:
                 self._connect()
                 return
 
-            # Test with a simple query
-            cursor = self.conn.cursor()
-            cursor.execute("SELECT 1")
-            cursor.close()
+            # Test with a simple query (ensure cursor is closed)
+            cursor = None
+            try:
+                cursor = self.conn.cursor()
+                cursor.execute("SELECT 1")
+            finally:
+                if cursor:
+                    try:
+                        cursor.close()
+                    except Exception:
+                        pass
 
         except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
             print(f"⚠️  Connection error detected: {e}, reconnecting...")
@@ -113,29 +120,18 @@ class Database:
             pass  # Ignore rollback errors
         return self.conn.cursor(cursor_factory=self.cursor_factory)
     
-    def _execute_with_cursor(self, query, params=None, fetch_one=False, fetch_all=False):
+    def _with_cursor(self, func):
         """
-        Execute query with automatic cursor cleanup.
-        This ensures cursors are always closed to prevent connection pool exhaustion.
+        Context manager pattern for cursor operations.
+        Ensures cursor is always closed to prevent connection pool exhaustion.
         
-        Returns:
-            - fetch_one=True: Single row as dict or None
-            - fetch_all=True: List of rows as dicts
-            - Otherwise: None (for INSERT/UPDATE/DELETE)
+        Usage:
+            result = self._with_cursor(lambda cursor: cursor.execute(...))
         """
         cursor = None
         try:
             cursor = self._get_cursor()
-            cursor.execute(query, params or ())
-            
-            if fetch_one:
-                row = cursor.fetchone()
-                return dict(row) if row else None
-            elif fetch_all:
-                rows = cursor.fetchall()
-                return [dict(row) for row in rows]
-            else:
-                return None
+            return func(cursor)
         finally:
             if cursor:
                 try:

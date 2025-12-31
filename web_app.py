@@ -174,14 +174,22 @@ def drafts():
 @login_required
 def listings():
     """Listings page"""
-    cursor = db._get_cursor()
-    cursor.execute("""
-        SELECT * FROM listings
-        WHERE user_id = %s AND status != 'draft'
-        ORDER BY created_at DESC
-    """, (current_user.id,))
-    user_listings = [dict(row) for row in cursor.fetchall()]
-    return render_template('listings.html', listings=user_listings)
+    cursor = None
+    try:
+        cursor = db._get_cursor()
+        cursor.execute("""
+            SELECT * FROM listings
+            WHERE user_id = %s AND status != 'draft'
+            ORDER BY created_at DESC
+        """, (current_user.id,))
+        user_listings = [dict(row) for row in cursor.fetchall()]
+        return render_template('listings.html', listings=user_listings)
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except Exception:
+                pass
 
 @app.route('/notifications')
 @login_required

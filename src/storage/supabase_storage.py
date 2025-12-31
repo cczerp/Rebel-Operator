@@ -389,24 +389,34 @@ class SupabaseStorageManager:
             success: bool
         """
         try:
+            logger.info(f"[DELETE] Attempting to delete: {public_url[:150]}...")
+            
             # Extract bucket and path from URL
             parts = public_url.split('/')
             if 'public' not in parts:
-                logger.error(f"Invalid Supabase Storage URL: {public_url}")
+                logger.error(f"[DELETE] ❌ Invalid Supabase Storage URL (no 'public' in path): {public_url[:150]}...")
                 return False
             
             public_idx = parts.index('public')
             bucket = parts[public_idx + 1]
             path = '/'.join(parts[public_idx + 2:])
             
+            # Remove query parameters if present
+            if '?' in path:
+                path = path.split('?')[0]
+            
+            logger.info(f"[DELETE] Extracted bucket: {bucket}, path: {path}")
+            
             # Delete file
             response = self.client.storage.from_(bucket).remove([path])
             
-            logger.info(f"✅ Deleted {path} from {bucket}")
+            logger.info(f"[DELETE] ✅ Successfully deleted {path} from {bucket}")
             return True
             
         except Exception as e:
-            logger.error(f"❌ Delete failed for {public_url}: {e}")
+            import traceback
+            logger.error(f"[DELETE] ❌ Delete failed for {public_url[:150]}...: {e}")
+            logger.error(f"[DELETE] Traceback: {traceback.format_exc()}")
             return False
 
     def delete_multiple_photos(self, public_urls: List[str]) -> int:

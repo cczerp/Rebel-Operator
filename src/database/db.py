@@ -112,6 +112,36 @@ class Database:
         except Exception:
             pass  # Ignore rollback errors
         return self.conn.cursor(cursor_factory=self.cursor_factory)
+    
+    def _execute_with_cursor(self, query, params=None, fetch_one=False, fetch_all=False):
+        """
+        Execute query with automatic cursor cleanup.
+        This ensures cursors are always closed to prevent connection pool exhaustion.
+        
+        Returns:
+            - fetch_one=True: Single row as dict or None
+            - fetch_all=True: List of rows as dicts
+            - Otherwise: None (for INSERT/UPDATE/DELETE)
+        """
+        cursor = None
+        try:
+            cursor = self._get_cursor()
+            cursor.execute(query, params or ())
+            
+            if fetch_one:
+                row = cursor.fetchone()
+                return dict(row) if row else None
+            elif fetch_all:
+                rows = cursor.fetchall()
+                return [dict(row) for row in rows]
+            else:
+                return None
+        finally:
+            if cursor:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass  # Ignore errors when closing
 
     def _create_tables(self):
         """Create all database tables"""
@@ -1375,14 +1405,22 @@ class Database:
 
     def get_active_price_alerts(self) -> List[Dict]:
         """Get all active price alerts"""
-        cursor = self._get_cursor()
-        cursor.execute("""
-            SELECT pa.*, c.name as collectible_name, c.brand, c.estimated_value_avg
-            FROM price_alerts pa
-            JOIN collectibles c ON pa.collectible_id = c.id
-            WHERE pa.is_active = TRUE
-        """)
-        return [dict(row) for row in cursor.fetchall()]
+        cursor = None
+        try:
+            cursor = self._get_cursor()
+            cursor.execute("""
+                SELECT pa.*, c.name as collectible_name, c.brand, c.estimated_value_avg
+                FROM price_alerts pa
+                JOIN collectibles c ON pa.collectible_id = c.id
+                WHERE pa.is_active = TRUE
+            """)
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            if cursor:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
 
     # ========================================================================
     # USER AUTHENTICATION METHODS
@@ -1390,22 +1428,38 @@ class Database:
 
     def create_user(self, username: str, email: str, password_hash: str) -> int:
         """Create a new user"""
-        cursor = self._get_cursor()
-        cursor.execute("""
-            INSERT INTO users (username, email, password_hash)
-            VALUES (%s, %s, %s)
-            RETURNING id
-        """, (username, email, password_hash))
-        result = cursor.fetchone()
-        self.conn.commit()
-        return result['id']
+        cursor = None
+        try:
+            cursor = self._get_cursor()
+            cursor.execute("""
+                INSERT INTO users (username, email, password_hash)
+                VALUES (%s, %s, %s)
+                RETURNING id
+            """, (username, email, password_hash))
+            result = cursor.fetchone()
+            self.conn.commit()
+            return result['id']
+        finally:
+            if cursor:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
 
     def get_user_by_username(self, username: str) -> Optional[Dict]:
         """Get user by username"""
-        cursor = self._get_cursor()
-        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        cursor = None
+        try:
+            cursor = self._get_cursor()
+            cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+        finally:
+            if cursor:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
 
     def get_user_by_email(self, email: str) -> Optional[Dict]:
         """Get user by email"""
@@ -1416,10 +1470,18 @@ class Database:
 
     def get_user_by_id(self, user_id: int) -> Optional[Dict]:
         """Get user by ID"""
-        cursor = self._get_cursor()
-        cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        cursor = None
+        try:
+            cursor = self._get_cursor()
+            cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+        finally:
+            if cursor:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
 
     def update_last_login(self, user_id: int):
         """Update user's last login timestamp"""
@@ -1433,13 +1495,21 @@ class Database:
 
     def update_notification_email(self, user_id: int, notification_email: str):
         """Update user's notification email"""
-        cursor = self._get_cursor()
-        cursor.execute("""
-            UPDATE users
-            SET notification_email = %s
-            WHERE id = %s
-        """, (notification_email, user_id))
-        self.conn.commit()
+        cursor = None
+        try:
+            cursor = self._get_cursor()
+            cursor.execute("""
+                UPDATE users
+                SET notification_email = %s
+                WHERE id = %s
+            """, (notification_email, user_id))
+            self.conn.commit()
+        finally:
+            if cursor:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
 
     # ========================================================================
     # MARKETPLACE CREDENTIALS METHODS

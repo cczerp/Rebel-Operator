@@ -740,129 +740,51 @@ def get_api_credentials(platform):
 @login_required
 def api_analyze():
     """Analyze general items with Gemini (fast, cheap)"""
-    try:
-        from src.ai.gemini_classifier import GeminiClassifier
-        from src.schema.unified_listing import Photo
-        import tempfile
-        import os
-
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-            
-        paths = data.get("photos", [])
-        if not paths:
-            return jsonify({"error": "No photos provided"}), 400
-
-        # Log which URLs we received (important for debugging bucket issues)
-        import logging
-        logging.info(f"[ANALYZE DEBUG] Received {len(paths)} photo URL(s) for analysis")
-        for i, path in enumerate(paths):
-            if 'temp-photos' in path:
-                logging.info(f"[ANALYZE DEBUG] Photo {i+1}: ✅ URL from temp-photos bucket: {path[:100]}...")
-            elif 'listing-images' in path:
-                logging.warning(f"[ANALYZE DEBUG] Photo {i+1}: ⚠️ URL from listing-images bucket (unexpected for new uploads): {path[:100]}...")
-            elif 'draft-images' in path:
-                logging.info(f"[ANALYZE DEBUG] Photo {i+1}: ℹ️ URL from draft-images bucket: {path[:100]}...")
-            elif 'supabase.co' in path:
-                logging.warning(f"[ANALYZE DEBUG] Photo {i+1}: ⚠️ URL from Supabase but bucket unclear: {path[:100]}...")
-            else:
-                logging.info(f"[ANALYZE DEBUG] Photo {i+1}: Local path or non-Supabase URL: {path[:100]}...")
-
-        # Download photos from Supabase Storage or use local paths
-        photo_objects = []
-        temp_files = []  # Track temp files for cleanup
-        
         try:
-            from src.storage.supabase_storage import get_supabase_storage
-            storage = get_supabase_storage()
-            use_supabase = True
-        except Exception:
-            use_supabase = False
-            storage = None
+            from src.ai.openai_classifier import OpenAIClassifier
+            from src.schema.unified_listing import Photo
+            import logging
 
-        for i, path in enumerate(paths):
-            local_path = None
-            
-            # Check if it's a Supabase Storage URL
-            if use_supabase and storage and 'supabase.co' in path:
-                logging.info(f"[ANALYZE DEBUG] Downloading image {i+1}/{len(paths)} from Supabase: {path[:100]}...")
+            data = request.get_json()
+            if not data:
+                return jsonify({"error": "No data provided"}), 400
                 
-                # Download from Supabase Storage to temp file
-                file_data = storage.download_photo(path)
-                
-                # Debug logging (as per user's suggestion)
-                debug_info = {
-                    'hasFile': bool(file_data),
-                    'filePath': path,
-                    'dataLength': len(file_data) if file_data else 0,
-                    'isBytes': isinstance(file_data, bytes) if file_data else False
-                }
-                logging.info(f"[ANALYZE DEBUG] Image {i+1}: {debug_info}")
-                
-                if file_data and len(file_data) > 0:
-                    # Create temp file
-                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
-                    temp_file.write(file_data)
-                    temp_file.flush()  # Ensure data is written to buffer
-                    os.fsync(temp_file.fileno())  # Force write to disk
-                    temp_file.close()
-                    local_path = temp_file.name
-                    temp_files.append(local_path)
-                    
-                    # Verify file was written and exists
-                    from pathlib import Path
-                    file_exists = Path(local_path).exists()
-                    file_size = Path(local_path).stat().st_size if file_exists else 0
-                    
-                    logging.info(f"✅ Downloaded image {i+1} ({len(file_data)} bytes) to {local_path}")
-                    logging.info(f"[ANALYZE DEBUG] Temp file exists: {file_exists}, size: {file_size} bytes")
-                    
-                    if not file_exists or file_size == 0:
-                        logging.error(f"❌ Temp file was not created properly: {local_path}")
-                        return jsonify({"error": f"Failed to create temp file for image {i+1}"}), 500
+            paths = data.get("photos", [])
+            if not paths:
+                return jsonify({"error": "No photos provided"}), 400
+
+            # Log which URLs we received
+            logging.info(f"[ANALYZE DEBUG] Received {len(paths)} photo URL(s) for analysis")
+            for i, path in enumerate(paths):
+                if 'temp-photos' in path:
+                    logging.info(f"[ANALYZE DEBUG] Photo {i+1}: ✅ URL from temp-photos bucket: {path[:100]}...")
+                elif 'listing-images' in path:
+                    logging.warning(f"[ANALYZE DEBUG] Photo {i+1}: ⚠️ URL from listing-images bucket (unexpected for new uploads): {path[:100]}...")
+                elif 'draft-images' in path:
+                    logging.info(f"[ANALYZE DEBUG] Photo {i+1}: ℹ️ URL from draft-images bucket: {path[:100]}...")
+                elif 'supabase.co' in path:
+                    logging.warning(f"[ANALYZE DEBUG] Photo {i+1}: ⚠️ URL from Supabase but bucket unclear: {path[:100]}...")
                 else:
-                    logging.error(f"❌ Failed to download image {i+1} from Supabase: {path}")
-                    logging.error(f"[ANALYZE DEBUG] file_data is None or empty: {file_data}")
-                    return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage. URL may be invalid or file may not exist."}), 404
-            else:
-                # Assume local path (legacy support)
-                if path.startswith('/'):
-                    local_path = f"./data{path}"
-                else:
-                    local_path = f"./data/{path}"
-                
-                # Verify file exists
-                from pathlib import Path
-                if not Path(local_path).exists():
-                    return jsonify({"error": f"Photo file not found: {local_path}"}), 404
+                    logging.info(f"[ANALYZE DEBUG] Photo {i+1}: Local path or non-Supabase URL: {path[:100]}...")
+
+            # OpenAI accepts public URLs directly - no need to download!
+            # Create Photo objects with URLs
+            photo_objects = []
+            for path in paths:
+                # Use URL directly (OpenAI supports public URLs)
+                photo_objects.append(Photo(url=path, local_path=None))
             
-            photo_objects.append(Photo(url=path, local_path=local_path))
-        
-        if not photo_objects:
-            return jsonify({"error": "No valid photos found"}), 400
+            if not photo_objects:
+                return jsonify({"error": "No valid photos found"}), 400
 
-        # Initialize classifier
-        try:
-            classifier = GeminiClassifier.from_env()
-        except ValueError as e:
-            # Cleanup temp files
-            for temp_file in temp_files:
-                try:
-                    os.unlink(temp_file)
-                except:
-                    pass
-            return jsonify({"error": f"AI service not configured: {str(e)}"}), 500
-
-        # Analyze photos
-        result = classifier.analyze_item(photo_objects)
-
-        # Cleanup temp files
-        for temp_file in temp_files:
+            # Initialize classifier
             try:
-                os.unlink(temp_file)
-            except:
-                pass
+                classifier = OpenAIClassifier.from_env()
+            except ValueError as e:
+                return jsonify({"error": f"AI service not configured: {str(e)}"}), 500
+
+            # Analyze photos
+            result = classifier.analyze_item(photo_objects)
 
         if result.get("error"):
             return jsonify({"success": False, "error": result.get("error")}), 500

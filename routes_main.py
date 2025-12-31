@@ -739,52 +739,52 @@ def get_api_credentials(platform):
 @main_bp.route("/api/analyze", methods=["POST"])
 @login_required
 def api_analyze():
-    """Analyze general items with Gemini (fast, cheap)"""
-        try:
-            from src.ai.openai_classifier import OpenAIClassifier
-            from src.schema.unified_listing import Photo
-            import logging
+    """Analyze general items with OpenAI GPT-4o-mini (fast, cheap)"""
+    try:
+        from src.ai.openai_classifier import OpenAIClassifier
+        from src.schema.unified_listing import Photo
+        import logging
 
-            data = request.get_json()
-            if not data:
-                return jsonify({"error": "No data provided"}), 400
-                
-            paths = data.get("photos", [])
-            if not paths:
-                return jsonify({"error": "No photos provided"}), 400
-
-            # Log which URLs we received
-            logging.info(f"[ANALYZE DEBUG] Received {len(paths)} photo URL(s) for analysis")
-            for i, path in enumerate(paths):
-                if 'temp-photos' in path:
-                    logging.info(f"[ANALYZE DEBUG] Photo {i+1}: ✅ URL from temp-photos bucket: {path[:100]}...")
-                elif 'listing-images' in path:
-                    logging.warning(f"[ANALYZE DEBUG] Photo {i+1}: ⚠️ URL from listing-images bucket (unexpected for new uploads): {path[:100]}...")
-                elif 'draft-images' in path:
-                    logging.info(f"[ANALYZE DEBUG] Photo {i+1}: ℹ️ URL from draft-images bucket: {path[:100]}...")
-                elif 'supabase.co' in path:
-                    logging.warning(f"[ANALYZE DEBUG] Photo {i+1}: ⚠️ URL from Supabase but bucket unclear: {path[:100]}...")
-                else:
-                    logging.info(f"[ANALYZE DEBUG] Photo {i+1}: Local path or non-Supabase URL: {path[:100]}...")
-
-            # OpenAI accepts public URLs directly - no need to download!
-            # Create Photo objects with URLs
-            photo_objects = []
-            for path in paths:
-                # Use URL directly (OpenAI supports public URLs)
-                photo_objects.append(Photo(url=path, local_path=None))
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
             
-            if not photo_objects:
-                return jsonify({"error": "No valid photos found"}), 400
+        paths = data.get("photos", [])
+        if not paths:
+            return jsonify({"error": "No photos provided"}), 400
 
-            # Initialize classifier
-            try:
-                classifier = OpenAIClassifier.from_env()
-            except ValueError as e:
-                return jsonify({"error": f"AI service not configured: {str(e)}"}), 500
+        # Log which URLs we received
+        logging.info(f"[ANALYZE DEBUG] Received {len(paths)} photo URL(s) for analysis")
+        for i, path in enumerate(paths):
+            if 'temp-photos' in path:
+                logging.info(f"[ANALYZE DEBUG] Photo {i+1}: ✅ URL from temp-photos bucket: {path[:100]}...")
+            elif 'listing-images' in path:
+                logging.warning(f"[ANALYZE DEBUG] Photo {i+1}: ⚠️ URL from listing-images bucket (unexpected for new uploads): {path[:100]}...")
+            elif 'draft-images' in path:
+                logging.info(f"[ANALYZE DEBUG] Photo {i+1}: ℹ️ URL from draft-images bucket: {path[:100]}...")
+            elif 'supabase.co' in path:
+                logging.warning(f"[ANALYZE DEBUG] Photo {i+1}: ⚠️ URL from Supabase but bucket unclear: {path[:100]}...")
+            else:
+                logging.info(f"[ANALYZE DEBUG] Photo {i+1}: Local path or non-Supabase URL: {path[:100]}...")
 
-            # Analyze photos
-            result = classifier.analyze_item(photo_objects)
+        # OpenAI accepts public URLs directly - no need to download!
+        # Create Photo objects with URLs
+        photo_objects = []
+        for path in paths:
+            # Use URL directly (OpenAI supports public URLs)
+            photo_objects.append(Photo(url=path, local_path=None))
+        
+        if not photo_objects:
+            return jsonify({"error": "No valid photos found"}), 400
+
+        # Initialize classifier
+        try:
+            classifier = OpenAIClassifier.from_env()
+        except ValueError as e:
+            return jsonify({"error": f"AI service not configured: {str(e)}"}), 500
+
+        # Analyze photos
+        result = classifier.analyze_item(photo_objects)
 
         if result.get("error"):
             return jsonify({"success": False, "error": result.get("error")}), 500

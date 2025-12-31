@@ -49,8 +49,14 @@ class GeminiClassifier:
             os.getenv("GEMINI_API_KEY") or
             os.getenv("GEMENI_API_KEY")  # Common typo
         )
-        
-        if not raw_key:
+        # CRITICAL: Strip hidden characters (newlines, spaces, etc.)
+        # Copy-pasting keys often includes \n or spaces that make them invalid
+        if self.api_key:
+            self.api_key = self.api_key.strip()
+            # Debug: Check for hidden characters (remove this after confirming fix)
+            logger.debug(f"RAW KEY REPR: {repr(self.api_key)}")
+            logger.debug(f"KEY LENGTH: {len(self.api_key)}")
+        if not self.api_key:
             raise ValueError("GOOGLE_AI_API_KEY, GEMINI_API_KEY, or GEMENI_API_KEY must be set")
         
         # CRITICAL: Strip whitespace and hidden characters (common issue with copied keys)

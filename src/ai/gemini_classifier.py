@@ -43,14 +43,53 @@ class GeminiClassifier:
     def __init__(self, api_key: Optional[str] = None):
         """Initialize Gemini classifier"""
         # Check multiple env var names (including common typo GEMENI_API_KEY)
-        self.api_key = (
+        raw_key = (
             api_key or
             os.getenv("GOOGLE_AI_API_KEY") or
             os.getenv("GEMINI_API_KEY") or
             os.getenv("GEMENI_API_KEY")  # Common typo
         )
-        if not self.api_key:
+        
+        if not raw_key:
             raise ValueError("GOOGLE_AI_API_KEY, GEMINI_API_KEY, or GEMENI_API_KEY must be set")
+        
+        # CRITICAL: Strip whitespace and hidden characters (common issue with copied keys)
+        # Google API keys are sensitive to leading/trailing whitespace, newlines, etc.
+        self.api_key = raw_key.strip()
+        
+        # Debug: Log RAW key repr to detect hidden characters (ChatGPT's #1 fix)
+        # This shows newlines (\n), carriage returns (\r), spaces, etc.
+        logger.info(f"[GEMINI DEBUG] RAW KEY REPR (first 50 chars): {repr(raw_key[:50])}")
+        logger.info(f"[GEMINI DEBUG] STRIPPED KEY REPR (first 50 chars): {repr(self.api_key[:50])}")
+        
+        # Debug: Log key info (first/last 5 chars only for security)
+        key_preview = f"{self.api_key[:5]}...{self.api_key[-5:]}" if len(self.api_key) > 10 else "***"
+        logger.info(f"[GEMINI DEBUG] API Key loaded: length={len(self.api_key)}, preview={key_preview}")
+        
+        # Check for common issues
+        if len(self.api_key) < 30:
+            logger.warning(f"[GEMINI DEBUG] ⚠️ API key seems too short ({len(self.api_key)} chars). Expected ~39-45 chars.")
+        if len(self.api_key) > 60:
+            logger.warning(f"[GEMINI DEBUG] ⚠️ API key seems too long ({len(self.api_key)} chars). May contain extra characters.")
+        
+        # Check for hidden characters (log repr to see newlines, spaces, etc.)
+        if raw_key != self.api_key:
+            logger.warning(f"[GEMINI DEBUG] ⚠️ API key had whitespace! Stripped {len(raw_key) - len(self.api_key)} characters.")
+            logger.warning(f"[GEMINI DEBUG] ⚠️ Original had: {repr(raw_key)}")
+            logger.warning(f"[GEMINI DEBUG] ⚠️ After strip: {repr(self.api_key)}")
+        
+        # Verify key format (should start with AIza)
+        if not self.api_key.startswith('AIza'):
+            logger.warning(f"[GEMINI DEBUG] ⚠️ API key doesn't start with 'AIza'. May be invalid format.")
+        
+        # Check env var exists
+        env_var_names = ["GOOGLE_AI_API_KEY", "GEMINI_API_KEY", "GEMENI_API_KEY"]
+        found_vars = [name for name in env_var_names if os.getenv(name)]
+        logger.info(f"[GEMINI DEBUG] Environment variables found: {found_vars}")
+        for var_name in env_var_names:
+            if os.getenv(var_name):
+                var_value = os.getenv(var_name)
+                logger.info(f"[GEMINI DEBUG] {var_name} exists: length={len(var_value)}, repr={repr(var_value[:30])}...")
 
         # Use Gemini 2.5 Flash for speed and cost-efficiency
         # Current image-capable models (v1 API endpoint):
@@ -490,9 +529,21 @@ IMPORTANT:
 
         for attempt in range(max_retries):
             try:
+                # CRITICAL: Gemini API ONLY wants key in query string, NO Authorization header
+                # Verify we're not accidentally adding Authorization header
+                api_url_with_key = f"{self.api_url}?key={self.api_key}"
+                
+                # Debug: Log request details (key hidden for security)
+                logger.debug(f"[GEMINI DEBUG] Request URL: {self.api_url}?key=***")
+                logger.debug(f"[GEMINI DEBUG] Request headers: {headers}")
+                logger.debug(f"[GEMINI DEBUG] API key length: {len(self.api_key)} chars")
+                
+                # Ensure headers ONLY contain Content-Type (no Authorization)
+                headers = {"Content-Type": "application/json"}
+                
                 response = requests.post(
-                    f"{self.api_url}?key={self.api_key}",
-                    headers={"Content-Type": "application/json"},
+                    api_url_with_key,
+                    headers=headers,
                     json=payload,
                     timeout=30
                 )
@@ -904,8 +955,13 @@ Analyze the image(s) now and respond with ONLY the JSON."""
                 logger.debug(f"  Card image {i+1}: mime_type={mime}, data_length={data_len}")
 
         try:
+            # CRITICAL: Gemini API ONLY wants key in query string, NO Authorization header
+            api_url_with_key = f"{self.api_url}?key={self.api_key}"
+            headers = {"Content-Type": "application/json"}  # ONLY Content-Type, NO Authorization
+            
             response = requests.post(
-                f"{self.api_url}?key={self.api_key}",
+                api_url_with_key,
+                headers=headers,
                 json=payload,
                 timeout=30
             )

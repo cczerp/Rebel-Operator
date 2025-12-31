@@ -498,12 +498,41 @@ IMPORTANT:
                 )
 
                 if response.status_code == 200:
-                    result = response.json()
+                    # Check if response is actually JSON (not HTML error page)
+                    content_type = response.headers.get('Content-Type', '').lower()
+                    if 'application/json' not in content_type:
+                        logger.error(f"[GEMINI ERROR] Response is not JSON! Content-Type: {content_type}")
+                        logger.error(f"[GEMINI ERROR] Response text (first 500 chars): {response.text[:500]}")
+                        return {
+                            "error": f"Gemini API returned non-JSON response (Content-Type: {content_type}). This usually means the API endpoint is wrong or the API key is invalid.",
+                            "error_type": "invalid_response",
+                            "details": response.text[:500]
+                        }
+                    
+                    try:
+                        result = response.json()
+                    except json.JSONDecodeError as e:
+                        logger.error(f"[GEMINI ERROR] Failed to parse JSON response: {e}")
+                        logger.error(f"[GEMINI ERROR] Response text (first 500 chars): {response.text[:500]}")
+                        # Check if it's HTML
+                        if response.text.strip().startswith('<'):
+                            return {
+                                "error": "Gemini API returned HTML instead of JSON. This usually means the API endpoint is wrong, the API key is invalid, or there's a network issue.",
+                                "error_type": "html_response",
+                                "details": response.text[:500]
+                            }
+                        return {
+                            "error": f"Failed to parse Gemini API response as JSON: {str(e)}",
+                            "error_type": "json_parse_error",
+                            "details": response.text[:500]
+                        }
 
                     # Extract text from Gemini response
                     try:
                         content_text = result["candidates"][0]["content"]["parts"][0]["text"]
                     except (KeyError, IndexError) as e:
+                        logger.error(f"[GEMINI ERROR] Unexpected response structure: {e}")
+                        logger.error(f"[GEMINI ERROR] Full response: {json.dumps(result, indent=2)}")
                         return {
                             "error": f"Unexpected Gemini response structure: {str(e)}",
                             "raw_response": result
@@ -549,6 +578,16 @@ IMPORTANT:
                     
                     # Try to parse JSON error response for more details
                     try:
+                        # Check if response is HTML (common when API key is wrong)
+                        if error_msg_full.strip().startswith('<'):
+                            logger.error(f"[GEMINI ERROR] API returned HTML instead of JSON (likely invalid API key or wrong endpoint)")
+                            logger.error(f"[GEMINI ERROR] HTML response (first 1000 chars): {error_msg_full[:1000]}")
+                            return {
+                                "error": "Gemini API returned HTML instead of JSON. Please check your GEMINI_API_KEY is valid and the API endpoint is correct.",
+                                "error_type": "html_error_response",
+                                "details": error_msg_full[:1000]
+                            }
+                        
                         error_json = response.json()
                         logger.error(f"[GEMINI ERROR] Full error response: {json.dumps(error_json, indent=2)}")
                         if 'error' in error_json:
@@ -556,8 +595,12 @@ IMPORTANT:
                             if isinstance(gemini_error, dict):
                                 error_message = gemini_error.get('message', str(gemini_error))
                                 logger.error(f"[GEMINI ERROR] Gemini error message: {error_message}")
-                    except:
-                        logger.error(f"[GEMINI ERROR] Raw error response: {error_msg_full}")
+                    except json.JSONDecodeError:
+                        logger.error(f"[GEMINI ERROR] Failed to parse error response as JSON")
+                        logger.error(f"[GEMINI ERROR] Raw error response: {error_msg_full[:1000]}")
+                    except Exception as e:
+                        logger.error(f"[GEMINI ERROR] Error parsing error response: {e}")
+                        logger.error(f"[GEMINI ERROR] Raw error response: {error_msg_full[:1000]}")
 
                     # Provide user-friendly error messages
                     if response.status_code == 400:
@@ -572,7 +615,7 @@ IMPORTANT:
                         return {
                             "error": "Gemini API key is invalid or doesn't have access. Please check your GEMINI_API_KEY in .env file.",
                             "error_type": "auth_error",
-                            "details": error_msg
+                            "details": error_msg_short
                         }
                     elif response.status_code >= 500:
                         if attempt < max_retries - 1:
@@ -584,7 +627,7 @@ IMPORTANT:
                             return {
                                 "error": "Gemini API is experiencing server issues. Please try again in a few minutes.",
                                 "error_type": "server_error",
-                                "details": error_msg
+                                "details": error_msg_short
                             }
                     else:
                         return {

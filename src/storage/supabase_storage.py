@@ -121,10 +121,13 @@ class SupabaseStorageManager:
             # Determine bucket
             if folder == 'temp':
                 bucket = self.temp_bucket
+                logger.info(f"[STORAGE DEBUG] Using temp bucket: {bucket} (expected: temp-photos)")
             elif folder == 'listings':
                 bucket = self.listings_bucket
+                logger.info(f"[STORAGE DEBUG] Using listings bucket: {bucket} (expected: listing-images)")
             else:  # 'drafts' or default
                 bucket = self.drafts_bucket
+                logger.info(f"[STORAGE DEBUG] Using drafts bucket: {bucket} (expected: draft-images)")
             
             # Generate filename if not provided
             if not filename:
@@ -204,7 +207,14 @@ class SupabaseStorageManager:
             # Get public URL and strip any whitespace/newlines
             public_url = self.client.storage.from_(bucket).get_public_url(filename).strip()
             
+            # Verify bucket name in URL matches expected bucket
+            if bucket not in public_url:
+                logger.warning(f"[STORAGE DEBUG] ⚠️ Bucket name '{bucket}' not found in URL: {public_url[:100]}...")
+            else:
+                logger.info(f"[STORAGE DEBUG] ✅ Bucket '{bucket}' confirmed in URL")
+            
             logger.info(f"✅ Uploaded {filename} to {bucket}")
+            logger.info(f"[STORAGE DEBUG] Public URL: {public_url[:150]}...")
             return True, public_url
             
         except Exception as e:

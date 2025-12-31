@@ -149,6 +149,9 @@ def api_upload_photos():
                 
                 # Try passing BytesIO directly first (Supabase SDK prefers file-like objects)
                 # If that doesn't work, fall back to bytes
+                import logging
+                logging.info(f"[UPLOAD DEBUG] Uploading {file.filename} with folder='temp' (should use temp-photos bucket)")
+                
                 try:
                     success, result = storage.upload_photo(
                         file_data=compressed_file,  # Pass BytesIO directly
@@ -157,8 +160,7 @@ def api_upload_photos():
                     )
                 except Exception as upload_error:
                     # Fall back to bytes if BytesIO doesn't work
-                    import logging
-                    logging.warning(f"Upload with BytesIO failed: {upload_error}, trying with bytes")
+                    logging.warning(f"[UPLOAD DEBUG] Upload with BytesIO failed: {upload_error}, trying with bytes")
                     compressed_file.seek(0)
                     file_data = compressed_file.read()
                     
@@ -172,10 +174,19 @@ def api_upload_photos():
                     )
                 
                 if success:
+                    # Log which bucket the photo was uploaded to
+                    if 'temp-photos' in result:
+                        logging.info(f"[UPLOAD DEBUG] ✅ Photo uploaded to temp-photos bucket: {result[:100]}...")
+                    elif 'listing-images' in result:
+                        logging.warning(f"[UPLOAD DEBUG] ⚠️ Photo uploaded to listing-images bucket (WRONG!): {result[:100]}...")
+                    elif 'draft-images' in result:
+                        logging.warning(f"[UPLOAD DEBUG] ⚠️ Photo uploaded to draft-images bucket (unexpected): {result[:100]}...")
+                    else:
+                        logging.info(f"[UPLOAD DEBUG] Photo uploaded (bucket unclear from URL): {result[:100]}...")
+                    
                     uploaded_urls.append(result)  # result is the public URL
                 else:
-                    import logging
-                    logging.error(f"Failed to upload {file.filename}: {result}")
+                    logging.error(f"[UPLOAD DEBUG] ❌ Failed to upload {file.filename}: {result}")
                     return jsonify({"error": f"Upload failed: {result}"}), 500
 
         if not uploaded_urls:
@@ -722,6 +733,21 @@ def api_analyze():
         if not paths:
             return jsonify({"error": "No photos provided"}), 400
 
+        # Log which URLs we received (important for debugging bucket issues)
+        import logging
+        logging.info(f"[ANALYZE DEBUG] Received {len(paths)} photo URL(s) for analysis")
+        for i, path in enumerate(paths):
+            if 'temp-photos' in path:
+                logging.info(f"[ANALYZE DEBUG] Photo {i+1}: ✅ URL from temp-photos bucket: {path[:100]}...")
+            elif 'listing-images' in path:
+                logging.warning(f"[ANALYZE DEBUG] Photo {i+1}: ⚠️ URL from listing-images bucket (unexpected for new uploads): {path[:100]}...")
+            elif 'draft-images' in path:
+                logging.info(f"[ANALYZE DEBUG] Photo {i+1}: ℹ️ URL from draft-images bucket: {path[:100]}...")
+            elif 'supabase.co' in path:
+                logging.warning(f"[ANALYZE DEBUG] Photo {i+1}: ⚠️ URL from Supabase but bucket unclear: {path[:100]}...")
+            else:
+                logging.info(f"[ANALYZE DEBUG] Photo {i+1}: Local path or non-Supabase URL: {path[:100]}...")
+
         # Download photos from Supabase Storage or use local paths
         photo_objects = []
         temp_files = []  # Track temp files for cleanup
@@ -739,8 +765,7 @@ def api_analyze():
             
             # Check if it's a Supabase Storage URL
             if use_supabase and storage and 'supabase.co' in path:
-                import logging
-                logging.info(f"Downloading image {i+1}/{len(paths)} from Supabase: {path[:100]}...")
+                logging.info(f"[ANALYZE DEBUG] Downloading image {i+1}/{len(paths)} from Supabase: {path[:100]}...")
                 
                 # Download from Supabase Storage to temp file
                 file_data = storage.download_photo(path)

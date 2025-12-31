@@ -1466,6 +1466,9 @@ async function saveListing(status = 'draft') {
         const data = await response.json();
 
         if (data.success) {
+            // Mark as saved to prevent cleanup
+            hasBeenSaved = true;
+            
             // Update draft ID so next save is an update, not a new draft
             editingDraftId = data.listing_id;
             editingListingUuid = data.listing_uuid;
@@ -1656,5 +1659,66 @@ async function loadDraftData() {
 if (editingDraftId) {
     document.addEventListener('DOMContentLoaded', loadDraftData);
 }
+
+// Cleanup temporary photos when user navigates away without saving
+// Only cleanup if we're not editing a draft/listing (those photos should persist)
+let hasBeenSaved = false;  // Track if user has saved (draft or listing)
+
+// Function to cleanup temp photos
+async function cleanupTempPhotos() {
+    // Only cleanup if:
+    // 1. There are uploaded photos
+    // 2. User hasn't saved yet (not a draft or listing)
+    // 3. We're not editing an existing draft/listing
+    if (uploadedPhotos.length > 0 && !hasBeenSaved && !editingDraftId && !editingListingUuid) {
+        console.log('[CLEANUP] Cleaning up', uploadedPhotos.length, 'temp photos');
+        
+        // Filter to only temp-photos bucket URLs (don't cleanup listing-images or draft-images)
+        const tempPhotoUrls = uploadedPhotos.filter(url => 
+            url.includes('supabase.co') && url.includes('temp-photos')
+        );
+        
+        if (tempPhotoUrls.length > 0) {
+            try {
+                // Use sendBeacon for reliability (works even if page is unloading)
+                const success = navigator.sendBeacon(
+                    '/api/cleanup-temp-photos',
+                    JSON.stringify({photos: tempPhotoUrls})
+                );
+                
+                if (success) {
+                    console.log('[CLEANUP] Cleanup request sent for', tempPhotoUrls.length, 'photos');
+                } else {
+                    console.warn('[CLEANUP] sendBeacon failed, trying fetch');
+                    // Fallback to fetch with keepalive
+                    await fetch('/api/cleanup-temp-photos', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({photos: tempPhotoUrls}),
+                        keepalive: true  // Ensures request completes even if page closes
+                    });
+                }
+            } catch (e) {
+                // Ignore errors - cleanup is best effort
+                console.warn('[CLEANUP] Cleanup failed (best effort):', e);
+            }
+        }
+    }
+}
+
+// Handle page unload (user closes tab/navigates away)
+window.addEventListener('beforeunload', function(e) {
+    cleanupTempPhotos();
+});
+
+// Handle visibility change (when tab becomes hidden/closed)
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        cleanupTempPhotos();
+    }
+});
+
+// Mark as saved when listing is saved (saveListing function is called)
+// We'll hook into the saveListing function below
 </script>
 {% endblock %}

@@ -1663,46 +1663,72 @@ if (editingDraftId) {
 // Cleanup temporary photos when user navigates away without saving
 // Only cleanup if we're not editing a draft/listing (those photos should persist)
 let hasBeenSaved = false;  // Track if user has saved (draft or listing)
+let cleanupInProgress = false;  // Prevent multiple cleanup calls
 
 // Function to cleanup temp photos
-async function cleanupTempPhotos() {
+function cleanupTempPhotos() {
+    // Prevent multiple cleanup calls
+    if (cleanupInProgress) {
+        console.log('[CLEANUP] Cleanup already in progress, skipping');
+        return;
+    }
+    
     // Only cleanup if:
     // 1. There are uploaded photos
     // 2. User hasn't saved yet (not a draft or listing)
     // 3. We're not editing an existing draft/listing
-    if (uploadedPhotos.length > 0 && !hasBeenSaved && !editingDraftId && !editingListingUuid) {
-        console.log('[CLEANUP] Cleaning up', uploadedPhotos.length, 'temp photos');
-        
-        // Filter to only temp-photos bucket URLs (don't cleanup listing-images or draft-images)
-        const tempPhotoUrls = uploadedPhotos.filter(url => 
-            url.includes('supabase.co') && url.includes('temp-photos')
-        );
-        
-        if (tempPhotoUrls.length > 0) {
-            try {
-                // Use sendBeacon for reliability (works even if page is unloading)
-                const success = navigator.sendBeacon(
-                    '/api/cleanup-temp-photos',
-                    JSON.stringify({photos: tempPhotoUrls})
-                );
-                
-                if (success) {
-                    console.log('[CLEANUP] Cleanup request sent for', tempPhotoUrls.length, 'photos');
-                } else {
-                    console.warn('[CLEANUP] sendBeacon failed, trying fetch');
-                    // Fallback to fetch with keepalive
-                    await fetch('/api/cleanup-temp-photos', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({photos: tempPhotoUrls}),
-                        keepalive: true  // Ensures request completes even if page closes
-                    });
-                }
-            } catch (e) {
-                // Ignore errors - cleanup is best effort
-                console.warn('[CLEANUP] Cleanup failed (best effort):', e);
+    if (uploadedPhotos.length === 0) {
+        console.log('[CLEANUP] No photos to cleanup');
+        return;
+    }
+    
+    if (hasBeenSaved) {
+        console.log('[CLEANUP] Photos have been saved, skipping cleanup');
+        return;
+    }
+    
+    if (editingDraftId || editingListingUuid) {
+        console.log('[CLEANUP] Editing existing draft/listing, skipping cleanup');
+        return;
+    }
+    
+    console.log('[CLEANUP] Starting cleanup of', uploadedPhotos.length, 'temp photos');
+    
+    // Filter to only temp-photos bucket URLs (don't cleanup listing-images or draft-images)
+    const tempPhotoUrls = uploadedPhotos.filter(url => 
+        url.includes('supabase.co') && url.includes('temp-photos')
+    );
+    
+    if (tempPhotoUrls.length === 0) {
+        console.log('[CLEANUP] No temp-photos URLs to cleanup');
+        return;
+    }
+    
+    console.log('[CLEANUP] Will cleanup', tempPhotoUrls.length, 'photos from temp-photos bucket');
+    
+    cleanupInProgress = true;
+    
+    try {
+        // Use fetch with keepalive (more reliable than sendBeacon for JSON)
+        // keepalive ensures request completes even if page is closing
+        fetch('/api/cleanup-temp-photos', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({photos: tempPhotoUrls}),
+            keepalive: true  // Critical: ensures request completes even if page closes
+        }).then(response => {
+            if (response.ok) {
+                return response.json();
             }
-        }
+            throw new Error(`HTTP ${response.status}`);
+        }).then(data => {
+            console.log('[CLEANUP] ✅ Cleanup successful:', data.message || 'deleted', data.deleted || 0, 'photos');
+        }).catch(error => {
+            console.warn('[CLEANUP] ⚠️ Cleanup request failed (best effort):', error);
+        });
+    } catch (e) {
+        // Ignore errors - cleanup is best effort
+        console.warn('[CLEANUP] ⚠️ Cleanup failed (best effort):', e);
     }
 }
 
@@ -1717,6 +1743,16 @@ document.addEventListener('visibilitychange', function() {
         cleanupTempPhotos();
     }
 });
+
+// Also cleanup when user navigates to a different page (pushstate/popstate)
+let lastUrl = location.href;
+new MutationObserver(() => {
+    const url = location.href;
+    if (url !== lastUrl) {
+        lastUrl = url;
+        cleanupTempPhotos();
+    }
+}).observe(document, {subtree: true, childList: true});
 
 // Mark as saved when listing is saved (saveListing function is called)
 // We'll hook into the saveListing function below

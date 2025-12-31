@@ -81,12 +81,17 @@ class GeminiClassifier:
         
         try:
             # Open and validate image
-            img = Image.open(image_path)
+            # NOTE: Image.verify() is DEPRECATED and can corrupt images
+            # We'll use try/except instead to validate the image
+            try:
+                img = Image.open(image_path)
+                # Validate by attempting to load the image data
+                img.load()  # Force loading of image data to catch corruption
+            except Exception as img_error:
+                logger.error(f"Failed to open/load image {image_path}: {img_error}")
+                raise ValueError(f"Invalid or corrupted image: {str(img_error)}")
             
-            # Verify it's actually an image (not corrupted)
-            img.verify()
-            
-            # Reopen after verify (verify() closes the file)
+            # Reopen for actual use (load() may have modified state)
             img = Image.open(image_path)
             
             # Check dimensions (20MP limit = 20,000,000 pixels)
@@ -112,7 +117,17 @@ class GeminiClassifier:
             # Start with quality 85
             output = io.BytesIO()
             img.save(output, format='JPEG', quality=85, optimize=True)
+            output.seek(0)  # Reset position before reading
             image_bytes = output.getvalue()
+            
+            # Validate JPEG was created successfully (try to open it)
+            try:
+                test_img = Image.open(io.BytesIO(image_bytes))
+                test_img.verify()  # Quick verify
+                logger.debug(f"[GEMINI DEBUG] JPEG conversion validated - {len(image_bytes)} bytes")
+            except Exception as verify_error:
+                logger.error(f"[GEMINI DEBUG] JPEG validation failed: {verify_error}")
+                # Continue anyway - might still work
             
             # Check file size (20MB limit, but account for base64 overhead ~33%)
             # So we want to keep under ~15MB to be safe after base64 encoding
@@ -123,6 +138,7 @@ class GeminiClassifier:
                 output = io.BytesIO()
                 quality = 75
                 img.save(output, format='JPEG', quality=quality, optimize=True)
+                output.seek(0)
                 image_bytes = output.getvalue()
                 
                 # If still too large, reduce quality further
@@ -130,6 +146,7 @@ class GeminiClassifier:
                     output = io.BytesIO()
                     quality = 60
                     img.save(output, format='JPEG', quality=quality, optimize=True)
+                    output.seek(0)
                     image_bytes = output.getvalue()
                     logger.info(f"Reduced image quality to {quality}% to meet size limit")
             
@@ -526,14 +543,30 @@ IMPORTANT:
 
                 # Handle other API errors
                 else:
-                    error_msg = response.text[:500]
+                    # Log FULL error response (not just first 500 chars)
+                    error_msg_full = response.text
+                    error_msg_short = error_msg_full[:500] if len(error_msg_full) > 500 else error_msg_full
+                    
+                    # Try to parse JSON error response for more details
+                    try:
+                        error_json = response.json()
+                        logger.error(f"[GEMINI ERROR] Full error response: {json.dumps(error_json, indent=2)}")
+                        if 'error' in error_json:
+                            gemini_error = error_json.get('error', {})
+                            if isinstance(gemini_error, dict):
+                                error_message = gemini_error.get('message', str(gemini_error))
+                                logger.error(f"[GEMINI ERROR] Gemini error message: {error_message}")
+                    except:
+                        logger.error(f"[GEMINI ERROR] Raw error response: {error_msg_full}")
 
                     # Provide user-friendly error messages
                     if response.status_code == 400:
+                        logger.error(f"[GEMINI ERROR] 400 Bad Request - Full response: {error_msg_full}")
                         return {
                             "error": "Invalid request to Gemini API. Please check your photos are valid images.",
                             "error_type": "bad_request",
-                            "details": error_msg
+                            "details": error_msg_short,
+                            "full_error": error_msg_full  # Include full error for debugging
                         }
                     elif response.status_code == 403:
                         return {

@@ -209,37 +209,58 @@ def api_upload_photos():
 @login_required
 def api_cleanup_temp_photos():
     """Clean up temporary photos that weren't saved (called when user leaves page)"""
+    import logging
     try:
         data = request.get_json()
+        if not data:
+            logging.warning("[CLEANUP] No JSON data received")
+            return jsonify({"success": False, "error": "No data provided"}), 400
+        
         photo_urls = data.get("photos", [])
         
+        logging.info(f"[CLEANUP] Received cleanup request for {len(photo_urls)} photo(s)")
+        
         if not photo_urls:
-            return jsonify({"success": True, "message": "No photos to clean up"})
+            logging.info("[CLEANUP] No photos to clean up")
+            return jsonify({"success": True, "message": "No photos to clean up", "deleted": 0})
         
         try:
             from src.storage.supabase_storage import get_supabase_storage
             storage = get_supabase_storage()
             
             deleted = 0
-            for url in photo_urls:
+            failed = 0
+            for i, url in enumerate(photo_urls):
                 # Only delete from temp bucket
                 if 'supabase.co' in url and 'temp-photos' in url:
+                    logging.info(f"[CLEANUP] Deleting photo {i+1}/{len(photo_urls)}: {url[:100]}...")
                     if storage.delete_photo(url):
                         deleted += 1
+                        logging.info(f"[CLEANUP] ✅ Successfully deleted photo {i+1}")
+                    else:
+                        failed += 1
+                        logging.warning(f"[CLEANUP] ⚠️ Failed to delete photo {i+1}")
+                else:
+                    logging.warning(f"[CLEANUP] ⚠️ Skipping URL (not temp-photos bucket): {url[:100]}...")
+            
+            logging.info(f"[CLEANUP] ✅ Cleanup complete: {deleted} deleted, {failed} failed")
             
             return jsonify({
                 "success": True,
                 "deleted": deleted,
+                "failed": failed,
                 "message": f"Cleaned up {deleted} temporary photos"
             })
         except Exception as storage_error:
-            import logging
-            logging.warning(f"Cleanup failed: {storage_error}")
+            import traceback
+            logging.error(f"[CLEANUP] ❌ Storage cleanup failed: {storage_error}")
+            logging.error(f"[CLEANUP] Traceback: {traceback.format_exc()}")
             return jsonify({"success": False, "error": str(storage_error)}), 500
             
     except Exception as e:
-        import logging
-        logging.error(f"Cleanup error: {e}")
+        import traceback
+        logging.error(f"[CLEANUP] ❌ Cleanup error: {e}")
+        logging.error(f"[CLEANUP] Traceback: {traceback.format_exc()}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -783,6 +804,8 @@ def api_analyze():
                     # Create temp file
                     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
                     temp_file.write(file_data)
+                    temp_file.flush()  # Ensure data is written to buffer
+                    os.fsync(temp_file.fileno())  # Force write to disk
                     temp_file.close()
                     local_path = temp_file.name
                     temp_files.append(local_path)

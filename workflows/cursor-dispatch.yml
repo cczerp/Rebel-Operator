@@ -1,0 +1,15 @@
+name: Cursor Dispatch Listener
+
+on:
+  repository_dispatch:
+    types: [cursor_complete]
+
+jobs:
+  handle-cursor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm event received
+        run: |
+          echo "✅ Cursor dispatch received"
+          echo "Source: ${{ github.event.client_payload.source }}"
+          echo "Commit SHA: ${{ github.event.client_payload.cursor_commit_sha }}"

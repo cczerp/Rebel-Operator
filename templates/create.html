@@ -1043,6 +1043,14 @@ async function runEnhancedScan() {
 function showCardResults(data) {
     const cardData = data.data;
     const prices = data.market_prices || {};
+    
+    // Extract collector value indicators
+    const serialNumber = cardData.serial_number || {};
+    const signature = cardData.signature || {};
+    const errors = cardData.errors_variations || {};
+    const history = cardData.historical_context || {};
+    const condition = cardData.condition || {};
+    const auth = cardData.authentication || {};
 
     const statsCard = `
         <div class="card border-success mb-3" id="enhancedResultsCard" style="border-color: #4CAF50;">
@@ -1051,7 +1059,7 @@ function showCardResults(data) {
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-8">
                         <h5>${cardData.card_name || cardData.player_name || 'Unknown Card'}</h5>
                         ${cardData.set_name ? `<p class="mb-1"><strong>Set:</strong> ${cardData.set_name}</p>` : ''}
                         ${cardData.card_number ? `<p class="mb-1"><strong>Number:</strong> #${cardData.card_number}</p>` : ''}
@@ -1060,8 +1068,80 @@ function showCardResults(data) {
                         ${cardData.brand ? `<p class="mb-1"><strong>Brand:</strong> ${cardData.brand}</p>` : ''}
                         ${cardData.is_rookie_card ? `<p class="mb-1"><span class="badge" style="background: #FF9800; color: white;">ROOKIE CARD</span></p>` : ''}
                         ${cardData.is_graded ? `<p class="mb-1"><strong>Graded:</strong> ${cardData.grading_company} ${cardData.grading_score}</p>` : ''}
+                        
+                        ${history.backstory ? `
+                            <div class="mt-3 mb-3" style="background: rgba(76, 175, 80, 0.1); padding: 15px; border-radius: 5px; border-left: 3px solid #4CAF50;">
+                                <h6 class="mb-2"><i class="fas fa-book-open"></i> Card History & Backstory</h6>
+                                <p class="small mb-0" style="line-height: 1.6;">${history.backstory}</p>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="row mt-2">
+                            ${serialNumber.present ? `
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <h6 class="mb-1"><i class="fas fa-hashtag"></i> Serial Number</h6>
+                                            ${serialNumber.number ? `<p class="mb-1"><strong>Number:</strong> ${serialNumber.number}</p>` : ''}
+                                            ${serialNumber.format ? `<p class="mb-1 small"><strong>Format:</strong> ${serialNumber.format}</p>` : ''}
+                                            ${serialNumber.significance ? `<p class="mb-0 small text-muted">${serialNumber.significance}</p>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${signature.present ? `
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <h6 class="mb-1"><i class="fas fa-signature"></i> Signature</h6>
+                                            ${signature.signer ? `<p class="mb-1"><strong>Signer:</strong> ${signature.signer}</p>` : ''}
+                                            ${signature.location ? `<p class="mb-1 small"><strong>Location:</strong> ${signature.location}</p>` : ''}
+                                            ${signature.value_impact ? `<p class="mb-0 small text-muted">${signature.value_impact}</p>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${errors.present ? `
+                                <div class="col-md-6 mb-3">
+                                    <div class="card" style="background: #fff3cd; border: 2px solid #ffc107;">
+                                        <div class="card-body p-2">
+                                            <h6 class="mb-1"><i class="fas fa-exclamation-triangle"></i> Error / Misprint</h6>
+                                            ${errors.error_type ? `<p class="mb-1"><strong>Type:</strong> ${errors.error_type}</p>` : ''}
+                                            ${errors.error_description ? `<p class="mb-1 small">${errors.error_description}</p>` : ''}
+                                            ${errors.value_impact ? `<p class="mb-0 small text-success"><strong>Value Impact:</strong> ${errors.value_impact}</p>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        ${condition.overall_grade ? `
+                            <div class="mt-2">
+                                <h6><i class="fas fa-certificate"></i> Condition</h6>
+                                <p class="mb-1"><strong>Grade:</strong> ${condition.overall_grade}</p>
+                                ${condition.condition_details ? `<p class="small text-muted mb-0">${condition.condition_details}</p>` : ''}
+                            </div>
+                        ` : ''}
+                        
+                        ${auth.authentication_markers?.length > 0 ? `
+                            <div class="mt-2">
+                                <h6><i class="fas fa-shield-alt"></i> Authentication</h6>
+                                <ul class="small mb-0">
+                                    ${auth.authentication_markers.map(m => `<li>${m}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        
+                        ${cardData.collector_notes ? `
+                            <div class="mt-2">
+                                <h6><i class="fas fa-info-circle"></i> Collector Notes</h6>
+                                <p class="small mb-0">${cardData.collector_notes}</p>
+                            </div>
+                        ` : ''}
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <h6>Market Prices</h6>
                         ${prices.tcgplayer ? `<p class="mb-1"><strong>TCGPlayer:</strong> $${prices.tcgplayer.market || 'N/A'}</p>` : ''}
                         ${prices.ebay ? `<p class="mb-1"><strong>eBay Sold Avg:</strong> $${prices.ebay.avg || 'N/A'}</p>` : ''}
@@ -1107,6 +1187,15 @@ function showCardResults(data) {
 function showCollectibleResults(data) {
     const collectibleData = data.data;
     const prices = data.market_prices || {};
+    
+    // Extract collector value indicators
+    const mintMark = collectibleData.mint_mark || {};
+    const serialNumber = collectibleData.serial_number || {};
+    const signature = collectibleData.signature || {};
+    const errors = collectibleData.errors_variations || {};
+    const history = collectibleData.historical_context || {};
+    const condition = collectibleData.condition || {};
+    const auth = collectibleData.authentication || {};
 
     const collectibleCard = `
         <div class="card border-warning mb-3" id="enhancedResultsCard" style="border-color: #FF9800;">
@@ -1117,37 +1206,113 @@ function showCollectibleResults(data) {
                 <div class="row">
                     <div class="col-md-8">
                         <h5>${collectibleData.item_name || 'Unknown Collectible'}</h5>
-                        <p class="mb-2"><strong>Franchise:</strong> ${collectibleData.franchise}</p>
+                        ${collectibleData.franchise ? `<p class="mb-2"><strong>Franchise:</strong> ${collectibleData.franchise}</p>` : ''}
+                        ${collectibleData.brand ? `<p class="mb-2"><strong>Brand:</strong> ${collectibleData.brand}</p>` : ''}
                         
-                        ${collectibleData.item_significance ? `
-                            <h6 class="mt-3">About This Item</h6>
-                            <p class="small">${collectibleData.item_significance}</p>
+                        ${history.backstory ? `
+                            <div class="mt-3 mb-3" style="background: rgba(255, 152, 0, 0.1); padding: 15px; border-radius: 5px; border-left: 3px solid #FF9800;">
+                                <h6 class="mb-2"><i class="fas fa-book-open"></i> Item History & Backstory</h6>
+                                <p class="small mb-0" style="line-height: 1.6;">${history.backstory}</p>
+                            </div>
                         ` : ''}
                         
-                        ${collectibleData.rarity_info ? `
-                            <h6 class="mt-3">Rarity Analysis</h6>
-                            <p class="small">${collectibleData.rarity_info}</p>
+                        <div class="row mt-3">
+                            ${mintMark.present ? `
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <h6 class="mb-1"><i class="fas fa-stamp"></i> Mint Mark</h6>
+                                            ${mintMark.mark ? `<p class="mb-1"><strong>Mark:</strong> ${mintMark.mark}</p>` : ''}
+                                            ${mintMark.location ? `<p class="mb-1 small"><strong>Location:</strong> ${mintMark.location}</p>` : ''}
+                                            ${mintMark.significance ? `<p class="mb-0 small text-muted">${mintMark.significance}</p>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${serialNumber.present ? `
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <h6 class="mb-1"><i class="fas fa-hashtag"></i> Serial Number</h6>
+                                            ${serialNumber.number ? `<p class="mb-1"><strong>Number:</strong> ${serialNumber.number}</p>` : ''}
+                                            ${serialNumber.format ? `<p class="mb-1 small"><strong>Format:</strong> ${serialNumber.format}</p>` : ''}
+                                            ${serialNumber.significance ? `<p class="mb-0 small text-muted">${serialNumber.significance}</p>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${signature.present ? `
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <h6 class="mb-1"><i class="fas fa-signature"></i> Signature</h6>
+                                            ${signature.signer ? `<p class="mb-1"><strong>Signer:</strong> ${signature.signer}</p>` : ''}
+                                            ${signature.location ? `<p class="mb-1 small"><strong>Location:</strong> ${signature.location}</p>` : ''}
+                                            ${signature.value_impact ? `<p class="mb-0 small text-muted">${signature.value_impact}</p>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${errors.present ? `
+                                <div class="col-md-6 mb-3">
+                                    <div class="card" style="background: #fff3cd; border: 2px solid #ffc107;">
+                                        <div class="card-body p-2">
+                                            <h6 class="mb-1"><i class="fas fa-exclamation-triangle"></i> Error / Variation</h6>
+                                            ${errors.error_type ? `<p class="mb-1"><strong>Type:</strong> ${errors.error_type}</p>` : ''}
+                                            ${errors.error_description ? `<p class="mb-1 small">${errors.error_description}</p>` : ''}
+                                            ${errors.value_impact ? `<p class="mb-0 small text-success"><strong>Value Impact:</strong> ${errors.value_impact}</p>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        ${condition.overall_grade ? `
+                            <div class="mt-3">
+                                <h6><i class="fas fa-certificate"></i> Condition</h6>
+                                <p class="mb-1"><strong>Grade:</strong> ${condition.overall_grade}</p>
+                                ${condition.condition_details ? `<p class="small text-muted mb-0">${condition.condition_details}</p>` : ''}
+                            </div>
                         ` : ''}
                         
-                        ${collectibleData.authentication_markers?.length > 0 ? `
-                            <h6 class="mt-3">Authentication Markers</h6>
-                            <ul class="small">
-                                ${collectibleData.authentication_markers.map(m => `<li>${m}</li>`).join('')}
-                            </ul>
+                        ${auth.authentication_markers?.length > 0 ? `
+                            <div class="mt-3">
+                                <h6><i class="fas fa-shield-alt"></i> Authentication</h6>
+                                <ul class="small mb-0">
+                                    ${auth.authentication_markers.map(m => `<li>${m}</li>`).join('')}
+                                </ul>
+                                ${auth.confidence !== undefined ? `<p class="small text-muted mt-1 mb-0">Confidence: ${Math.round(auth.confidence * 100)}%</p>` : ''}
+                            </div>
+                        ` : ''}
+                        
+                        ${collectibleData.collector_notes ? `
+                            <div class="mt-3">
+                                <h6><i class="fas fa-info-circle"></i> Collector Notes</h6>
+                                <p class="small mb-0">${collectibleData.collector_notes}</p>
+                            </div>
                         ` : ''}
                     </div>
                     <div class="col-md-4">
                         <h6>Market Analysis</h6>
-                        ${prices.retail ? `
+                        ${prices.value_range?.low && prices.value_range?.high ? `
                             <div class="mb-2">
-                                <small class="text-muted">Retail Price</small>
-                                <div class="h5">$${prices.retail}</div>
+                                <small class="text-muted">Value Range</small>
+                                <div class="h5">$${prices.value_range.low} - $${prices.value_range.high}</div>
                             </div>
                         ` : ''}
                         ${prices.actual_selling ? `
                             <div class="mb-2">
-                                <small class="text-muted">Actual Selling</small>
+                                <small class="text-muted">Estimated Value</small>
                                 <div class="h5 text-success">$${prices.actual_selling}</div>
+                            </div>
+                        ` : ''}
+                        ${prices.retail ? `
+                            <div class="mb-2">
+                                <small class="text-muted">Retail Price</small>
+                                <div class="h5">$${prices.retail}</div>
                             </div>
                         ` : ''}
                         ${prices.quick_sale ? `
@@ -1157,14 +1322,10 @@ function showCollectibleResults(data) {
                             </div>
                         ` : ''}
                         
-                        ${collectibleData.rarity_score ? `
+                        ${collectibleData.market_analysis?.market_trend ? `
                             <div class="mt-3">
-                                <small class="text-muted">Rarity Score</small>
-                                <div class="progress">
-                                    <div class="progress-bar" style="background: #FF9800; width: ${collectibleData.rarity_score}%">
-                                        ${collectibleData.rarity_score}/100
-                                    </div>
-                                </div>
+                                <small class="text-muted">Market Trend</small>
+                                <div><span class="badge bg-info">${collectibleData.market_analysis.market_trend}</span></div>
                             </div>
                         ` : ''}
                     </div>

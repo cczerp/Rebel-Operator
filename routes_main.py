@@ -10,6 +10,9 @@ from functools import wraps
 import json
 import os
 import uuid
+import logging
+import tempfile
+import traceback
 from werkzeug.utils import secure_filename
 from PIL import Image
 import io
@@ -917,77 +920,152 @@ def api_enhanced_scan():
     Auto-detects: Card vs Collectible vs Standard Item
     Routes to appropriate analyzer and returns results (no automatic saving).
     """
-    import tempfile
-    import os
+    temp_files = []  # Initialize temp_files at the top for cleanup
+
     try:
         from src.collectibles.enhanced_scanner import EnhancedScanner
         from src.schema.unified_listing import Photo
-        
+
         data = request.json
         photo_paths = data.get('photos', [])
-        
+
         if not photo_paths:
+            logging.error("[ENHANCED SCAN ERROR] No photos provided in request")
             return jsonify({'error': 'No photos provided'}), 400
 
-        # Download photos from Supabase Storage or use local paths (same as regular analyzer)
+        # Log which URLs we received (important for debugging bucket issues)
+        logging.info(f"[ENHANCED SCAN DEBUG] Received {len(photo_paths)} photo URL(s) for enhanced scan")
+        for i, path in enumerate(photo_paths):
+            if 'temp-photos' in path:
+                logging.info(f"[ENHANCED SCAN DEBUG] Photo {i+1}: ✅ URL from temp-photos bucket: {path[:100]}...")
+            elif 'listing-images' in path:
+                logging.warning(f"[ENHANCED SCAN DEBUG] Photo {i+1}: ⚠️ URL from listing-images bucket (unexpected for new uploads): {path[:100]}...")
+            elif 'draft-images' in path:
+                logging.info(f"[ENHANCED SCAN DEBUG] Photo {i+1}: ℹ️ URL from draft-images bucket: {path[:100]}...")
+            elif 'supabase.co' in path:
+                logging.warning(f"[ENHANCED SCAN DEBUG] Photo {i+1}: ⚠️ URL from Supabase but bucket unclear: {path[:100]}...")
+            else:
+                logging.info(f"[ENHANCED SCAN DEBUG] Photo {i+1}: Local path or non-Supabase URL: {path[:100]}...")
+
+        # Download photos from Supabase Storage or use local paths
         photo_objects = []
-        temp_files = []  # Track temp files for cleanup
-        
+
         try:
             from src.storage.supabase_storage import get_supabase_storage
             storage = get_supabase_storage()
             use_supabase = True
-        except Exception:
+            logging.info("[ENHANCED SCAN DEBUG] Supabase storage initialized successfully")
+        except Exception as e:
+            logging.warning(f"[ENHANCED SCAN DEBUG] Supabase storage not available: {e}")
             use_supabase = False
             storage = None
 
         for i, path in enumerate(photo_paths):
             local_path = None
-            
+
             # Check if it's a Supabase Storage URL
             if use_supabase and storage and 'supabase.co' in path:
+                logging.info(f"[ENHANCED SCAN DEBUG] Downloading image {i+1}/{len(photo_paths)} from Supabase: {path[:100]}...")
+
                 # Download from Supabase Storage to temp file
                 file_data = storage.download_photo(path)
-                
+
+                # Debug logging
+                debug_info = {
+                    'hasFile': bool(file_data),
+                    'filePath': path,
+                    'dataLength': len(file_data) if file_data else 0,
+                    'isBytes': isinstance(file_data, bytes) if file_data else False
+                }
+                logging.info(f"[ENHANCED SCAN DEBUG] Image {i+1}: {debug_info}")
+
                 if file_data and len(file_data) > 0:
                     # Create temp file
                     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
                     temp_file.write(file_data)
-                    temp_file.flush()
-                    os.fsync(temp_file.fileno())
+                    temp_file.flush()  # Ensure data is written to buffer
+                    os.fsync(temp_file.fileno())  # Force write to disk
                     temp_file.close()
                     local_path = temp_file.name
                     temp_files.append(local_path)
+
+                    # Verify file was written and exists
+                    file_exists = Path(local_path).exists()
+                    file_size = Path(local_path).stat().st_size if file_exists else 0
+
+                    logging.info(f"✅ Downloaded image {i+1} ({len(file_data)} bytes) to {local_path}")
+                    logging.info(f"[ENHANCED SCAN DEBUG] Temp file exists: {file_exists}, size: {file_size} bytes")
+
+                    if not file_exists or file_size == 0:
+                        logging.error(f"❌ Temp file was not created properly: {local_path}")
+                        # Cleanup temp files
+                        for temp_file in temp_files:
+                            try:
+                                os.unlink(temp_file)
+                            except:
+                                pass
+                        return jsonify({"error": f"Failed to create temp file for image {i+1}"}), 500
                 else:
-                    return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage"}), 404
+                    logging.error(f"❌ Failed to download image {i+1} from Supabase: {path}")
+                    logging.error(f"[ENHANCED SCAN DEBUG] file_data is None or empty: {file_data}")
+                    # Cleanup temp files
+                    for temp_file in temp_files:
+                        try:
+                            os.unlink(temp_file)
+                        except:
+                            pass
+                    return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage. URL may be invalid or file may not exist."}), 404
             else:
                 # Assume local path (legacy support)
                 if path.startswith('/'):
                     local_path = f"./data{path}"
                 else:
                     local_path = f"./data/{path}"
-                
+
                 # Verify file exists
-                from pathlib import Path
                 if not Path(local_path).exists():
+                    logging.error(f"[ENHANCED SCAN ERROR] Local photo file not found: {local_path}")
+                    # Cleanup temp files
+                    for temp_file in temp_files:
+                        try:
+                            os.unlink(temp_file)
+                        except:
+                            pass
                     return jsonify({"error": f"Photo file not found: {local_path}"}), 404
-            
+
             photo_objects.append(Photo(url=path, local_path=local_path))
-        
+
         if not photo_objects:
+            # Cleanup temp files
+            for temp_file in temp_files:
+                try:
+                    os.unlink(temp_file)
+                except:
+                    pass
+            logging.error("[ENHANCED SCAN ERROR] No valid photo objects created")
             return jsonify({"error": "No valid photos found"}), 400
 
+        logging.info(f"[ENHANCED SCAN DEBUG] Created {len(photo_objects)} photo objects, initializing scanner...")
+
         # Run enhanced scanner
-        scanner = EnhancedScanner.from_env()
+        try:
+            scanner = EnhancedScanner.from_env()
+            logging.info("[ENHANCED SCAN DEBUG] Scanner initialized successfully, starting scan...")
+        except Exception as scanner_init_error:
+            logging.error(f"[ENHANCED SCAN ERROR] Failed to initialize scanner: {scanner_init_error}")
+            logging.error(f"[ENHANCED SCAN ERROR] Scanner init traceback:\n{traceback.format_exc()}")
+            raise
+
         result = scanner.scan(photo_objects)
-        
+        logging.info(f"[ENHANCED SCAN DEBUG] Scan completed, result type: {result.get('type')}")
+
         # Cleanup temp files
         for temp_file in temp_files:
             try:
                 os.unlink(temp_file)
             except:
                 pass
-        
+
         # Check if standard item (not collectible)
         if result.get('type') == 'standard_item':
             return jsonify({
@@ -996,7 +1074,7 @@ def api_enhanced_scan():
                 'message': 'Not a collectible. Use quick analysis for listing.',
                 'classification': result.get('classification')
             })
-        
+
         # Check for errors
         if result.get('error'):
             return jsonify({
@@ -1005,7 +1083,7 @@ def api_enhanced_scan():
                 'raw_response': result.get('raw_response'),
                 'type': result.get('type')
             }), 500
-        
+
         # Just return analysis results - NO automatic saving
         # User can choose to save by clicking "Store in Collection" buttons
         return jsonify({
@@ -1015,14 +1093,25 @@ def api_enhanced_scan():
             'market_prices': result.get('market_prices'),
             'ai_provider': result.get('ai_provider', 'claude')
         })
-        
+
     except Exception as e:
-        import traceback
-        print(f"Enhanced scan error: {e}")
-        print(traceback.format_exc())
+        error_trace = traceback.format_exc()
+        logging.error(f"[ENHANCED SCAN ERROR] Exception occurred: {e}")
+        logging.error(f"[ENHANCED SCAN ERROR] Traceback:\n{error_trace}")
+
+        # Cleanup temp files on error
+        for temp_file in temp_files:
+            try:
+                os.unlink(temp_file)
+                logging.info(f"[ENHANCED SCAN DEBUG] Cleaned up temp file: {temp_file}")
+            except Exception as cleanup_error:
+                logging.warning(f"[ENHANCED SCAN DEBUG] Failed to cleanup temp file {temp_file}: {cleanup_error}")
+
         return jsonify({
-            'error': str(e),
-            'traceback': traceback.format_exc()
+            'success': False,
+            'error': f'Enhanced scan failed: {str(e)}',
+            'error_type': type(e).__name__,
+            'traceback': error_trace if os.getenv('FLASK_DEBUG') else None
         }), 500
 
 

@@ -1574,12 +1574,24 @@ class Database:
         try:
             cursor = self._get_cursor()
             # Handle UUID user_id if database uses UUID
-            # Try to cast user_id appropriately
             user_id_param = user_id
             if user_id is not None:
-                # Check if we need to convert to UUID (if database column is UUID)
-                # For now, just pass as-is and let database handle it
-                pass
+                # Convert to UUID if needed (database column is UUID type)
+                try:
+                    import uuid
+                    # If it's already a UUID string or UUID object, use it
+                    if isinstance(user_id, uuid.UUID):
+                        user_id_param = user_id
+                    elif isinstance(user_id, str) and len(user_id) == 36:
+                        # Looks like a UUID string
+                        user_id_param = uuid.UUID(user_id)
+                    elif isinstance(user_id, int):
+                        # Integer user_id - database expects UUID, so we can't log it properly
+                        # Skip logging for integer user_ids when DB expects UUID
+                        return
+                except (ValueError, AttributeError):
+                    # If conversion fails, skip logging (non-critical)
+                    return
             
             cursor.execute("""
                 INSERT INTO activity_logs (

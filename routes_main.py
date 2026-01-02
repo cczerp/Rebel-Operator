@@ -915,8 +915,10 @@ def api_enhanced_scan():
     """
     Enhanced scanner for deep collectible analysis.
     Auto-detects: Card vs Collectible vs Standard Item
-    Routes to appropriate analyzer and saves to databases.
+    Routes to appropriate analyzer and returns results (no automatic saving).
     """
+    import tempfile
+    import os
     try:
         from src.collectibles.enhanced_scanner import EnhancedScanner
         from src.schema.unified_listing import Photo
@@ -927,12 +929,64 @@ def api_enhanced_scan():
         if not photo_paths:
             return jsonify({'error': 'No photos provided'}), 400
 
-        # Create Photo objects
-        photos = [Photo(url=p, local_path=f"./data{p}") for p in photo_paths]
+        # Download photos from Supabase Storage or use local paths (same as regular analyzer)
+        photo_objects = []
+        temp_files = []  # Track temp files for cleanup
+        
+        try:
+            from src.storage.supabase_storage import get_supabase_storage
+            storage = get_supabase_storage()
+            use_supabase = True
+        except Exception:
+            use_supabase = False
+            storage = None
+
+        for i, path in enumerate(photo_paths):
+            local_path = None
+            
+            # Check if it's a Supabase Storage URL
+            if use_supabase and storage and 'supabase.co' in path:
+                # Download from Supabase Storage to temp file
+                file_data = storage.download_photo(path)
+                
+                if file_data and len(file_data) > 0:
+                    # Create temp file
+                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+                    temp_file.write(file_data)
+                    temp_file.flush()
+                    os.fsync(temp_file.fileno())
+                    temp_file.close()
+                    local_path = temp_file.name
+                    temp_files.append(local_path)
+                else:
+                    return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage"}), 404
+            else:
+                # Assume local path (legacy support)
+                if path.startswith('/'):
+                    local_path = f"./data{path}"
+                else:
+                    local_path = f"./data/{path}"
+                
+                # Verify file exists
+                from pathlib import Path
+                if not Path(local_path).exists():
+                    return jsonify({"error": f"Photo file not found: {local_path}"}), 404
+            
+            photo_objects.append(Photo(url=path, local_path=local_path))
+        
+        if not photo_objects:
+            return jsonify({"error": "No valid photos found"}), 400
 
         # Run enhanced scanner
         scanner = EnhancedScanner.from_env()
-        result = scanner.scan(photos)
+        result = scanner.scan(photo_objects)
+        
+        # Cleanup temp files
+        for temp_file in temp_files:
+            try:
+                os.unlink(temp_file)
+            except:
+                pass
         
         # Check if standard item (not collectible)
         if result.get('type') == 'standard_item':

@@ -952,57 +952,14 @@ def api_enhanced_scan():
                 'type': result.get('type')
             }), 500
         
-        # Save to public database
-        public_db_id = None
-        try:
-            public_db_id = db.add_to_public_collectibles(
-                item_type=result['type'],
-                data=result['data'],
-                scanned_by=current_user.id
-            )
-        except Exception as e:
-            print(f"Warning: Failed to save to public database: {e}")
-        
-        # Save to user's personal collection
-        user_collection_id = None
-        try:
-            if result['type'] == 'card':
-                # Save to cards collection
-                from src.cards import add_card_to_collection
-                user_collection_id = add_card_to_collection(
-                    result['data'],
-                    current_user.id,
-                    photos=photo_paths,
-                    storage_location=data.get('storage_location')
-                )
-            else:
-                # Save to collectibles collection
-                user_collection_id = db.add_to_user_collectibles(
-                    current_user.id,
-                    result['data'],
-                    photos=photo_paths
-                )
-        except Exception as e:
-            print(f"Warning: Failed to save to user collection: {e}")
-        
-        # Log activity
-        db.log_activity(
-            action="enhanced_scan",
-            user_id=current_user.id,
-            resource_type=result['type'],
-            resource_id=user_collection_id,
-            ip_address=request.remote_addr,
-            user_agent=request.headers.get("User-Agent")
-        )
-        
+        # Just return analysis results - NO automatic saving
+        # User can choose to save by clicking "Store in Collection" buttons
         return jsonify({
             'success': True,
             'type': result['type'],
             'data': result['data'],
             'market_prices': result.get('market_prices'),
-            'ai_provider': result.get('ai_provider', 'claude'),
-            'public_db_id': public_db_id,
-            'user_collection_id': user_collection_id
+            'ai_provider': result.get('ai_provider', 'claude')
         })
         
     except Exception as e:

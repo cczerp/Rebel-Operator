@@ -70,43 +70,34 @@ class EnhancedScanner:
         if not photos:
             return {'error': 'No photos provided', 'type': 'standard_item'}
 
-        # First, do a quick classification to determine item type
+        # Optional: Get basic context from Gemini (if available) for better Claude analysis
         quick_analysis = {}
         if self.gemini_classifier:
             try:
                 quick_analysis = self.gemini_classifier.analyze_item(photos)
                 if quick_analysis.get('error'):
-                    # If Gemini has an error, continue with empty analysis - Claude will determine type
                     quick_analysis = {}
             except Exception as e:
-                # If Gemini fails, continue anyway - Claude will determine type
                 quick_analysis = {}
                 print(f"Warning: Quick classification failed: {e}")
 
-        # Check if this is a standard item (not collectible)
-        is_collectible = quick_analysis.get('collectible', False)
-        category = quick_analysis.get('category', '')
-        is_card = 'card' in category.lower() or 'trading card' in category.lower()
-        
-        if not is_collectible and not is_card:
-            return {
-                'type': 'standard_item',
-                'classification': category,
-                'message': 'Not a collectible item. Use quick analysis for standard listings.'
-            }
-
-        # Perform deep analysis with Claude
+        # Always run Claude deep analysis - let Claude determine if it's a collectible/card
+        # Don't reject based on Gemini's initial classification since user clicked Enhanced Scan
         try:
             deep_analysis = self._deep_analyze_collectible(photos, quick_analysis)
             
             if deep_analysis.get('error'):
                 return {
                     'error': deep_analysis['error'],
-                    'type': 'card' if is_card else 'collectible',
+                    'type': 'collectible',  # Default to collectible if error
                     'raw_response': deep_analysis.get('raw_response')
                 }
 
-            # Format response based on item type
+            # Determine type from Claude's analysis or fallback to quick_analysis hints
+            category = quick_analysis.get('category', '').lower()
+            is_card = 'card' in category or 'trading card' in category or 'tcg' in category
+            
+            # Format response based on determined type
             if is_card:
                 return self._format_card_response(deep_analysis, quick_analysis)
             else:

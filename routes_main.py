@@ -918,7 +918,7 @@ def api_enhanced_scan():
     """
     Enhanced scanner for deep collectible analysis.
     Auto-detects: Card vs Collectible vs Standard Item
-    Routes to appropriate analyzer and saves to databases.
+    Routes to appropriate analyzer and returns results (no automatic saving).
     """
     temp_files = []  # Initialize temp_files at the top for cleanup
 

@@ -533,13 +533,13 @@ IMPORTANT:
                 # Verify we're not accidentally adding Authorization header
                 api_url_with_key = f"{self.api_url}?key={self.api_key}"
                 
+                # Ensure headers ONLY contain Content-Type (no Authorization)
+                headers = {"Content-Type": "application/json"}
+                
                 # Debug: Log request details (key hidden for security)
                 logger.debug(f"[GEMINI DEBUG] Request URL: {self.api_url}?key=***")
                 logger.debug(f"[GEMINI DEBUG] Request headers: {headers}")
                 logger.debug(f"[GEMINI DEBUG] API key length: {len(self.api_key)} chars")
-                
-                # Ensure headers ONLY contain Content-Type (no Authorization)
-                headers = {"Content-Type": "application/json"}
                 
                 response = requests.post(
                     api_url_with_key,

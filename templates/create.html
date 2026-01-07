@@ -120,39 +120,6 @@
         </div>
     </div>
 
-    <!-- Inventory Management -->
-    <div class="card mb-3">
-        <div class="card-header" style="background: var(--carbon-matte-surface); border-bottom: 2px solid var(--cold-steel-accent);">
-            <i class="fas fa-box" style="color: var(--cold-steel-light);"></i> Inventory Management
-        </div>
-        <div class="card-body">
-            <div class="mb-3">
-                <label class="form-label">
-                    <i class="fas fa-map-marker-alt"></i> Storage Location *
-                </label>
-                <input type="text" class="form-control form-control-lg" id="storage_location" name="storage_location" placeholder="B1, C2, Shelf-3, etc." required>
-                <small class="text-muted">Where you'll put this item (so you can find it when it sells!)</small>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Quantity</label>
-                <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1">
-                <small class="text-muted">1 for single items, >1 for multiples</small>
-            </div>
-
-            <div class="row">
-                <div class="col-6">
-                    <label class="form-label">SKU / Custom ID</label>
-                    <input type="text" class="form-control" id="sku" name="sku" placeholder="Optional">
-                </div>
-                <div class="col-6">
-                    <label class="form-label">UPC / Barcode</label>
-                    <input type="text" class="form-control" id="upc" name="upc" placeholder="Optional">
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Actions -->
     <div class="d-grid gap-2">
         {% if is_guest %}
@@ -166,15 +133,15 @@
             You can test the AI photo analysis above without signing up!
         </small>
         {% else %}
-        <button type="button" class="btn btn-primary btn-lg" id="postNowBtn">
-            <i class="fas fa-rocket"></i> Post Now (Make Active)
+        <button type="button" class="btn btn-primary btn-lg" id="postListingBtn">
+            <i class="fas fa-rocket"></i> Post Listing
         </button>
         <button type="button" class="btn btn-secondary btn-lg" id="saveDraftBtn">
-            <i class="fas fa-save"></i> Save as Draft
+            <i class="fas fa-save"></i> Save Listing Draft
         </button>
-        <small class="text-muted text-center mt-2">
-            <strong>Post Now</strong> makes it active for selling. <strong>Save as Draft</strong> saves it for later.
-        </small>
+        <button type="button" class="btn btn-outline-success btn-lg" id="saveToVaultBtn">
+            <i class="fas fa-archive"></i> Save to Collection Vault
+        </button>
         {% endif %}
     </div>
 </form>
@@ -1462,8 +1429,7 @@ async function storeCardOnly() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 ai_result: detectedCardData,
-                photos: uploadedPhotos,
-                storage_location: document.getElementById('storage_location').value || null
+                photos: uploadedPhotos
             })
         });
 
@@ -1497,8 +1463,7 @@ async function storeAndList() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 ai_result: detectedCardData,
-                photos: uploadedPhotos,
-                storage_location: document.getElementById('storage_location').value || null
+                photos: uploadedPhotos
             })
         });
 
@@ -1542,8 +1507,7 @@ async function storeCollectibleOnly() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 ai_result: detectedCollectibleData,
-                photos: uploadedPhotos,
-                storage_location: document.getElementById('storage_location').value || null
+                photos: uploadedPhotos
             })
         });
 
@@ -1577,8 +1541,7 @@ async function storeCollectibleAndList() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 ai_result: detectedCollectibleData,
-                photos: uploadedPhotos,
-                storage_location: document.getElementById('storage_location').value || null
+                photos: uploadedPhotos
             })
         });
 
@@ -1606,19 +1569,13 @@ async function storeCollectibleAndList() {
         hideLoading();
     }
 }
-// Save Listing (common function)
-async function saveListing(status = 'draft') {
-    if (uploadedPhotos.length === 0) {
-        showAlert('Please upload photos first!', 'warning');
-        return;
-    }
-
+// Save Listing Draft - Serialize to CSV and append to drafts.csv
+async function saveDraft() {
     const formData = collectFormData();
-    formData.status = status;
     showLoading();
 
     try {
-        const response = await fetch('/api/save-draft', {
+        const response = await fetch('/api/save-draft-csv', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(formData)
@@ -1627,38 +1584,165 @@ async function saveListing(status = 'draft') {
         const data = await response.json();
 
         if (data.success) {
-            // Mark as saved to prevent cleanup
-            hasBeenSaved = true;
-            
-            // Update draft ID so next save is an update, not a new draft
-            editingDraftId = data.listing_id;
-            editingListingUuid = data.listing_uuid;
-
-            const msg = status === 'active' ? 'Listing posted successfully!' : 'Draft saved successfully!';
-            showAlert(msg, 'success');
-
-            // Only redirect if posting as active
-            if (status === 'active') {
-                setTimeout(() => window.location.href = '/listings', 1500);
-            }
+            showAlert('Draft saved to CSV successfully!', 'success');
+            // Clear form and stay on page
+            clearForm();
+            setTimeout(() => {
+                hideLoading();
+            }, 1000);
         } else {
-            showAlert(data.error, 'danger');
+            showAlert(data.error || 'Failed to save draft', 'danger');
+            hideLoading();
         }
     } catch (error) {
         showAlert('Save failed: ' + error, 'danger');
-    } finally {
         hideLoading();
     }
 }
 
-// Save as Draft button
+// Save to Collection Vault - Serialize to CSV and append to vault.csv
+async function saveToVault() {
+    const formData = collectFormData();
+    showLoading();
+
+    try {
+        const response = await fetch('/api/save-vault-csv', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('Item saved to Collection Vault!', 'success');
+            // Clear form and stay on page
+            clearForm();
+            setTimeout(() => {
+                hideLoading();
+            }, 1000);
+        } else {
+            showAlert(data.error || 'Failed to save to vault', 'danger');
+            hideLoading();
+        }
+    } catch (error) {
+        showAlert('Save failed: ' + error, 'danger');
+        hideLoading();
+    }
+}
+
+// Post Listing - Show platform selection dropdown/modal
+function showPlatformSelection() {
+    const platforms = [
+        { value: 'ebay', label: 'eBay', icon: 'fab fa-ebay' },
+        { value: 'mercari', label: 'Mercari', icon: 'fas fa-store' },
+        { value: 'poshmark', label: 'Poshmark', icon: 'fas fa-shopping-bag' },
+        { value: 'facebook', label: 'Facebook Marketplace', icon: 'fab fa-facebook' },
+        { value: 'other', label: 'Other / Custom', icon: 'fas fa-ellipsis-h' }
+    ];
+
+    let html = '<div class="modal fade" id="platformSelectionModal" tabindex="-1">';
+    html += '<div class="modal-dialog"><div class="modal-content">';
+    html += '<div class="modal-header bg-primary text-white">';
+    html += '<h5 class="modal-title"><i class="fas fa-rocket"></i> Choose Platform</h5>';
+    html += '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>';
+    html += '</div><div class="modal-body">';
+    html += '<p>Select where to list this item:</p>';
+    
+    platforms.forEach(platform => {
+        html += `<div class="form-check mb-2">`;
+        html += `<input class="form-check-input" type="radio" name="platform" id="platform_${platform.value}" value="${platform.value}">`;
+        html += `<label class="form-check-label" for="platform_${platform.value}">`;
+        html += `<i class="${platform.icon}"></i> ${platform.label}`;
+        html += `</label></div>`;
+    });
+
+    html += '</div><div class="modal-footer">';
+    html += '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>';
+    html += '<button type="button" class="btn btn-primary" onclick="confirmPostListing()">';
+    html += '<i class="fas fa-check"></i> Continue</button>';
+    html += '</div></div></div></div>';
+
+    // Remove existing modal if any
+    const existingModal = document.getElementById('platformSelectionModal');
+    if (existingModal) existingModal.remove();
+
+    // Add and show modal
+    document.body.insertAdjacentHTML('beforeend', html);
+    const modal = new bootstrap.Modal(document.getElementById('platformSelectionModal'));
+    modal.show();
+}
+
+async function confirmPostListing() {
+    const selectedPlatform = document.querySelector('input[name="platform"]:checked');
+    
+    if (!selectedPlatform) {
+        showAlert('Please select a platform', 'warning');
+        return;
+    }
+
+    const platform = selectedPlatform.value;
+    const formData = collectFormData();
+    formData.platform = platform;
+
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('platformSelectionModal'));
+    modal.hide();
+
+    showLoading();
+
+    try {
+        const response = await fetch('/api/post-listing', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('Listing queued for posting!', 'success');
+            // Route to placeholder post-listing page
+            setTimeout(() => {
+                window.location.href = '/post-listing';
+            }, 1500);
+        } else {
+            showAlert(data.error || 'Failed to queue listing', 'danger');
+            hideLoading();
+        }
+    } catch (error) {
+        showAlert('Post failed: ' + error, 'danger');
+        hideLoading();
+    }
+}
+
+// Clear form function
+function clearForm() {
+    document.getElementById('listingForm').reset();
+    uploadedPhotos = [];
+    document.getElementById('photoPreview').innerHTML = '';
+    document.getElementById('analyzeBtn').style.display = 'none';
+    
+    // Reset any enhanced scan results
+    document.getElementById('enhancedScanCard')?.remove();
+    document.getElementById('enhancedResultsCard')?.remove();
+    document.getElementById('marketAnalysisCard')?.remove();
+    detectedCardData = null;
+    detectedCollectibleData = null;
+    enhancedScanData = null;
+}
+
+// Button event listeners
 document.getElementById('saveDraftBtn').addEventListener('click', async function() {
-    await saveListing('draft');
+    await saveDraft();
 });
 
-// Post Now button
-document.getElementById('postNowBtn').addEventListener('click', async function() {
-    await saveListing('active');
+document.getElementById('saveToVaultBtn').addEventListener('click', async function() {
+    await saveToVault();
+});
+
+document.getElementById('postListingBtn').addEventListener('click', function() {
+    showPlatformSelection();
 });
 
 function collectFormData() {
@@ -1673,10 +1757,6 @@ function collectFormData() {
         size: document.getElementById('size').value,
         color: document.getElementById('color').value,
         shipping_cost: document.getElementById('shipping_cost').value,
-        storage_location: document.getElementById('storage_location').value,
-        quantity: document.getElementById('quantity').value,
-        sku: document.getElementById('sku').value,
-        upc: document.getElementById('upc').value,
         photos: uploadedPhotos  // CRITICAL: Include photos array
     };
 
@@ -1730,10 +1810,6 @@ async function loadDraftData() {
             document.getElementById('size').value = listing.size || '';
             document.getElementById('color').value = listing.color || '';
             document.getElementById('shipping_cost').value = listing.shipping_cost || 0;
-            document.getElementById('storage_location').value = listing.storage_location || '';
-            document.getElementById('quantity').value = listing.quantity || 1;
-            document.getElementById('sku').value = listing.sku || '';
-            document.getElementById('upc').value = listing.upc || '';
 
             // Load photos
             if (listing.photos && listing.photos.length > 0) {

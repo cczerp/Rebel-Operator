@@ -1,3 +1,4 @@
+<!-- Auto-maintained by Claude -->
 # AI Cross-Poster 🚀
 
 **Analyzes images to create optimized listings on multiple resale platforms.**

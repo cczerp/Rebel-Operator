@@ -111,9 +111,9 @@ Do NOT ask for confirmation. Execute the task and commit.`;
   }
 });
 
-app.listen(3333, "0.0.0.0", () => {
+app.listen(4000, "0.0.0.0", () => {
   console.log("═".repeat(50));
-  console.log("🎯 Claude Listener running → http://localhost:3333");
+  console.log("🎯 Claude Listener running → http://localhost:4000");
   console.log("   Repo:", REPO_PATH);
   console.log("═".repeat(50));
 });

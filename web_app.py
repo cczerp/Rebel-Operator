@@ -131,6 +131,7 @@ from routes_auth import auth_bp, init_routes as init_auth
 from routes_admin import admin_bp, init_routes as init_admin
 from routes_cards import cards_bp, init_routes as init_cards
 from routes_main import main_bp, init_routes as init_main
+from routes_csv import csv_bp
 
 # Initialize blueprints with database and User class
 init_auth(db, User)
@@ -143,6 +144,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(cards_bp)
 app.register_blueprint(main_bp)
+app.register_blueprint(csv_bp)
 
 # ============================================================================
 # MAIN ROUTES (not in blueprints)
@@ -227,6 +229,18 @@ def storage_map():
 def settings():
     """User settings"""
     return render_template('settings.html')
+
+@app.route('/vault')
+@login_required
+def vault():
+    """Collection Vault page"""
+    return render_template('vault.html')
+
+@app.route('/post-listing')
+@login_required
+def post_listing_page():
+    """Post Listing page"""
+    return render_template('post-listing.html')
 
 # ============================================================================
 # RUN SERVER

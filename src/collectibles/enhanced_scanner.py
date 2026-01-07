@@ -49,6 +49,12 @@ class EnhancedScanner:
     @classmethod
     def from_env(cls):
         """Create scanner from environment variables"""
+        # Ensure .env is loaded
+        try:
+            from dotenv import load_dotenv
+            load_dotenv()
+        except ImportError:
+            pass  # dotenv not available, rely on system env vars
         return cls()
 
     def scan(self, photos: List[Photo]) -> Dict[str, Any]:
@@ -104,9 +110,14 @@ class EnhancedScanner:
                 return self._format_collectible_response(deep_analysis, quick_analysis)
                 
         except Exception as e:
+            import traceback
+            import os
+            error_trace = traceback.format_exc()
+            print(f"Enhanced scan error: {e}\n{error_trace}")
             return {
                 'error': str(e),
-                'type': 'card' if is_card else 'collectible'
+                'type': 'collectible',  # Default type
+                'raw_response': error_trace if os.getenv('FLASK_DEBUG') else None
             }
 
     def _deep_analyze_collectible(

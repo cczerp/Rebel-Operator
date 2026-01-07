@@ -1000,7 +1000,8 @@ async function runEnhancedScan() {
         showAlert('Enhanced scan complete!', 'success');
 
     } catch (error) {
-        showAlert('Enhanced scan failed: ' + error, 'danger');
+        console.error('Enhanced scan error:', error);
+        showAlert('Enhanced scan failed: ' + (error.message || error), 'danger');
     } finally {
         hideLoading();
     }

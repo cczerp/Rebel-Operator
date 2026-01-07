@@ -113,7 +113,7 @@ const createFailBranch = (taskId, taskTitle, commitSha) => {
   return failBranch;
 };
 
-const runClaudeTask = (taskInstruction, commitMessage, isRetry = false, feedback = "") => {
+const runClaudeTask = async (taskInstruction, commitMessage, isRetry = false, feedback = "") => {
   let prompt = taskInstruction;
   
   if (isRetry) {
@@ -145,25 +145,186 @@ After making changes:
 Do NOT ask for confirmation. Execute the task and commit.`;
   }
 
-  console.log("\n📝 Prompt:\n", prompt);
-  console.log("\n⏳ Claude is working…\n");
+  console.log("\n📝 Task prompt prepared");
+  console.log("\n⏳ Claude is working via API…\n");
 
-  run(`claude --print --dangerously-skip-permissions "${prompt.replace(/"/g, '\\"')}"`, {
-    stdio: "inherit",
-    shell: true,
-  });
+  // Use Anthropic API directly instead of CLI
+  const maxRetries = 3;
+  let attempt = 0;
+  let lastError = null;
+  let claudeResponse = null;
 
-  // Check if Claude committed, if not do it manually
-  const postStatus = run("git status --porcelain").trim();
-  if (postStatus) {
-    console.log("\n📦 Changes not committed by Claude. Committing now…");
-    run("git add -A", { stdio: "inherit" });
-    run(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
+  while (attempt < maxRetries) {
+    try {
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 8192,
+        messages: [
+          {
+            role: "user",
+            content: prompt
+          }
+        ]
+      });
+
+      claudeResponse = message.content.map(block => block.text || "").join("\n");
+      console.log("\n🤖 Claude completed task via API");
+      console.log("─".repeat(60));
+      console.log(claudeResponse.slice(0, 500) + (claudeResponse.length > 500 ? "..." : ""));
+      console.log("─".repeat(60));
+      break; // Success, exit retry loop
+      
+    } catch (err) {
+      lastError = err;
+      attempt++;
+      
+      if (err.message.includes("API key") || err.message.includes("authentication")) {
+        console.error(`\n❌ Anthropic API auth failed (attempt ${attempt}/${maxRetries})`);
+        console.error("   Check ANTHROPIC_API_KEY in .env");
+      } else if (err.message.includes("overloaded") || err.message.includes("rate")) {
+        console.error(`\n❌ API rate limit/overload (attempt ${attempt}/${maxRetries})`);
+      } else {
+        console.error(`\n❌ API call failed (attempt ${attempt}/${maxRetries}): ${err.message}`);
+      }
+      
+      if (attempt < maxRetries) {
+        console.log(`\n🔄 Retrying in 3 seconds...`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+    }
   }
 
-  // Push
+  if (attempt === maxRetries) {
+    throw new Error(`Claude API failed after ${maxRetries} attempts: ${lastError.message}`);
+  }
+
+  // Check if there are uncommitted changes and commit them
+  const postStatus = run("git status --porcelain").trim();
+  if (postStatus) {
+    console.log("\n📦 Committing changes…");
+    run("git add -A", { stdio: "inherit" });
+    run(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
+  } else {
+    console.log("\n⚠️  No changes detected after Claude's work");
+  }
+
+  // Push with conflict handling
   console.log("\n🚀 Pushing to origin…");
-  run(`git push origin ${WORK_BRANCH}`, { stdio: "inherit" });
+  try {
+    run(`git push origin ${WORK_BRANCH}`, { stdio: "inherit" });
+  } catch (pushErr) {
+    if (pushErr.message.includes("rejected") || pushErr.message.includes("non-fast-forward")) {
+      console.log("\n⚠️  PUSH REJECTED - Remote has new commits");
+      
+      const pushChoice = await prompt(`\n🤔 How to handle remote changes?
+   1 = Pull & merge (combine both versions)
+   2 = Pull & rebase (replay my changes on top)
+   3 = Force push (DANGEROUS - overwrites remote)
+   4 = Create conflict branch and skip push
+Choice [1-4]: `);
+
+      switch (pushChoice) {
+        case "1":
+          console.log("\n🔀 Pulling with merge strategy…");
+          try {
+            run(`git pull origin ${WORK_BRANCH}`, { stdio: "inherit" });
+            run(`git push origin ${WORK_BRANCH}`, { stdio: "inherit" });
+            console.log("✅ Merged and pushed!");
+          } catch (mergeErr) {
+            if (mergeErr.message.includes("conflict")) {
+              console.error("\n❌ MERGE CONFLICT!");
+              const conflictChoice = await prompt(`\n🤔 Conflict detected. How to proceed?
+   1 = Abort and create conflict branch
+   2 = Resolve manually now (listener will wait)
+Choice [1-2]: `);
+
+              if (conflictChoice === "1") {
+                run("git merge --abort", { stdio: "inherit" });
+                const conflictBranch = `conflict-merge-${Date.now()}`;
+                run(`git checkout -b ${conflictBranch}`, { stdio: "inherit" });
+                run(`git push origin ${conflictBranch}`, { stdio: "inherit" });
+                run(`git checkout ${WORK_BRANCH}`, { stdio: "inherit" });
+                throw new Error(`Merge conflict - isolated to: ${conflictBranch}`);
+              } else {
+                console.log("\n⏳ Waiting for manual conflict resolution...");
+                console.log("   Instructions:");
+                console.log("   1. Resolve conflicts in your editor");
+                console.log("   2. Run: git add -A");
+                console.log("   3. Run: git commit");
+                await prompt("   Press Enter when done: ");
+                run(`git push origin ${WORK_BRANCH}`, { stdio: "inherit" });
+              }
+            } else {
+              throw mergeErr;
+            }
+          }
+          break;
+
+        case "2":
+          console.log("\n🔀 Pulling with rebase strategy…");
+          try {
+            run(`git pull --rebase origin ${WORK_BRANCH}`, { stdio: "inherit" });
+            run(`git push origin ${WORK_BRANCH}`, { stdio: "inherit" });
+            console.log("✅ Rebased and pushed!");
+          } catch (rebaseErr) {
+            if (rebaseErr.message.includes("conflict")) {
+              console.error("\n❌ REBASE CONFLICT!");
+              const conflictChoice = await prompt(`\n🤔 Conflict detected. How to proceed?
+   1 = Abort and create conflict branch
+   2 = Resolve manually now (listener will wait)
+Choice [1-2]: `);
+
+              if (conflictChoice === "1") {
+                run("git rebase --abort", { stdio: "inherit" });
+                const conflictBranch = `conflict-rebase-${Date.now()}`;
+                run(`git checkout -b ${conflictBranch}`, { stdio: "inherit" });
+                run(`git push origin ${conflictBranch}`, { stdio: "inherit" });
+                run(`git checkout ${WORK_BRANCH}`, { stdio: "inherit" });
+                throw new Error(`Rebase conflict - isolated to: ${conflictBranch}`);
+              } else {
+                console.log("\n⏳ Waiting for manual conflict resolution...");
+                console.log("   Instructions:");
+                console.log("   1. Resolve conflicts in your editor");
+                console.log("   2. Run: git add -A");
+                console.log("   3. Run: git rebase --continue");
+                await prompt("   Press Enter when done: ");
+                run(`git push origin ${WORK_BRANCH}`, { stdio: "inherit" });
+              }
+            } else {
+              throw rebaseErr;
+            }
+          }
+          break;
+
+        case "3":
+          const forceConfirm = await prompt(`\n⚠️  CONFIRM FORCE PUSH? This will OVERWRITE remote! (type YES): `);
+          if (forceConfirm === "YES") {
+            console.log("\n💥 Force pushing…");
+            run(`git push --force origin ${WORK_BRANCH}`, { stdio: "inherit" });
+            console.log("✅ Force pushed (remote overwritten)");
+          } else {
+            console.log("❌ Force push cancelled");
+            throw new Error("Push failed - user cancelled force push");
+          }
+          break;
+
+        case "4":
+          console.log("\n🔀 Creating conflict branch…");
+          const conflictBranch = `conflict-push-${Date.now()}`;
+          run(`git checkout -b ${conflictBranch}`, { stdio: "inherit" });
+          run(`git push origin ${conflictBranch}`, { stdio: "inherit" });
+          run(`git checkout ${WORK_BRANCH}`, { stdio: "inherit" });
+          console.log(`✅ Changes saved to: ${conflictBranch}`);
+          throw new Error(`Push conflict - isolated to: ${conflictBranch}`);
+
+        default:
+          console.log("❌ Invalid choice");
+          throw new Error("Push failed - invalid choice");
+      }
+    } else {
+      throw pushErr;
+    }
+  }
 
   // Get SHA
   return run("git rev-parse HEAD").trim();
@@ -381,12 +542,70 @@ app.post("/run-task", async (req, res) => {
     console.log("\n📡 Fetching remote…");
     run("git fetch --all --prune", { stdio: "inherit" });
 
-    // 2. Stash any dirty changes
+    // 2. Handle dirty working tree INTERACTIVELY
     const status = run("git status --porcelain").trim();
     if (status) {
-      console.log("\n📦 Stashing dirty working tree…");
-      run('git stash push -u -m "auto-stash before task"', { stdio: "inherit" });
-      stashed = true;
+      console.log("\n⚠️  DIRTY WORKING TREE DETECTED");
+      console.log("\nModified files:");
+      console.log(status);
+      
+      const choice = await prompt(`\n🤔 How to proceed?
+   1 = Stash changes (restore after task)
+   2 = Commit changes to backup branch
+   3 = Discard changes (hard reset)
+   4 = Cancel task
+Choice [1-4]: `);
+
+      switch (choice) {
+        case "1":
+          console.log("\n📦 Stashing changes…");
+          try {
+            run('git stash push -u -m "auto-stash before task"', { stdio: "inherit" });
+            stashed = true;
+            console.log("✅ Stashed successfully");
+          } catch (stashErr) {
+            console.error("❌ Stash failed:", stashErr.message);
+            throw new Error("Cannot proceed with dirty working tree");
+          }
+          break;
+
+        case "2":
+          console.log("\n💾 Creating backup branch…");
+          const backupBranch = `backup-${Date.now()}`;
+          try {
+            run(`git checkout -b ${backupBranch}`, { stdio: "pipe" });
+            run("git add -A", { stdio: "inherit" });
+            run(`git commit -m "Backup before automated task"`, { stdio: "inherit" });
+            run(`git push origin ${backupBranch}`, { stdio: "inherit" });
+            console.log(`✅ Backup saved to: ${backupBranch}`);
+            run(`git checkout ${WORK_BRANCH}`, { stdio: "inherit" });
+          } catch (backupErr) {
+            console.error("❌ Backup failed:", backupErr.message);
+            throw new Error("Cannot proceed with dirty working tree");
+          }
+          break;
+
+        case "3":
+          const confirm = await prompt(`\n⚠️  CONFIRM: Discard all changes? (type YES to confirm): `);
+          if (confirm === "YES") {
+            console.log("\n🗑️  Discarding changes…");
+            run("git reset --hard HEAD", { stdio: "inherit" });
+            run("git clean -fd", { stdio: "inherit" });
+            console.log("✅ Working tree cleaned");
+          } else {
+            console.log("❌ Cancelled");
+            throw new Error("User cancelled task");
+          }
+          break;
+
+        case "4":
+          console.log("❌ Task cancelled by user");
+          throw new Error("User cancelled task");
+
+        default:
+          console.log("❌ Invalid choice");
+          throw new Error("Invalid choice - task cancelled");
+      }
     }
 
     // 3. Ensure grade branch exists
@@ -413,7 +632,7 @@ app.post("/run-task", async (req, res) => {
 
     // 7. Run Claude Code
     console.log("\n🤖 Running Claude Code…");
-    let commitSha = runClaudeTask(task_instruction, commit_message || `Automated task: ${task_id}`);
+    let commitSha = await runClaudeTask(task_instruction, commit_message || `Automated task: ${task_id}`);
 
     // 8. Create PR for Render preview
     console.log("\n🔗 Creating PR for preview…");
@@ -486,7 +705,7 @@ app.post("/run-task", async (req, res) => {
           console.log(`   Feedback: ${feedback}`);
           
           // Retry with research
-          commitSha = runClaudeTask(
+          commitSha = await runClaudeTask(
             task_instruction,
             `Retry: ${commit_message || `Automated task: ${task_id}`}`,
             true,
@@ -529,16 +748,148 @@ app.post("/run-task", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("\n❌ ERROR:", err.message);
-    res.status(500).json({ success: false, commit_sha: null, error: err.message });
+    console.error("\n" + "═".repeat(60));
+    console.error("❌ CRITICAL ERROR");
+    console.error("═".repeat(60));
+    console.error(`\n🔴 Error: ${err.message}\n`);
+    
+    // Categorize error and provide specific recovery steps
+    if (err.message.includes("Invalid API key") || err.message.includes("Claude API")) {
+      console.error("📋 ERROR TYPE: Claude Authentication");
+      console.error("\n💡 Recovery steps:");
+      console.error("   1. Run: claude auth login");
+      console.error("   2. Restart this listener");
+      console.error("   3. Retry the task from n8n");
+      
+    } else if (err.message.includes("Merge conflict") || err.message.includes("conflict")) {
+      console.error("📋 ERROR TYPE: Git Conflict");
+      console.error("\n💡 Recovery steps:");
+      console.error("   1. Stop editing files while AI is working");
+      console.error("   2. Check isolated branch mentioned above");
+      console.error("   3. Manually merge if needed");
+      console.error("   4. Retry task when clean");
+      
+    } else if (err.message.includes("rejected") || err.message.includes("non-fast-forward")) {
+      console.error("📋 ERROR TYPE: Push Rejected");
+      console.error("\n💡 Recovery steps:");
+      console.error("   1. Wait for AI to finish current task");
+      console.error("   2. Pull latest changes");
+      console.error("   3. Retry task");
+      
+    } else if (err.message.includes("GitHub API")) {
+      console.error("📋 ERROR TYPE: GitHub API Failure");
+      console.error("\n💡 Recovery steps:");
+      console.error("   1. Check GITHUB_TOKEN in .env");
+      console.error("   2. Verify token has repo permissions");
+      console.error("   3. Check GitHub API status");
+      
+    } else {
+      console.error("📋 ERROR TYPE: Unknown");
+      console.error("\n💡 Recovery steps:");
+      console.error("   1. Check git status");
+      console.error("   2. Review error above");
+      console.error("   3. Manual intervention may be needed");
+    }
+    
+    console.error("\n" + "═".repeat(60));
+    console.error("🛡️  SYSTEM STATE PRESERVED");
+    console.error("   - Working tree backed up if needed");
+    console.error("   - Stash preserved if created");
+    console.error("   - Safe to retry or investigate");
+    console.error("═".repeat(60));
+    
+    res.status(500).json({ 
+      success: false, 
+      commit_sha: null, 
+      error: err.message,
+      error_type: err.message.includes("API") ? "authentication" : 
+                  err.message.includes("conflict") ? "conflict" : 
+                  err.message.includes("rejected") ? "push_rejected" : "unknown"
+    });
 
   } finally {
     if (stashed) {
       console.log("\n♻️  Restoring stashed changes…");
       try {
+        // Check if there's actually a stash to pop
+        const stashList = run("git stash list", { stdio: "pipe" }).trim();
+        if (!stashList) {
+          console.log("   ⚠️  No stash found to restore (already applied?)");
+          return;
+        }
+        
+        // Try to pop stash
         run("git stash pop", { stdio: "inherit" });
-      } catch {
-        console.log("   (Stash restore had conflicts — check manually)");
+        console.log("   ✅ Stash restored successfully");
+        
+      } catch (stashPopErr) {
+        if (stashPopErr.message.includes("conflict")) {
+          console.error("\n⚠️  STASH CONFLICT - Your changes conflict with task changes");
+          
+          const stashChoice = await prompt(`\n🤔 How to resolve stash conflict?
+   1 = Keep task changes (discard my stashed changes)
+   2 = Keep my changes (overwrite task changes)
+   3 = Resolve manually now (listener will wait)
+   4 = Leave stash for later (skip restoration)
+Choice [1-4]: `);
+
+          switch (stashChoice) {
+            case "1":
+              console.log("\n🔀 Keeping task changes…");
+              run("git reset --hard HEAD", { stdio: "inherit" });
+              run("git stash drop", { stdio: "inherit" });
+              console.log("✅ Task changes kept, stash discarded");
+              break;
+
+            case "2":
+              console.log("\n🔀 Keeping your changes…");
+              run("git checkout --theirs .", { stdio: "inherit" });
+              run("git add -A", { stdio: "inherit" });
+              console.log("✅ Your changes kept");
+              break;
+
+            case "3":
+              console.log("\n⏳ Waiting for manual resolution…");
+              console.log("   Instructions:");
+              console.log("   1. Resolve conflicts in your editor");
+              console.log("   2. Run: git add -A");
+              console.log("   3. Run: git stash drop (to remove stash)");
+              await prompt("   Press Enter when done: ");
+              console.log("✅ Manual resolution complete");
+              break;
+
+            case "4":
+              console.log("\n📦 Stash preserved for later");
+              console.log("   Run this when ready: git stash apply");
+              break;
+
+            default:
+              console.log("❌ Invalid choice - stash preserved");
+              console.log("   Run this when ready: git stash apply");
+          }
+          
+        } else {
+          console.error("\n⚠️  Stash restore failed:", stashPopErr.message);
+          
+          const retryChoice = await prompt(`\n🤔 Stash restore failed. What to do?
+   1 = Try again
+   2 = Leave stash for manual restoration
+Choice [1-2]: `);
+
+          if (retryChoice === "1") {
+            try {
+              run("git stash pop", { stdio: "inherit" });
+              console.log("✅ Stash restored on retry");
+            } catch {
+              console.error("❌ Retry failed - stash preserved");
+              console.error("   Manual command: git stash apply");
+            }
+          } else {
+            console.log("📦 Stash preserved for manual restoration");
+            console.log("   Run: git stash list");
+            console.log("   Apply: git stash apply");
+          }
+        }
       }
     }
   }

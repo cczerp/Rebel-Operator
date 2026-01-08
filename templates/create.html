@@ -896,7 +896,7 @@ function showEnhancedScanOption(isCard, isCollectible, analysis) {
                         </h6>
                         <small class="text-muted">${message}</small>
                     </div>
-                    <button class="btn btn-primary" onclick="runEnhancedScan()">
+                    <button type="button" class="btn btn-primary" onclick="runEnhancedScan()">
                         <i class="fas fa-microscope"></i> Enhanced Scan
                     </button>
                 </div>
@@ -958,6 +958,7 @@ function getDemandEmoji(demand) {
 }
 
 // TIER 2: Enhanced Scanner (Claude - Deep Dive)
+// Creates artifact in Hall of Records and redirects to artifact detail page
 async function runEnhancedScan() {
     showLoading('Running enhanced scan... This may take 10-20 seconds');
 
@@ -982,27 +983,22 @@ async function runEnhancedScan() {
             return;
         }
 
-        // Store enhanced scan data
-        enhancedScanData = data;
-
-        // Remove the "run enhanced scan" card
-        document.getElementById('enhancedScanCard')?.remove();
-
-        // Display results based on type
-        if (data.type === 'card') {
-            detectedCardData = data.data;
-            showCardResults(data);
-        } else if (data.type === 'collectible') {
-            detectedCollectibleData = data.data;
-            showCollectibleResults(data);
+        // Artifact has been AUTOMATICALLY created/updated in Hall of Records
+        // Database update is automatic (no user choice) - follows merge rules
+        // User will select photos and can save to personal collection
+        if (data.artifact_id) {
+            hideLoading();
+            showAlert('Artifact automatically updated in public Hall of Records! Redirecting...', 'success');
+            setTimeout(() => {
+                window.location.href = `/artifact/${data.artifact_id}`;
+            }, 1500);
+        } else {
+            throw new Error('No artifact ID returned from server');
         }
-
-        showAlert('Enhanced scan complete!', 'success');
 
     } catch (error) {
         console.error('Enhanced scan error:', error);
         showAlert('Enhanced scan failed: ' + (error.message || error), 'danger');
-    } finally {
         hideLoading();
     }
 }

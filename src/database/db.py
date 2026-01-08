@@ -614,6 +614,76 @@ class Database:
             ON users(is_admin)
         """)
 
+        # Public Artifacts (Hall of Records) - Shared knowledge, no user association
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS public_artifacts (
+                id SERIAL PRIMARY KEY,
+                item_name TEXT NOT NULL,
+                brand TEXT,
+                franchise TEXT,
+                category TEXT,
+                item_type TEXT,
+                historical_context TEXT,
+                value_context TEXT,
+                known_errors TEXT,
+                collector_notes TEXT,
+                fun_fact TEXT,
+                photos TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                times_contributed INTEGER DEFAULT 1,
+                UNIQUE(item_name, brand, franchise, category)
+            )
+        """)
+
+        # User Artifact Collections - Links users to public artifacts they've saved
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS user_artifact_collections (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                artifact_id INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (artifact_id) REFERENCES public_artifacts(id),
+                UNIQUE(user_id, artifact_id)
+            )
+        """)
+
+        # Pending Artifact Photos - Photos stored privately until user selects which to make public
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pending_artifact_photos (
+                id SERIAL PRIMARY KEY,
+                artifact_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                photo_url TEXT NOT NULL,
+                is_selected BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (artifact_id) REFERENCES public_artifacts(id),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        """)
+
+        # Create indexes for artifacts
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_public_artifacts_name_brand
+            ON public_artifacts(item_name, brand, franchise)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_user_artifact_collections_user
+            ON user_artifact_collections(user_id, created_at DESC)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_user_artifact_collections_artifact
+            ON user_artifact_collections(artifact_id)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pending_artifact_photos_artifact
+            ON pending_artifact_photos(artifact_id, is_selected)
+        """)
+
         self.conn.commit()
         print("✅ PostgreSQL tables created successfully")
 
@@ -1302,6 +1372,323 @@ class Database:
         result = cursor.fetchone()
         self.conn.commit()
         return result['id']
+
+    # ========================================================================
+    # ARTIFACT METHODS (Hall of Records)
+    # ========================================================================
+
+    def create_or_update_artifact(
+        self,
+        item_name: str,
+        brand: Optional[str] = None,
+        franchise: Optional[str] = None,
+        category: Optional[str] = None,
+        item_type: Optional[str] = None,
+        historical_context: Optional[Dict] = None,
+        value_context: Optional[Dict] = None,
+        known_errors: Optional[Dict] = None,
+        collector_notes: Optional[str] = None,
+        fun_fact: Optional[str] = None,
+        photos: Optional[List[str]] = None,
+        user_id: Optional[int] = None
+    ) -> int:
+        """
+        Create or update a public artifact in the Hall of Records.
+        
+        IMPORTANT RULES:
+        1. Photos are stored as PENDING (private) until user selects which to make public
+        2. If franchise already has data, only NEW fields are added (no overwriting)
+        3. First scan sets the franchise data, subsequent scans only add missing data
+        
+        Returns artifact_id.
+        """
+        import json
+        cursor = self._get_cursor()
+        
+        # Check if artifact already exists (same item)
+        cursor.execute("""
+            SELECT id, historical_context, value_context, known_errors, collector_notes, fun_fact, photos
+            FROM public_artifacts
+            WHERE item_name = %s
+            AND (brand IS NULL AND %s IS NULL OR brand = %s)
+            AND (franchise IS NULL AND %s IS NULL OR franchise = %s)
+            AND (category IS NULL AND %s IS NULL OR category = %s)
+        """, (item_name, brand, brand, franchise, franchise, category, category))
+        
+        existing = cursor.fetchone()
+        
+        if existing:
+            # Artifact exists - merge NEW data only, don't overwrite existing
+            artifact_id = existing['id']
+            
+            # Parse existing data
+            existing_historical = json.loads(existing['historical_context']) if existing['historical_context'] else {}
+            existing_value = json.loads(existing['value_context']) if existing['value_context'] else {}
+            existing_errors = json.loads(existing['known_errors']) if existing['known_errors'] else {}
+            existing_notes = existing['collector_notes'] or ''
+            existing_fun_fact = existing['fun_fact'] or ''
+            existing_photos = json.loads(existing['photos']) if existing['photos'] else []
+            
+            # Merge historical_context: only add NEW keys, don't overwrite
+            merged_historical = existing_historical.copy()
+            if historical_context:
+                for key, value in historical_context.items():
+                    if key not in merged_historical or not merged_historical[key]:
+                        merged_historical[key] = value
+            
+            # Merge value_context: only add NEW keys
+            merged_value = existing_value.copy()
+            if value_context:
+                for key, value in value_context.items():
+                    if key not in merged_value or not merged_value[key]:
+                        merged_value[key] = value
+            
+            # Merge known_errors: only add NEW keys
+            merged_errors = existing_errors.copy()
+            if known_errors:
+                for key, value in known_errors.items():
+                    if key not in merged_errors or not merged_errors[key]:
+                        merged_errors[key] = value
+            
+            # Only update notes/fun_fact if they're empty
+            final_notes = existing_notes if existing_notes else (collector_notes or '')
+            final_fun_fact = existing_fun_fact if existing_fun_fact else (fun_fact or '')
+            
+            # Update artifact with merged data (photos stay as-is, pending photos handled separately)
+            cursor.execute("""
+                UPDATE public_artifacts
+                SET historical_context = %s,
+                    value_context = %s,
+                    known_errors = %s,
+                    collector_notes = %s,
+                    fun_fact = %s,
+                    updated_at = CURRENT_TIMESTAMP,
+                    times_contributed = times_contributed + 1
+                WHERE id = %s
+            """, (
+                json.dumps(merged_historical) if merged_historical else None,
+                json.dumps(merged_value) if merged_value else None,
+                json.dumps(merged_errors) if merged_errors else None,
+                final_notes,
+                final_fun_fact,
+                artifact_id
+            ))
+        else:
+            # New artifact - create with initial data
+            cursor.execute("""
+                INSERT INTO public_artifacts (
+                    item_name, brand, franchise, category, item_type,
+                    historical_context, value_context, known_errors,
+                    collector_notes, fun_fact, photos
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                item_name,
+                brand,
+                franchise,
+                category,
+                item_type,
+                json.dumps(historical_context) if historical_context else None,
+                json.dumps(value_context) if value_context else None,
+                json.dumps(known_errors) if known_errors else None,
+                collector_notes,
+                fun_fact,
+                json.dumps([])  # Start with empty photos - user will select which to make public
+            ))
+            result = cursor.fetchone()
+            artifact_id = result['id']
+        
+        # Store photos as PENDING (private) - user will select which to make public
+        if photos and user_id:
+            for photo_url in photos:
+                # Check if photo already exists for this artifact/user
+                cursor.execute("""
+                    SELECT id FROM pending_artifact_photos
+                    WHERE artifact_id = %s AND user_id = %s AND photo_url = %s
+                """, (artifact_id, user_id, photo_url))
+                if not cursor.fetchone():
+                    # Only insert if it doesn't exist
+                    cursor.execute("""
+                        INSERT INTO pending_artifact_photos (artifact_id, user_id, photo_url, is_selected)
+                        VALUES (%s, %s, %s, FALSE)
+                    """, (artifact_id, user_id, photo_url))
+        
+        self.conn.commit()
+        return artifact_id
+
+    def get_artifact(self, artifact_id: int) -> Optional[Dict]:
+        """Get artifact by ID"""
+        import json
+        cursor = self._get_cursor()
+        cursor.execute("""
+            SELECT * FROM public_artifacts
+            WHERE id = %s
+        """, (artifact_id,))
+        
+        result = cursor.fetchone()
+        if not result:
+            return None
+        
+        artifact = dict(result)
+        
+        # Parse JSON fields
+        if artifact.get('historical_context'):
+            try:
+                artifact['historical_context'] = json.loads(artifact['historical_context'])
+            except:
+                pass
+        if artifact.get('value_context'):
+            try:
+                artifact['value_context'] = json.loads(artifact['value_context'])
+            except:
+                pass
+        if artifact.get('known_errors'):
+            try:
+                artifact['known_errors'] = json.loads(artifact['known_errors'])
+            except:
+                pass
+        if artifact.get('photos'):
+            try:
+                artifact['photos'] = json.loads(artifact['photos'])
+            except:
+                pass
+        
+        return artifact
+
+    def save_artifact_to_user_collection(self, user_id: int, artifact_id: int) -> bool:
+        """Save artifact to user's personal collection"""
+        cursor = self._get_cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO user_artifact_collections (user_id, artifact_id)
+                VALUES (%s, %s)
+                ON CONFLICT (user_id, artifact_id) DO NOTHING
+            """, (user_id, artifact_id))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            self.conn.rollback()
+            print(f"Error saving artifact to user collection: {e}")
+            return False
+
+    def get_user_artifact_collection(self, user_id: int) -> List[Dict]:
+        """Get all artifacts in user's collection"""
+        import json
+        cursor = self._get_cursor()
+        cursor.execute("""
+            SELECT a.*, uac.created_at as saved_at
+            FROM public_artifacts a
+            INNER JOIN user_artifact_collections uac ON a.id = uac.artifact_id
+            WHERE uac.user_id = %s
+            ORDER BY uac.created_at DESC
+        """, (user_id,))
+        
+        artifacts = []
+        for row in cursor.fetchall():
+            artifact = dict(row)
+            # Parse JSON fields
+            for field in ['historical_context', 'value_context', 'known_errors', 'photos']:
+                if artifact.get(field):
+                    try:
+                        artifact[field] = json.loads(artifact[field])
+                    except:
+                        pass
+            artifacts.append(artifact)
+        
+        return artifacts
+
+    def is_artifact_in_user_collection(self, user_id: int, artifact_id: int) -> bool:
+        """Check if artifact is already in user's collection"""
+        cursor = self._get_cursor()
+        cursor.execute("""
+            SELECT id FROM user_artifact_collections
+            WHERE user_id = %s AND artifact_id = %s
+        """, (user_id, artifact_id))
+        return cursor.fetchone() is not None
+
+    def get_pending_artifact_photos(self, artifact_id: int, user_id: int) -> List[Dict]:
+        """Get pending photos for artifact that user can select to make public"""
+        cursor = self._get_cursor()
+        cursor.execute("""
+            SELECT id, photo_url, is_selected, created_at
+            FROM pending_artifact_photos
+            WHERE artifact_id = %s AND user_id = %s
+            ORDER BY created_at ASC
+        """, (artifact_id, user_id))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def select_artifact_photos(self, artifact_id: int, user_id: Optional[int], selected_photo_ids: List[int]) -> bool:
+        """
+        Admin selects which photos to make public.
+        Updates is_selected flag and moves selected photos to public artifact.
+        user_id is optional - admin can select photos from any user.
+        """
+        import json
+        cursor = self._get_cursor()
+        
+        try:
+            # Get selected photo URLs (don't filter by user_id if None - admin selecting from any user)
+            if not selected_photo_ids:
+                return False
+            
+            placeholders = ','.join(['%s'] * len(selected_photo_ids))
+            if user_id:
+                cursor.execute(f"""
+                    SELECT photo_url FROM pending_artifact_photos
+                    WHERE artifact_id = %s AND user_id = %s AND id IN ({placeholders})
+                """, [artifact_id, user_id] + selected_photo_ids)
+            else:
+                # Admin selecting from any user
+                cursor.execute(f"""
+                    SELECT photo_url FROM pending_artifact_photos
+                    WHERE artifact_id = %s AND id IN ({placeholders})
+                """, [artifact_id] + selected_photo_ids)
+            
+            selected_photos = [row['photo_url'] for row in cursor.fetchall()]
+            
+            if not selected_photos:
+                return False
+            
+            # Get current public photos
+            cursor.execute("""
+                SELECT photos FROM public_artifacts WHERE id = %s
+            """, (artifact_id,))
+            result = cursor.fetchone()
+            current_photos = json.loads(result['photos']) if result and result['photos'] else []
+            
+            # Add selected photos to public list (avoid duplicates)
+            updated_photos = list(current_photos)
+            for photo_url in selected_photos:
+                if photo_url not in updated_photos:
+                    updated_photos.append(photo_url)
+            
+            # Update artifact with public photos
+            cursor.execute("""
+                UPDATE public_artifacts
+                SET photos = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (json.dumps(updated_photos), artifact_id))
+            
+            # Mark photos as selected (don't filter by user_id if None)
+            if user_id:
+                cursor.execute(f"""
+                    UPDATE pending_artifact_photos
+                    SET is_selected = TRUE
+                    WHERE artifact_id = %s AND user_id = %s AND id IN ({placeholders})
+                """, [artifact_id, user_id] + selected_photo_ids)
+            else:
+                cursor.execute(f"""
+                    UPDATE pending_artifact_photos
+                    SET is_selected = TRUE
+                    WHERE artifact_id = %s AND id IN ({placeholders})
+                """, [artifact_id] + selected_photo_ids)
+            
+            self.conn.commit()
+            return True
+        except Exception as e:
+            self.conn.rollback()
+            print(f"Error selecting artifact photos: {e}")
+            return False
 
     # ========================================================================
     # SYNC LOG METHODS

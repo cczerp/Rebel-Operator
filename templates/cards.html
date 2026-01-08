@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}My Card Collection{% endblock %}
+{% block title %}Collection Vault{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-box-open"></i> My Card Collection</h2>
+    <h2><i class="fas fa-vault"></i> Collection Vault</h2>
     <button class="btn btn-primary" onclick="showAddCardModal()">
         <i class="fas fa-plus"></i> Add Cards
     </button>
@@ -309,12 +309,15 @@ function displayCards(cards) {
                             <h6 class="card-title">${card.title}</h6>
                             <p class="card-text">
                                 <small class="text-muted">
-                                    ${card.set_name || card.brand || ''}<br>
-                                    ${card.card_number ? '#' + card.card_number : ''}<br>
+                                    ${card.franchise || card.game_name || card.sport || card.set_name || card.brand || ''}<br>
+                                    ${card.set_name ? 'Set: ' + card.set_name + '<br>' : ''}
+                                    ${card.card_number ? '#' + card.card_number + '<br>' : ''}
+                                    ${card.rarity ? 'Rarity: ' + card.rarity + '<br>' : ''}
                                     ${card.estimated_value ? '$' + card.estimated_value.toFixed(2) : ''}
                                 </small>
                             </p>
-                            ${card.storage_location ? `<span class="badge bg-warning">${card.storage_location}</span>` : ''}
+                            ${card.storage_location ? `<span class="badge bg-warning me-1">${card.storage_location}</span>` : ''}
+                            ${card.storage_region ? `<span class="badge bg-success me-1"><i class="fas fa-map-marked-alt"></i> ${card.storage_region}</span>` : ''}
                             ${card.quantity > 1 ? `<span class="badge bg-info">x${card.quantity}</span>` : ''}
                         </div>
                     </div>
@@ -340,13 +343,16 @@ function displayCards(cards) {
                         <div class="flex-grow-1">
                             <h6 class="mb-1">${card.title}</h6>
                             <small class="text-muted">
-                                ${card.set_name || card.brand || ''}
-                                ${card.card_number ? '#' + card.card_number : ''}
+                                ${card.franchise || card.game_name || card.sport || ''}
+                                ${card.set_name ? ' | Set: ' + card.set_name : ''}
+                                ${card.card_number ? ' #' + card.card_number : ''}
+                                ${card.rarity ? ' | ' + card.rarity : ''}
                             </small>
                         </div>
                         <div>
                             ${card.estimated_value ? `<strong>$${card.estimated_value.toFixed(2)}</strong><br>` : ''}
-                            ${card.storage_location ? `<span class="badge bg-warning">${card.storage_location}</span>` : ''}
+                            ${card.storage_location ? `<span class="badge bg-warning me-1">${card.storage_location}</span>` : ''}
+                            ${card.storage_region ? `<span class="badge bg-success me-1"><i class="fas fa-map-marked-alt"></i> ${card.storage_region}</span>` : ''}
                             ${card.quantity > 1 ? `<span class="badge bg-info">x${card.quantity}</span>` : ''}
                         </div>
                     </div>
@@ -539,7 +545,9 @@ async function importCSV() {
 
 async function changeOrganization() {
     const newMode = document.getElementById('organizationMode').value;
+    
     if (newMode === 'none') {
+        // Just reload cards without organization
         loadCards();
         return;
     }
@@ -547,21 +555,25 @@ async function changeOrganization() {
     showLoading();
 
     try {
-        const response = await fetch('/api/cards/switch-organization', {
+        // First switch organization mode for all cards
+        const switchResponse = await fetch('/api/cards/switch-organization', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ new_mode: newMode })
         });
 
-        const data = await response.json();
+        const switchData = await switchResponse.json();
 
-        if (data.success) {
-            showAlert('Organization updated!', 'success');
+        if (switchData.success) {
+            showAlert('Organization updated! Reloading cards...', 'success');
+            // Reload cards with new organization
             loadCards();
+        } else {
+            showAlert(switchData.error || 'Failed to update organization', 'danger');
+            hideLoading();
         }
     } catch (error) {
         showAlert('Failed to change organization: ' + error, 'danger');
-    } finally {
         hideLoading();
     }
 }

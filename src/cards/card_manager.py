@@ -114,7 +114,7 @@ class CardCollectionManager:
             UPDATE card_collections SET
                 title = %s, card_number = %s, quantity = %s,
                 organization_mode = %s, primary_category = %s, custom_categories = %s,
-                storage_location = %s, storage_item_id = %s,
+                storage_location = %s, storage_item_id = %s, storage_region = %s,
                 game_name = %s, set_name = %s, set_code = %s, set_symbol = %s, rarity = %s, card_subtype = %s, format_legality = %s,
                 sport = %s, year = %s, brand = %s, series = %s, player_name = %s, team = %s, is_rookie_card = %s, parallel_color = %s, insert_series = %s,
                 grading_company = %s, grading_score = %s, grading_serial = %s, estimated_value = %s, value_tier = %s, purchase_price = %s,
@@ -123,7 +123,7 @@ class CardCollectionManager:
         """, (
             card_dict['title'], card_dict['card_number'], card_dict['quantity'],
             card_dict['organization_mode'], card_dict['primary_category'], card_dict['custom_categories'],
-            card_dict['storage_location'], card_dict['storage_item_id'],
+            card_dict['storage_location'], card_dict['storage_item_id'], card_dict.get('storage_region'),
             card_dict['game_name'], card_dict['set_name'], card_dict['set_code'], card_dict['set_symbol'],
             card_dict['rarity'], card_dict['card_subtype'], card_dict['format_legality'],
             card_dict['sport'], card_dict['year'], card_dict['brand'], card_dict['series'],

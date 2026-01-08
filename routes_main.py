@@ -1199,10 +1199,14 @@ def artifact_detail(artifact_id):
         """, (artifact_id,))
         pending_photos = [dict(row) for row in cursor.fetchall()]
     
+    # Check if artifact is in user's personal collection
+    in_collection = db.is_artifact_in_user_collection(current_user.id, artifact_id)
+    
     return render_template('artifact_detail.html', 
                          artifact=artifact, 
                          pending_photos=pending_photos,
-                         is_admin=current_user.is_admin)
+                         is_admin=current_user.is_admin,
+                         in_collection=in_collection)
 
 @main_bp.route("/api/artifacts/<int:artifact_id>")
 @login_required

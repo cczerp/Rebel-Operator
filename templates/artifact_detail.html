@@ -193,6 +193,20 @@
                 Last updated: {{ artifact.updated_at|default(artifact.created_at) }}
             </small>
         </div>
+        
+        {% if not is_admin %}
+        <div class="mt-4 d-flex gap-2">
+            {% if not in_collection %}
+            <button class="btn btn-primary" onclick="saveToCollection()" id="saveToCollectionBtn">
+                <i class="fas fa-bookmark"></i> Save to My Hall of Records
+            </button>
+            {% else %}
+            <button class="btn btn-success" disabled>
+                <i class="fas fa-check"></i> Already in Your Collection
+            </button>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
@@ -261,6 +275,43 @@ async function publishSelectedPhotos() {
             }, 1500);
         } else {
             throw new Error(data.error || 'Failed to publish photos');
+        }
+    } catch (error) {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+        showAlert('Error: ' + error.message, 'danger');
+    }
+}
+
+async function saveToCollection() {
+    // Users can choose to save artifacts to their personal collection
+    const btn = document.getElementById('saveToCollectionBtn');
+    if (!btn || btn.disabled) return;
+    
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    
+    try {
+        const response = await fetch('/api/user/artifacts/save', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                artifact_id: {{ artifact.id }}
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert(data.message || 'Artifact saved to your personal Hall of Records!', 'success');
+            // Update button to show it's saved
+            btn.innerHTML = '<i class="fas fa-check"></i> Already in Your Collection';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-success');
+            btn.disabled = true;
+        } else {
+            throw new Error(data.error || 'Failed to save artifact');
         }
     } catch (error) {
         btn.disabled = false;

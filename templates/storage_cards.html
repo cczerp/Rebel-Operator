@@ -262,20 +262,35 @@ async function createSection(binId) {
 
 async function loadSections(binId) {
     try {
-        const response = await fetch(`/api/storage/items?bin_id=${binId}`);
+        // Get sections from bins API (which includes sections)
+        const response = await fetch(`/api/storage/bins?type=cards`);
         const data = await response.json();
+
+        // Find the bin
+        const bin = data.bins.find(b => b.id === binId);
+        if (!bin) return;
 
         // Update section dropdown
         const select = document.getElementById(`cardSection-${binId}`);
         // Clear existing options except first
         select.innerHTML = '<option value="">Select section</option>';
 
+        // Get sections from bin or from items
         const sections = new Set();
-        data.items.forEach(item => {
-            if (item.section_name) {
-                sections.add(item.section_name);
-            }
-        });
+        if (bin.sections && bin.sections.length > 0) {
+            bin.sections.forEach(section => {
+                sections.add(section.section_name);
+            });
+        } else {
+            // Fallback: get from items
+            const itemsResponse = await fetch(`/api/storage/items?bin_id=${binId}`);
+            const itemsData = await itemsResponse.json();
+            itemsData.items.forEach(item => {
+                if (item.section_name) {
+                    sections.add(item.section_name);
+                }
+            });
+        }
 
         sections.forEach(section => {
             const option = document.createElement('option');
@@ -294,6 +309,9 @@ async function loadSections(binId) {
                 badge.textContent = section;
                 sectionsListDiv.appendChild(badge);
             });
+        } else {
+            const sectionsListDiv = document.getElementById(`sectionslist-${binId}`);
+            sectionsListDiv.innerHTML = '<p class="text-muted">No sections yet. Add one above!</p>';
         }
     } catch (error) {
         console.error('Error loading sections:', error);

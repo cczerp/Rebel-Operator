@@ -436,6 +436,10 @@ def api_save_draft():
         upc = data.get('upc', '')
         status = data.get('status', 'draft')
 
+        # Check if we're updating an existing draft (need listing_uuid before photo moving)
+        draft_id = data.get('draft_id')
+        listing_uuid = data.get('listing_uuid') or uuid.uuid4().hex
+
         # Get photos array (should be Supabase Storage URLs from temp bucket)
         photos = data.get('photos', [])
         
@@ -453,7 +457,7 @@ def api_save_draft():
                     success, new_url = storage.move_photo(
                         source_url=photo_url,
                         destination_folder='drafts',
-                        new_filename=f"{listing_uuid or uuid.uuid4().hex}_{uuid.uuid4().hex}.jpg"
+                        new_filename=f"{listing_uuid}_{uuid.uuid4().hex}.jpg"
                     )
                     if success:
                         moved_photos.append(new_url)
@@ -478,10 +482,6 @@ def api_save_draft():
             'color': data.get('color', ''),
             'shipping_cost': data.get('shipping_cost', 0)
         }
-
-        # Check if we're updating an existing draft
-        draft_id = data.get('draft_id')
-        listing_uuid = data.get('listing_uuid')
 
         if draft_id:
             # Update existing draft
@@ -508,8 +508,7 @@ def api_save_draft():
                 "message": "Draft updated successfully"
             })
         else:
-            # Create new draft
-            listing_uuid = uuid.uuid4().hex
+            # Create new draft (listing_uuid already set above)
             listing_id = db.create_listing(
                 listing_uuid=listing_uuid,
                 user_id=current_user.id,
@@ -1629,9 +1628,6 @@ def api_delete_card(card_id):
 def api_get_storage_bins():
     """Get all storage bins for the current user"""
     try:
-        from src.database.db import get_db_instance
-        db = get_db_instance()
-
         bin_type = request.args.get('type')  # 'clothing' or 'cards'
         bins = db.get_storage_bins(current_user.id, bin_type)
 
@@ -1654,9 +1650,6 @@ def api_get_storage_bins():
 def api_create_storage_bin():
     """Create a new storage bin"""
     try:
-        from src.database.db import get_db_instance
-        db = get_db_instance()
-
         data = request.get_json()
         bin_name = data.get('bin_name')
         bin_type = data.get('bin_type')  # 'clothing' or 'cards'
@@ -1685,9 +1678,6 @@ def api_create_storage_bin():
 def api_create_storage_section():
     """Create a new section within a bin"""
     try:
-        from src.database.db import get_db_instance
-        db = get_db_instance()
-
         data = request.get_json()
         bin_id = data.get('bin_id')
         section_name = data.get('section_name')
@@ -1720,9 +1710,6 @@ def api_create_storage_section():
 def api_get_storage_items():
     """Get storage items, optionally filtered by bin"""
     try:
-        from src.database.db import get_db_instance
-        db = get_db_instance()
-
         bin_id = request.args.get('bin_id', type=int)
 
         if bin_id:
@@ -1748,9 +1735,6 @@ def api_get_storage_items():
 def api_add_storage_item():
     """Add a new item to storage"""
     try:
-        from src.database.db import get_db_instance
-        db = get_db_instance()
-
         data = request.get_json()
         bin_id = data.get('bin_id')
         section_id = data.get('section_id')
@@ -1816,9 +1800,6 @@ def api_add_storage_item():
 def api_find_storage_item():
     """Find an item by storage ID"""
     try:
-        from src.database.db import get_db_instance
-        db = get_db_instance()
-
         storage_id = request.args.get('storage_id')
 
         if not storage_id:
@@ -3544,4 +3525,199 @@ def cancel_subscription():
         return jsonify({"success": True})
 
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/save-vault", methods=["POST"])
+@login_required
+def api_save_vault():
+    """Save card/item to user's card_collections database"""
+    try:
+        from src.cards import CardCollectionManager, UnifiedCard
+        from src.cards.storage_maps import suggest_storage_region
+        import uuid as uuid_module
+        
+        data = request.json
+        
+        # Check if user wants storage map guidance
+        use_storage_map = data.get('use_storage_map', False)
+        
+        # Extract card data from form or AI analysis
+        # Check if we have card data from AI analysis
+        card_data = data.get('card_data') or data.get('ai_result') or {}
+        
+        # Extract form fields
+        title = data.get('title', card_data.get('card_name') or card_data.get('player_name') or 'Unknown Card')
+        brand = data.get('brand', card_data.get('brand', ''))
+        year = data.get('year', card_data.get('year'))
+        if year:
+            try:
+                year = int(year) if isinstance(year, (int, str)) and str(year).isdigit() else None
+            except:
+                year = None
+        
+        # Determine card type - prioritize TCG detection
+        item_type = data.get('item_type', '').lower()
+        category = card_data.get('category', '').lower() if isinstance(card_data.get('category'), str) else ''
+        game_name = card_data.get('game_name', '').lower() if isinstance(card_data.get('game_name'), str) else ''
+        
+        card_type = 'unknown'
+        
+        # Check for TCG cards first (Pokemon, MTG, Yu-Gi-Oh, etc.)
+        if 'pokemon' in game_name or 'pokemon' in category or 'pokemon' in item_type:
+            card_type = 'pokemon'
+        elif 'magic' in game_name or 'mtg' in game_name or 'magic' in category:
+            card_type = 'mtg'
+        elif 'yugioh' in game_name or 'yu-gi-oh' in game_name or 'yugioh' in category:
+            card_type = 'yugioh'
+        elif card_data.get('game_name'):
+            # Generic TCG - use game name to determine type
+            game = card_data.get('game_name').lower()
+            if 'pokemon' in game:
+                card_type = 'pokemon'
+            elif 'magic' in game or 'mtg' in game:
+                card_type = 'mtg'
+            elif 'yugioh' in game or 'yu-gi-oh' in game:
+                card_type = 'yugioh'
+            else:
+                card_type = 'tcg'  # Generic TCG
+        # Check for sports cards
+        elif card_data.get('sport'):
+            sport = card_data.get('sport').lower()
+            if 'football' in sport or 'nfl' in sport:
+                card_type = 'sports_nfl'
+            elif 'basketball' in sport or 'nba' in sport:
+                card_type = 'sports_nba'
+            elif 'baseball' in sport or 'mlb' in sport:
+                card_type = 'sports_mlb'
+            elif 'hockey' in sport or 'nhl' in sport:
+                card_type = 'sports_nhl'
+            else:
+                card_type = f'sports_{sport.replace(" ", "_")}'
+        elif 'sports card' in item_type or 'sports' in category:
+            card_type = 'sports'
+        elif 'trading card' in item_type or card_data.get('card_type'):
+            # Use provided card_type or default to generic
+            card_type = card_data.get('card_type', 'trading_card')
+        
+        # Determine if this is a TCG or Sports card
+        is_tcg = card_type in ['pokemon', 'mtg', 'yugioh', 'tcg', 'trading_card'] or card_type.startswith('tcg_')
+        is_sports = card_type.startswith('sports') or card_type == 'sports'
+        
+        # Extract game_name for TCG cards
+        tcg_game_name = None
+        if is_tcg:
+            if card_type == 'pokemon':
+                tcg_game_name = 'Pokemon'
+            elif card_type == 'mtg':
+                tcg_game_name = 'Magic: The Gathering'
+            elif card_type == 'yugioh':
+                tcg_game_name = 'Yu-Gi-Oh!'
+            else:
+                tcg_game_name = card_data.get('game_name') or 'Trading Card Game'
+        
+        # Create UnifiedCard - only set sport-related fields for sports cards
+        manager = CardCollectionManager()
+        
+        # Get storage region guidance if enabled
+        storage_region = None
+        if use_storage_map:
+            # Determine franchise from card data
+            franchise = card_data.get('franchise') or card_data.get('game_name') or card_data.get('sport')
+            if not franchise and is_tcg:
+                # Try to get franchise from game_name
+                franchise = tcg_game_name
+            elif not franchise and is_sports:
+                # Try to get franchise from sport
+                franchise = card_data.get('sport', '').upper()
+            
+            # Get recommended region
+            region, guidance = suggest_storage_region(
+                franchise=franchise,
+                card_type=card_type,
+                rarity=card_data.get('rarity'),
+                is_rookie=card_data.get('is_rookie_card', False),
+                grading_score=card_data.get('grading_score')
+            )
+            
+            if region:
+                storage_region = region.value
+        
+        # Build card with conditional fields
+        card_kwargs = {
+            'card_type': card_type,
+            'title': title,
+            'user_id': current_user.id,
+            'card_number': card_data.get('card_number') or data.get('card_number'),
+            'quantity': int(data.get('quantity', 1)),
+            'organization_mode': 'by_set' if is_tcg else 'by_year' if is_sports else 'by_set',
+            
+            # Grading (universal)
+            'grading_company': card_data.get('grading_company'),
+            'grading_score': card_data.get('grading_score'),
+            'grading_serial': card_data.get('grading_serial'),
+            
+            # Value & storage (universal)
+            'estimated_value': card_data.get('estimated_value') or card_data.get('estimated_value_avg'),
+            'storage_location': data.get('storage_location', ''),
+            'storage_region': storage_region,  # Recommended region from storage map
+            'photos': data.get('photos', []),
+            'notes': data.get('description', ''),
+            'ai_identified': bool(card_data),
+            'ai_confidence': card_data.get('confidence_score', 0.0)
+        }
+        
+        # Add TCG-specific fields
+        if is_tcg:
+            card_kwargs.update({
+                'game_name': tcg_game_name,
+                'set_name': card_data.get('set_name') or card_data.get('set'),
+                'set_code': card_data.get('set_code'),
+                'rarity': card_data.get('rarity'),
+            })
+        
+        # Add Sports-specific fields (only for sports cards)
+        if is_sports:
+            card_kwargs.update({
+                'sport': card_data.get('sport'),
+                'year': year,
+                'brand': brand or card_data.get('brand'),
+                'series': card_data.get('series'),
+                'player_name': card_data.get('player_name'),
+                'is_rookie_card': card_data.get('is_rookie_card', False),
+            })
+        elif is_tcg:
+            # For TCG cards, year and brand might still be useful
+            if year:
+                card_kwargs['year'] = year
+            if brand:
+                card_kwargs['brand'] = brand
+        
+        card = UnifiedCard(**card_kwargs)
+        card_id = manager.add_card(card)
+        
+        # Prepare response with storage guidance if used
+        response_data = {
+            "success": True,
+            "card_id": card_id,
+            "message": "Card saved to your collection vault successfully"
+        }
+        
+        if use_storage_map and storage_region:
+            # Get guidance text for the region
+            from src.cards.storage_maps import get_storage_map_for_franchise, StorageRegion
+            franchise = card_data.get('franchise') or card_data.get('game_name') or card_data.get('sport')
+            if franchise:
+                storage_map = get_storage_map_for_franchise(franchise)
+                if storage_map:
+                    region_enum = StorageRegion(storage_region)
+                    guidance = storage_map.get_guidance_text(region_enum)
+                    response_data['storage_guidance'] = guidance
+                    response_data['storage_region'] = storage_region
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        import traceback
+        logging.error(f"Save vault error: {e}\n{traceback.format_exc()}")
         return jsonify({"error": str(e)}), 500

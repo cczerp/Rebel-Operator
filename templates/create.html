@@ -147,6 +147,12 @@
         <button type="button" class="btn btn-outline-success btn-lg" id="saveToVaultBtn">
             <i class="fas fa-archive"></i> Save to Collection Vault
         </button>
+        <div class="form-check mt-2" id="storageMapOption" style="display: none;">
+            <input class="form-check-input" type="checkbox" id="useStorageMap" checked>
+            <label class="form-check-label" for="useStorageMap">
+                <i class="fas fa-map-marked-alt"></i> Use storage map guidance (suggests where to place card)
+            </label>
+        </div>
         {% endif %}
     </div>
 </form>
@@ -903,6 +909,9 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
             showMarketAnalysis(analysis.market_analysis);
         }
 
+        // Store analysis data for vault button
+        window.lastQuickAnalysis = analysis;
+
         showAlert('Quick analysis complete!', 'success');
 
     } catch (error) {
@@ -1160,6 +1169,19 @@ function showCardResults(data) {
                 
                 <hr>
                 
+                <!-- Storage Map Option -->
+                <div class="mb-3" id="cardStorageMapOption" style="display: none;">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="cardUseStorageMap" checked>
+                        <label class="form-check-label" for="cardUseStorageMap">
+                            <i class="fas fa-map-marked-alt"></i> Use storage map guidance (suggests where to place this card in your collection)
+                        </label>
+                        <small class="text-muted d-block mt-1">
+                            This will suggest a recommended region (front/middle/back) based on the card's franchise and type.
+                        </small>
+                    </div>
+                </div>
+                
                 <div class="d-flex gap-2">
                     <button class="btn btn-success" onclick="storeCardOnly()">
                         <i class="fas fa-box"></i> Store in Collection
@@ -1183,6 +1205,18 @@ function showCardResults(data) {
     // Insert after market analysis or enhanced scan card
     const insertAfter = document.getElementById('marketAnalysisCard') || document.querySelector('.card');
     insertAfter.insertAdjacentHTML('afterend', statsCard);
+
+    // Show storage map option for cards
+    const storageMapOption = document.getElementById('cardStorageMapOption');
+    if (storageMapOption) {
+        storageMapOption.style.display = 'block';
+    }
+    
+    // Also show the main storage map option
+    const mainStorageMapOption = document.getElementById('storageMapOption');
+    if (mainStorageMapOption) {
+        mainStorageMapOption.style.display = 'block';
+    }
 
     // Fill form with detailed card info
     fillFormFromCardData(cardData, prices);
@@ -1462,20 +1496,29 @@ async function storeCardOnly() {
     showLoading();
 
     try {
+        // Check if storage map guidance is enabled (check both checkboxes)
+        const storageMapCheckbox = document.getElementById('cardUseStorageMap') || document.getElementById('useStorageMap');
+        const useStorageMap = storageMapCheckbox ? storageMapCheckbox.checked : false;
+        
         const response = await fetch('/api/cards/add', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 ai_result: detectedCardData,
-                photos: uploadedPhotos
+                photos: uploadedPhotos,
+                use_storage_map: useStorageMap
             })
         });
 
         const data = await response.json();
 
         if (data.success) {
-            showAlert('Card stored in your collection! Redirecting...', 'success');
-            setTimeout(() => window.location.href = '/cards', 1500);
+            let message = 'Card stored in your collection!';
+            if (data.storage_guidance) {
+                message += `<br><br><strong><i class="fas fa-map-marked-alt"></i> Storage Guidance:</strong><br>${data.storage_guidance}`;
+            }
+            showAlert(message, 'success');
+            setTimeout(() => window.location.href = '/cards', 2000);
         } else {
             showAlert(data.error || 'Failed to add card', 'danger');
             hideLoading();
@@ -1496,12 +1539,17 @@ async function storeAndList() {
     showLoading();
 
     try {
+        // Check if storage map guidance is enabled (check both checkboxes)
+        const storageMapCheckbox = document.getElementById('cardUseStorageMap') || document.getElementById('useStorageMap');
+        const useStorageMap = storageMapCheckbox ? storageMapCheckbox.checked : false;
+        
         const response = await fetch('/api/cards/add', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 ai_result: detectedCardData,
-                photos: uploadedPhotos
+                photos: uploadedPhotos,
+                use_storage_map: useStorageMap
             })
         });
 
@@ -1607,13 +1655,17 @@ async function storeCollectibleAndList() {
         hideLoading();
     }
 }
-// Save Listing Draft - Serialize to CSV and append to drafts.csv
+// Save Listing Draft - Save to user's database (listings table with status='draft')
 async function saveDraft() {
     const formData = collectFormData();
+    
+    // Ensure status is set to 'draft'
+    formData.status = 'draft';
+    
     showLoading();
 
     try {
-        const response = await fetch('/api/save-draft-csv', {
+        const response = await fetch('/api/save-draft', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(formData)
@@ -1622,7 +1674,7 @@ async function saveDraft() {
         const data = await response.json();
 
         if (data.success) {
-            showAlert('Draft saved to CSV successfully!', 'success');
+            showAlert('Draft saved to your database successfully!', 'success');
             // Clear form and stay on page
             clearForm();
             setTimeout(() => {
@@ -1638,13 +1690,31 @@ async function saveDraft() {
     }
 }
 
-// Save to Collection Vault - Serialize to CSV and append to vault.csv
+// Save to Collection Vault - Save card to user's card_collections database
 async function saveToVault() {
     const formData = collectFormData();
+    
+    // Include card data from AI analysis if available
+    const enhancedResultsCard = document.getElementById('enhancedResultsCard');
+    if (enhancedResultsCard && window.lastEnhancedScanData) {
+        formData.card_data = window.lastEnhancedScanData.data;
+    }
+    
+    // Also check for quick AI scan card data
+    if (window.lastQuickAnalysis && (window.lastQuickAnalysis.category === 'Trading Cards' || window.lastQuickAnalysis.category === 'Sports Cards')) {
+        formData.card_data = formData.card_data || window.lastQuickAnalysis;
+    }
+    
+    // Check if storage map guidance is enabled
+    const storageMapCheckbox = document.getElementById('useStorageMap');
+    if (storageMapCheckbox) {
+        formData.use_storage_map = storageMapCheckbox.checked;
+    }
+    
     showLoading();
 
     try {
-        const response = await fetch('/api/save-vault-csv', {
+        const response = await fetch('/api/save-vault', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(formData)
@@ -1653,7 +1723,14 @@ async function saveToVault() {
         const data = await response.json();
 
         if (data.success) {
-            showAlert('Item saved to Collection Vault!', 'success');
+            let message = 'Card saved to your collection vault!';
+            
+            // Show storage guidance if provided
+            if (data.storage_guidance) {
+                message += `<br><br><strong><i class="fas fa-map-marked-alt"></i> Storage Guidance:</strong><br>${data.storage_guidance}`;
+            }
+            
+            showAlert(message, 'success');
             // Clear form and stay on page
             clearForm();
             setTimeout(() => {

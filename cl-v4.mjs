@@ -6,7 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 
 dotenv.config();
 
-const REPO_PATH = "C:\\Users\\Dragon\\Desktop\\projettccs\\resell-rebel";
+const REPO_PATH = "/mnt/c/Users/Dragon/Desktop/projettccs/resell-rebel";
 const GITHUB_TOKEN = process.env.GITHUB_API_ACCESS;
 const ANTHROPIC_API_KEY = process.env.CLAUDE_AUTH_API;
 const REPO_OWNER = "cczerp";
@@ -23,7 +23,12 @@ const anthropic = new Anthropic({
 });
 
 const run = (cmd, opts = {}) => {
-  return execSync(cmd, { cwd: REPO_PATH, encoding: "utf8", ...opts });
+  return execSync(cmd, { 
+    cwd: REPO_PATH, 
+    encoding: "utf8", 
+    shell: true,  // Use native shell (cmd.exe on Windows)
+    ...opts 
+  });
 };
 
 const prompt = (question) => {
@@ -116,8 +121,44 @@ const createFailBranch = (taskId, taskTitle, commitSha) => {
 const runClaudeTask = async (taskInstruction, commitMessage, isRetry = false, feedback = "") => {
   let taskPrompt = taskInstruction;
   
+  const systemContext = `═══════════════════════════════════════════════════════════
+🐧 LINUX ENVIRONMENT (WSL)
+═══════════════════════════════════════════════════════════
+
+You are working in a Linux/WSL environment.
+
+STANDARD LINUX COMMANDS:
+• List directory: ls -la
+• View file: cat filename
+• Current path: pwd
+• Create directory: mkdir dirname
+• Copy file: cp source dest
+• Delete file: rm filename
+• Find text: grep "text" file
+• Check file exists: [ -f filename ] && echo yes
+
+PATH FORMAT: Use forward slashes /path/to/file
+
+REPOSITORY INFO:
+• Location: /mnt/c/Users/Dragon/Desktop/projettccs/resell-rebel
+• Current branch: n8n-run-test01
+• You have bash tool to execute commands
+
+YOUR JOB:
+1. Actually DO the task (create/modify files as instructed)
+2. Use standard Linux/bash commands
+3. Verify changes with git status
+4. Stage with: git add -A
+5. Commit with the provided message
+6. Do NOT just describe what you would do - DO IT
+
+═══════════════════════════════════════════════════════════
+`;
+
   if (isRetry) {
-    taskPrompt = `RETRY ATTEMPT - Previous attempt failed.
+    taskPrompt = `${systemContext}
+
+🔄 RETRY ATTEMPT - Previous attempt failed.
 
 FEEDBACK FROM HUMAN REVIEWER:
 ${feedback}
@@ -136,7 +177,10 @@ After making changes:
 
 Do NOT ask for confirmation. Execute the task and commit.`;
   } else {
-    taskPrompt = `${taskInstruction}
+    taskPrompt = `${systemContext}
+
+TASK:
+${taskInstruction}
 
 After making changes:
 1. Stage all changes with: git add -A
@@ -286,13 +330,20 @@ Do NOT ask for confirmation. Execute the task and commit.`;
 
   // Check if there are uncommitted changes and commit them
   const postStatus = run("git status --porcelain").trim();
-  if (postStatus) {
-    console.log("\n📦 Committing changes…");
-    run("git add -A", { stdio: "inherit" });
-    run(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
-  } else {
+  if (!postStatus) {
     console.log("\n⚠️  No changes detected after Claude's work");
+    console.log("   Skipping commit, PR, and grading - moving to next task");
+    
+    return {
+      skipped: true,
+      reason: "No changes made",
+      commitSha: null
+    };
   }
+
+  console.log("\n📦 Committing changes…");
+  run("git add -A", { stdio: "inherit" });
+  run(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
 
   // Push with conflict handling
   console.log("\n🚀 Pushing to origin…");
@@ -718,7 +769,27 @@ Choice [1-4]: `);
 
     // 7. Run Claude Code
     console.log("\n🤖 Running Claude Code…");
-    let commitSha = await runClaudeTask(task_instruction, commit_message || `Automated task: ${task_id}`);
+    let taskResult = await runClaudeTask(task_instruction, commit_message || `Automated task: ${task_id}`);
+    
+    // Check if task was skipped due to no changes
+    if (taskResult.skipped) {
+      console.log("\n" + "═".repeat(60));
+      console.log("⏭️  TASK SKIPPED - No changes made");
+      console.log("═".repeat(60));
+      console.log(`   Reason: ${taskResult.reason}`);
+      console.log("   Moving to next task...");
+      console.log("═".repeat(60));
+      
+      return res.json({
+        success: true,
+        skipped: true,
+        reason: taskResult.reason,
+        task_id: task_id,
+        message: "Task skipped - no changes detected"
+      });
+    }
+    
+    let commitSha = taskResult;
 
     // 8. Create PR for Render preview
     console.log("\n🔗 Creating PR for preview…");

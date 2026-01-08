@@ -432,6 +432,7 @@ class Database:
                 custom_categories TEXT,
                 storage_location TEXT,
                 storage_item_id INTEGER,
+                storage_region TEXT,
                 game_name TEXT,
                 set_name TEXT,
                 set_code TEXT,
@@ -464,6 +465,17 @@ class Database:
                 FOREIGN KEY (storage_item_id) REFERENCES storage_items(id)
             )
         """)
+        
+        # Add storage_region column if it doesn't exist (for existing databases)
+        try:
+            cursor.execute("""
+                ALTER TABLE card_collections 
+                ADD COLUMN IF NOT EXISTS storage_region TEXT
+            """)
+            self.conn.commit()
+        except Exception:
+            # Column might already exist, ignore
+            pass
 
         # Organization presets
         cursor.execute("""
@@ -1059,15 +1071,67 @@ class Database:
         """Get all draft listings"""
         cursor = self._get_cursor()
         if user_id is not None:
+            # Explicitly cast user_id to INTEGER to avoid UUID comparison issues
+            # Also cast listing_uuid to TEXT in case it's stored as UUID type
             cursor.execute("""
-                SELECT * FROM listings
-                WHERE status = 'draft' AND user_id = %s
+                SELECT 
+                    id,
+                    listing_uuid::TEXT as listing_uuid,
+                    user_id,
+                    collectible_id,
+                    title,
+                    description,
+                    price,
+                    cost,
+                    condition,
+                    category,
+                    item_type,
+                    attributes,
+                    photos,
+                    quantity,
+                    storage_location,
+                    sku,
+                    upc,
+                    status,
+                    sold_platform,
+                    sold_date,
+                    sold_price,
+                    platform_statuses,
+                    created_at,
+                    updated_at
+                FROM listings
+                WHERE status = 'draft' AND user_id = %s::INTEGER
                 ORDER BY created_at DESC
                 LIMIT %s
             """, (user_id, limit))
         else:
             cursor.execute("""
-                SELECT * FROM listings
+                SELECT 
+                    id,
+                    listing_uuid::TEXT as listing_uuid,
+                    user_id,
+                    collectible_id,
+                    title,
+                    description,
+                    price,
+                    cost,
+                    condition,
+                    category,
+                    item_type,
+                    attributes,
+                    photos,
+                    quantity,
+                    storage_location,
+                    sku,
+                    upc,
+                    status,
+                    sold_platform,
+                    sold_date,
+                    sold_price,
+                    platform_statuses,
+                    created_at,
+                    updated_at
+                FROM listings
                 WHERE status = 'draft'
                 ORDER BY created_at DESC
                 LIMIT %s

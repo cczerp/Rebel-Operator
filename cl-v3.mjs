@@ -114,10 +114,10 @@ const createFailBranch = (taskId, taskTitle, commitSha) => {
 };
 
 const runClaudeTask = async (taskInstruction, commitMessage, isRetry = false, feedback = "") => {
-  let prompt = taskInstruction;
+  let taskPrompt = taskInstruction;
   
   if (isRetry) {
-    prompt = `RETRY ATTEMPT - Previous attempt failed.
+    taskPrompt = `RETRY ATTEMPT - Previous attempt failed.
 
 FEEDBACK FROM HUMAN REVIEWER:
 ${feedback}
@@ -136,7 +136,7 @@ After making changes:
 
 Do NOT ask for confirmation. Execute the task and commit.`;
   } else {
-    prompt = `${taskInstruction}
+    taskPrompt = `${taskInstruction}
 
 After making changes:
 1. Stage all changes with: git add -A
@@ -148,7 +148,7 @@ Do NOT ask for confirmation. Execute the task and commit.`;
   console.log("\n📝 Task prompt prepared");
   console.log("\n⏳ Claude is working via API…\n");
 
-  // Use Anthropic API directly instead of CLI
+  // Use Anthropic API directly with bash tool for agentic capabilities
   const maxRetries = 3;
   let attempt = 0;
   let lastError = null;
@@ -156,21 +156,107 @@ Do NOT ask for confirmation. Execute the task and commit.`;
 
   while (attempt < maxRetries) {
     try {
-      const message = await anthropic.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 8192,
-        messages: [
-          {
-            role: "user",
-            content: prompt
-          }
-        ]
-      });
+      let messages = [
+        {
+          role: "user",
+          content: taskPrompt
+        }
+      ];
 
-      claudeResponse = message.content.map(block => block.text || "").join("\n");
-      console.log("\n🤖 Claude completed task via API");
-      console.log("─".repeat(60));
-      console.log(claudeResponse.slice(0, 500) + (claudeResponse.length > 500 ? "..." : ""));
+      // Conversation loop for tool use
+      let continueLoop = true;
+      let iterationCount = 0;
+      const maxIterations = 20; // Prevent infinite loops
+
+      while (continueLoop && iterationCount < maxIterations) {
+        iterationCount++;
+        
+        const message = await anthropic.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 8192,
+          messages: messages,
+          tools: [
+            {
+              name: "bash",
+              description: "Run bash commands in the repository directory. Use this to modify files, run git commands, etc.",
+              input_schema: {
+                type: "object",
+                properties: {
+                  command: {
+                    type: "string",
+                    description: "The bash command to execute"
+                  }
+                },
+                required: ["command"]
+              }
+            }
+          ]
+        });
+
+        // Check if Claude used tools
+        const toolUses = message.content.filter(block => block.type === "tool_use");
+        const textBlocks = message.content.filter(block => block.type === "text");
+
+        // Log any text responses
+        if (textBlocks.length > 0) {
+          const text = textBlocks.map(b => b.text).join("\n");
+          console.log("\n🤖 Claude:", text.slice(0, 300) + (text.length > 300 ? "..." : ""));
+        }
+
+        if (toolUses.length === 0) {
+          // No more tool uses, we're done
+          continueLoop = false;
+          claudeResponse = textBlocks.map(b => b.text).join("\n");
+        } else {
+          // Execute tool uses and continue conversation
+          const toolResults = [];
+
+          for (const toolUse of toolUses) {
+            if (toolUse.name === "bash") {
+              const command = toolUse.input.command;
+              console.log(`\n🔧 Executing: ${command}`);
+
+              try {
+                const output = run(command, { stdio: "pipe" });
+                console.log(`   ✅ Output: ${output.slice(0, 200)}${output.length > 200 ? "..." : ""}`);
+                
+                toolResults.push({
+                  type: "tool_result",
+                  tool_use_id: toolUse.id,
+                  content: output || "Command executed successfully (no output)"
+                });
+              } catch (err) {
+                console.log(`   ❌ Error: ${err.message}`);
+                toolResults.push({
+                  type: "tool_result",
+                  tool_use_id: toolUse.id,
+                  content: `Error: ${err.message}`,
+                  is_error: true
+                });
+              }
+            }
+          }
+
+          // Add assistant message and tool results to conversation
+          messages.push({
+            role: "assistant",
+            content: message.content
+          });
+
+          messages.push({
+            role: "user",
+            content: toolResults
+          });
+        }
+
+        // Safety check
+        if (iterationCount >= maxIterations) {
+          console.log("\n⚠️  Max iterations reached, stopping conversation loop");
+          break;
+        }
+      }
+
+      console.log("\n✅ Claude completed task via API");
       console.log("─".repeat(60));
       break; // Success, exit retry loop
       
@@ -845,7 +931,8 @@ Choice [1-4]: `);
               console.log("\n🔀 Keeping your changes…");
               run("git checkout --theirs .", { stdio: "inherit" });
               run("git add -A", { stdio: "inherit" });
-              console.log("✅ Your changes kept");
+              run("git stash drop", { stdio: "inherit" });
+              console.log("✅ Your changes kept, stash dropped");
               break;
 
             case "3":

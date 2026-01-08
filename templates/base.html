@@ -1369,9 +1369,16 @@
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('cards.cards_collection') }}" class="nav-link {% if request.endpoint == 'cards.cards_collection' %}active{% endif %}" title="My Card Collection / Vault">
+            <a href="{{ url_for('cards.cards_collection') }}" class="nav-link {% if request.endpoint == 'cards.cards_collection' %}active{% endif %}" title="My Card Collection Vault">
                 <i class="fas fa-vault"></i>
-                <span>Vault</span>
+                <span>Collection Vault</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a href="{{ url_for('my_artifacts') }}" class="nav-link {% if request.endpoint == 'my_artifacts' %}active{% endif %}" title="Public Card Knowledge Base">
+                <i class="fas fa-landmark"></i>
+                <span>Hall of Records</span>
             </a>
         </div>
 

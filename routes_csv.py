@@ -30,17 +30,20 @@ def ensure_csv_headers(filepath, headers):
     """Ensure CSV file exists with headers"""
     if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
         with open(filepath, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(headers)
+            writer = csv.DictWriter(f, fieldnames=headers)
+            writer.writeheader()
 
 
 def append_to_csv(filepath, headers, data):
     """Append a row to CSV file"""
     ensure_csv_headers(filepath, headers)
     
+    # Ensure all data keys match headers (fill missing with empty strings)
+    row_data = {header: data.get(header, '') for header in headers}
+    
     with open(filepath, 'a', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=headers)
-        writer.writerow(data)
+        writer.writerow(row_data)
 
 
 # Universal CSV schema (same for drafts, vault, post_queue)
@@ -59,21 +62,28 @@ def save_draft_csv():
     try:
         data = request.get_json()
         
-        # Convert photos array to comma-separated string
-        photos_str = ','.join(data.get('photos', [])) if isinstance(data.get('photos'), list) else data.get('photos', '')
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data provided'
+            }), 400
         
-        # Prepare CSV row
+        # Convert photos array to comma-separated string
+        photos = data.get('photos', [])
+        photos_str = ','.join(photos) if isinstance(photos, list) else str(photos) if photos else ''
+        
+        # Prepare CSV row with all required fields
         csv_row = {
-            'title': data.get('title', ''),
-            'description': data.get('description', ''),
-            'price': data.get('price', ''),
-            'cost': data.get('cost', ''),
-            'condition': data.get('condition', ''),
-            'item_type': data.get('item_type', ''),
-            'brand': data.get('brand', ''),
-            'size': data.get('size', ''),
-            'color': data.get('color', ''),
-            'shipping_cost': data.get('shipping_cost', '0'),
+            'title': str(data.get('title', '')),
+            'description': str(data.get('description', '')),
+            'price': str(data.get('price', '')),
+            'cost': str(data.get('cost', '')),
+            'condition': str(data.get('condition', '')),
+            'item_type': str(data.get('item_type', '')),
+            'brand': str(data.get('brand', '')),
+            'size': str(data.get('size', '')),
+            'color': str(data.get('color', '')),
+            'shipping_cost': str(data.get('shipping_cost', '0')),
             'photos': photos_str,
             'created_at': datetime.now().isoformat(),
             'updated_at': datetime.now().isoformat()
@@ -88,6 +98,9 @@ def save_draft_csv():
         })
         
     except Exception as e:
+        import logging
+        import traceback
+        logging.error(f"Save draft CSV error: {e}\n{traceback.format_exc()}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -101,21 +114,28 @@ def save_vault_csv():
     try:
         data = request.get_json()
         
-        # Convert photos array to comma-separated string
-        photos_str = ','.join(data.get('photos', [])) if isinstance(data.get('photos'), list) else data.get('photos', '')
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data provided'
+            }), 400
         
-        # Prepare CSV row
+        # Convert photos array to comma-separated string
+        photos = data.get('photos', [])
+        photos_str = ','.join(photos) if isinstance(photos, list) else str(photos) if photos else ''
+        
+        # Prepare CSV row with all required fields
         csv_row = {
-            'title': data.get('title', ''),
-            'description': data.get('description', ''),
-            'price': data.get('price', ''),
-            'cost': data.get('cost', ''),
-            'condition': data.get('condition', ''),
-            'item_type': data.get('item_type', ''),
-            'brand': data.get('brand', ''),
-            'size': data.get('size', ''),
-            'color': data.get('color', ''),
-            'shipping_cost': data.get('shipping_cost', '0'),
+            'title': str(data.get('title', '')),
+            'description': str(data.get('description', '')),
+            'price': str(data.get('price', '')),
+            'cost': str(data.get('cost', '')),
+            'condition': str(data.get('condition', '')),
+            'item_type': str(data.get('item_type', '')),
+            'brand': str(data.get('brand', '')),
+            'size': str(data.get('size', '')),
+            'color': str(data.get('color', '')),
+            'shipping_cost': str(data.get('shipping_cost', '0')),
             'photos': photos_str,
             'created_at': datetime.now().isoformat(),
             'updated_at': datetime.now().isoformat()
@@ -130,6 +150,9 @@ def save_vault_csv():
         })
         
     except Exception as e:
+        import logging
+        import traceback
+        logging.error(f"Save vault CSV error: {e}\n{traceback.format_exc()}")
         return jsonify({
             'success': False,
             'error': str(e)

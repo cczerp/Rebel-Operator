@@ -13,7 +13,7 @@ This file serves as the entry point that:
 import os
 from pathlib import Path
 from functools import wraps
-from flask import Flask, render_template, redirect, url_for, flash
+from flask import Flask, render_template, redirect, url_for, flash, request
 from flask_login import LoginManager, UserMixin, login_required, current_user
 from werkzeug.security import generate_password_hash
 from dotenv import load_dotenv
@@ -131,6 +131,7 @@ from routes_auth import auth_bp, init_routes as init_auth
 from routes_admin import admin_bp, init_routes as init_admin
 from routes_cards import cards_bp, init_routes as init_cards
 from routes_main import main_bp, init_routes as init_main
+from routes_csv import csv_bp
 
 # Initialize blueprints with database and User class
 init_auth(db, User)
@@ -143,6 +144,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(cards_bp)
 app.register_blueprint(main_bp)
+app.register_blueprint(csv_bp)
 
 # ============================================================================
 # MAIN ROUTES (not in blueprints)
@@ -160,15 +162,20 @@ def index():
 @login_required
 def create_listing():
     """Create new listing page"""
-    return render_template('create.html')
+    draft_id = request.args.get('draft_id', type=int)
+    return render_template('create.html', draft_id=draft_id)
 
 @app.route('/drafts')
 @login_required
 def drafts():
     """Drafts page"""
-    # Fetch all drafts for current user
-    drafts_list = db.get_drafts(user_id=current_user.id, limit=100)
-    return render_template('drafts.html', drafts=drafts_list)
+    try:
+        # Fetch all drafts for current user
+        drafts_list = db.get_drafts(user_id=current_user.id, limit=100)
+        return render_template('drafts.html', drafts=drafts_list or [])
+    except Exception as e:
+        flash(f'Error loading drafts: {str(e)}', 'error')
+        return render_template('drafts.html', drafts=[])
 
 @app.route('/listings')
 @login_required
@@ -227,6 +234,18 @@ def storage_map():
 def settings():
     """User settings"""
     return render_template('settings.html')
+
+@app.route('/vault')
+@login_required
+def vault():
+    """Collection Vault page"""
+    return render_template('vault.html')
+
+@app.route('/post-listing')
+@login_required
+def post_listing_page():
+    """Post Listing page"""
+    return render_template('post-listing.html')
 
 # ============================================================================
 # RUN SERVER

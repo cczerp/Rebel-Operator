@@ -69,3 +69,5 @@ data/*.db-journal
 
 # Draft photos storage
 data/draft_photos/
+claude-listener.mjs 
+.cursor-task.md 

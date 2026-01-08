@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Post Listing{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="fas fa-rocket"></i> Post Listing</h2>
+
+<div class="alert alert-info mb-4">
+    <h5 class="alert-heading"><i class="fas fa-info-circle"></i> Listing Posted</h5>
+    <p class="mb-0">
+        Your listing has been queued for posting to the selected platform. This page is a placeholder for future post management features.
+    </p>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title">Coming Soon</h5>
+        <p class="card-text text-muted">
+            Post management features are under development. Your listing data and platform selection have been saved to <code>post_queue.csv</code>.
+        </p>
+        <div class="d-grid gap-2 d-md-block">
+            <a href="{{ url_for('create_listing') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Create Another Listing
+            </a>
+            <a href="{{ url_for('drafts') }}" class="btn btn-secondary">
+                <i class="fas fa-folder"></i> View Drafts
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

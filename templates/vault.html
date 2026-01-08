@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Collection Vault{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="fas fa-archive"></i> Collection Vault</h2>
+
+<div class="alert alert-info mb-4">
+    <h5 class="alert-heading"><i class="fas fa-info-circle"></i> Collection Vault</h5>
+    <p class="mb-0">
+        The Vault is where your personal collection lives. Items here are not listings - they're part of your owned collection.
+        You can organize and store items here, and later convert them to listings if you decide to sell.
+    </p>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title">Coming Soon</h5>
+        <p class="card-text text-muted">
+            The Collection Vault page is under development. Items saved to the Vault are stored in <code>vault.csv</code> and will be displayed here soon.
+        </p>
+        <a href="{{ url_for('create_listing') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Item to Vault
+        </a>
+    </div>
+</div>
+{% endblock %}
+

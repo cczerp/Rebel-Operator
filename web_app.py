@@ -13,7 +13,7 @@ This file serves as the entry point that:
 import os
 from pathlib import Path
 from functools import wraps
-from flask import Flask, render_template, redirect, url_for, flash
+from flask import Flask, render_template, redirect, url_for, flash, request
 from flask_login import LoginManager, UserMixin, login_required, current_user
 from werkzeug.security import generate_password_hash
 from dotenv import load_dotenv
@@ -162,7 +162,8 @@ def index():
 @login_required
 def create_listing():
     """Create new listing page"""
-    return render_template('create.html')
+    draft_id = request.args.get('draft_id', type=int)
+    return render_template('create.html', draft_id=draft_id)
 
 @app.route('/drafts')
 @login_required

@@ -432,6 +432,7 @@ class Database:
                 custom_categories TEXT,
                 storage_location TEXT,
                 storage_item_id INTEGER,
+                storage_region TEXT,
                 game_name TEXT,
                 set_name TEXT,
                 set_code TEXT,
@@ -464,6 +465,17 @@ class Database:
                 FOREIGN KEY (storage_item_id) REFERENCES storage_items(id)
             )
         """)
+        
+        # Add storage_region column if it doesn't exist (for existing databases)
+        try:
+            cursor.execute("""
+                ALTER TABLE card_collections 
+                ADD COLUMN IF NOT EXISTS storage_region TEXT
+            """)
+            self.conn.commit()
+        except Exception:
+            # Column might already exist, ignore
+            pass
 
         # Organization presets
         cursor.execute("""

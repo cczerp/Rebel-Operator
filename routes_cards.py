@@ -77,26 +77,65 @@ def api_add_card():
             CardCollectionManager,
             UnifiedCard
         )
+        from src.cards.storage_maps import suggest_storage_region
 
         data = request.get_json()
+        use_storage_map = data.get('use_storage_map', False)
 
         # AI analysis path
         if data.get('ai_result'):
             ai_result = data['ai_result']
             photos = data.get('photos', [])
             storage_location = data.get('storage_location')
+            
+            # Get storage region if enabled
+            storage_region = None
+            if use_storage_map:
+                # Determine franchise and card type
+                franchise = ai_result.get('franchise') or ai_result.get('game_name') or ai_result.get('sport')
+                card_type = ai_result.get('card_type', 'unknown')
+                
+                region, guidance = suggest_storage_region(
+                    franchise=franchise,
+                    card_type=card_type,
+                    rarity=ai_result.get('rarity'),
+                    is_rookie=ai_result.get('is_rookie_card', False),
+                    grading_score=ai_result.get('grading_score')
+                )
+                
+                if region:
+                    storage_region = region.value
 
-            card_id = add_card_to_collection(
+            # Create card with storage region if provided
+            card = create_card_from_ai_analysis(
                 ai_result,
                 current_user.id,
                 photos=photos,
-                storage_location=storage_location
+                storage_location=storage_location,
+                storage_region=storage_region
             )
-
-            if not card_id:
+            
+            if not card:
                 return jsonify({'error': 'Invalid card'}), 400
-
-            return jsonify({'success': True, 'card_id': card_id})
+            
+            manager = CardCollectionManager()
+            card_id = manager.add_card(card)
+            
+            response_data = {'success': True, 'card_id': card_id}
+            
+            # Add guidance if storage map was used
+            if use_storage_map and storage_region:
+                from src.cards.storage_maps import get_storage_map_for_franchise, StorageRegion
+                franchise = ai_result.get('franchise') or ai_result.get('game_name') or ai_result.get('sport')
+                if franchise:
+                    storage_map = get_storage_map_for_franchise(franchise)
+                    if storage_map:
+                        region_enum = StorageRegion(storage_region)
+                        guidance = storage_map.get_guidance_text(region_enum)
+                        response_data['storage_guidance'] = guidance
+                        response_data['storage_region'] = storage_region
+            
+            return jsonify(response_data)
 
         # Manual path
         manager = CardCollectionManager()

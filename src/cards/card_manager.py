@@ -67,20 +67,20 @@ class CardCollectionManager:
             INSERT INTO card_collections (
                 user_id, card_uuid, card_type, title, card_number, quantity,
                 organization_mode, primary_category, custom_categories,
-                storage_location, storage_item_id,
+                storage_location, storage_item_id, storage_region,
                 game_name, set_name, set_code, set_symbol, rarity, card_subtype, format_legality,
                 sport, year, brand, series, player_name, team, is_rookie_card, parallel_color, insert_series,
                 grading_company, grading_score, grading_serial, estimated_value, value_tier, purchase_price,
                 photos, notes, ai_identified, ai_confidence
             ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
             RETURNING id
         """, (
             card_dict['user_id'], card_dict['card_uuid'], card_dict['card_type'], card_dict['title'],
             card_dict['card_number'], card_dict['quantity'],
             card_dict['organization_mode'], card_dict['primary_category'], card_dict['custom_categories'],
-            card_dict['storage_location'], card_dict['storage_item_id'],
+            card_dict['storage_location'], card_dict['storage_item_id'], card_dict.get('storage_region'),
             card_dict['game_name'], card_dict['set_name'], card_dict['set_code'], card_dict['set_symbol'],
             card_dict['rarity'], card_dict['card_subtype'], card_dict['format_legality'],
             card_dict['sport'], card_dict['year'], card_dict['brand'], card_dict['series'],

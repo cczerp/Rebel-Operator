@@ -217,13 +217,15 @@ def storage():
 @login_required
 def storage_clothing():
     """Clothing storage"""
-    return render_template('storage_clothing.html')
+    bins = db.get_storage_bins(current_user.id, bin_type='clothing')
+    return render_template('storage_clothing.html', bins=bins)
 
 @app.route('/storage/cards')
 @login_required
 def storage_cards():
     """Card storage"""
-    return redirect(url_for('cards.cards_collection'))
+    bins = db.get_storage_bins(current_user.id, bin_type='cards')
+    return render_template('storage_cards.html', bins=bins)
 
 @app.route('/storage/map')
 @login_required

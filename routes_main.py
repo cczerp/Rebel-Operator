@@ -1628,9 +1628,6 @@ def api_delete_card(card_id):
 def api_get_storage_bins():
     """Get all storage bins for the current user"""
     try:
-        from src.database.db import get_db_instance
-        db = get_db_instance()
-
         bin_type = request.args.get('type')  # 'clothing' or 'cards'
         bins = db.get_storage_bins(current_user.id, bin_type)
 
@@ -1653,9 +1650,6 @@ def api_get_storage_bins():
 def api_create_storage_bin():
     """Create a new storage bin"""
     try:
-        from src.database.db import get_db_instance
-        db = get_db_instance()
-
         data = request.get_json()
         bin_name = data.get('bin_name')
         bin_type = data.get('bin_type')  # 'clothing' or 'cards'
@@ -1684,9 +1678,6 @@ def api_create_storage_bin():
 def api_create_storage_section():
     """Create a new section within a bin"""
     try:
-        from src.database.db import get_db_instance
-        db = get_db_instance()
-
         data = request.get_json()
         bin_id = data.get('bin_id')
         section_name = data.get('section_name')
@@ -1719,9 +1710,6 @@ def api_create_storage_section():
 def api_get_storage_items():
     """Get storage items, optionally filtered by bin"""
     try:
-        from src.database.db import get_db_instance
-        db = get_db_instance()
-
         bin_id = request.args.get('bin_id', type=int)
 
         if bin_id:
@@ -1747,9 +1735,6 @@ def api_get_storage_items():
 def api_add_storage_item():
     """Add a new item to storage"""
     try:
-        from src.database.db import get_db_instance
-        db = get_db_instance()
-
         data = request.get_json()
         bin_id = data.get('bin_id')
         section_id = data.get('section_id')
@@ -1815,9 +1800,6 @@ def api_add_storage_item():
 def api_find_storage_item():
     """Find an item by storage ID"""
     try:
-        from src.database.db import get_db_instance
-        db = get_db_instance()
-
         storage_id = request.args.get('storage_id')
 
         if not storage_id:
@@ -3552,9 +3534,13 @@ def api_save_vault():
     """Save card/item to user's card_collections database"""
     try:
         from src.cards import CardCollectionManager, UnifiedCard
+        from src.cards.storage_maps import suggest_storage_region
         import uuid as uuid_module
         
         data = request.json
+        
+        # Check if user wants storage map guidance
+        use_storage_map = data.get('use_storage_map', False)
         
         # Extract card data from form or AI analysis
         # Check if we have card data from AI analysis
@@ -3633,6 +3619,30 @@ def api_save_vault():
         # Create UnifiedCard - only set sport-related fields for sports cards
         manager = CardCollectionManager()
         
+        # Get storage region guidance if enabled
+        storage_region = None
+        if use_storage_map:
+            # Determine franchise from card data
+            franchise = card_data.get('franchise') or card_data.get('game_name') or card_data.get('sport')
+            if not franchise and is_tcg:
+                # Try to get franchise from game_name
+                franchise = tcg_game_name
+            elif not franchise and is_sports:
+                # Try to get franchise from sport
+                franchise = card_data.get('sport', '').upper()
+            
+            # Get recommended region
+            region, guidance = suggest_storage_region(
+                franchise=franchise,
+                card_type=card_type,
+                rarity=card_data.get('rarity'),
+                is_rookie=card_data.get('is_rookie_card', False),
+                grading_score=card_data.get('grading_score')
+            )
+            
+            if region:
+                storage_region = region.value
+        
         # Build card with conditional fields
         card_kwargs = {
             'card_type': card_type,
@@ -3650,6 +3660,7 @@ def api_save_vault():
             # Value & storage (universal)
             'estimated_value': card_data.get('estimated_value') or card_data.get('estimated_value_avg'),
             'storage_location': data.get('storage_location', ''),
+            'storage_region': storage_region,  # Recommended region from storage map
             'photos': data.get('photos', []),
             'notes': data.get('description', ''),
             'ai_identified': bool(card_data),
@@ -3685,11 +3696,26 @@ def api_save_vault():
         card = UnifiedCard(**card_kwargs)
         card_id = manager.add_card(card)
         
-        return jsonify({
+        # Prepare response with storage guidance if used
+        response_data = {
             "success": True,
             "card_id": card_id,
             "message": "Card saved to your collection vault successfully"
-        })
+        }
+        
+        if use_storage_map and storage_region:
+            # Get guidance text for the region
+            from src.cards.storage_maps import get_storage_map_for_franchise, StorageRegion
+            franchise = card_data.get('franchise') or card_data.get('game_name') or card_data.get('sport')
+            if franchise:
+                storage_map = get_storage_map_for_franchise(franchise)
+                if storage_map:
+                    region_enum = StorageRegion(storage_region)
+                    guidance = storage_map.get_guidance_text(region_enum)
+                    response_data['storage_guidance'] = guidance
+                    response_data['storage_region'] = storage_region
+        
+        return jsonify(response_data)
         
     except Exception as e:
         import traceback

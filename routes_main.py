@@ -952,9 +952,18 @@ def api_enhanced_scan():
             logging.error("[ENHANCED SCAN ERROR] No photos provided in request")
             return jsonify({'error': 'No photos provided'}), 400
 
+        # Validate photo paths are not empty
+        photo_paths = [p for p in photo_paths if p and isinstance(p, str) and len(p.strip()) > 0]
+        if not photo_paths:
+            logging.error("[ENHANCED SCAN ERROR] All photo paths are empty or invalid")
+            return jsonify({'error': 'No valid photo URLs provided'}), 400
+
         # Log which URLs we received (important for debugging bucket issues)
         logging.info(f"[ENHANCED SCAN DEBUG] Received {len(photo_paths)} photo URL(s) for enhanced scan")
         for i, path in enumerate(photo_paths):
+            if not path or not isinstance(path, str):
+                logging.error(f"[ENHANCED SCAN DEBUG] Photo {i+1}: ❌ Invalid path type: {type(path)}")
+                continue
             if 'temp-photos' in path:
                 logging.info(f"[ENHANCED SCAN DEBUG] Photo {i+1}: ✅ URL from temp-photos bucket: {path[:100]}...")
             elif 'listing-images' in path:
@@ -962,7 +971,9 @@ def api_enhanced_scan():
             elif 'draft-images' in path:
                 logging.info(f"[ENHANCED SCAN DEBUG] Photo {i+1}: ℹ️ URL from draft-images bucket: {path[:100]}...")
             elif 'supabase.co' in path:
-                logging.warning(f"[ENHANCED SCAN DEBUG] Photo {i+1}: ⚠️ URL from Supabase but bucket unclear: {path[:100]}...")
+                logging.info(f"[ENHANCED SCAN DEBUG] Photo {i+1}: ✅ Supabase URL detected: {path[:100]}...")
+            elif path.startswith('http://') or path.startswith('https://'):
+                logging.warning(f"[ENHANCED SCAN DEBUG] Photo {i+1}: ⚠️ HTTP/HTTPS URL but not Supabase: {path[:100]}...")
             else:
                 logging.info(f"[ENHANCED SCAN DEBUG] Photo {i+1}: Local path or non-Supabase URL: {path[:100]}...")
 
@@ -983,57 +994,102 @@ def api_enhanced_scan():
             local_path = None
 
             # Check if it's a Supabase Storage URL
-            if use_supabase and storage and 'supabase.co' in path:
-                logging.info(f"[ENHANCED SCAN DEBUG] Downloading image {i+1}/{len(photo_paths)} from Supabase: {path[:100]}...")
+            if use_supabase and storage:
+                # Validate URL format first
+                is_supabase_url = 'supabase.co' in path or path.startswith('http') and 'supabase' in path.lower()
+                
+                if is_supabase_url:
+                    logging.info(f"[ENHANCED SCAN DEBUG] Downloading image {i+1}/{len(photo_paths)} from Supabase: {path[:100]}...")
 
-                # Download from Supabase Storage to temp file
-                file_data = storage.download_photo(path)
+                    # Download from Supabase Storage to temp file
+                    try:
+                        file_data = storage.download_photo(path)
+                    except ValueError as value_error:
+                        # URL validation error
+                        logging.error(f"[ENHANCED SCAN ERROR] Invalid URL format for photo {i+1}: {value_error}")
+                        logging.error(f"[ENHANCED SCAN ERROR] URL: {path[:200]}")
+                        file_data = None
+                    except Exception as download_exception:
+                        # Other download errors
+                        logging.error(f"[ENHANCED SCAN ERROR] Exception downloading photo {i+1}: {download_exception}")
+                        logging.error(f"[ENHANCED SCAN ERROR] Exception type: {type(download_exception).__name__}")
+                        logging.error(f"[ENHANCED SCAN ERROR] URL: {path[:200]}")
+                        import traceback
+                        logging.error(f"[ENHANCED SCAN ERROR] Traceback: {traceback.format_exc()}")
+                        file_data = None
 
-                # Debug logging
-                debug_info = {
-                    'hasFile': bool(file_data),
-                    'filePath': path,
-                    'dataLength': len(file_data) if file_data else 0,
-                    'isBytes': isinstance(file_data, bytes) if file_data else False
-                }
-                logging.info(f"[ENHANCED SCAN DEBUG] Image {i+1}: {debug_info}")
+                    # Debug logging
+                    debug_info = {
+                        'hasFile': bool(file_data),
+                        'filePath': path[:100] if path else 'None',
+                        'dataLength': len(file_data) if file_data else 0,
+                        'isBytes': isinstance(file_data, bytes) if file_data else False
+                    }
+                    logging.info(f"[ENHANCED SCAN DEBUG] Image {i+1}: {debug_info}")
 
-                if file_data and len(file_data) > 0:
-                    # Create temp file
-                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
-                    temp_file.write(file_data)
-                    temp_file.flush()  # Ensure data is written to buffer
-                    os.fsync(temp_file.fileno())  # Force write to disk
-                    temp_file.close()
-                    local_path = temp_file.name
-                    temp_files.append(local_path)
+                    if file_data and len(file_data) > 0:
+                        # Create temp file
+                        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+                        temp_file.write(file_data)
+                        temp_file.flush()  # Ensure data is written to buffer
+                        os.fsync(temp_file.fileno())  # Force write to disk
+                        temp_file.close()
+                        local_path = temp_file.name
+                        temp_files.append(local_path)
 
-                    # Verify file was written and exists
-                    file_exists = Path(local_path).exists()
-                    file_size = Path(local_path).stat().st_size if file_exists else 0
+                        # Verify file was written and exists
+                        file_exists = Path(local_path).exists()
+                        file_size = Path(local_path).stat().st_size if file_exists else 0
 
-                    logging.info(f"✅ Downloaded image {i+1} ({len(file_data)} bytes) to {local_path}")
-                    logging.info(f"[ENHANCED SCAN DEBUG] Temp file exists: {file_exists}, size: {file_size} bytes")
+                        logging.info(f"✅ Downloaded image {i+1} ({len(file_data)} bytes) to {local_path}")
+                        logging.info(f"[ENHANCED SCAN DEBUG] Temp file exists: {file_exists}, size: {file_size} bytes")
 
-                    if not file_exists or file_size == 0:
-                        logging.error(f"❌ Temp file was not created properly: {local_path}")
-                        # Cleanup temp files
-                        for temp_file in temp_files:
-                            try:
-                                os.unlink(temp_file)
-                            except:
-                                pass
-                        return jsonify({"error": f"Failed to create temp file for image {i+1}"}), 500
-                else:
-                    logging.error(f"❌ Failed to download image {i+1} from Supabase: {path}")
-                    logging.error(f"[ENHANCED SCAN DEBUG] file_data is None or empty: {file_data}")
+                        if not file_exists or file_size == 0:
+                            logging.error(f"❌ Temp file was not created properly: {local_path}")
+                            # Cleanup temp files
+                            for temp_file in temp_files:
+                                try:
+                                    os.unlink(temp_file)
+                                except:
+                                    pass
+                            return jsonify({"error": f"Failed to create temp file for image {i+1}"}), 500
+                    else:
+                        logging.error(f"❌ Failed to download image {i+1} from Supabase: {path}")
+                        logging.error(f"[ENHANCED SCAN DEBUG] file_data is None or empty: {file_data}")
+                        logging.error(f"[ENHANCED SCAN DEBUG] URL format may be invalid. Expected: https://{{project}}.supabase.co/storage/v1/object/public/{{bucket}}/{{path}}")
+                        
+                        # Try last resort: direct HTTP download
+                        try:
+                            import requests
+                            logging.info(f"[ENHANCED SCAN] Last resort: attempting direct HTTP download for image {i+1}...")
+                            http_response = requests.get(path, timeout=30, allow_redirects=True)
+                            if http_response.status_code == 200 and http_response.content and len(http_response.content) > 0:
+                                # Create temp file from HTTP response
+                                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+                                temp_file.write(http_response.content)
+                                temp_file.flush()
+                                os.fsync(temp_file.fileno())
+                                temp_file.close()
+                                local_path = temp_file.name
+                                temp_files.append(local_path)
+                                logging.info(f"✅ Last resort HTTP download successful: {len(http_response.content)} bytes to {local_path}")
+                                photo_objects.append(Photo(url=path, local_path=local_path))
+                                continue  # Continue to next photo
+                        except Exception as http_error:
+                            logging.error(f"[ENHANCED SCAN] Last resort HTTP download also failed: {http_error}")
+                    
+                    # If all download methods failed, return error
                     # Cleanup temp files
                     for temp_file in temp_files:
                         try:
                             os.unlink(temp_file)
                         except:
                             pass
-                    return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage. URL may be invalid or file may not exist."}), 404
+                    return jsonify({
+                        "error": f"Failed to download photo {i+1} from Supabase Storage. URL may be invalid or file may not exist.",
+                        "url_preview": path[:100] if path else "No URL provided",
+                        "hint": "Check that the photo URL is a valid Supabase Storage URL"
+                    }), 404
             else:
                 # Assume local path (legacy support)
                 if path.startswith('/'):

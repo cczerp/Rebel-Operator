@@ -34,9 +34,14 @@
                 </div>
             </div>
             <div id="photoPreview" class="mt-3 d-flex flex-wrap"></div>
-            <button type="button" class="btn btn-primary mt-2" id="analyzeBtn" style="display:none;">
-                <i class="fas fa-magic"></i> Analyze with AI
-            </button>
+            <div class="mt-3 d-flex gap-2">
+                <button type="button" class="btn btn-primary" id="analyzeBtn" style="display:none;">
+                    <i class="fas fa-magic"></i> Analyze with AI
+                </button>
+                <button type="button" class="btn btn-outline-primary" id="enhancedScanBtn" disabled title="Run quick AI scan first to enable Enhanced Scan">
+                    <i class="fas fa-microscope"></i> Enhanced Scan
+                </button>
+            </div>
         </div>
     </div>
 
@@ -756,6 +761,15 @@ function removePhoto(index) {
         // Hide analyze button if no photos left
         if (uploadedPhotos.length === 0) {
             document.getElementById('analyzeBtn').style.display = 'none';
+            
+            // Also disable Enhanced Scan button when no photos
+            const enhancedScanBtn = document.getElementById('enhancedScanBtn');
+            if (enhancedScanBtn) {
+                enhancedScanBtn.disabled = true;
+                enhancedScanBtn.classList.remove('btn-primary');
+                enhancedScanBtn.classList.add('btn-outline-primary');
+                enhancedScanBtn.title = 'Run quick AI scan first to enable Enhanced Scan';
+            }
         }
     }
 }
@@ -856,8 +870,25 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
         const isCard = analysis.category === 'Trading Cards' || analysis.category === 'Sports Cards';
         const isCollectible = analysis.collectible === true;
 
-        if (isCard || isCollectible) {
-            showEnhancedScanOption(isCard, isCollectible, analysis);
+        // Enable/Disable Enhanced Scan button based on collectible detection
+        const enhancedScanBtn = document.getElementById('enhancedScanBtn');
+        if (enhancedScanBtn) {
+            if (isCard || isCollectible) {
+                enhancedScanBtn.disabled = false;
+                enhancedScanBtn.classList.remove('btn-outline-primary');
+                enhancedScanBtn.classList.add('btn-primary');
+                enhancedScanBtn.title = 'Deep collectible analysis - Create artifact in Hall of Records';
+                
+                // Show info message
+                if (isCard || isCollectible) {
+                    showEnhancedScanOption(isCard, isCollectible, analysis);
+                }
+            } else {
+                enhancedScanBtn.disabled = true;
+                enhancedScanBtn.classList.remove('btn-primary');
+                enhancedScanBtn.classList.add('btn-outline-primary');
+                enhancedScanBtn.title = 'Enhanced Scan only available for collectibles - Run quick AI scan first';
+            }
         }
 
         // Show market analysis if available
@@ -874,7 +905,7 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
     }
 });
 
-// Show subtle Enhanced Scan option
+// Show subtle Enhanced Scan option info card
 function showEnhancedScanOption(isCard, isCollectible, analysis) {
     // Remove existing if present
     document.getElementById('enhancedScanCard')?.remove();
@@ -882,25 +913,15 @@ function showEnhancedScanOption(isCard, isCollectible, analysis) {
     let scanType = isCard ? 'card' : 'collectible';
     let icon = isCard ? 'fa-id-card' : 'fa-star';
     let message = isCard 
-        ? 'Get detailed card analysis, TCGPlayer prices, and authentication'
-        : 'Get rarity info, franchise history, and authentication markers';
+        ? 'Collectible detected! Enhanced Scan will create detailed card analysis in Hall of Records'
+        : 'Collectible detected! Enhanced Scan will create artifact with franchise history in Hall of Records';
 
     const enhancedScanCard = `
-        <div class="card border-primary mb-3" id="enhancedScanCard" style="border-color: var(--alert-crimson);">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="mb-1" style="color: var(--off-white-text);">
-                            <i class="fas ${icon}" style="color: var(--alert-crimson);"></i> 
-                            Enhanced Scanner Available
-                        </h6>
-                        <small class="text-muted">${message}</small>
-                    </div>
-                    <button type="button" class="btn btn-primary" onclick="runEnhancedScan()">
-                        <i class="fas fa-microscope"></i> Enhanced Scan
-                    </button>
-                </div>
-            </div>
+        <div class="alert alert-info mb-3" id="enhancedScanCard">
+            <i class="fas ${icon}"></i> 
+            <strong>${message}</strong>
+            <br>
+            <small class="text-muted">Click the Enhanced Scan button above to proceed.</small>
         </div>
     `;
 
@@ -959,7 +980,23 @@ function getDemandEmoji(demand) {
 
 // TIER 2: Enhanced Scanner (Claude - Deep Dive)
 // Creates artifact in Hall of Records and redirects to artifact detail page
+// Attach click handler to Enhanced Scan button
+document.getElementById('enhancedScanBtn')?.addEventListener('click', runEnhancedScan);
+
 async function runEnhancedScan() {
+    // Check if button is enabled (collectible detected)
+    const btn = document.getElementById('enhancedScanBtn');
+    if (btn && btn.disabled) {
+        showAlert('Enhanced Scan is only available for collectible items. Run quick AI scan first.', 'warning');
+        return;
+    }
+    
+    // Check if photos are uploaded (non-negotiable requirement)
+    if (!uploadedPhotos || uploadedPhotos.length === 0) {
+        showAlert('Please upload photos first before running Enhanced Scan.', 'warning');
+        return;
+    }
+    
     showLoading('Running enhanced scan... This may take 10-20 seconds');
 
     try {
@@ -1719,6 +1756,15 @@ function clearForm() {
     uploadedPhotos = [];
     document.getElementById('photoPreview').innerHTML = '';
     document.getElementById('analyzeBtn').style.display = 'none';
+    
+    // Reset Enhanced Scan button to disabled state
+    const enhancedScanBtn = document.getElementById('enhancedScanBtn');
+    if (enhancedScanBtn) {
+        enhancedScanBtn.disabled = true;
+        enhancedScanBtn.classList.remove('btn-primary');
+        enhancedScanBtn.classList.add('btn-outline-primary');
+        enhancedScanBtn.title = 'Run quick AI scan first to enable Enhanced Scan';
+    }
     
     // Reset any enhanced scan results
     document.getElementById('enhancedScanCard')?.remove();

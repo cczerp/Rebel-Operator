@@ -436,6 +436,10 @@ def api_save_draft():
         upc = data.get('upc', '')
         status = data.get('status', 'draft')
 
+        # Check if we're updating an existing draft (need listing_uuid before photo moving)
+        draft_id = data.get('draft_id')
+        listing_uuid = data.get('listing_uuid') or uuid.uuid4().hex
+
         # Get photos array (should be Supabase Storage URLs from temp bucket)
         photos = data.get('photos', [])
         
@@ -453,7 +457,7 @@ def api_save_draft():
                     success, new_url = storage.move_photo(
                         source_url=photo_url,
                         destination_folder='drafts',
-                        new_filename=f"{listing_uuid or uuid.uuid4().hex}_{uuid.uuid4().hex}.jpg"
+                        new_filename=f"{listing_uuid}_{uuid.uuid4().hex}.jpg"
                     )
                     if success:
                         moved_photos.append(new_url)
@@ -478,10 +482,6 @@ def api_save_draft():
             'color': data.get('color', ''),
             'shipping_cost': data.get('shipping_cost', 0)
         }
-
-        # Check if we're updating an existing draft
-        draft_id = data.get('draft_id')
-        listing_uuid = data.get('listing_uuid')
 
         if draft_id:
             # Update existing draft
@@ -508,8 +508,7 @@ def api_save_draft():
                 "message": "Draft updated successfully"
             })
         else:
-            # Create new draft
-            listing_uuid = uuid.uuid4().hex
+            # Create new draft (listing_uuid already set above)
             listing_id = db.create_listing(
                 listing_uuid=listing_uuid,
                 user_id=current_user.id,
@@ -3544,4 +3543,94 @@ def cancel_subscription():
         return jsonify({"success": True})
 
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/save-vault", methods=["POST"])
+@login_required
+def api_save_vault():
+    """Save card/item to user's card_collections database"""
+    try:
+        from src.cards import CardCollectionManager, UnifiedCard
+        import uuid as uuid_module
+        
+        data = request.json
+        
+        # Extract card data from form or AI analysis
+        # Check if we have card data from AI analysis
+        card_data = data.get('card_data') or data.get('ai_result') or {}
+        
+        # Extract form fields
+        title = data.get('title', card_data.get('card_name') or card_data.get('player_name') or 'Unknown Card')
+        brand = data.get('brand', card_data.get('brand', ''))
+        year = data.get('year', card_data.get('year'))
+        if year:
+            try:
+                year = int(year) if isinstance(year, (int, str)) and str(year).isdigit() else None
+            except:
+                year = None
+        
+        # Determine card type from item_type or card_data
+        item_type = data.get('item_type', '')
+        card_type = 'unknown'
+        if 'trading card' in item_type.lower() or 'sports card' in item_type.lower():
+            if card_data.get('game_name'):
+                card_type = 'tcg'
+            elif card_data.get('sport'):
+                card_type = 'sports'
+            else:
+                card_type = 'trading_card'
+        elif card_data.get('card_type'):
+            card_type = card_data.get('card_type')
+        
+        # Create UnifiedCard
+        manager = CardCollectionManager()
+        
+        card = UnifiedCard(
+            card_type=card_type,
+            title=title,
+            user_id=current_user.id,
+            card_number=card_data.get('card_number') or data.get('card_number'),
+            quantity=int(data.get('quantity', 1)),
+            organization_mode='by_set',
+            
+            # TCG fields
+            game_name=card_data.get('game_name'),
+            set_name=card_data.get('set_name') or card_data.get('set'),
+            set_code=card_data.get('set_code'),
+            rarity=card_data.get('rarity'),
+            
+            # Sports fields
+            sport=card_data.get('sport'),
+            year=year,
+            brand=brand,
+            series=card_data.get('series'),
+            player_name=card_data.get('player_name'),
+            is_rookie_card=card_data.get('is_rookie_card', False),
+            
+            # Grading
+            grading_company=card_data.get('grading_company'),
+            grading_score=card_data.get('grading_score'),
+            grading_serial=card_data.get('grading_serial'),
+            
+            # Value & storage
+            estimated_value=card_data.get('estimated_value') or card_data.get('estimated_value_avg'),
+            storage_location=data.get('storage_location', ''),
+            photos=data.get('photos', []),
+            notes=data.get('description', ''),
+            ai_identified=bool(card_data),
+            ai_confidence=card_data.get('confidence_score')
+        )
+        
+        card_id = manager.add_card(card)
+        
+        return jsonify({
+            "success": True,
+            "card_id": card_id,
+            "message": "Card saved to your collection vault successfully"
+        })
+        
+    except Exception as e:
+        import traceback
+        logging.error(f"Save vault error: {e}\n{traceback.format_exc()}")
         return jsonify({"error": str(e)}), 500

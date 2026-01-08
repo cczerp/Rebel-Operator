@@ -903,6 +903,9 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
             showMarketAnalysis(analysis.market_analysis);
         }
 
+        // Store analysis data for vault button
+        window.lastQuickAnalysis = analysis;
+
         showAlert('Quick analysis complete!', 'success');
 
     } catch (error) {
@@ -1607,13 +1610,17 @@ async function storeCollectibleAndList() {
         hideLoading();
     }
 }
-// Save Listing Draft - Serialize to CSV and append to drafts.csv
+// Save Listing Draft - Save to user's database (listings table with status='draft')
 async function saveDraft() {
     const formData = collectFormData();
+    
+    // Ensure status is set to 'draft'
+    formData.status = 'draft';
+    
     showLoading();
 
     try {
-        const response = await fetch('/api/save-draft-csv', {
+        const response = await fetch('/api/save-draft', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(formData)
@@ -1622,7 +1629,7 @@ async function saveDraft() {
         const data = await response.json();
 
         if (data.success) {
-            showAlert('Draft saved to CSV successfully!', 'success');
+            showAlert('Draft saved to your database successfully!', 'success');
             // Clear form and stay on page
             clearForm();
             setTimeout(() => {
@@ -1638,13 +1645,25 @@ async function saveDraft() {
     }
 }
 
-// Save to Collection Vault - Serialize to CSV and append to vault.csv
+// Save to Collection Vault - Save card to user's card_collections database
 async function saveToVault() {
     const formData = collectFormData();
+    
+    // Include card data from AI analysis if available
+    const enhancedResultsCard = document.getElementById('enhancedResultsCard');
+    if (enhancedResultsCard && window.lastEnhancedScanData) {
+        formData.card_data = window.lastEnhancedScanData.data;
+    }
+    
+    // Also check for quick AI scan card data
+    if (window.lastQuickAnalysis && (window.lastQuickAnalysis.category === 'Trading Cards' || window.lastQuickAnalysis.category === 'Sports Cards')) {
+        formData.card_data = formData.card_data || window.lastQuickAnalysis;
+    }
+    
     showLoading();
 
     try {
-        const response = await fetch('/api/save-vault-csv', {
+        const response = await fetch('/api/save-vault', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(formData)
@@ -1653,7 +1672,7 @@ async function saveToVault() {
         const data = await response.json();
 
         if (data.success) {
-            showAlert('Item saved to Collection Vault!', 'success');
+            showAlert('Card saved to your collection vault!', 'success');
             // Clear form and stay on page
             clearForm();
             setTimeout(() => {

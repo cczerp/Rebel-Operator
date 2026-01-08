@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Home - ResellGenie{% endblock %}
+{% block title %}Home - RESELL-REBEL{% endblock %}
 
 {% block content %}
 
@@ -10,10 +10,10 @@
     <div class="container text-center py-5">
         <div class="hero-content">
             <div class="hero-icon mb-4">
-                <i class="fas fa-brain fa-5x"></i>
+                <img src="{{ url_for('static', filename='resell-rebel-logo.png') }}" alt="RESELL-REBEL Logo" style="max-width: 300px; height: auto; filter: drop-shadow(0 4px 8px rgba(139, 0, 0, 0.3));">
             </div>
-            <h1 class="display-2 fw-bold mb-3">ResellGenie</h1>
-            <p class="hero-tagline mb-2">Everything you sell, perfectly organized.</p>
+            <h1 class="display-2 fw-bold mb-3" style="color: #8B0000;">RESELL-REBEL</h1>
+            <p class="hero-tagline mb-2" style="color: #8B0000; font-size: 1.3rem; font-weight: 600;">SELL SMARTER, NOT HARDER</p>
             <p class="hero-subtitle mb-4">AI handles the listings. You handle the profits.</p>
 
             <div class="hero-cta mt-4">
@@ -106,7 +106,7 @@
 <!-- WHY RESELLGENIE? - White Background -->
 <div class="container my-5 py-5">
     <div class="text-center mb-5">
-        <h2 class="section-title">Why ResellGenie?</h2>
+        <h2 class="section-title">Why RESELL-REBEL?</h2>
         <p class="section-subtitle">Built for resellers who want to scale smarter, not harder</p>
     </div>
 
@@ -206,7 +206,7 @@
     <div class="container text-center py-4">
         <div class="hero-content">
             <div class="hero-icon mb-3">
-                <i class="fas fa-brain fa-4x"></i>
+                <img src="{{ url_for('static', filename='resell-rebel-logo.png') }}" alt="RESELL-REBEL Logo" style="max-width: 200px; height: auto; filter: drop-shadow(0 4px 8px rgba(139, 0, 0, 0.3));">
             </div>
             <h1 class="display-4 fw-bold mb-2" style="color: white;">Welcome Back!</h1>
             <p class="hero-subtitle mb-1">Hey <strong>{{ current_user.username }}</strong>, ready to crush it today?</p>
@@ -222,14 +222,14 @@
     <div class="row g-4">
         <!-- Create Listing - Primary Action -->
         <div class="col-12">
-            <div class="feature-card" style="background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%); color: white; padding: 50px 40px;">
+            <div class="feature-card" style="background: linear-gradient(135deg, #8B0000 0%, #660000 100%); color: white; padding: 50px 40px;">
                 <div class="text-center">
                     <div class="hero-icon mb-3">
                         <i class="fas fa-camera fa-5x" style="color: white;"></i>
                     </div>
                     <h3 class="fw-bold mb-3">Create New Listing</h3>
                     <p class="mb-4" style="font-size: 1.1rem; opacity: 0.95;">Snap photos and let AI handle the magic ✨</p>
-                    <a href="{{ url_for('listings') }}" class="btn btn-light btn-lg px-5 pulse-glow" style="color: #DC2626; font-weight: 700;">
+                    <a href="{{ url_for('listings') }}" class="btn btn-light btn-lg px-5 pulse-glow" style="color: #8B0000; font-weight: 700;">
                         <i class="fas fa-plus-circle me-2"></i> Start Listing Now
                     </a>
                 </div>
@@ -327,9 +327,9 @@
 
             <div class="col-6 col-md-3">
                 <a href="{{ url_for('auth.logout') }}" class="text-decoration-none">
-                    <div class="step-card" style="cursor: pointer; padding: 30px 20px; border: 2px solid #ef4444;">
+                    <div class="step-card" style="cursor: pointer; padding: 30px 20px; border: 2px solid #8B0000;">
                         <div class="step-icon">🚪</div>
-                        <h6 class="step-title" style="font-size: 1rem; color: #ef4444;">Logout</h6>
+                        <h6 class="step-title" style="font-size: 1rem; color: #8B0000;">Logout</h6>
                         <p class="step-text" style="font-size: 0.85rem;">See you soon!</p>
                     </div>
                 </a>

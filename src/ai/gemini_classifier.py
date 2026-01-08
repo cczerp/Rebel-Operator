@@ -21,11 +21,14 @@ import os
 import base64
 import json
 import time
+import logging
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 import requests
 
 from ..schema.unified_listing import Photo
+
+logger = logging.getLogger(__name__)
 
 
 class GeminiClassifier:
@@ -40,14 +43,53 @@ class GeminiClassifier:
     def __init__(self, api_key: Optional[str] = None):
         """Initialize Gemini classifier"""
         # Check multiple env var names (including common typo GEMENI_API_KEY)
-        self.api_key = (
+        raw_key = (
             api_key or
             os.getenv("GOOGLE_AI_API_KEY") or
             os.getenv("GEMINI_API_KEY") or
             os.getenv("GEMENI_API_KEY")  # Common typo
         )
-        if not self.api_key:
+        
+        if not raw_key:
             raise ValueError("GOOGLE_AI_API_KEY, GEMINI_API_KEY, or GEMENI_API_KEY must be set")
+        
+        # CRITICAL: Strip whitespace and hidden characters (common issue with copied keys)
+        # Google API keys are sensitive to leading/trailing whitespace, newlines, etc.
+        self.api_key = raw_key.strip()
+        
+        # Debug: Log RAW key repr to detect hidden characters (ChatGPT's #1 fix)
+        # This shows newlines (\n), carriage returns (\r), spaces, etc.
+        logger.info(f"[GEMINI DEBUG] RAW KEY REPR (first 50 chars): {repr(raw_key[:50])}")
+        logger.info(f"[GEMINI DEBUG] STRIPPED KEY REPR (first 50 chars): {repr(self.api_key[:50])}")
+        
+        # Debug: Log key info (first/last 5 chars only for security)
+        key_preview = f"{self.api_key[:5]}...{self.api_key[-5:]}" if len(self.api_key) > 10 else "***"
+        logger.info(f"[GEMINI DEBUG] API Key loaded: length={len(self.api_key)}, preview={key_preview}")
+        
+        # Check for common issues
+        if len(self.api_key) < 30:
+            logger.warning(f"[GEMINI DEBUG] ⚠️ API key seems too short ({len(self.api_key)} chars). Expected ~39-45 chars.")
+        if len(self.api_key) > 60:
+            logger.warning(f"[GEMINI DEBUG] ⚠️ API key seems too long ({len(self.api_key)} chars). May contain extra characters.")
+        
+        # Check for hidden characters (log repr to see newlines, spaces, etc.)
+        if raw_key != self.api_key:
+            logger.warning(f"[GEMINI DEBUG] ⚠️ API key had whitespace! Stripped {len(raw_key) - len(self.api_key)} characters.")
+            logger.warning(f"[GEMINI DEBUG] ⚠️ Original had: {repr(raw_key)}")
+            logger.warning(f"[GEMINI DEBUG] ⚠️ After strip: {repr(self.api_key)}")
+        
+        # Verify key format (should start with AIza)
+        if not self.api_key.startswith('AIza'):
+            logger.warning(f"[GEMINI DEBUG] ⚠️ API key doesn't start with 'AIza'. May be invalid format.")
+        
+        # Check env var exists
+        env_var_names = ["GOOGLE_AI_API_KEY", "GEMINI_API_KEY", "GEMENI_API_KEY"]
+        found_vars = [name for name in env_var_names if os.getenv(name)]
+        logger.info(f"[GEMINI DEBUG] Environment variables found: {found_vars}")
+        for var_name in env_var_names:
+            if os.getenv(var_name):
+                var_value = os.getenv(var_name)
+                logger.info(f"[GEMINI DEBUG] {var_name} exists: length={len(var_value)}, repr={repr(var_value[:30])}...")
 
         # Use Gemini 2.5 Flash for speed and cost-efficiency
         # Current image-capable models (v1 API endpoint):
@@ -58,22 +100,128 @@ class GeminiClassifier:
         # Use v1 endpoint for Gemini models
         self.api_url = f"https://generativelanguage.googleapis.com/v1/models/{self.model}:generateContent"
 
+    def _prepare_image_for_gemini(self, image_path: str) -> tuple[bytes, str]:
+        """
+        Validate and convert image to Gemini-compatible format.
+        
+        This function:
+        1. Validates the image exists and is readable
+        2. Detects actual format using PIL (not file extension)
+        3. Converts unsupported formats (HEIC, etc.) to JPEG
+        4. Resizes if dimensions exceed 20MP limit
+        5. Compresses if file size exceeds 20MB
+        6. Converts RGBA/transparency to RGB
+        
+        Returns:
+            (image_bytes, mime_type) tuple
+        """
+        from PIL import Image
+        import io
+        
+        try:
+            # Open and validate image
+            # NOTE: Image.verify() is DEPRECATED and can corrupt images
+            # We'll use try/except instead to validate the image
+            try:
+                img = Image.open(image_path)
+                # Validate by attempting to load the image data
+                img.load()  # Force loading of image data to catch corruption
+            except Exception as img_error:
+                logger.error(f"Failed to open/load image {image_path}: {img_error}")
+                raise ValueError(f"Invalid or corrupted image: {str(img_error)}")
+            
+            # Reopen for actual use (load() may have modified state)
+            img = Image.open(image_path)
+            
+            # Check dimensions (20MP limit = 20,000,000 pixels)
+            total_pixels = img.size[0] * img.size[1]
+            if total_pixels > 20_000_000:
+                # Resize to fit within 20MP
+                ratio = (20_000_000 / total_pixels) ** 0.5
+                new_size = (int(img.size[0] * ratio), int(img.size[1] * ratio))
+                img = img.resize(new_size, Image.Resampling.LANCZOS)
+                logger.info(f"Resized image from {img.size} to {new_size} (20MP limit)")
+            
+            # Convert RGBA/LA/P to RGB (remove alpha channel for JPEG compatibility)
+            if img.mode in ('RGBA', 'LA', 'P'):
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+                background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+                img = background
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+            
+            # Convert to JPEG (most compatible format for Gemini)
+            # Start with quality 85
+            output = io.BytesIO()
+            img.save(output, format='JPEG', quality=85, optimize=True)
+            output.seek(0)  # Reset position before reading
+            image_bytes = output.getvalue()
+            
+            # Validate JPEG was created successfully (try to open it)
+            try:
+                test_img = Image.open(io.BytesIO(image_bytes))
+                test_img.verify()  # Quick verify
+                logger.debug(f"[GEMINI DEBUG] JPEG conversion validated - {len(image_bytes)} bytes")
+            except Exception as verify_error:
+                logger.error(f"[GEMINI DEBUG] JPEG validation failed: {verify_error}")
+                # Continue anyway - might still work
+            
+            # Check file size (20MB limit, but account for base64 overhead ~33%)
+            # So we want to keep under ~15MB to be safe after base64 encoding
+            max_size_bytes = 15 * 1024 * 1024  # 15MB
+            
+            if len(image_bytes) > max_size_bytes:
+                # Reduce quality if still too large
+                output = io.BytesIO()
+                quality = 75
+                img.save(output, format='JPEG', quality=quality, optimize=True)
+                output.seek(0)
+                image_bytes = output.getvalue()
+                
+                # If still too large, reduce quality further
+                if len(image_bytes) > max_size_bytes:
+                    output = io.BytesIO()
+                    quality = 60
+                    img.save(output, format='JPEG', quality=quality, optimize=True)
+                    output.seek(0)
+                    image_bytes = output.getvalue()
+                    logger.info(f"Reduced image quality to {quality}% to meet size limit")
+            
+            return image_bytes, 'image/jpeg'
+            
+        except Exception as e:
+            logger.error(f"Failed to prepare image {image_path}: {e}")
+            raise ValueError(f"Invalid or corrupted image: {str(e)}")
+
     def _encode_image_to_base64(self, image_path: str) -> str:
-        """Encode local image to base64"""
-        with open(image_path, "rb") as image_file:
-            return base64.b64encode(image_file.read()).decode("utf-8")
+        """
+        Prepare and encode image for Gemini API.
+        
+        This validates, converts, and encodes the image to base64.
+        Returns ONLY the base64 string (no data:image prefix).
+        """
+        image_bytes, _ = self._prepare_image_for_gemini(image_path)
+        # Return base64 string WITHOUT data:image prefix (Gemini expects raw base64)
+        base64_str = base64.b64encode(image_bytes).decode("utf-8")
+        
+        # Ensure no data URI prefix (strip if somehow present)
+        if base64_str.startswith('data:image'):
+            base64_str = base64_str.split(',')[1] if ',' in base64_str else base64_str
+        
+        return base64_str
 
     def _get_image_mime_type(self, image_path: str) -> str:
-        """Get MIME type from file extension"""
-        ext = Path(image_path).suffix.lower()
-        mime_types = {
-            ".jpg": "image/jpeg",
-            ".jpeg": "image/jpeg",
-            ".png": "image/png",
-            ".gif": "image/gif",
-            ".webp": "image/webp",
-        }
-        return mime_types.get(ext, "image/jpeg")
+        """
+        Get MIME type for Gemini API.
+        
+        Note: After _prepare_image_for_gemini, all images are converted to JPEG,
+        so this always returns 'image/jpeg'. The actual format detection happens
+        in _prepare_image_for_gemini.
+        """
+        # All images are converted to JPEG in _prepare_image_for_gemini
+        return "image/jpeg"
 
     def analyze_item(self, photos: List[Photo]) -> Dict[str, Any]:
         """
@@ -107,16 +255,84 @@ class GeminiClassifier:
 
         # Prepare images for Gemini (limit to 4 photos for speed)
         image_parts = []
-        for photo in photos[:4]:
+        for i, photo in enumerate(photos[:4]):
             if photo.local_path:
-                image_b64 = self._encode_image_to_base64(photo.local_path)
-                mime_type = self._get_image_mime_type(photo.local_path)
-                image_parts.append({
-                    "inline_data": {
-                        "mime_type": mime_type,
-                        "data": image_b64
+                try:
+                    # Debug logging (as per user's suggestion)
+                    file_path = photo.local_path
+                    file_exists = Path(file_path).exists()
+                    file_size = Path(file_path).stat().st_size if file_exists else 0
+                    
+                    debug_info = {
+                        'hasFile': bool(photo.local_path),
+                        'filePath': file_path,
+                        'exists': file_exists,
+                        'fileSize': file_size,
+                        'isFile': Path(file_path).is_file() if file_exists else False
                     }
-                })
+                    logger.info(f"[GEMINI DEBUG] Image {i+1} before encoding: {debug_info}")
+                    
+                    # Validate file exists
+                    if not file_exists:
+                        logger.error(f"❌ Image file not found: {file_path}")
+                        continue
+                    
+                    if file_size == 0:
+                        logger.error(f"❌ Image file is empty: {file_path}")
+                        continue
+                    
+                    # Prepare and encode image (validates, converts, encodes)
+                    image_b64 = self._encode_image_to_base64(file_path)
+                    mime_type = self._get_image_mime_type(file_path)  # Always 'image/jpeg' after conversion
+                    
+                    # Debug after encoding
+                    logger.info(f"[GEMINI DEBUG] Image {i+1} after encoding: mime_type={mime_type}, base64_length={len(image_b64)}, starts_with_data={image_b64.startswith('data:')}")
+                    
+                    # Gemini requirement: mimeType MUST be present (non-negotiable)
+                    if not mime_type:
+                        mime_type = 'image/jpeg'  # Default fallback
+                    
+                    # Only use safe formats (Gemini sometimes rejects WebP)
+                    supported_mimes = ['image/jpeg', 'image/jpg', 'image/png']
+                    if mime_type not in supported_mimes:
+                        logger.warning(f"Unsupported mime_type {mime_type}, using image/jpeg")
+                        mime_type = 'image/jpeg'
+                    
+                    # Ensure base64 is clean (no data:image prefix)
+                    if image_b64.startswith('data:image'):
+                        logger.warning(f"⚠️ Base64 had data: prefix, stripping it")
+                        image_b64 = image_b64.split(',')[1] if ',' in image_b64 else image_b64
+                    
+                    # Final validation before adding to payload (as per user's suggestion)
+                    if not mime_type:
+                        logger.error(f"❌ mime_type is missing for image {i+1}")
+                        continue
+                    
+                    if not image_b64 or len(image_b64) == 0:
+                        logger.error(f"❌ base64 data is empty for image {i+1}")
+                        continue
+                    
+                    # Create inline_data part (Gemini requirement)
+                    inline_data = {
+                        "mime_type": mime_type,  # MUST be present (non-negotiable)
+                        "data": image_b64  # Clean base64 string (no prefix)
+                    }
+                    
+                    # Debug the inline_data structure
+                    logger.debug(f"[GEMINI DEBUG] Image {i+1} inline_data: mime_type={inline_data['mime_type']}, data_length={len(inline_data['data'])}")
+                    
+                    image_parts.append({
+                        "inline_data": inline_data
+                    })
+                    logger.info(f"✅ Prepared image {i+1}/{min(len(photos), 4)} for Gemini (mime_type: {mime_type}, data_len: {len(image_b64)})")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to prepare image {i+1}: {e}")
+                    # Continue with other images instead of failing completely
+                    continue
+        
+        if not image_parts:
+            return {"error": "No valid images could be prepared for analysis"}
 
         # Build comprehensive classification prompt
         prompt = """Analyze these product images and provide a FAST, ACCURATE classification.
@@ -261,12 +477,15 @@ IMPORTANT:
 - Respond with ONLY JSON, no other text
 """
 
-        # Build request
+        # Build request payload
+        # Gemini API structure: contents[0] contains parts array with text + images
+        # Each image part must have inline_data with mime_type (non-negotiable) and data (base64)
         payload = {
             "contents": [{
+                "role": "user",  # Explicitly set role (best practice)
                 "parts": [
                     {"text": prompt},
-                    *image_parts
+                    *image_parts  # Each image_parts item has inline_data with mime_type and data
                 ]
             }],
             "generationConfig": {
@@ -276,6 +495,33 @@ IMPORTANT:
                 "maxOutputTokens": 2048,
             }
         }
+        
+        # Log payload structure for debugging (as per user's suggestion)
+        logger.info(f"[GEMINI DEBUG] Payload structure: {len(image_parts)} images, prompt length: {len(prompt)}")
+        for i, img_part in enumerate(image_parts):
+            if 'inline_data' in img_part:
+                inline_data = img_part['inline_data']
+                mime = inline_data.get('mime_type', 'unknown')
+                data = inline_data.get('data', '')
+                data_len = len(data)
+                has_mime = bool(mime)
+                has_data = bool(data)
+                is_base64 = not data.startswith('data:') if data else False
+                
+                logger.info(f"[GEMINI DEBUG] Image {i+1} in payload:")
+                logger.info(f"  - has_inline_data: True")
+                logger.info(f"  - has_mime_type: {has_mime} ({mime})")
+                logger.info(f"  - has_data: {has_data} (length: {data_len})")
+                logger.info(f"  - is_clean_base64: {is_base64}")
+                
+                if not has_mime:
+                    logger.error(f"❌ Image {i+1} missing mime_type in payload!")
+                if not has_data:
+                    logger.error(f"❌ Image {i+1} missing data in payload!")
+                if data.startswith('data:'):
+                    logger.error(f"❌ Image {i+1} data still has data: prefix!")
+            else:
+                logger.error(f"❌ Image {i+1} missing inline_data in payload!")
 
         # Retry logic for rate limits (exponential backoff)
         max_retries = 4
@@ -283,20 +529,61 @@ IMPORTANT:
 
         for attempt in range(max_retries):
             try:
+                # CRITICAL: Gemini API ONLY wants key in query string, NO Authorization header
+                # Verify we're not accidentally adding Authorization header
+                api_url_with_key = f"{self.api_url}?key={self.api_key}"
+                
+                # Ensure headers ONLY contain Content-Type (no Authorization)
+                headers = {"Content-Type": "application/json"}
+                
+                # Debug: Log request details (key hidden for security)
+                logger.debug(f"[GEMINI DEBUG] Request URL: {self.api_url}?key=***")
+                logger.debug(f"[GEMINI DEBUG] Request headers: {headers}")
+                logger.debug(f"[GEMINI DEBUG] API key length: {len(self.api_key)} chars")
+                
                 response = requests.post(
-                    f"{self.api_url}?key={self.api_key}",
-                    headers={"Content-Type": "application/json"},
+                    api_url_with_key,
+                    headers=headers,
                     json=payload,
                     timeout=30
                 )
 
                 if response.status_code == 200:
-                    result = response.json()
+                    # Check if response is actually JSON (not HTML error page)
+                    content_type = response.headers.get('Content-Type', '').lower()
+                    if 'application/json' not in content_type:
+                        logger.error(f"[GEMINI ERROR] Response is not JSON! Content-Type: {content_type}")
+                        logger.error(f"[GEMINI ERROR] Response text (first 500 chars): {response.text[:500]}")
+                        return {
+                            "error": f"Gemini API returned non-JSON response (Content-Type: {content_type}). This usually means the API endpoint is wrong or the API key is invalid.",
+                            "error_type": "invalid_response",
+                            "details": response.text[:500]
+                        }
+                    
+                    try:
+                        result = response.json()
+                    except json.JSONDecodeError as e:
+                        logger.error(f"[GEMINI ERROR] Failed to parse JSON response: {e}")
+                        logger.error(f"[GEMINI ERROR] Response text (first 500 chars): {response.text[:500]}")
+                        # Check if it's HTML
+                        if response.text.strip().startswith('<'):
+                            return {
+                                "error": "Gemini API returned HTML instead of JSON. This usually means the API endpoint is wrong, the API key is invalid, or there's a network issue.",
+                                "error_type": "html_response",
+                                "details": response.text[:500]
+                            }
+                        return {
+                            "error": f"Failed to parse Gemini API response as JSON: {str(e)}",
+                            "error_type": "json_parse_error",
+                            "details": response.text[:500]
+                        }
 
                     # Extract text from Gemini response
                     try:
                         content_text = result["candidates"][0]["content"]["parts"][0]["text"]
                     except (KeyError, IndexError) as e:
+                        logger.error(f"[GEMINI ERROR] Unexpected response structure: {e}")
+                        logger.error(f"[GEMINI ERROR] Full response: {json.dumps(result, indent=2)}")
                         return {
                             "error": f"Unexpected Gemini response structure: {str(e)}",
                             "raw_response": result
@@ -336,20 +623,50 @@ IMPORTANT:
 
                 # Handle other API errors
                 else:
-                    error_msg = response.text[:500]
+                    # Log FULL error response (not just first 500 chars)
+                    error_msg_full = response.text
+                    error_msg_short = error_msg_full[:500] if len(error_msg_full) > 500 else error_msg_full
+                    
+                    # Try to parse JSON error response for more details
+                    try:
+                        # Check if response is HTML (common when API key is wrong)
+                        if error_msg_full.strip().startswith('<'):
+                            logger.error(f"[GEMINI ERROR] API returned HTML instead of JSON (likely invalid API key or wrong endpoint)")
+                            logger.error(f"[GEMINI ERROR] HTML response (first 1000 chars): {error_msg_full[:1000]}")
+                            return {
+                                "error": "Gemini API returned HTML instead of JSON. Please check your GEMINI_API_KEY is valid and the API endpoint is correct.",
+                                "error_type": "html_error_response",
+                                "details": error_msg_full[:1000]
+                            }
+                        
+                        error_json = response.json()
+                        logger.error(f"[GEMINI ERROR] Full error response: {json.dumps(error_json, indent=2)}")
+                        if 'error' in error_json:
+                            gemini_error = error_json.get('error', {})
+                            if isinstance(gemini_error, dict):
+                                error_message = gemini_error.get('message', str(gemini_error))
+                                logger.error(f"[GEMINI ERROR] Gemini error message: {error_message}")
+                    except json.JSONDecodeError:
+                        logger.error(f"[GEMINI ERROR] Failed to parse error response as JSON")
+                        logger.error(f"[GEMINI ERROR] Raw error response: {error_msg_full[:1000]}")
+                    except Exception as e:
+                        logger.error(f"[GEMINI ERROR] Error parsing error response: {e}")
+                        logger.error(f"[GEMINI ERROR] Raw error response: {error_msg_full[:1000]}")
 
                     # Provide user-friendly error messages
                     if response.status_code == 400:
+                        logger.error(f"[GEMINI ERROR] 400 Bad Request - Full response: {error_msg_full}")
                         return {
                             "error": "Invalid request to Gemini API. Please check your photos are valid images.",
                             "error_type": "bad_request",
-                            "details": error_msg
+                            "details": error_msg_short,
+                            "full_error": error_msg_full  # Include full error for debugging
                         }
                     elif response.status_code == 403:
                         return {
                             "error": "Gemini API key is invalid or doesn't have access. Please check your GEMINI_API_KEY in .env file.",
                             "error_type": "auth_error",
-                            "details": error_msg
+                            "details": error_msg_short
                         }
                     elif response.status_code >= 500:
                         if attempt < max_retries - 1:
@@ -361,7 +678,7 @@ IMPORTANT:
                             return {
                                 "error": "Gemini API is experiencing server issues. Please try again in a few minutes.",
                                 "error_type": "server_error",
-                                "details": error_msg
+                                "details": error_msg_short
                             }
                     else:
                         return {
@@ -435,18 +752,49 @@ IMPORTANT:
         if not photos:
             return {"error": "No photos provided", "is_card": False}
 
-        # Prepare images
+        # Prepare images for Gemini (with validation and conversion)
         image_parts = []
-        for photo in photos[:4]:
+        for i, photo in enumerate(photos[:4]):
             if photo.local_path:
-                image_b64 = self._encode_image_to_base64(photo.local_path)
-                mime_type = self._get_image_mime_type(photo.local_path)
-                image_parts.append({
-                    "inline_data": {
-                        "mime_type": mime_type,
-                        "data": image_b64
-                    }
-                })
+                try:
+                    # Validate file exists
+                    if not Path(photo.local_path).exists():
+                        logger.error(f"Image file not found: {photo.local_path}")
+                        continue
+                    
+                    # Prepare and encode image (validates, converts, encodes)
+                    image_b64 = self._encode_image_to_base64(photo.local_path)
+                    mime_type = self._get_image_mime_type(photo.local_path)  # Always 'image/jpeg' after conversion
+                    
+                    # Gemini requirement: mimeType MUST be present (non-negotiable)
+                    if not mime_type:
+                        mime_type = 'image/jpeg'  # Default fallback
+                    
+                    # Only use safe formats (Gemini sometimes rejects WebP)
+                    supported_mimes = ['image/jpeg', 'image/jpg', 'image/png']
+                    if mime_type not in supported_mimes:
+                        logger.warning(f"Unsupported mime_type {mime_type}, using image/jpeg")
+                        mime_type = 'image/jpeg'
+                    
+                    # Ensure base64 is clean (no data:image prefix)
+                    if image_b64.startswith('data:image'):
+                        image_b64 = image_b64.split(',')[1] if ',' in image_b64 else image_b64
+                    
+                    image_parts.append({
+                        "inline_data": {
+                            "mime_type": mime_type,  # MUST be present (non-negotiable)
+                            "data": image_b64  # Clean base64 string (no prefix)
+                        }
+                    })
+                    logger.info(f"✅ Prepared card image {i+1}/{min(len(photos), 4)} for Gemini (mime_type: {mime_type}, data_len: {len(image_b64)})")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to prepare card image {i+1}: {e}")
+                    # Continue with other images instead of failing completely
+                    continue
+        
+        if not image_parts:
+            return {"error": "No valid images could be prepared for card analysis", "is_card": False}
 
         # Card-specific analysis prompt
         prompt = """Analyze this image and determine if it's a trading card or sports card.
@@ -584,19 +932,36 @@ Analyze the image(s) now and respond with ONLY the JSON."""
         content = [{"text": prompt}]
         content.extend(image_parts)
 
+        # Build request payload
+        # Gemini API structure: contents[0] contains parts array with text + images
+        # Each image part must have inline_data with mime_type (non-negotiable) and data (base64)
         payload = {
             "contents": [{
-                "parts": content
+                "role": "user",  # Explicitly set role (best practice)
+                "parts": content  # Array with text + image parts
             }],
             "generationConfig": {
                 "temperature": 0.1,  # Low temperature for factual extraction
                 "maxOutputTokens": 1024,
             }
         }
+        
+        # Log payload structure for debugging (without full base64 data)
+        logger.debug(f"Card analysis payload: {len(image_parts)} images, prompt length: {len(prompt)}")
+        for i, img_part in enumerate(image_parts):
+            if 'inline_data' in img_part:
+                mime = img_part['inline_data'].get('mime_type', 'unknown')
+                data_len = len(img_part['inline_data'].get('data', ''))
+                logger.debug(f"  Card image {i+1}: mime_type={mime}, data_length={data_len}")
 
         try:
+            # CRITICAL: Gemini API ONLY wants key in query string, NO Authorization header
+            api_url_with_key = f"{self.api_url}?key={self.api_key}"
+            headers = {"Content-Type": "application/json"}  # ONLY Content-Type, NO Authorization
+            
             response = requests.post(
-                f"{self.api_url}?key={self.api_key}",
+                api_url_with_key,
+                headers=headers,
                 json=payload,
                 timeout=30
             )

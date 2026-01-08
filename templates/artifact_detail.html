@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block title %}Artifact - {{ artifact.item_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="fas fa-monument"></i> Hall of Records</h2>
+    <a href="/" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Create Listing
+    </a>
+</div>
+
+<div class="card mb-4" style="border-color: var(--alert-crimson);">
+    <div class="card-header" style="background: var(--carbon-matte-surface); border-bottom: 2px solid var(--alert-crimson);">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4 class="mb-0" style="color: var(--off-white-text);">
+                <i class="fas fa-star"></i> {{ artifact.item_name }}
+            </h4>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row mb-3">
+            {% if artifact.brand %}
+            <div class="col-md-3">
+                <strong><i class="fas fa-tag"></i> Brand:</strong> {{ artifact.brand }}
+            </div>
+            {% endif %}
+            {% if artifact.franchise %}
+            <div class="col-md-3">
+                <strong><i class="fas fa-film"></i> Franchise:</strong> {{ artifact.franchise }}
+            </div>
+            {% endif %}
+            {% if artifact.category %}
+            <div class="col-md-3">
+                <strong><i class="fas fa-folder"></i> Category:</strong> {{ artifact.category }}
+            </div>
+            {% endif %}
+            {% if artifact.item_type %}
+            <div class="col-md-3">
+                <strong><i class="fas fa-cube"></i> Type:</strong> {{ artifact.item_type|title }}
+            </div>
+            {% endif %}
+        </div>
+
+        {% if is_admin and pending_photos and pending_photos|length > 0 %}
+        <div class="mb-4">
+            <h5><i class="fas fa-images"></i> Select Photos to Make Public (Admin Only)</h5>
+            <p class="text-muted">Photos from scans are stored privately. Select which photos should be visible in the public Hall of Records:</p>
+            <div class="d-flex flex-wrap gap-2 mb-3" id="pendingPhotosContainer">
+                {% for photo in pending_photos %}
+                <div class="photo-selection-item" data-photo-id="{{ photo.id }}" style="position: relative;">
+                    <img src="{{ photo.photo_url }}" alt="Pending photo" 
+                         class="img-thumbnail photo-selectable {% if photo.is_selected %}selected{% endif %}" 
+                         style="max-width: 200px; max-height: 200px; object-fit: cover; cursor: pointer; border: 2px solid {% if photo.is_selected %}#28a745{% else %}#dee2e6{% endif %};"
+                         onclick="togglePhotoSelection({{ photo.id }})">
+                    {% if photo.is_selected %}
+                    <div class="badge bg-success" style="position: absolute; top: 5px; right: 5px;">
+                        <i class="fas fa-check"></i> Selected
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            <button class="btn btn-primary" onclick="publishSelectedPhotos()" id="publishPhotosBtn">
+                <i class="fas fa-check-circle"></i> Publish Selected Photos
+            </button>
+        </div>
+        {% endif %}
+
+        {% if artifact.photos and artifact.photos|length > 0 %}
+        <div class="mb-4">
+            <h5><i class="fas fa-images"></i> Public Reference Images</h5>
+            <div class="d-flex flex-wrap gap-2">
+                {% for photo in artifact.photos %}
+                <img src="{{ photo }}" alt="Artifact image" class="img-thumbnail" style="max-width: 200px; max-height: 200px; object-fit: cover; cursor: pointer;" onclick="window.open('{{ photo }}', '_blank')">
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if artifact.historical_context %}
+        <div class="mb-4">
+            <h5><i class="fas fa-book-open"></i> Historical Context</h5>
+            <div class="card bg-light">
+                <div class="card-body">
+                    {% if artifact.historical_context.backstory %}
+                    <p class="mb-2"><strong>Backstory:</strong></p>
+                    <p>{{ artifact.historical_context.backstory }}</p>
+                    {% endif %}
+                    {% if artifact.historical_context.significance %}
+                    <p class="mb-2"><strong>Significance:</strong></p>
+                    <p>{{ artifact.historical_context.significance }}</p>
+                    {% endif %}
+                    {% if artifact.historical_context.rarity_context %}
+                    <p class="mb-2"><strong>Rarity Context:</strong></p>
+                    <p>{{ artifact.historical_context.rarity_context }}</p>
+                    {% endif %}
+                    {% if artifact.historical_context.release_year %}
+                    <p class="mb-0"><strong>Release Year:</strong> {{ artifact.historical_context.release_year }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if artifact.value_context %}
+        <div class="mb-4">
+            <h5><i class="fas fa-dollar-sign"></i> Value Context</h5>
+            <div class="card bg-light">
+                <div class="card-body">
+                    {% if artifact.value_context.current_market_value_low or artifact.value_context.current_market_value_high %}
+                    <p class="mb-2">
+                        <strong>Market Value Range:</strong> 
+                        ${{ artifact.value_context.current_market_value_low|default(0) }} - 
+                        ${{ artifact.value_context.current_market_value_high|default(0) }}
+                    </p>
+                    {% endif %}
+                    {% if artifact.value_context.estimated_value %}
+                    <p class="mb-2"><strong>Estimated Value:</strong> ${{ artifact.value_context.estimated_value }}</p>
+                    {% endif %}
+                    {% if artifact.value_context.market_trend %}
+                    <p class="mb-2"><strong>Market Trend:</strong> {{ artifact.value_context.market_trend }}</p>
+                    {% endif %}
+                    {% if artifact.value_context.demand_level %}
+                    <p class="mb-2"><strong>Demand Level:</strong> {{ artifact.value_context.demand_level }}</p>
+                    {% endif %}
+                    {% if artifact.value_context.value_factors %}
+                    <p class="mb-2"><strong>Value Factors:</strong></p>
+                    <ul>
+                        {% for factor in artifact.value_context.value_factors %}
+                        <li>{{ factor }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if artifact.known_errors and artifact.known_errors.present %}
+        <div class="mb-4">
+            <h5><i class="fas fa-exclamation-triangle"></i> Known Errors & Variations</h5>
+            <div class="card bg-warning bg-opacity-10">
+                <div class="card-body">
+                    {% if artifact.known_errors.error_type %}
+                    <p class="mb-2"><strong>Error Type:</strong> {{ artifact.known_errors.error_type }}</p>
+                    {% endif %}
+                    {% if artifact.known_errors.error_description %}
+                    <p class="mb-2"><strong>Description:</strong> {{ artifact.known_errors.error_description }}</p>
+                    {% endif %}
+                    {% if artifact.known_errors.error_severity %}
+                    <p class="mb-2"><strong>Severity:</strong> {{ artifact.known_errors.error_severity }}</p>
+                    {% endif %}
+                    {% if artifact.known_errors.value_impact %}
+                    <p class="mb-2"><strong>Value Impact:</strong> {{ artifact.known_errors.value_impact }}</p>
+                    {% endif %}
+                    {% if artifact.known_errors.known_error_types %}
+                    <p class="mb-0"><strong>Known Error Types:</strong> {{ artifact.known_errors.known_error_types|join(', ') }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if artifact.collector_notes %}
+        <div class="mb-4">
+            <h5><i class="fas fa-sticky-note"></i> Collector Notes</h5>
+            <div class="card bg-light">
+                <div class="card-body">
+                    <p class="mb-0">{{ artifact.collector_notes }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if artifact.fun_fact %}
+        <div class="mb-4">
+            <h5><i class="fas fa-lightbulb"></i> Fun Fact</h5>
+            <div class="card" style="background: rgba(220, 20, 60, 0.1); border-left: 3px solid var(--alert-crimson);">
+                <div class="card-body">
+                    <p class="mb-0">{{ artifact.fun_fact }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="alert alert-info mt-4">
+            <small>
+                <i class="fas fa-info-circle"></i> 
+                <strong>Public Hall of Records:</strong> This is a read-only public database. Artifact data is automatically updated when new franchises and items are scanned. This information is for learning and reference only - no saving or writing allowed.
+                <br>
+                Contributed {{ artifact.times_contributed|default(1) }} time(s). 
+                Last updated: {{ artifact.updated_at|default(artifact.created_at) }}
+            </small>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedPhotoIds = new Set();
+{% if pending_photos %}
+// Initialize with already selected photos
+{% for photo in pending_photos %}
+{% if photo.is_selected %}
+selectedPhotoIds.add({{ photo.id }});
+{% endif %}
+{% endfor %}
+{% endif %}
+
+function togglePhotoSelection(photoId) {
+    const photoItem = document.querySelector(`[data-photo-id="${photoId}"]`);
+    const img = photoItem.querySelector('img');
+    
+    if (selectedPhotoIds.has(photoId)) {
+        selectedPhotoIds.delete(photoId);
+        img.classList.remove('selected');
+        img.style.border = '2px solid #dee2e6';
+        photoItem.querySelector('.badge')?.remove();
+    } else {
+        selectedPhotoIds.add(photoId);
+        img.classList.add('selected');
+        img.style.border = '2px solid #28a745';
+        const badge = document.createElement('div');
+        badge.className = 'badge bg-success';
+        badge.style.cssText = 'position: absolute; top: 5px; right: 5px;';
+        badge.innerHTML = '<i class="fas fa-check"></i> Selected';
+        photoItem.appendChild(badge);
+    }
+}
+
+async function publishSelectedPhotos() {
+    if (selectedPhotoIds.size === 0) {
+        showAlert('Please select at least one photo to publish', 'warning');
+        return;
+    }
+    
+    const btn = document.getElementById('publishPhotosBtn');
+    const originalHTML = btn.innerHTML;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing...';
+    
+    try {
+        const response = await fetch('/api/artifacts/{{ artifact.id }}/select-photos', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                photo_ids: Array.from(selectedPhotoIds)
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert(data.message || 'Photos published successfully!', 'success');
+            // Reload page to show updated public photos
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            throw new Error(data.error || 'Failed to publish photos');
+        }
+    } catch (error) {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+        showAlert('Error: ' + error.message, 'danger');
+    }
+}
+
+
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    setTimeout(() => alertDiv.remove(), 5000);
+}
+</script>
+<style>
+.photo-selectable {
+    transition: all 0.2s;
+}
+.photo-selectable:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+.photo-selectable.selected {
+    border-color: #28a745 !important;
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.25);
+}
+</style>
+{% endblock %}
+

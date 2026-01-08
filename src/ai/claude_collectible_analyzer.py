@@ -34,13 +34,16 @@ class ClaudeCollectibleAnalyzer:
 
     def __init__(self, api_key: Optional[str] = None):
         """Initialize Claude analyzer"""
-        self.api_key = (
+        raw_key = (
             api_key or
             os.getenv("ANTHROPIC_API_KEY") or
             os.getenv("CLAUDE_API_KEY")
         )
-        if not self.api_key:
+        if not raw_key:
             raise ValueError("ANTHROPIC_API_KEY or CLAUDE_API_KEY must be set")
+        
+        # Strip whitespace and hidden characters (common issue with copied keys)
+        self.api_key = raw_key.strip()
 
         # Use Claude 3.5 Sonnet for best quality
         self.model = os.getenv("CLAUDE_MODEL", "claude-3-5-sonnet-20241022")

@@ -15,28 +15,33 @@
 <form id="listingForm">
     <!-- Photo Upload -->
     <div class="card mb-3">
-        <div class="card-header bg-primary text-white">
-            <i class="fas fa-camera"></i> Photos
+        <div class="card-header" style="background: var(--carbon-matte-surface); border-bottom: 2px solid var(--alert-crimson);">
+            <i class="fas fa-camera" style="color: var(--alert-crimson);"></i> Photos
         </div>
         <div class="card-body">
             <div class="row mb-3">
                 <div class="col-6">
-                    <button type="button" class="btn btn-outline-primary w-100" onclick="document.getElementById('cameraInput').click()">
-                        <i class="fas fa-camera"></i><br>Take Photo
-                    </button>
+            <button type="button" class="btn btn-outline-primary w-100" onclick="document.getElementById('cameraInput').click()">
+                <i class="fas fa-camera"></i><br>Take Photo
+            </button>
                     <input type="file" class="d-none" id="cameraInput" name="photos" accept="image/*" capture="environment" onchange="handlePhotoSelect(event)">
                 </div>
                 <div class="col-6">
-                    <button type="button" class="btn btn-outline-secondary w-100" onclick="document.getElementById('photoInput').click()">
-                        <i class="fas fa-upload"></i><br>Upload Files
-                    </button>
+            <button type="button" class="btn btn-outline-secondary w-100" onclick="document.getElementById('photoInput').click()">
+                <i class="fas fa-upload"></i><br>Upload Files
+            </button>
                     <input type="file" class="d-none" id="photoInput" name="photos" multiple accept="image/*" onchange="handlePhotoSelect(event)">
                 </div>
             </div>
             <div id="photoPreview" class="mt-3 d-flex flex-wrap"></div>
-            <button type="button" class="btn btn-primary mt-2" id="analyzeBtn" style="display:none;">
-                <i class="fas fa-magic"></i> Analyze with AI
-            </button>
+            <div class="mt-3 d-flex gap-2">
+                <button type="button" class="btn btn-primary" id="analyzeBtn" style="display:none;">
+                    <i class="fas fa-magic"></i> Analyze with AI
+                </button>
+                <button type="button" class="btn btn-outline-primary" id="enhancedScanBtn" disabled title="Run quick AI scan first to enable Enhanced Scan">
+                    <i class="fas fa-microscope"></i> Enhanced Scan
+                </button>
+            </div>
         </div>
     </div>
 
@@ -120,39 +125,6 @@
         </div>
     </div>
 
-    <!-- Inventory Management -->
-    <div class="card mb-3">
-        <div class="card-header bg-warning text-white">
-            <i class="fas fa-box"></i> Inventory Management
-        </div>
-        <div class="card-body">
-            <div class="mb-3">
-                <label class="form-label">
-                    <i class="fas fa-map-marker-alt"></i> Storage Location *
-                </label>
-                <input type="text" class="form-control form-control-lg" id="storage_location" name="storage_location" placeholder="B1, C2, Shelf-3, etc." required>
-                <small class="text-muted">Where you'll put this item (so you can find it when it sells!)</small>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Quantity</label>
-                <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1">
-                <small class="text-muted">1 for single items, >1 for multiples</small>
-            </div>
-
-            <div class="row">
-                <div class="col-6">
-                    <label class="form-label">SKU / Custom ID</label>
-                    <input type="text" class="form-control" id="sku" name="sku" placeholder="Optional">
-                </div>
-                <div class="col-6">
-                    <label class="form-label">UPC / Barcode</label>
-                    <input type="text" class="form-control" id="upc" name="upc" placeholder="Optional">
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Actions -->
     <div class="d-grid gap-2">
         {% if is_guest %}
@@ -166,15 +138,15 @@
             You can test the AI photo analysis above without signing up!
         </small>
         {% else %}
-        <button type="button" class="btn btn-primary btn-lg" id="postNowBtn">
-            <i class="fas fa-rocket"></i> Post Now (Make Active)
+        <button type="button" class="btn btn-primary btn-lg" id="postListingBtn">
+            <i class="fas fa-rocket"></i> Post Listing
         </button>
         <button type="button" class="btn btn-secondary btn-lg" id="saveDraftBtn">
-            <i class="fas fa-save"></i> Save as Draft
+            <i class="fas fa-save"></i> Save Listing Draft
         </button>
-        <small class="text-muted text-center mt-2">
-            <strong>Post Now</strong> makes it active for selling. <strong>Save as Draft</strong> saves it for later.
-        </small>
+        <button type="button" class="btn btn-outline-success btn-lg" id="saveToVaultBtn">
+            <i class="fas fa-archive"></i> Save to Collection Vault
+        </button>
         {% endif %}
     </div>
 </form>
@@ -183,7 +155,7 @@
 <div id="photoEditorModal" class="photo-editor-modal">
     <div class="photo-editor-container">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4><i class="fas fa-magic"></i> Edit Photo (FREE!)</h4>
+            <h4 style="color: var(--off-white-text);"><i class="fas fa-magic" style="color: var(--alert-crimson);"></i> Edit Photo (FREE!)</h4>
             <button class="btn btn-outline-danger" onclick="closePhotoEditor()">
                 <i class="fas fa-times"></i> Close
             </button>
@@ -211,7 +183,7 @@
             </button>
         </div>
 
-        <div class="alert alert-info mt-3">
+        <div class="alert alert-info mt-3" style="background: rgba(95, 122, 138, 0.15); border-color: var(--cold-steel-accent); color: var(--cold-steel-light);">
             <i class="fas fa-gift"></i> <strong>FREE Feature!</strong> Other apps charge $5-20/month for background removal. We give it to you free!
         </div>
     </div>
@@ -220,7 +192,7 @@
 <!-- Image Zoom Modal -->
 <div id="imageZoomModal" class="image-zoom-modal" onclick="closeImageZoom()" style="display: none;">
     <div class="image-zoom-container">
-        <button class="btn btn-outline-light zoom-close-btn" onclick="closeImageZoom()">
+        <button class="btn btn-outline-danger zoom-close-btn" onclick="closeImageZoom()">
             <i class="fas fa-times"></i>
         </button>
         <img id="zoomImage" src="" alt="Zoomed image">
@@ -235,7 +207,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.95);
+    background: rgba(26, 26, 26, 0.98);
     z-index: 9999;
     display: flex;
     align-items: center;
@@ -257,7 +229,6 @@
     top: 20px;
     right: 20px;
     z-index: 10000;
-    border: 2px solid white;
 }
 
 #zoomImage {
@@ -272,8 +243,9 @@
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    color: white;
-    background: rgba(0, 0, 0, 0.7);
+    color: var(--off-white-text);
+    background: var(--carbon-matte-surface);
+    border: 1px solid var(--cold-steel-dark);
     padding: 10px 20px;
     border-radius: 5px;
     font-size: 14px;
@@ -291,7 +263,8 @@
 
 .photo-preview:hover {
     transform: scale(1.05);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 8px rgba(220, 20, 60, 0.5);
+    border: 2px solid var(--alert-crimson);
 }
 
 .photo-preview-container {
@@ -306,6 +279,9 @@
     right: 5px;
     padding: 2px 6px;
     font-size: 12px;
+    background: var(--alert-crimson) !important;
+    border-color: var(--alert-crimson) !important;
+    color: white !important;
 }
 </style>
 
@@ -319,13 +295,82 @@ let editingListingUuid = null;
 
 // Generic photo handling function for both camera and file upload
 async function handlePhotoSelect(e) {
+    console.log('[UPLOAD] handlePhotoSelect called', e);
+
+    // Defensive check: ensure event and target exist
+    if (!e || !e.target) {
+        console.error('[UPLOAD ERROR] Invalid event object:', e);
+        showAlert('Error: Invalid file selection event. Please try again.', 'danger');
+        return;
+    }
+
+    // Defensive check: ensure files property exists
+    if (!e.target.files) {
+        console.error('[UPLOAD ERROR] No files property on target:', e.target);
+        showAlert('Error: Unable to access selected files. Please try again.', 'danger');
+        return;
+    }
+
     const files = e.target.files;
     if (files.length === 0) return;
 
-    const formData = new FormData();
+    // Validate files before upload (Gemini requirements)
+    const validFiles = [];
+    const supportedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    
     for (let file of files) {
+        // Quick self-test (as per Gemini requirements)
+        const fileCheck = {
+            fileExists: !!file,
+            type: file?.type,
+            size: file?.size,
+            instance: file instanceof File
+        };
+        console.log('[FILE VALIDATION]', fileCheck);
+        
+        // Validate file is a File instance
+        if (!(file instanceof File)) {
+            console.error('[UPLOAD ERROR] Not a File object:', file);
+            showAlert(`Error: Invalid file object. Please try selecting the file again.`, 'danger');
+            continue;
+        }
+        
+        // Validate file type (only safe formats for Gemini)
+        if (!file.type || !supportedTypes.includes(file.type)) {
+            console.warn(`[FILE VALIDATION] Unsupported type: ${file.type}, will be converted to JPEG on server`);
+            // Continue anyway - server will convert it
+        }
+        
+        // Validate file size
+        if (!file.size || file.size === 0) {
+            console.error('[UPLOAD ERROR] Empty file:', file.name);
+            showAlert(`Error: File "${file.name}" is empty. Please select a valid image.`, 'danger');
+            continue;
+        }
+        
+        // Check file size limit (20MB for Gemini)
+        const maxSize = 20 * 1024 * 1024; // 20MB
+        if (file.size > maxSize) {
+            console.error('[UPLOAD ERROR] File too large:', file.name, file.size);
+            showAlert(`Error: File "${file.name}" exceeds 20MB limit. Please compress or resize the image.`, 'danger');
+            continue;
+        }
+        
+        validFiles.push(file);
+    }
+    
+    if (validFiles.length === 0) {
+        hideLoading();
+        return;
+    }
+    
+    // Create FormData with validated files
+    const formData = new FormData();
+    for (let file of validFiles) {
         formData.append('photos', file);
     }
+    
+    console.log(`[UPLOAD] Validated ${validFiles.length} of ${files.length} files`);
 
     showLoading();
 
@@ -355,10 +400,16 @@ async function handlePhotoSelect(e) {
 
                 // Create image
                 const img = document.createElement('img');
-                // Use actual file path from server instead of blob URL
-                // Server returns paths like "data/draft_photos/uuid/filename"
-                // Route /data/<path:filename> serves these files
-                img.src = '/' + data.paths[i];
+                // Use Supabase Storage URL directly (already a full URL)
+                // Or use local path if it's not a Supabase URL
+                const imageUrl = data.paths[i];
+                if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+                    // It's a Supabase Storage URL - use directly
+                    img.src = imageUrl;
+                } else {
+                    // It's a local path - prepend '/' for local serving
+                    img.src = '/' + imageUrl;
+                }
                 img.className = 'photo-preview';
                 img.title = 'Click to edit | Right-click to zoom';
 
@@ -663,7 +714,12 @@ function removePhoto(index) {
 
             // Create image
             const img = document.createElement('img');
-            img.src = photoPath;
+            // Handle both Supabase Storage URLs and local paths
+            if (photoPath.startsWith('http://') || photoPath.startsWith('https://')) {
+                img.src = photoPath;  // Supabase Storage URL
+            } else {
+                img.src = photoPath.startsWith('/') ? photoPath : '/' + photoPath;  // Local path
+            }
             img.className = 'photo-preview';
             img.title = 'Click to edit | Right-click to zoom';
 
@@ -705,6 +761,15 @@ function removePhoto(index) {
         // Hide analyze button if no photos left
         if (uploadedPhotos.length === 0) {
             document.getElementById('analyzeBtn').style.display = 'none';
+            
+            // Also disable Enhanced Scan button when no photos
+            const enhancedScanBtn = document.getElementById('enhancedScanBtn');
+            if (enhancedScanBtn) {
+                enhancedScanBtn.disabled = true;
+                enhancedScanBtn.classList.remove('btn-primary');
+                enhancedScanBtn.classList.add('btn-outline-primary');
+                enhancedScanBtn.title = 'Run quick AI scan first to enable Enhanced Scan';
+            }
         }
     }
 }
@@ -805,8 +870,25 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
         const isCard = analysis.category === 'Trading Cards' || analysis.category === 'Sports Cards';
         const isCollectible = analysis.collectible === true;
 
-        if (isCard || isCollectible) {
-            showEnhancedScanOption(isCard, isCollectible, analysis);
+        // Enable/Disable Enhanced Scan button based on collectible detection
+        const enhancedScanBtn = document.getElementById('enhancedScanBtn');
+        if (enhancedScanBtn) {
+            if (isCard || isCollectible) {
+                enhancedScanBtn.disabled = false;
+                enhancedScanBtn.classList.remove('btn-outline-primary');
+                enhancedScanBtn.classList.add('btn-primary');
+                enhancedScanBtn.title = 'Deep collectible analysis - Create artifact in Hall of Records';
+                
+                // Show info message
+                if (isCard || isCollectible) {
+                    showEnhancedScanOption(isCard, isCollectible, analysis);
+                }
+            } else {
+                enhancedScanBtn.disabled = true;
+                enhancedScanBtn.classList.remove('btn-primary');
+                enhancedScanBtn.classList.add('btn-outline-primary');
+                enhancedScanBtn.title = 'Enhanced Scan only available for collectibles - Run quick AI scan first';
+            }
         }
 
         // Show market analysis if available
@@ -823,7 +905,7 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
     }
 });
 
-// Show subtle Enhanced Scan option
+// Show subtle Enhanced Scan option info card
 function showEnhancedScanOption(isCard, isCollectible, analysis) {
     // Remove existing if present
     document.getElementById('enhancedScanCard')?.remove();
@@ -831,25 +913,15 @@ function showEnhancedScanOption(isCard, isCollectible, analysis) {
     let scanType = isCard ? 'card' : 'collectible';
     let icon = isCard ? 'fa-id-card' : 'fa-star';
     let message = isCard 
-        ? 'Get detailed card analysis, TCGPlayer prices, and authentication'
-        : 'Get rarity info, franchise history, and authentication markers';
+        ? 'Collectible detected! Enhanced Scan will create detailed card analysis in Hall of Records'
+        : 'Collectible detected! Enhanced Scan will create artifact with franchise history in Hall of Records';
 
     const enhancedScanCard = `
-        <div class="card border-primary mb-3" id="enhancedScanCard">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="mb-1">
-                            <i class="fas ${icon} text-primary"></i> 
-                            Enhanced Scanner Available
-                        </h6>
-                        <small class="text-muted">${message}</small>
-                    </div>
-                    <button class="btn btn-primary" onclick="runEnhancedScan()">
-                        <i class="fas fa-microscope"></i> Enhanced Scan
-                    </button>
-                </div>
-            </div>
+        <div class="alert alert-info mb-3" id="enhancedScanCard">
+            <i class="fas ${icon}"></i> 
+            <strong>${message}</strong>
+            <br>
+            <small class="text-muted">Click the Enhanced Scan button above to proceed.</small>
         </div>
     `;
 
@@ -866,8 +938,8 @@ function showMarketAnalysis(market) {
                      market.demand_level === 'Low' ? 'danger' : 'warning';
 
     let marketCard = `
-        <div class="card border-info mb-3" id="marketAnalysisCard">
-            <div class="card-header bg-info text-white">
+        <div class="card border-info mb-3" id="marketAnalysisCard" style="border-color: var(--cold-steel-accent);">
+            <div class="card-header" style="background: var(--carbon-matte-surface); border-bottom: 2px solid var(--cold-steel-accent); color: var(--cold-steel-light);">
                 <i class="fas fa-chart-line"></i> Market Analysis
             </div>
             <div class="card-body">
@@ -907,7 +979,24 @@ function getDemandEmoji(demand) {
 }
 
 // TIER 2: Enhanced Scanner (Claude - Deep Dive)
+// Creates artifact in Hall of Records and redirects to artifact detail page
+// Attach click handler to Enhanced Scan button
+document.getElementById('enhancedScanBtn')?.addEventListener('click', runEnhancedScan);
+
 async function runEnhancedScan() {
+    // Check if button is enabled (collectible detected)
+    const btn = document.getElementById('enhancedScanBtn');
+    if (btn && btn.disabled) {
+        showAlert('Enhanced Scan is only available for collectible items. Run quick AI scan first.', 'warning');
+        return;
+    }
+    
+    // Check if photos are uploaded (non-negotiable requirement)
+    if (!uploadedPhotos || uploadedPhotos.length === 0) {
+        showAlert('Please upload photos first before running Enhanced Scan.', 'warning');
+        return;
+    }
+    
     showLoading('Running enhanced scan... This may take 10-20 seconds');
 
     try {
@@ -931,26 +1020,22 @@ async function runEnhancedScan() {
             return;
         }
 
-        // Store enhanced scan data
-        enhancedScanData = data;
-
-        // Remove the "run enhanced scan" card
-        document.getElementById('enhancedScanCard')?.remove();
-
-        // Display results based on type
-        if (data.type === 'card') {
-            detectedCardData = data.data;
-            showCardResults(data);
-        } else if (data.type === 'collectible') {
-            detectedCollectibleData = data.data;
-            showCollectibleResults(data);
+        // Artifact has been AUTOMATICALLY created/updated in Hall of Records
+        // Database update is automatic (no user choice) - follows merge rules
+        // User will select photos and can save to personal collection
+        if (data.artifact_id) {
+            hideLoading();
+            showAlert('Artifact automatically updated in public Hall of Records! Redirecting...', 'success');
+            setTimeout(() => {
+                window.location.href = `/artifact/${data.artifact_id}`;
+            }, 1500);
+        } else {
+            throw new Error('No artifact ID returned from server');
         }
 
-        showAlert('Enhanced scan complete!', 'success');
-
     } catch (error) {
-        showAlert('Enhanced scan failed: ' + error, 'danger');
-    } finally {
+        console.error('Enhanced scan error:', error);
+        showAlert('Enhanced scan failed: ' + (error.message || error), 'danger');
         hideLoading();
     }
 }
@@ -959,25 +1044,105 @@ async function runEnhancedScan() {
 function showCardResults(data) {
     const cardData = data.data;
     const prices = data.market_prices || {};
+    
+    // Extract collector value indicators
+    const serialNumber = cardData.serial_number || {};
+    const signature = cardData.signature || {};
+    const errors = cardData.errors_variations || {};
+    const history = cardData.historical_context || {};
+    const condition = cardData.condition || {};
+    const auth = cardData.authentication || {};
 
     const statsCard = `
-        <div class="card border-success mb-3" id="enhancedResultsCard">
-            <div class="card-header bg-success text-white">
+        <div class="card border-success mb-3" id="enhancedResultsCard" style="border-color: #4CAF50;">
+            <div class="card-header" style="background: var(--carbon-matte-surface); border-bottom: 2px solid #4CAF50; color: #81C784;">
                 <i class="fas fa-id-card"></i> Card Analysis Complete
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-8">
                         <h5>${cardData.card_name || cardData.player_name || 'Unknown Card'}</h5>
                         ${cardData.set_name ? `<p class="mb-1"><strong>Set:</strong> ${cardData.set_name}</p>` : ''}
                         ${cardData.card_number ? `<p class="mb-1"><strong>Number:</strong> #${cardData.card_number}</p>` : ''}
                         ${cardData.rarity ? `<p class="mb-1"><strong>Rarity:</strong> ${cardData.rarity}</p>` : ''}
                         ${cardData.year ? `<p class="mb-1"><strong>Year:</strong> ${cardData.year}</p>` : ''}
                         ${cardData.brand ? `<p class="mb-1"><strong>Brand:</strong> ${cardData.brand}</p>` : ''}
-                        ${cardData.is_rookie_card ? `<p class="mb-1"><span class="badge bg-warning">ROOKIE CARD</span></p>` : ''}
+                        ${cardData.is_rookie_card ? `<p class="mb-1"><span class="badge" style="background: #FF9800; color: white;">ROOKIE CARD</span></p>` : ''}
                         ${cardData.is_graded ? `<p class="mb-1"><strong>Graded:</strong> ${cardData.grading_company} ${cardData.grading_score}</p>` : ''}
+                        
+                        ${history.backstory ? `
+                            <div class="mt-3 mb-3" style="background: rgba(76, 175, 80, 0.1); padding: 15px; border-radius: 5px; border-left: 3px solid #4CAF50;">
+                                <h6 class="mb-2"><i class="fas fa-book-open"></i> Card History & Backstory</h6>
+                                <p class="small mb-0" style="line-height: 1.6;">${history.backstory}</p>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="row mt-2">
+                            ${serialNumber.present ? `
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <h6 class="mb-1"><i class="fas fa-hashtag"></i> Serial Number</h6>
+                                            ${serialNumber.number ? `<p class="mb-1"><strong>Number:</strong> ${serialNumber.number}</p>` : ''}
+                                            ${serialNumber.format ? `<p class="mb-1 small"><strong>Format:</strong> ${serialNumber.format}</p>` : ''}
+                                            ${serialNumber.significance ? `<p class="mb-0 small text-muted">${serialNumber.significance}</p>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${signature.present ? `
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <h6 class="mb-1"><i class="fas fa-signature"></i> Signature</h6>
+                                            ${signature.signer ? `<p class="mb-1"><strong>Signer:</strong> ${signature.signer}</p>` : ''}
+                                            ${signature.location ? `<p class="mb-1 small"><strong>Location:</strong> ${signature.location}</p>` : ''}
+                                            ${signature.value_impact ? `<p class="mb-0 small text-muted">${signature.value_impact}</p>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${errors.present ? `
+                                <div class="col-md-6 mb-3">
+                                    <div class="card" style="background: #fff3cd; border: 2px solid #ffc107;">
+                                        <div class="card-body p-2">
+                                            <h6 class="mb-1"><i class="fas fa-exclamation-triangle"></i> Error / Misprint</h6>
+                                            ${errors.error_type ? `<p class="mb-1"><strong>Type:</strong> ${errors.error_type}</p>` : ''}
+                                            ${errors.error_description ? `<p class="mb-1 small">${errors.error_description}</p>` : ''}
+                                            ${errors.value_impact ? `<p class="mb-0 small text-success"><strong>Value Impact:</strong> ${errors.value_impact}</p>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        ${condition.overall_grade ? `
+                            <div class="mt-2">
+                                <h6><i class="fas fa-certificate"></i> Condition</h6>
+                                <p class="mb-1"><strong>Grade:</strong> ${condition.overall_grade}</p>
+                                ${condition.condition_details ? `<p class="small text-muted mb-0">${condition.condition_details}</p>` : ''}
+                            </div>
+                        ` : ''}
+                        
+                        ${auth.authentication_markers?.length > 0 ? `
+                            <div class="mt-2">
+                                <h6><i class="fas fa-shield-alt"></i> Authentication</h6>
+                                <ul class="small mb-0">
+                                    ${auth.authentication_markers.map(m => `<li>${m}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        
+                        ${cardData.collector_notes ? `
+                            <div class="mt-2">
+                                <h6><i class="fas fa-info-circle"></i> Collector Notes</h6>
+                                <p class="small mb-0">${cardData.collector_notes}</p>
+                            </div>
+                        ` : ''}
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <h6>Market Prices</h6>
                         ${prices.tcgplayer ? `<p class="mb-1"><strong>TCGPlayer:</strong> $${prices.tcgplayer.market || 'N/A'}</p>` : ''}
                         ${prices.ebay ? `<p class="mb-1"><strong>eBay Sold Avg:</strong> $${prices.ebay.avg || 'N/A'}</p>` : ''}
@@ -1023,47 +1188,132 @@ function showCardResults(data) {
 function showCollectibleResults(data) {
     const collectibleData = data.data;
     const prices = data.market_prices || {};
+    
+    // Extract collector value indicators
+    const mintMark = collectibleData.mint_mark || {};
+    const serialNumber = collectibleData.serial_number || {};
+    const signature = collectibleData.signature || {};
+    const errors = collectibleData.errors_variations || {};
+    const history = collectibleData.historical_context || {};
+    const condition = collectibleData.condition || {};
+    const auth = collectibleData.authentication || {};
 
     const collectibleCard = `
-        <div class="card border-warning mb-3" id="enhancedResultsCard">
-            <div class="card-header bg-warning text-dark">
+        <div class="card border-warning mb-3" id="enhancedResultsCard" style="border-color: #FF9800;">
+            <div class="card-header" style="background: var(--carbon-matte-surface); border-bottom: 2px solid #FF9800; color: #FFB74D;">
                 <i class="fas fa-star"></i> Collectible Analysis Complete
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-8">
                         <h5>${collectibleData.item_name || 'Unknown Collectible'}</h5>
-                        <p class="mb-2"><strong>Franchise:</strong> ${collectibleData.franchise}</p>
+                        ${collectibleData.franchise ? `<p class="mb-2"><strong>Franchise:</strong> ${collectibleData.franchise}</p>` : ''}
+                        ${collectibleData.brand ? `<p class="mb-2"><strong>Brand:</strong> ${collectibleData.brand}</p>` : ''}
                         
-                        ${collectibleData.item_significance ? `
-                            <h6 class="mt-3">About This Item</h6>
-                            <p class="small">${collectibleData.item_significance}</p>
+                        ${history.backstory ? `
+                            <div class="mt-3 mb-3" style="background: rgba(255, 152, 0, 0.1); padding: 15px; border-radius: 5px; border-left: 3px solid #FF9800;">
+                                <h6 class="mb-2"><i class="fas fa-book-open"></i> Item History & Backstory</h6>
+                                <p class="small mb-0" style="line-height: 1.6;">${history.backstory}</p>
+                            </div>
                         ` : ''}
                         
-                        ${collectibleData.rarity_info ? `
-                            <h6 class="mt-3">Rarity Analysis</h6>
-                            <p class="small">${collectibleData.rarity_info}</p>
+                        <div class="row mt-3">
+                            ${mintMark.present ? `
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <h6 class="mb-1"><i class="fas fa-stamp"></i> Mint Mark</h6>
+                                            ${mintMark.mark ? `<p class="mb-1"><strong>Mark:</strong> ${mintMark.mark}</p>` : ''}
+                                            ${mintMark.location ? `<p class="mb-1 small"><strong>Location:</strong> ${mintMark.location}</p>` : ''}
+                                            ${mintMark.significance ? `<p class="mb-0 small text-muted">${mintMark.significance}</p>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${serialNumber.present ? `
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <h6 class="mb-1"><i class="fas fa-hashtag"></i> Serial Number</h6>
+                                            ${serialNumber.number ? `<p class="mb-1"><strong>Number:</strong> ${serialNumber.number}</p>` : ''}
+                                            ${serialNumber.format ? `<p class="mb-1 small"><strong>Format:</strong> ${serialNumber.format}</p>` : ''}
+                                            ${serialNumber.significance ? `<p class="mb-0 small text-muted">${serialNumber.significance}</p>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${signature.present ? `
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <h6 class="mb-1"><i class="fas fa-signature"></i> Signature</h6>
+                                            ${signature.signer ? `<p class="mb-1"><strong>Signer:</strong> ${signature.signer}</p>` : ''}
+                                            ${signature.location ? `<p class="mb-1 small"><strong>Location:</strong> ${signature.location}</p>` : ''}
+                                            ${signature.value_impact ? `<p class="mb-0 small text-muted">${signature.value_impact}</p>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${errors.present ? `
+                                <div class="col-md-6 mb-3">
+                                    <div class="card" style="background: #fff3cd; border: 2px solid #ffc107;">
+                                        <div class="card-body p-2">
+                                            <h6 class="mb-1"><i class="fas fa-exclamation-triangle"></i> Error / Variation</h6>
+                                            ${errors.error_type ? `<p class="mb-1"><strong>Type:</strong> ${errors.error_type}</p>` : ''}
+                                            ${errors.error_description ? `<p class="mb-1 small">${errors.error_description}</p>` : ''}
+                                            ${errors.value_impact ? `<p class="mb-0 small text-success"><strong>Value Impact:</strong> ${errors.value_impact}</p>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        ${condition.overall_grade ? `
+                            <div class="mt-3">
+                                <h6><i class="fas fa-certificate"></i> Condition</h6>
+                                <p class="mb-1"><strong>Grade:</strong> ${condition.overall_grade}</p>
+                                ${condition.condition_details ? `<p class="small text-muted mb-0">${condition.condition_details}</p>` : ''}
+                            </div>
                         ` : ''}
                         
-                        ${collectibleData.authentication_markers?.length > 0 ? `
-                            <h6 class="mt-3">Authentication Markers</h6>
-                            <ul class="small">
-                                ${collectibleData.authentication_markers.map(m => `<li>${m}</li>`).join('')}
-                            </ul>
+                        ${auth.authentication_markers?.length > 0 ? `
+                            <div class="mt-3">
+                                <h6><i class="fas fa-shield-alt"></i> Authentication</h6>
+                                <ul class="small mb-0">
+                                    ${auth.authentication_markers.map(m => `<li>${m}</li>`).join('')}
+                                </ul>
+                                ${auth.confidence !== undefined ? `<p class="small text-muted mt-1 mb-0">Confidence: ${Math.round(auth.confidence * 100)}%</p>` : ''}
+                            </div>
+                        ` : ''}
+                        
+                        ${collectibleData.collector_notes ? `
+                            <div class="mt-3">
+                                <h6><i class="fas fa-info-circle"></i> Collector Notes</h6>
+                                <p class="small mb-0">${collectibleData.collector_notes}</p>
+                            </div>
                         ` : ''}
                     </div>
                     <div class="col-md-4">
                         <h6>Market Analysis</h6>
-                        ${prices.retail ? `
+                        ${prices.value_range?.low && prices.value_range?.high ? `
                             <div class="mb-2">
-                                <small class="text-muted">Retail Price</small>
-                                <div class="h5">$${prices.retail}</div>
+                                <small class="text-muted">Value Range</small>
+                                <div class="h5">$${prices.value_range.low} - $${prices.value_range.high}</div>
                             </div>
                         ` : ''}
                         ${prices.actual_selling ? `
                             <div class="mb-2">
-                                <small class="text-muted">Actual Selling</small>
+                                <small class="text-muted">Estimated Value</small>
                                 <div class="h5 text-success">$${prices.actual_selling}</div>
+                            </div>
+                        ` : ''}
+                        ${prices.retail ? `
+                            <div class="mb-2">
+                                <small class="text-muted">Retail Price</small>
+                                <div class="h5">$${prices.retail}</div>
                             </div>
                         ` : ''}
                         ${prices.quick_sale ? `
@@ -1073,14 +1323,10 @@ function showCollectibleResults(data) {
                             </div>
                         ` : ''}
                         
-                        ${collectibleData.rarity_score ? `
+                        ${collectibleData.market_analysis?.market_trend ? `
                             <div class="mt-3">
-                                <small class="text-muted">Rarity Score</small>
-                                <div class="progress">
-                                    <div class="progress-bar bg-warning" style="width: ${collectibleData.rarity_score}%">
-                                        ${collectibleData.rarity_score}/100
-                                    </div>
-                                </div>
+                                <small class="text-muted">Market Trend</small>
+                                <div><span class="badge bg-info">${collectibleData.market_analysis.market_trend}</span></div>
                             </div>
                         ` : ''}
                     </div>
@@ -1217,8 +1463,7 @@ async function storeCardOnly() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 ai_result: detectedCardData,
-                photos: uploadedPhotos,
-                storage_location: document.getElementById('storage_location').value || null
+                photos: uploadedPhotos
             })
         });
 
@@ -1252,8 +1497,7 @@ async function storeAndList() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 ai_result: detectedCardData,
-                photos: uploadedPhotos,
-                storage_location: document.getElementById('storage_location').value || null
+                photos: uploadedPhotos
             })
         });
 
@@ -1267,8 +1511,9 @@ async function storeAndList() {
             if (resultsCard) {
                 resultsCard.classList.remove('border-success');
                 resultsCard.classList.add('border-info');
-                resultsCard.querySelector('.card-header').classList.remove('bg-success');
-                resultsCard.querySelector('.card-header').classList.add('bg-info');
+                resultsCard.querySelector('.card-header').style.background = 'var(--carbon-matte-surface)';
+                resultsCard.querySelector('.card-header').style.borderBottom = '2px solid var(--cold-steel-accent)';
+                resultsCard.querySelector('.card-header').style.color = 'var(--cold-steel-light)';
                 resultsCard.querySelector('.card-header').innerHTML = '<i class="fas fa-check-circle"></i> Card Stored - Create Listing Below';
             }
         } else {
@@ -1296,8 +1541,7 @@ async function storeCollectibleOnly() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 ai_result: detectedCollectibleData,
-                photos: uploadedPhotos,
-                storage_location: document.getElementById('storage_location').value || null
+                photos: uploadedPhotos
             })
         });
 
@@ -1331,8 +1575,7 @@ async function storeCollectibleAndList() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 ai_result: detectedCollectibleData,
-                photos: uploadedPhotos,
-                storage_location: document.getElementById('storage_location').value || null
+                photos: uploadedPhotos
             })
         });
 
@@ -1346,8 +1589,9 @@ async function storeCollectibleAndList() {
             if (resultsCard) {
                 resultsCard.classList.remove('border-warning');
                 resultsCard.classList.add('border-info');
-                resultsCard.querySelector('.card-header').classList.remove('bg-warning');
-                resultsCard.querySelector('.card-header').classList.add('bg-info');
+                resultsCard.querySelector('.card-header').style.background = 'var(--carbon-matte-surface)';
+                resultsCard.querySelector('.card-header').style.borderBottom = '2px solid var(--cold-steel-accent)';
+                resultsCard.querySelector('.card-header').style.color = 'var(--cold-steel-light)';
                 resultsCard.querySelector('.card-header').innerHTML = '<i class="fas fa-check-circle"></i> Collectible Stored - Create Listing Below';
             }
         } else {
@@ -1359,19 +1603,13 @@ async function storeCollectibleAndList() {
         hideLoading();
     }
 }
-// Save Listing (common function)
-async function saveListing(status = 'draft') {
-    if (uploadedPhotos.length === 0) {
-        showAlert('Please upload photos first!', 'warning');
-        return;
-    }
-
+// Save Listing Draft - Serialize to CSV and append to drafts.csv
+async function saveDraft() {
     const formData = collectFormData();
-    formData.status = status;
     showLoading();
 
     try {
-        const response = await fetch('/api/save-draft', {
+        const response = await fetch('/api/save-draft-csv', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(formData)
@@ -1380,35 +1618,174 @@ async function saveListing(status = 'draft') {
         const data = await response.json();
 
         if (data.success) {
-            // Update draft ID so next save is an update, not a new draft
-            editingDraftId = data.listing_id;
-            editingListingUuid = data.listing_uuid;
-
-            const msg = status === 'active' ? 'Listing posted successfully!' : 'Draft saved successfully!';
-            showAlert(msg, 'success');
-
-            // Only redirect if posting as active
-            if (status === 'active') {
-                setTimeout(() => window.location.href = '/listings', 1500);
-            }
+            showAlert('Draft saved to CSV successfully!', 'success');
+            // Clear form and stay on page
+            clearForm();
+            setTimeout(() => {
+                hideLoading();
+            }, 1000);
         } else {
-            showAlert(data.error, 'danger');
+            showAlert(data.error || 'Failed to save draft', 'danger');
+            hideLoading();
         }
     } catch (error) {
         showAlert('Save failed: ' + error, 'danger');
-    } finally {
         hideLoading();
     }
 }
 
-// Save as Draft button
+// Save to Collection Vault - Serialize to CSV and append to vault.csv
+async function saveToVault() {
+    const formData = collectFormData();
+    showLoading();
+
+    try {
+        const response = await fetch('/api/save-vault-csv', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('Item saved to Collection Vault!', 'success');
+            // Clear form and stay on page
+            clearForm();
+            setTimeout(() => {
+                hideLoading();
+            }, 1000);
+        } else {
+            showAlert(data.error || 'Failed to save to vault', 'danger');
+            hideLoading();
+        }
+    } catch (error) {
+        showAlert('Save failed: ' + error, 'danger');
+        hideLoading();
+    }
+}
+
+// Post Listing - Show platform selection dropdown/modal
+function showPlatformSelection() {
+    const platforms = [
+        { value: 'ebay', label: 'eBay', icon: 'fab fa-ebay' },
+        { value: 'mercari', label: 'Mercari', icon: 'fas fa-store' },
+        { value: 'poshmark', label: 'Poshmark', icon: 'fas fa-shopping-bag' },
+        { value: 'facebook', label: 'Facebook Marketplace', icon: 'fab fa-facebook' },
+        { value: 'other', label: 'Other / Custom', icon: 'fas fa-ellipsis-h' }
+    ];
+
+    let html = '<div class="modal fade" id="platformSelectionModal" tabindex="-1">';
+    html += '<div class="modal-dialog"><div class="modal-content">';
+    html += '<div class="modal-header bg-primary text-white">';
+    html += '<h5 class="modal-title"><i class="fas fa-rocket"></i> Choose Platform</h5>';
+    html += '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>';
+    html += '</div><div class="modal-body">';
+    html += '<p>Select where to list this item:</p>';
+    
+    platforms.forEach(platform => {
+        html += `<div class="form-check mb-2">`;
+        html += `<input class="form-check-input" type="radio" name="platform" id="platform_${platform.value}" value="${platform.value}">`;
+        html += `<label class="form-check-label" for="platform_${platform.value}">`;
+        html += `<i class="${platform.icon}"></i> ${platform.label}`;
+        html += `</label></div>`;
+    });
+
+    html += '</div><div class="modal-footer">';
+    html += '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>';
+    html += '<button type="button" class="btn btn-primary" onclick="confirmPostListing()">';
+    html += '<i class="fas fa-check"></i> Continue</button>';
+    html += '</div></div></div></div>';
+
+    // Remove existing modal if any
+    const existingModal = document.getElementById('platformSelectionModal');
+    if (existingModal) existingModal.remove();
+
+    // Add and show modal
+    document.body.insertAdjacentHTML('beforeend', html);
+    const modal = new bootstrap.Modal(document.getElementById('platformSelectionModal'));
+    modal.show();
+}
+
+async function confirmPostListing() {
+    const selectedPlatform = document.querySelector('input[name="platform"]:checked');
+    
+    if (!selectedPlatform) {
+        showAlert('Please select a platform', 'warning');
+        return;
+    }
+
+    const platform = selectedPlatform.value;
+    const formData = collectFormData();
+    formData.platform = platform;
+
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('platformSelectionModal'));
+    modal.hide();
+
+    showLoading();
+
+    try {
+        const response = await fetch('/api/post-listing', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('Listing queued for posting!', 'success');
+            // Route to placeholder post-listing page
+            setTimeout(() => {
+                window.location.href = '/post-listing';
+            }, 1500);
+        } else {
+            showAlert(data.error || 'Failed to queue listing', 'danger');
+            hideLoading();
+        }
+    } catch (error) {
+        showAlert('Post failed: ' + error, 'danger');
+        hideLoading();
+    }
+}
+
+// Clear form function
+function clearForm() {
+    document.getElementById('listingForm').reset();
+    uploadedPhotos = [];
+    document.getElementById('photoPreview').innerHTML = '';
+    document.getElementById('analyzeBtn').style.display = 'none';
+    
+    // Reset Enhanced Scan button to disabled state
+    const enhancedScanBtn = document.getElementById('enhancedScanBtn');
+    if (enhancedScanBtn) {
+        enhancedScanBtn.disabled = true;
+        enhancedScanBtn.classList.remove('btn-primary');
+        enhancedScanBtn.classList.add('btn-outline-primary');
+        enhancedScanBtn.title = 'Run quick AI scan first to enable Enhanced Scan';
+    }
+    
+    // Reset any enhanced scan results
+    document.getElementById('enhancedScanCard')?.remove();
+    document.getElementById('enhancedResultsCard')?.remove();
+    document.getElementById('marketAnalysisCard')?.remove();
+    detectedCardData = null;
+    detectedCollectibleData = null;
+    enhancedScanData = null;
+}
+
+// Button event listeners
 document.getElementById('saveDraftBtn').addEventListener('click', async function() {
-    await saveListing('draft');
+    await saveDraft();
 });
 
-// Post Now button
-document.getElementById('postNowBtn').addEventListener('click', async function() {
-    await saveListing('active');
+document.getElementById('saveToVaultBtn').addEventListener('click', async function() {
+    await saveToVault();
+});
+
+document.getElementById('postListingBtn').addEventListener('click', function() {
+    showPlatformSelection();
 });
 
 function collectFormData() {
@@ -1423,10 +1800,6 @@ function collectFormData() {
         size: document.getElementById('size').value,
         color: document.getElementById('color').value,
         shipping_cost: document.getElementById('shipping_cost').value,
-        storage_location: document.getElementById('storage_location').value,
-        quantity: document.getElementById('quantity').value,
-        sku: document.getElementById('sku').value,
-        upc: document.getElementById('upc').value,
         photos: uploadedPhotos  // CRITICAL: Include photos array
     };
 
@@ -1480,10 +1853,6 @@ async function loadDraftData() {
             document.getElementById('size').value = listing.size || '';
             document.getElementById('color').value = listing.color || '';
             document.getElementById('shipping_cost').value = listing.shipping_cost || 0;
-            document.getElementById('storage_location').value = listing.storage_location || '';
-            document.getElementById('quantity').value = listing.quantity || 1;
-            document.getElementById('sku').value = listing.sku || '';
-            document.getElementById('upc').value = listing.upc || '';
 
             // Load photos
             if (listing.photos && listing.photos.length > 0) {
@@ -1506,8 +1875,12 @@ async function loadDraftData() {
 
                     // Create image
                     const img = document.createElement('img');
-                    // Convert server path to URL
-                    img.src = '/' + photoPath;
+                    // Handle both Supabase Storage URLs and local paths
+                    if (photoPath.startsWith('http://') || photoPath.startsWith('https://')) {
+                        img.src = photoPath;  // Supabase Storage URL
+                    } else {
+                        img.src = photoPath.startsWith('/') ? photoPath : '/' + photoPath;  // Local path
+                    }
                     img.className = 'photo-preview';
                     img.title = 'Click to edit | Right-click to zoom';
 
@@ -1566,5 +1939,102 @@ async function loadDraftData() {
 if (editingDraftId) {
     document.addEventListener('DOMContentLoaded', loadDraftData);
 }
+
+// Cleanup temporary photos when user navigates away without saving
+// Only cleanup if we're not editing a draft/listing (those photos should persist)
+let hasBeenSaved = false;  // Track if user has saved (draft or listing)
+let cleanupInProgress = false;  // Prevent multiple cleanup calls
+
+// Function to cleanup temp photos
+function cleanupTempPhotos() {
+    // Prevent multiple cleanup calls
+    if (cleanupInProgress) {
+        console.log('[CLEANUP] Cleanup already in progress, skipping');
+        return;
+    }
+    
+    // Only cleanup if:
+    // 1. There are uploaded photos
+    // 2. User hasn't saved yet (not a draft or listing)
+    // 3. We're not editing an existing draft/listing
+    if (uploadedPhotos.length === 0) {
+        console.log('[CLEANUP] No photos to cleanup');
+        return;
+    }
+    
+    if (hasBeenSaved) {
+        console.log('[CLEANUP] Photos have been saved, skipping cleanup');
+        return;
+    }
+    
+    if (editingDraftId || editingListingUuid) {
+        console.log('[CLEANUP] Editing existing draft/listing, skipping cleanup');
+        return;
+    }
+    
+    console.log('[CLEANUP] Starting cleanup of', uploadedPhotos.length, 'temp photos');
+    
+    // Filter to only temp-photos bucket URLs (don't cleanup listing-images or draft-images)
+    const tempPhotoUrls = uploadedPhotos.filter(url => 
+        url.includes('supabase.co') && url.includes('temp-photos')
+    );
+    
+    if (tempPhotoUrls.length === 0) {
+        console.log('[CLEANUP] No temp-photos URLs to cleanup');
+        return;
+    }
+    
+    console.log('[CLEANUP] Will cleanup', tempPhotoUrls.length, 'photos from temp-photos bucket');
+    
+    cleanupInProgress = true;
+    
+    try {
+        // Use fetch with keepalive (more reliable than sendBeacon for JSON)
+        // keepalive ensures request completes even if page is closing
+        fetch('/api/cleanup-temp-photos', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({photos: tempPhotoUrls}),
+            keepalive: true  // Critical: ensures request completes even if page closes
+        }).then(response => {
+            if (response.ok) {
+                return response.json();
+            }
+            throw new Error(`HTTP ${response.status}`);
+        }).then(data => {
+            console.log('[CLEANUP] ✅ Cleanup successful:', data.message || 'deleted', data.deleted || 0, 'photos');
+        }).catch(error => {
+            console.warn('[CLEANUP] ⚠️ Cleanup request failed (best effort):', error);
+        });
+    } catch (e) {
+        // Ignore errors - cleanup is best effort
+        console.warn('[CLEANUP] ⚠️ Cleanup failed (best effort):', e);
+    }
+}
+
+// Handle page unload (user closes tab/navigates away)
+window.addEventListener('beforeunload', function(e) {
+    cleanupTempPhotos();
+});
+
+// Handle visibility change (when tab becomes hidden/closed)
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        cleanupTempPhotos();
+    }
+});
+
+// Also cleanup when user navigates to a different page (pushstate/popstate)
+let lastUrl = location.href;
+new MutationObserver(() => {
+    const url = location.href;
+    if (url !== lastUrl) {
+        lastUrl = url;
+        cleanupTempPhotos();
+    }
+}).observe(document, {subtree: true, childList: true});
+
+// Mark as saved when listing is saved (saveListing function is called)
+// We'll hook into the saveListing function below
 </script>
 {% endblock %}

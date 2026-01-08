@@ -31,6 +31,9 @@ app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max upload
 app.config['UPLOAD_FOLDER'] = './data/uploads'
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Ensure upload folder exists
 Path(app.config['UPLOAD_FOLDER']).mkdir(parents=True, exist_ok=True)
@@ -128,6 +131,7 @@ from routes_auth import auth_bp, init_routes as init_auth
 from routes_admin import admin_bp, init_routes as init_admin
 from routes_cards import cards_bp, init_routes as init_cards
 from routes_main import main_bp, init_routes as init_main
+from routes_csv import csv_bp
 
 # Initialize blueprints with database and User class
 init_auth(db, User)
@@ -140,6 +144,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(cards_bp)
 app.register_blueprint(main_bp)
+app.register_blueprint(csv_bp)
 
 # ============================================================================
 # MAIN ROUTES (not in blueprints)
@@ -154,6 +159,7 @@ def index():
         return render_template('index.html')
 
 @app.route('/create')
+@login_required
 def create_listing():
     """Create new listing page"""
     draft_id = request.args.get('draft_id', type=int)
@@ -171,14 +177,22 @@ def drafts():
 @login_required
 def listings():
     """Listings page"""
-    cursor = db._get_cursor()
-    cursor.execute("""
-        SELECT * FROM listings
-        WHERE user_id = %s AND status != 'draft'
-        ORDER BY created_at DESC
-    """, (current_user.id,))
-    user_listings = [dict(row) for row in cursor.fetchall()]
-    return render_template('listings.html', listings=user_listings)
+    cursor = None
+    try:
+        cursor = db._get_cursor()
+        cursor.execute("""
+            SELECT * FROM listings
+            WHERE user_id = %s AND status != 'draft'
+            ORDER BY created_at DESC
+        """, (current_user.id,))
+        user_listings = [dict(row) for row in cursor.fetchall()]
+        return render_template('listings.html', listings=user_listings)
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except Exception:
+                pass
 
 @app.route('/notifications')
 @login_required
@@ -216,6 +230,18 @@ def storage_map():
 def settings():
     """User settings"""
     return render_template('settings.html')
+
+@app.route('/vault')
+@login_required
+def vault():
+    """Collection Vault page"""
+    return render_template('vault.html')
+
+@app.route('/post-listing')
+@login_required
+def post_listing_page():
+    """Post Listing page"""
+    return render_template('post-listing.html')
 
 # ============================================================================
 # RUN SERVER

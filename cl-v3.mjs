@@ -8,7 +8,7 @@ dotenv.config();
 
 const REPO_PATH = "C:\\Users\\Dragon\\Desktop\\projettccs\\resell-rebel";
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const ANTHROPIC_API_KEY = process.env.CLAUDE_AUTH_API;
 const REPO_OWNER = "cczerp";
 const REPO_NAME = "Resell-Rebel";
 
@@ -145,55 +145,67 @@ After making changes:
 Do NOT ask for confirmation. Execute the task and commit.`;
   }
 
-  console.log("\n📝 Prompt:\n", prompt);
-  console.log("\n⏳ Claude is working…\n");
+  console.log("\n📝 Task prompt prepared");
+  console.log("\n⏳ Claude is working via API…\n");
 
-  // Try Claude Code with retry logic
+  // Use Anthropic API directly instead of CLI
   const maxRetries = 3;
   let attempt = 0;
   let lastError = null;
+  let claudeResponse = null;
 
   while (attempt < maxRetries) {
     try {
-      run(`claude --print --dangerously-skip-permissions "${prompt.replace(/"/g, '\\"')}"`, {
-        stdio: "inherit",
-        shell: true,
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 8192,
+        messages: [
+          {
+            role: "user",
+            content: prompt
+          }
+        ]
       });
+
+      claudeResponse = message.content.map(block => block.text || "").join("\n");
+      console.log("\n🤖 Claude completed task via API");
+      console.log("─".repeat(60));
+      console.log(claudeResponse.slice(0, 500) + (claudeResponse.length > 500 ? "..." : ""));
+      console.log("─".repeat(60));
       break; // Success, exit retry loop
+      
     } catch (err) {
       lastError = err;
       attempt++;
       
-      if (err.message.includes("Invalid API key")) {
-        console.error(`\n❌ Claude API auth failed (attempt ${attempt}/${maxRetries})`);
-        console.error("   Possible causes:");
-        console.error("   - Claude session expired");
-        console.error("   - Need to run: claude auth login");
-        
-        if (attempt < maxRetries) {
-          console.log(`\n🔄 Retrying in 3 seconds...`);
-          execSync("timeout /t 3 /nobreak", { stdio: "inherit", shell: true });
-        }
+      if (err.message.includes("API key") || err.message.includes("authentication")) {
+        console.error(`\n❌ Anthropic API auth failed (attempt ${attempt}/${maxRetries})`);
+        console.error("   Check ANTHROPIC_API_KEY in .env");
+      } else if (err.message.includes("overloaded") || err.message.includes("rate")) {
+        console.error(`\n❌ API rate limit/overload (attempt ${attempt}/${maxRetries})`);
       } else {
-        console.error(`\n❌ Claude Code failed (attempt ${attempt}/${maxRetries}): ${err.message}`);
-        if (attempt < maxRetries) {
-          console.log(`\n🔄 Retrying in 3 seconds...`);
-          execSync("timeout /t 3 /nobreak", { stdio: "inherit", shell: true });
-        }
+        console.error(`\n❌ API call failed (attempt ${attempt}/${maxRetries}): ${err.message}`);
+      }
+      
+      if (attempt < maxRetries) {
+        console.log(`\n🔄 Retrying in 3 seconds...`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
     }
   }
 
   if (attempt === maxRetries) {
-    throw new Error(`Claude Code failed after ${maxRetries} attempts: ${lastError.message}`);
+    throw new Error(`Claude API failed after ${maxRetries} attempts: ${lastError.message}`);
   }
 
-  // Check if Claude committed, if not do it manually
+  // Check if there are uncommitted changes and commit them
   const postStatus = run("git status --porcelain").trim();
   if (postStatus) {
-    console.log("\n📦 Changes not committed by Claude. Committing now…");
+    console.log("\n📦 Committing changes…");
     run("git add -A", { stdio: "inherit" });
     run(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
+  } else {
+    console.log("\n⚠️  No changes detected after Claude's work");
   }
 
   // Push with conflict handling

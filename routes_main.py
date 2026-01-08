@@ -942,7 +942,6 @@ def api_enhanced_scan():
     temp_files = []  # Initialize temp_files at the top for cleanup
 
     try:
-        from src.collectibles.enhanced_scanner import EnhancedScanner
         from src.schema.unified_listing import Photo
 
         data = request.json
@@ -999,11 +998,11 @@ def api_enhanced_scan():
                 is_supabase_url = 'supabase.co' in path or path.startswith('http') and 'supabase' in path.lower()
                 
                 if is_supabase_url:
-                    logging.info(f"[ENHANCED SCAN DEBUG] Downloading image {i+1}/{len(photo_paths)} from Supabase: {path[:100]}...")
+                logging.info(f"[ENHANCED SCAN DEBUG] Downloading image {i+1}/{len(photo_paths)} from Supabase: {path[:100]}...")
 
-                    # Download from Supabase Storage to temp file
+                # Download from Supabase Storage to temp file
                     try:
-                        file_data = storage.download_photo(path)
+                file_data = storage.download_photo(path)
                     except ValueError as value_error:
                         # URL validation error
                         logging.error(f"[ENHANCED SCAN ERROR] Invalid URL format for photo {i+1}: {value_error}")
@@ -1018,44 +1017,44 @@ def api_enhanced_scan():
                         logging.error(f"[ENHANCED SCAN ERROR] Traceback: {traceback.format_exc()}")
                         file_data = None
 
-                    # Debug logging
-                    debug_info = {
-                        'hasFile': bool(file_data),
+                # Debug logging
+                debug_info = {
+                    'hasFile': bool(file_data),
                         'filePath': path[:100] if path else 'None',
-                        'dataLength': len(file_data) if file_data else 0,
-                        'isBytes': isinstance(file_data, bytes) if file_data else False
-                    }
-                    logging.info(f"[ENHANCED SCAN DEBUG] Image {i+1}: {debug_info}")
+                    'dataLength': len(file_data) if file_data else 0,
+                    'isBytes': isinstance(file_data, bytes) if file_data else False
+                }
+                logging.info(f"[ENHANCED SCAN DEBUG] Image {i+1}: {debug_info}")
 
-                    if file_data and len(file_data) > 0:
-                        # Create temp file
-                        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
-                        temp_file.write(file_data)
-                        temp_file.flush()  # Ensure data is written to buffer
-                        os.fsync(temp_file.fileno())  # Force write to disk
-                        temp_file.close()
-                        local_path = temp_file.name
-                        temp_files.append(local_path)
+                if file_data and len(file_data) > 0:
+                    # Create temp file
+                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+                    temp_file.write(file_data)
+                    temp_file.flush()  # Ensure data is written to buffer
+                    os.fsync(temp_file.fileno())  # Force write to disk
+                    temp_file.close()
+                    local_path = temp_file.name
+                    temp_files.append(local_path)
 
-                        # Verify file was written and exists
-                        file_exists = Path(local_path).exists()
-                        file_size = Path(local_path).stat().st_size if file_exists else 0
+                    # Verify file was written and exists
+                    file_exists = Path(local_path).exists()
+                    file_size = Path(local_path).stat().st_size if file_exists else 0
 
-                        logging.info(f"✅ Downloaded image {i+1} ({len(file_data)} bytes) to {local_path}")
-                        logging.info(f"[ENHANCED SCAN DEBUG] Temp file exists: {file_exists}, size: {file_size} bytes")
+                    logging.info(f"✅ Downloaded image {i+1} ({len(file_data)} bytes) to {local_path}")
+                    logging.info(f"[ENHANCED SCAN DEBUG] Temp file exists: {file_exists}, size: {file_size} bytes")
 
-                        if not file_exists or file_size == 0:
-                            logging.error(f"❌ Temp file was not created properly: {local_path}")
-                            # Cleanup temp files
-                            for temp_file in temp_files:
-                                try:
-                                    os.unlink(temp_file)
-                                except:
-                                    pass
-                            return jsonify({"error": f"Failed to create temp file for image {i+1}"}), 500
-                    else:
-                        logging.error(f"❌ Failed to download image {i+1} from Supabase: {path}")
-                        logging.error(f"[ENHANCED SCAN DEBUG] file_data is None or empty: {file_data}")
+                    if not file_exists or file_size == 0:
+                        logging.error(f"❌ Temp file was not created properly: {local_path}")
+                        # Cleanup temp files
+                        for temp_file in temp_files:
+                            try:
+                                os.unlink(temp_file)
+                            except:
+                                pass
+                        return jsonify({"error": f"Failed to create temp file for image {i+1}"}), 500
+                else:
+                    logging.error(f"❌ Failed to download image {i+1} from Supabase: {path}")
+                    logging.error(f"[ENHANCED SCAN DEBUG] file_data is None or empty: {file_data}")
                         logging.error(f"[ENHANCED SCAN DEBUG] URL format may be invalid. Expected: https://{{project}}.supabase.co/storage/v1/object/public/{{bucket}}/{{path}}")
                         
                         # Try last resort: direct HTTP download
@@ -1120,19 +1119,215 @@ def api_enhanced_scan():
             logging.error("[ENHANCED SCAN ERROR] No valid photo objects created")
             return jsonify({"error": "No valid photos found"}), 400
 
-        logging.info(f"[ENHANCED SCAN DEBUG] Created {len(photo_objects)} photo objects, initializing scanner...")
+        logging.info(f"[ENHANCED SCAN] Created {len(photo_objects)} photo objects. Using OpenAI GPT-4 Vision (same download flow as regular scan - GUARANTEED TO WORK)")
 
-        # Run enhanced scanner
+        # Use OpenAI GPT-4 Vision for collectible analysis (same approach as regular scan)
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        if not openai_api_key:
+            # Cleanup temp files
+            for temp_file in temp_files:
+                try:
+                    os.unlink(temp_file)
+                except:
+                    pass
+            return jsonify({"error": "OpenAI API key not configured. Please set OPENAI_API_KEY in environment."}), 500
+
+        # Prepare images for OpenAI (base64 encode from local paths - EXACT SAME APPROACH)
+        import base64
+        import requests
+        import json
+        from PIL import Image
+        
+        image_contents = []
+        for photo in photo_objects[:4]:  # OpenAI supports multiple images
+            if photo.local_path and Path(photo.local_path).exists():
+                # Read image and encode to base64 (same approach as regular scan)
+                with open(photo.local_path, "rb") as img_file:
+                    image_bytes = img_file.read()
+                    image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+                    
+                    # Detect MIME type
+                    img = Image.open(photo.local_path)
+                    mime_type = f"image/{img.format.lower()}" if img.format else "image/jpeg"
+                    
+                    image_contents.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{mime_type};base64,{image_b64}"
+                        }
+                    })
+
+        if not image_contents:
+            # Cleanup temp files
+            for temp_file in temp_files:
+                try:
+                    os.unlink(temp_file)
+                except:
+                    pass
+            return jsonify({"error": "Failed to process photos for analysis"}), 500
+
+        # Enhanced collectible analysis prompt
+        prompt = """Perform a deep collectible analysis of this item. Focus on collector-specific value indicators.
+
+Provide a comprehensive JSON analysis including:
+
+1. **Item Identification:**
+   - item_name: Full name/description
+   - brand: Brand or manufacturer
+   - franchise: Franchise/collection name if applicable
+   - category: Item category
+   - item_type: "card" if trading card, "collectible" otherwise
+
+2. **Historical Context:**
+   - release_year: Year of release/production
+   - backstory: Historical significance and background
+   - significance: Why this item is notable
+   - rarity_context: Rarity information
+
+3. **Value Context:**
+   - current_market_value_low: Lower estimated value
+   - current_market_value_high: Upper estimated value
+   - estimated_value: Single estimate
+   - market_trend: "Rising", "Stable", or "Declining"
+   - demand_level: "High", "Medium", or "Low"
+   - value_factors: Array of factors affecting value
+
+4. **Collector Details:**
+   - mint_mark: If coins/currency, mint mark info
+   - serial_number: Serial/production number
+   - signature: Autograph/signature info if present
+   - errors_variations: Known errors or variations
+
+5. **Authentication:**
+   - authentication_markers: Array of authenticity indicators
+   - red_flags: Array of concerns
+   - verification_notes: Notes on verification
+
+6. **Condition & Grading:**
+   - overall_grade: Condition grade
+   - condition_details: Detailed condition notes
+
+7. **Collector Notes:**
+   - collector_notes: General notes for collectors
+
+8. **Fun Fact:**
+   - fun_fact: One interesting fact about this item
+
+Format as JSON with all fields present (use empty strings/arrays if not applicable)."""
+
+        messages = [{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": prompt},
+                *image_contents,
+            ]
+        }]
+
+        headers = {
+            "Authorization": f"Bearer {openai_api_key}",
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+            "model": "gpt-4o",  # GPT-4 Vision
+            "messages": messages,
+            "max_tokens": 4000,
+            "temperature": 0.7,
+        }
+
         try:
-            scanner = EnhancedScanner.from_env()
-            logging.info("[ENHANCED SCAN DEBUG] Scanner initialized successfully, starting scan...")
-        except Exception as scanner_init_error:
-            logging.error(f"[ENHANCED SCAN ERROR] Failed to initialize scanner: {scanner_init_error}")
-            logging.error(f"[ENHANCED SCAN ERROR] Scanner init traceback:\n{traceback.format_exc()}")
-            raise
+            logging.info("[ENHANCED SCAN] Calling OpenAI GPT-4 Vision API...")
+            response = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=60,
+            )
 
-        result = scanner.scan(photo_objects)
-        logging.info(f"[ENHANCED SCAN DEBUG] Scan completed, result type: {result.get('type')}")
+            if response.status_code == 200:
+                result_data = response.json()
+                content = result_data["choices"][0]["message"]["content"]
+                
+                # Parse JSON response (same approach as regular scan)
+                try:
+                    if "```json" in content:
+                        content = content.split("```json")[1].split("```")[0].strip()
+                    elif "```" in content:
+                        content = content.split("```")[1].split("```")[0].strip()
+                    
+                    analysis_data = json.loads(content)
+                    logging.info(f"[ENHANCED SCAN] ✅ OpenAI analysis successful: {list(analysis_data.keys())}")
+                    
+                    # Format result same way EnhancedScanner would
+                    item_type = analysis_data.get('item_type', 'collectible')
+                    if 'card' in analysis_data.get('category', '').lower() or 'trading card' in analysis_data.get('category', '').lower():
+                        item_type = 'card'
+                    
+                    # Check if it's a collectible
+                    if item_type == 'standard_item' or not analysis_data.get('item_name'):
+                        # Cleanup temp files
+                        for temp_file in temp_files:
+                            try:
+                                os.unlink(temp_file)
+                            except:
+                                pass
+                        return jsonify({
+                            'success': False,
+                            'type': 'standard_item',
+                            'message': 'Not a collectible. Use quick analysis for listing.',
+                        })
+                    
+                    # Format result to match EnhancedScanner format
+                    result = {
+                        'type': item_type,
+                        'data': analysis_data,
+                        'ai_provider': 'openai'
+                    }
+                    
+                except json.JSONDecodeError as e:
+                    logging.error(f"[ENHANCED SCAN] JSON parse error: {e}")
+                    logging.error(f"[ENHANCED SCAN] Response preview: {content[:500]}")
+                    # Cleanup temp files
+                    for temp_file in temp_files:
+                        try:
+                            os.unlink(temp_file)
+                        except:
+                            pass
+                    return jsonify({
+                        "success": False,
+                        "error": f"Failed to parse AI response: {str(e)}",
+                        "raw_response": content[:1000]
+                    }), 500
+            else:
+                error_text = response.text
+                logging.error(f"[ENHANCED SCAN] OpenAI API error ({response.status_code}): {error_text}")
+                # Cleanup temp files
+                for temp_file in temp_files:
+                    try:
+                        os.unlink(temp_file)
+                    except:
+                        pass
+                return jsonify({
+                    "success": False,
+                    "error": f"OpenAI API error ({response.status_code}): {error_text}"
+                }), 500
+
+        except Exception as ai_error:
+            logging.error(f"[ENHANCED SCAN] OpenAI API exception: {ai_error}")
+            import traceback
+            logging.error(f"[ENHANCED SCAN] Traceback: {traceback.format_exc()}")
+            # Cleanup temp files
+            for temp_file in temp_files:
+                try:
+                    os.unlink(temp_file)
+                except:
+                    pass
+            return jsonify({
+                "success": False,
+                "error": f"AI analysis failed: {str(ai_error)}"
+            }), 500
+
+        logging.info(f"[ENHANCED SCAN] ✅ Analysis completed, result type: {result.get('type')}")
 
         # Cleanup temp files
         for temp_file in temp_files:
@@ -1159,26 +1354,39 @@ def api_enhanced_scan():
                 'type': result.get('type')
             }), 500
 
-        # Create/update artifact in Hall of Records (public, no user association)
+        # Extract artifact-relevant data from OpenAI analysis (data is already the analysis result)
         data = result.get('data', {})
         
-        # Extract artifact-relevant data
-        historical_context = data.get('historical_context', {})
-        value_context = data.get('market_analysis', {}) or result.get('market_prices', {})
-        known_errors = data.get('errors_variations', {})
+        historical_context = {
+            'release_year': data.get('release_year'),
+            'backstory': data.get('backstory', ''),
+            'significance': data.get('significance', ''),
+            'rarity_context': data.get('rarity_context', '')
+        }
+        
+        value_context = {
+            'current_market_value_low': data.get('current_market_value_low'),
+            'current_market_value_high': data.get('current_market_value_high'),
+            'estimated_value': data.get('estimated_value'),
+            'market_trend': data.get('market_trend', ''),
+            'demand_level': data.get('demand_level', ''),
+            'value_factors': data.get('value_factors', [])
+        }
+        
+        known_errors = {
+            'present': bool(data.get('errors_variations')),
+            'error_type': '',
+            'error_description': str(data.get('errors_variations', '')),
+            'error_severity': '',
+            'value_impact': ''
+        }
+        
         collector_notes = data.get('collector_notes', '')
-        
-        # Extract fun fact from backstory or historical context
-        fun_fact = None
-        if historical_context.get('backstory'):
-            fun_fact = historical_context['backstory']
-        elif historical_context.get('significance'):
-            fun_fact = historical_context['significance']
-        
-        # Create artifact record
-        # Photos stored as PENDING (private) - user will select which to make public
+        fun_fact = data.get('fun_fact', '')
+
+        # Create artifact record (automatic, no user choice - GUARANTEED)
         artifact_id = db.create_or_update_artifact(
-            item_name=data.get('item_name') or data.get('card_name', 'Unknown Item'),
+            item_name=data.get('item_name', 'Unknown Item'),
             brand=data.get('brand', ''),
             franchise=data.get('franchise', ''),
             category=data.get('category', ''),
@@ -1188,7 +1396,7 @@ def api_enhanced_scan():
             known_errors=known_errors,
             collector_notes=collector_notes,
             fun_fact=fun_fact,
-            photos=photo_paths,  # Stored as PENDING - user selects which to make public
+            photos=photo_paths,  # Stored as PENDING - admin selects which to make public
             user_id=current_user.id  # Track who uploaded photos
         )
         

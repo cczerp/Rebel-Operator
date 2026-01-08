@@ -169,9 +169,13 @@ def create_listing():
 @login_required
 def drafts():
     """Drafts page"""
-    # Fetch all drafts for current user
-    drafts_list = db.get_drafts(user_id=current_user.id, limit=100)
-    return render_template('drafts.html', drafts=drafts_list)
+    try:
+        # Fetch all drafts for current user
+        drafts_list = db.get_drafts(user_id=current_user.id, limit=100)
+        return render_template('drafts.html', drafts=drafts_list or [])
+    except Exception as e:
+        flash(f'Error loading drafts: {str(e)}', 'error')
+        return render_template('drafts.html', drafts=[])
 
 @app.route('/listings')
 @login_required

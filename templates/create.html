@@ -34,9 +34,14 @@
                 </div>
             </div>
             <div id="photoPreview" class="mt-3 d-flex flex-wrap"></div>
-            <button type="button" class="btn btn-primary mt-2" id="analyzeBtn" style="display:none;">
-                <i class="fas fa-magic"></i> Analyze with AI
-            </button>
+            <div class="mt-3 d-flex gap-2">
+                <button type="button" class="btn btn-primary" id="analyzeBtn" disabled title="Upload photos first to enable AI analysis">
+                    <i class="fas fa-magic"></i> Analyze with AI
+                </button>
+                <button type="button" class="btn btn-outline-primary" id="enhancedScanBtn" disabled title="Run quick AI scan first to enable Enhanced Scan" onclick="runEnhancedScan()">
+                    <i class="fas fa-microscope"></i> Enhanced Scan
+                </button>
+            </div>
         </div>
     </div>
 
@@ -120,39 +125,6 @@
         </div>
     </div>
 
-    <!-- Inventory Management -->
-    <div class="card mb-3">
-        <div class="card-header" style="background: var(--carbon-matte-surface); border-bottom: 2px solid var(--cold-steel-accent);">
-            <i class="fas fa-box" style="color: var(--cold-steel-light);"></i> Inventory Management
-        </div>
-        <div class="card-body">
-            <div class="mb-3">
-                <label class="form-label">
-                    <i class="fas fa-map-marker-alt"></i> Storage Location *
-                </label>
-                <input type="text" class="form-control form-control-lg" id="storage_location" name="storage_location" placeholder="B1, C2, Shelf-3, etc." required>
-                <small class="text-muted">Where you'll put this item (so you can find it when it sells!)</small>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Quantity</label>
-                <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1">
-                <small class="text-muted">1 for single items, >1 for multiples</small>
-            </div>
-
-            <div class="row">
-                <div class="col-6">
-                    <label class="form-label">SKU / Custom ID</label>
-                    <input type="text" class="form-control" id="sku" name="sku" placeholder="Optional">
-                </div>
-                <div class="col-6">
-                    <label class="form-label">UPC / Barcode</label>
-                    <input type="text" class="form-control" id="upc" name="upc" placeholder="Optional">
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Actions -->
     <div class="d-grid gap-2">
         {% if is_guest %}
@@ -166,15 +138,15 @@
             You can test the AI photo analysis above without signing up!
         </small>
         {% else %}
-        <button type="button" class="btn btn-primary btn-lg" id="postNowBtn">
-            <i class="fas fa-rocket"></i> Post Now (Make Active)
+        <button type="button" class="btn btn-primary btn-lg" id="postListingBtn">
+            <i class="fas fa-rocket"></i> Post Listing
         </button>
         <button type="button" class="btn btn-secondary btn-lg" id="saveDraftBtn">
-            <i class="fas fa-save"></i> Save as Draft
+            <i class="fas fa-save"></i> Save Listing Draft
         </button>
-        <small class="text-muted text-center mt-2">
-            <strong>Post Now</strong> makes it active for selling. <strong>Save as Draft</strong> saves it for later.
-        </small>
+        <button type="button" class="btn btn-outline-success btn-lg" id="saveToVaultBtn">
+            <i class="fas fa-archive"></i> Save to Collection Vault
+        </button>
         {% endif %}
     </div>
 </form>
@@ -473,7 +445,8 @@ async function handlePhotoSelect(e) {
                 previewDiv.appendChild(container);
             }
 
-            document.getElementById('analyzeBtn').style.display = 'block';
+            // Enable Analyze button when photos are uploaded
+            document.getElementById('analyzeBtn').disabled = false;
             showAlert(`${data.count} photo(s) added! Total: ${uploadedPhotos.length}`, 'success');
         } else {
             showAlert(data.error, 'danger');
@@ -786,9 +759,18 @@ function removePhoto(index) {
 
         showAlert('Photo removed', 'info');
 
-        // Hide analyze button if no photos left
+        // Disable analyze button if no photos left
         if (uploadedPhotos.length === 0) {
-            document.getElementById('analyzeBtn').style.display = 'none';
+            document.getElementById('analyzeBtn').disabled = true;
+            
+            // Also disable Enhanced Scan button when no photos
+            const enhancedScanBtn = document.getElementById('enhancedScanBtn');
+            if (enhancedScanBtn) {
+                enhancedScanBtn.disabled = true;
+                enhancedScanBtn.classList.remove('btn-primary');
+                enhancedScanBtn.classList.add('btn-outline-primary');
+                enhancedScanBtn.title = 'Run quick AI scan first to enable Enhanced Scan';
+            }
         }
     }
 }
@@ -852,6 +834,12 @@ let enhancedScanData = null;
 
 // TIER 1: Quick Analysis (Gemini - Fast & Cheap)
 document.getElementById('analyzeBtn').addEventListener('click', async function() {
+    // Check if photos are uploaded (non-negotiable requirement)
+    if (!uploadedPhotos || uploadedPhotos.length === 0) {
+        showAlert('Please upload photos first before running AI analysis.', 'warning');
+        return;
+    }
+    
     showLoading('Running quick analysis...');
 
     try {
@@ -889,8 +877,25 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
         const isCard = analysis.category === 'Trading Cards' || analysis.category === 'Sports Cards';
         const isCollectible = analysis.collectible === true;
 
-        if (isCard || isCollectible) {
-            showEnhancedScanOption(isCard, isCollectible, analysis);
+        // Enable/Disable Enhanced Scan button based on collectible detection
+        const enhancedScanBtn = document.getElementById('enhancedScanBtn');
+        if (enhancedScanBtn) {
+            if (isCard || isCollectible) {
+                enhancedScanBtn.disabled = false;
+                enhancedScanBtn.classList.remove('btn-outline-primary');
+                enhancedScanBtn.classList.add('btn-primary');
+                enhancedScanBtn.title = 'Deep collectible analysis - Create artifact in Hall of Records';
+                
+                // Show info message
+                if (isCard || isCollectible) {
+                    showEnhancedScanOption(isCard, isCollectible, analysis);
+                }
+            } else {
+                enhancedScanBtn.disabled = true;
+                enhancedScanBtn.classList.remove('btn-primary');
+                enhancedScanBtn.classList.add('btn-outline-primary');
+                enhancedScanBtn.title = 'Enhanced Scan only available for collectibles - Run quick AI scan first';
+            }
         }
 
         // Show market analysis if available
@@ -907,7 +912,7 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
     }
 });
 
-// Show subtle Enhanced Scan option
+// Show subtle Enhanced Scan option info card
 function showEnhancedScanOption(isCard, isCollectible, analysis) {
     // Remove existing if present
     document.getElementById('enhancedScanCard')?.remove();
@@ -915,25 +920,15 @@ function showEnhancedScanOption(isCard, isCollectible, analysis) {
     let scanType = isCard ? 'card' : 'collectible';
     let icon = isCard ? 'fa-id-card' : 'fa-star';
     let message = isCard 
-        ? 'Get detailed card analysis, TCGPlayer prices, and authentication'
-        : 'Get rarity info, franchise history, and authentication markers';
+        ? 'Collectible detected! Enhanced Scan will create detailed card analysis in Hall of Records'
+        : 'Collectible detected! Enhanced Scan will create artifact with franchise history in Hall of Records';
 
     const enhancedScanCard = `
-        <div class="card border-primary mb-3" id="enhancedScanCard" style="border-color: var(--alert-crimson);">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="mb-1" style="color: var(--off-white-text);">
-                            <i class="fas ${icon}" style="color: var(--alert-crimson);"></i> 
-                            Enhanced Scanner Available
-                        </h6>
-                        <small class="text-muted">${message}</small>
-                    </div>
-                    <button class="btn btn-primary" onclick="runEnhancedScan()">
-                        <i class="fas fa-microscope"></i> Enhanced Scan
-                    </button>
-                </div>
-            </div>
+        <div class="alert alert-info mb-3" id="enhancedScanCard">
+            <i class="fas ${icon}"></i> 
+            <strong>${message}</strong>
+            <br>
+            <small class="text-muted">Click the Enhanced Scan button above to proceed.</small>
         </div>
     `;
 
@@ -991,7 +986,21 @@ function getDemandEmoji(demand) {
 }
 
 // TIER 2: Enhanced Scanner (Claude - Deep Dive)
+// Creates artifact in Hall of Records and redirects to artifact detail page
 async function runEnhancedScan() {
+    // Check if button is enabled (collectible detected)
+    const btn = document.getElementById('enhancedScanBtn');
+    if (btn && btn.disabled) {
+        showAlert('Enhanced Scan is only available for collectible items. Run quick AI scan first.', 'warning');
+        return;
+    }
+    
+    // Check if photos are uploaded (non-negotiable requirement)
+    if (!uploadedPhotos || uploadedPhotos.length === 0) {
+        showAlert('Please upload photos first before running Enhanced Scan.', 'warning');
+        return;
+    }
+    
     showLoading('Running enhanced scan... This may take 10-20 seconds');
 
     try {
@@ -1015,26 +1024,22 @@ async function runEnhancedScan() {
             return;
         }
 
-        // Store enhanced scan data
-        enhancedScanData = data;
-
-        // Remove the "run enhanced scan" card
-        document.getElementById('enhancedScanCard')?.remove();
-
-        // Display results based on type
-        if (data.type === 'card') {
-            detectedCardData = data.data;
-            showCardResults(data);
-        } else if (data.type === 'collectible') {
-            detectedCollectibleData = data.data;
-            showCollectibleResults(data);
+        // Artifact has been AUTOMATICALLY created/updated in Hall of Records
+        // Database update is automatic (no user choice) - follows merge rules
+        // User will select photos and can save to personal collection
+        if (data.artifact_id) {
+            hideLoading();
+            showAlert('Artifact automatically updated in public Hall of Records! Redirecting...', 'success');
+            setTimeout(() => {
+                window.location.href = `/artifact/${data.artifact_id}`;
+            }, 1500);
+        } else {
+            throw new Error('No artifact ID returned from server');
         }
 
-        showAlert('Enhanced scan complete!', 'success');
-
     } catch (error) {
-        showAlert('Enhanced scan failed: ' + error, 'danger');
-    } finally {
+        console.error('Enhanced scan error:', error);
+        showAlert('Enhanced scan failed: ' + (error.message || error), 'danger');
         hideLoading();
     }
 }
@@ -1462,8 +1467,7 @@ async function storeCardOnly() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 ai_result: detectedCardData,
-                photos: uploadedPhotos,
-                storage_location: document.getElementById('storage_location').value || null
+                photos: uploadedPhotos
             })
         });
 
@@ -1497,8 +1501,7 @@ async function storeAndList() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 ai_result: detectedCardData,
-                photos: uploadedPhotos,
-                storage_location: document.getElementById('storage_location').value || null
+                photos: uploadedPhotos
             })
         });
 
@@ -1542,8 +1545,7 @@ async function storeCollectibleOnly() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 ai_result: detectedCollectibleData,
-                photos: uploadedPhotos,
-                storage_location: document.getElementById('storage_location').value || null
+                photos: uploadedPhotos
             })
         });
 
@@ -1577,8 +1579,7 @@ async function storeCollectibleAndList() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 ai_result: detectedCollectibleData,
-                photos: uploadedPhotos,
-                storage_location: document.getElementById('storage_location').value || null
+                photos: uploadedPhotos
             })
         });
 
@@ -1606,19 +1607,13 @@ async function storeCollectibleAndList() {
         hideLoading();
     }
 }
-// Save Listing (common function)
-async function saveListing(status = 'draft') {
-    if (uploadedPhotos.length === 0) {
-        showAlert('Please upload photos first!', 'warning');
-        return;
-    }
-
+// Save Listing Draft - Serialize to CSV and append to drafts.csv
+async function saveDraft() {
     const formData = collectFormData();
-    formData.status = status;
     showLoading();
 
     try {
-        const response = await fetch('/api/save-draft', {
+        const response = await fetch('/api/save-draft-csv', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(formData)
@@ -1627,38 +1622,176 @@ async function saveListing(status = 'draft') {
         const data = await response.json();
 
         if (data.success) {
-            // Mark as saved to prevent cleanup
-            hasBeenSaved = true;
-            
-            // Update draft ID so next save is an update, not a new draft
-            editingDraftId = data.listing_id;
-            editingListingUuid = data.listing_uuid;
-
-            const msg = status === 'active' ? 'Listing posted successfully!' : 'Draft saved successfully!';
-            showAlert(msg, 'success');
-
-            // Only redirect if posting as active
-            if (status === 'active') {
-                setTimeout(() => window.location.href = '/listings', 1500);
-            }
+            showAlert('Draft saved to CSV successfully!', 'success');
+            // Clear form and stay on page
+            clearForm();
+            setTimeout(() => {
+                hideLoading();
+            }, 1000);
         } else {
-            showAlert(data.error, 'danger');
+            showAlert(data.error || 'Failed to save draft', 'danger');
+            hideLoading();
         }
     } catch (error) {
         showAlert('Save failed: ' + error, 'danger');
-    } finally {
         hideLoading();
     }
 }
 
-// Save as Draft button
+// Save to Collection Vault - Serialize to CSV and append to vault.csv
+async function saveToVault() {
+    const formData = collectFormData();
+    showLoading();
+
+    try {
+        const response = await fetch('/api/save-vault-csv', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('Item saved to Collection Vault!', 'success');
+            // Clear form and stay on page
+            clearForm();
+            setTimeout(() => {
+                hideLoading();
+            }, 1000);
+        } else {
+            showAlert(data.error || 'Failed to save to vault', 'danger');
+            hideLoading();
+        }
+    } catch (error) {
+        showAlert('Save failed: ' + error, 'danger');
+        hideLoading();
+    }
+}
+
+// Post Listing - Show platform selection dropdown/modal
+function showPlatformSelection() {
+    const platforms = [
+        { value: 'ebay', label: 'eBay', icon: 'fab fa-ebay' },
+        { value: 'mercari', label: 'Mercari', icon: 'fas fa-store' },
+        { value: 'poshmark', label: 'Poshmark', icon: 'fas fa-shopping-bag' },
+        { value: 'facebook', label: 'Facebook Marketplace', icon: 'fab fa-facebook' },
+        { value: 'other', label: 'Other / Custom', icon: 'fas fa-ellipsis-h' }
+    ];
+
+    let html = '<div class="modal fade" id="platformSelectionModal" tabindex="-1">';
+    html += '<div class="modal-dialog"><div class="modal-content">';
+    html += '<div class="modal-header bg-primary text-white">';
+    html += '<h5 class="modal-title"><i class="fas fa-rocket"></i> Choose Platform</h5>';
+    html += '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>';
+    html += '</div><div class="modal-body">';
+    html += '<p>Select where to list this item:</p>';
+    
+    platforms.forEach(platform => {
+        html += `<div class="form-check mb-2">`;
+        html += `<input class="form-check-input" type="radio" name="platform" id="platform_${platform.value}" value="${platform.value}">`;
+        html += `<label class="form-check-label" for="platform_${platform.value}">`;
+        html += `<i class="${platform.icon}"></i> ${platform.label}`;
+        html += `</label></div>`;
+    });
+
+    html += '</div><div class="modal-footer">';
+    html += '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>';
+    html += '<button type="button" class="btn btn-primary" onclick="confirmPostListing()">';
+    html += '<i class="fas fa-check"></i> Continue</button>';
+    html += '</div></div></div></div>';
+
+    // Remove existing modal if any
+    const existingModal = document.getElementById('platformSelectionModal');
+    if (existingModal) existingModal.remove();
+
+    // Add and show modal
+    document.body.insertAdjacentHTML('beforeend', html);
+    const modal = new bootstrap.Modal(document.getElementById('platformSelectionModal'));
+    modal.show();
+}
+
+async function confirmPostListing() {
+    const selectedPlatform = document.querySelector('input[name="platform"]:checked');
+    
+    if (!selectedPlatform) {
+        showAlert('Please select a platform', 'warning');
+        return;
+    }
+
+    const platform = selectedPlatform.value;
+    const formData = collectFormData();
+    formData.platform = platform;
+
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('platformSelectionModal'));
+    modal.hide();
+
+    showLoading();
+
+    try {
+        const response = await fetch('/api/post-listing', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('Listing queued for posting!', 'success');
+            // Route to placeholder post-listing page
+            setTimeout(() => {
+                window.location.href = '/post-listing';
+            }, 1500);
+        } else {
+            showAlert(data.error || 'Failed to queue listing', 'danger');
+            hideLoading();
+        }
+    } catch (error) {
+        showAlert('Post failed: ' + error, 'danger');
+        hideLoading();
+    }
+}
+
+// Clear form function
+function clearForm() {
+    document.getElementById('listingForm').reset();
+    uploadedPhotos = [];
+    document.getElementById('photoPreview').innerHTML = '';
+    
+    // Disable both AI buttons when form is cleared
+    document.getElementById('analyzeBtn').disabled = true;
+    
+    // Reset Enhanced Scan button to disabled state
+    const enhancedScanBtn = document.getElementById('enhancedScanBtn');
+    if (enhancedScanBtn) {
+        enhancedScanBtn.disabled = true;
+        enhancedScanBtn.classList.remove('btn-primary');
+        enhancedScanBtn.classList.add('btn-outline-primary');
+        enhancedScanBtn.title = 'Run quick AI scan first to enable Enhanced Scan';
+    }
+    
+    // Reset any enhanced scan results
+    document.getElementById('enhancedScanCard')?.remove();
+    document.getElementById('enhancedResultsCard')?.remove();
+    document.getElementById('marketAnalysisCard')?.remove();
+    detectedCardData = null;
+    detectedCollectibleData = null;
+    enhancedScanData = null;
+}
+
+// Button event listeners
 document.getElementById('saveDraftBtn').addEventListener('click', async function() {
-    await saveListing('draft');
+    await saveDraft();
 });
 
-// Post Now button
-document.getElementById('postNowBtn').addEventListener('click', async function() {
-    await saveListing('active');
+document.getElementById('saveToVaultBtn').addEventListener('click', async function() {
+    await saveToVault();
+});
+
+document.getElementById('postListingBtn').addEventListener('click', function() {
+    showPlatformSelection();
 });
 
 function collectFormData() {
@@ -1673,10 +1806,6 @@ function collectFormData() {
         size: document.getElementById('size').value,
         color: document.getElementById('color').value,
         shipping_cost: document.getElementById('shipping_cost').value,
-        storage_location: document.getElementById('storage_location').value,
-        quantity: document.getElementById('quantity').value,
-        sku: document.getElementById('sku').value,
-        upc: document.getElementById('upc').value,
         photos: uploadedPhotos  // CRITICAL: Include photos array
     };
 
@@ -1730,10 +1859,6 @@ async function loadDraftData() {
             document.getElementById('size').value = listing.size || '';
             document.getElementById('color').value = listing.color || '';
             document.getElementById('shipping_cost').value = listing.shipping_cost || 0;
-            document.getElementById('storage_location').value = listing.storage_location || '';
-            document.getElementById('quantity').value = listing.quantity || 1;
-            document.getElementById('sku').value = listing.sku || '';
-            document.getElementById('upc').value = listing.upc || '';
 
             // Load photos
             if (listing.photos && listing.photos.length > 0) {
@@ -1802,7 +1927,7 @@ async function loadDraftData() {
                     previewDiv.appendChild(container);
                 }
 
-                document.getElementById('analyzeBtn').style.display = 'block';
+                document.getElementById('analyzeBtn').disabled = false;
             }
 
             showAlert('Draft loaded for editing', 'info');

@@ -827,7 +827,26 @@ def api_analyze():
                 else:
                     logging.error(f"❌ Failed to download image {i+1} from Supabase: {path}")
                     logging.error(f"[ANALYZE DEBUG] file_data is None or empty: {file_data}")
-                    return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage. URL may be invalid or file may not exist."}), 404
+                    # Try one more time with direct HTTP request as last resort
+                    try:
+                        import requests
+                        logging.info(f"Last resort: attempting direct HTTP download for image {i+1}...")
+                        http_response = requests.get(path, timeout=30, allow_redirects=True)
+                        if http_response.status_code == 200 and http_response.content and len(http_response.content) > 0:
+                            # Create temp file from HTTP response
+                            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+                            temp_file.write(http_response.content)
+                            temp_file.flush()
+                            os.fsync(temp_file.fileno())
+                            temp_file.close()
+                            local_path = temp_file.name
+                            temp_files.append(local_path)
+                            logging.info(f"✅ Last resort HTTP download successful: {len(http_response.content)} bytes to {local_path}")
+                        else:
+                            return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage. URL may be invalid or file may not exist. Status: {http_response.status_code if hasattr(http_response, 'status_code') else 'unknown'}"}), 404
+                    except Exception as http_error:
+                        logging.error(f"Last resort HTTP download also failed: {http_error}")
+                        return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage. All download methods failed. Error: {str(http_error)}"}), 404
             else:
                 # Assume local path (legacy support)
                 if path.startswith('/'):
@@ -1084,14 +1103,51 @@ def api_enhanced_scan():
                 'type': result.get('type')
             }), 500
 
-        # Just return analysis results - NO automatic saving
-        # User can choose to save by clicking "Store in Collection" buttons
+        # Create/update artifact in Hall of Records (public, no user association)
+        data = result.get('data', {})
+        
+        # Extract artifact-relevant data
+        historical_context = data.get('historical_context', {})
+        value_context = data.get('market_analysis', {}) or result.get('market_prices', {})
+        known_errors = data.get('errors_variations', {})
+        collector_notes = data.get('collector_notes', '')
+        
+        # Extract fun fact from backstory or historical context
+        fun_fact = None
+        if historical_context.get('backstory'):
+            fun_fact = historical_context['backstory']
+        elif historical_context.get('significance'):
+            fun_fact = historical_context['significance']
+        
+        # Create artifact record
+        # Photos stored as PENDING (private) - user will select which to make public
+        artifact_id = db.create_or_update_artifact(
+            item_name=data.get('item_name') or data.get('card_name', 'Unknown Item'),
+            brand=data.get('brand', ''),
+            franchise=data.get('franchise', ''),
+            category=data.get('category', ''),
+            item_type=result.get('type', 'collectible'),  # 'card' or 'collectible'
+            historical_context=historical_context,
+            value_context=value_context,
+            known_errors=known_errors,
+            collector_notes=collector_notes,
+            fun_fact=fun_fact,
+            photos=photo_paths,  # Stored as PENDING - user selects which to make public
+            user_id=current_user.id  # Track who uploaded photos
+        )
+        
+        logging.info(f"[ENHANCED SCAN] Automatically created/updated artifact {artifact_id} in public Hall of Records (no user approval required)")
+        
+        # Database update is automatic - follows merge rules:
+        # - New franchise: Sets initial data
+        # - Existing franchise: Only adds new missing fields (never overwrites)
+        # Photos stored as pending - user will select which to make public
+        
+        # Return artifact_id for redirect to artifact detail page
         return jsonify({
             'success': True,
-            'type': result['type'],
-            'data': result['data'],
-            'market_prices': result.get('market_prices'),
-            'ai_provider': result.get('ai_provider', 'claude')
+            'artifact_id': artifact_id,
+            'message': 'Artifact automatically updated in public Hall of Records'
         })
 
     except Exception as e:
@@ -1114,6 +1170,151 @@ def api_enhanced_scan():
             'traceback': error_trace if os.getenv('FLASK_DEBUG') else None
         }), 500
 
+
+# -------------------------------------------------------------------------
+# ARTIFACT ROUTES (Hall of Records)
+# -------------------------------------------------------------------------
+
+@main_bp.route("/artifact/<int:artifact_id>")
+@login_required
+def artifact_detail(artifact_id):
+    """Display artifact detail page"""
+    artifact = db.get_artifact(artifact_id)
+    if not artifact:
+        flash('Artifact not found', 'error')
+        return redirect(url_for('main.index'))
+    
+    # Public database is READ-ONLY - no saving to personal collection from public view
+    # Photo selection: Only admin can select photos to make public
+    # Get all pending photos (from all users who scanned) - admin can select any
+    pending_photos = []
+    if current_user.is_admin:
+        # Admin can see all pending photos from any user
+        cursor = db._get_cursor()
+        cursor.execute("""
+            SELECT id, photo_url, is_selected, created_at, user_id
+            FROM pending_artifact_photos
+            WHERE artifact_id = %s
+            ORDER BY created_at ASC
+        """, (artifact_id,))
+        pending_photos = [dict(row) for row in cursor.fetchall()]
+    
+    # Check if artifact is in user's personal collection
+    in_collection = db.is_artifact_in_user_collection(current_user.id, artifact_id)
+    
+    return render_template('artifact_detail.html', 
+                         artifact=artifact, 
+                         pending_photos=pending_photos,
+                         is_admin=current_user.is_admin,
+                         in_collection=in_collection)
+
+@main_bp.route("/api/artifacts/<int:artifact_id>")
+@login_required
+def api_get_artifact(artifact_id):
+    """Get artifact data as JSON"""
+    artifact = db.get_artifact(artifact_id)
+    if not artifact:
+        return jsonify({'error': 'Artifact not found'}), 404
+    
+    # Check if artifact is in user's collection
+    in_collection = db.is_artifact_in_user_collection(current_user.id, artifact_id)
+    artifact['in_collection'] = in_collection
+    
+    return jsonify({
+        'success': True,
+        'artifact': artifact
+    })
+
+@main_bp.route("/api/user/artifacts/save", methods=["POST"])
+@login_required
+def api_save_artifact_to_collection():
+    """Save artifact to user's personal collection - users choose what goes in their database"""
+    try:
+        data = request.json
+        artifact_id = data.get('artifact_id')
+        
+        if not artifact_id:
+            return jsonify({'error': 'artifact_id required'}), 400
+        
+        # Verify artifact exists
+        artifact = db.get_artifact(artifact_id)
+        if not artifact:
+            return jsonify({'error': 'Artifact not found'}), 404
+        
+        # Save to user's personal collection - their choice
+        success = db.save_artifact_to_user_collection(current_user.id, artifact_id)
+        
+        if success:
+            db.log_activity(
+                action="save_artifact",
+                user_id=current_user.id,
+                resource_type="artifact",
+                resource_id=artifact_id,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get("User-Agent")
+            )
+            return jsonify({
+                'success': True,
+                'message': 'Artifact saved to your personal Hall of Records'
+            })
+        else:
+            return jsonify({'error': 'Failed to save artifact'}), 500
+            
+    except Exception as e:
+        logging.error(f"Error saving artifact to collection: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@main_bp.route("/api/artifacts/<int:artifact_id>/select-photos", methods=["POST"])
+@login_required
+def api_select_artifact_photos(artifact_id):
+    """Admin only - selects which photos to make public"""
+    from routes_admin import admin_required
+    
+    # Check admin permission
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required to select photos for public display'}), 403
+    
+    try:
+        data = request.json
+        selected_photo_ids = data.get('photo_ids', [])
+        
+        if not selected_photo_ids:
+            return jsonify({'error': 'No photos selected'}), 400
+        
+        # Verify artifact exists
+        artifact = db.get_artifact(artifact_id)
+        if not artifact:
+            return jsonify({'error': 'Artifact not found'}), 404
+        
+        # Admin can select any photos from any user - pass None for user_id
+        success = db.select_artifact_photos(artifact_id, None, selected_photo_ids)
+        
+        if success:
+            db.log_activity(
+                action="admin_select_artifact_photos",
+                user_id=current_user.id,
+                resource_type="artifact",
+                resource_id=artifact_id,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get("User-Agent")
+            )
+            return jsonify({
+                'success': True,
+                'message': f'{len(selected_photo_ids)} photo(s) made public'
+            })
+        else:
+            return jsonify({'error': 'Failed to select photos'}), 500
+            
+    except Exception as e:
+        logging.error(f"Error selecting artifact photos: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@main_bp.route("/my-artifacts")
+@login_required
+def my_artifacts():
+    """View user's personal artifact collection"""
+    artifacts = db.get_user_artifact_collection(current_user.id)
+    return render_template('my_artifacts.html', artifacts=artifacts)
 
 # -------------------------------------------------------------------------
 # ADD COLLECTIBLE TO COLLECTION

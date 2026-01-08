@@ -827,7 +827,26 @@ def api_analyze():
                 else:
                     logging.error(f"❌ Failed to download image {i+1} from Supabase: {path}")
                     logging.error(f"[ANALYZE DEBUG] file_data is None or empty: {file_data}")
-                    return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage. URL may be invalid or file may not exist."}), 404
+                    # Try one more time with direct HTTP request as last resort
+                    try:
+                        import requests
+                        logging.info(f"Last resort: attempting direct HTTP download for image {i+1}...")
+                        http_response = requests.get(path, timeout=30, allow_redirects=True)
+                        if http_response.status_code == 200 and http_response.content and len(http_response.content) > 0:
+                            # Create temp file from HTTP response
+                            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+                            temp_file.write(http_response.content)
+                            temp_file.flush()
+                            os.fsync(temp_file.fileno())
+                            temp_file.close()
+                            local_path = temp_file.name
+                            temp_files.append(local_path)
+                            logging.info(f"✅ Last resort HTTP download successful: {len(http_response.content)} bytes to {local_path}")
+                        else:
+                            return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage. URL may be invalid or file may not exist. Status: {http_response.status_code if hasattr(http_response, 'status_code') else 'unknown'}"}), 404
+                    except Exception as http_error:
+                        logging.error(f"Last resort HTTP download also failed: {http_error}")
+                        return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage. All download methods failed. Error: {str(http_error)}"}), 404
             else:
                 # Assume local path (legacy support)
                 if path.startswith('/'):

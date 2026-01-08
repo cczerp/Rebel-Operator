@@ -294,22 +294,44 @@ class SupabaseStorageManager:
                 # Try alternative: use requests to download from public URL directly
                 try:
                     import requests
-                    logger.info("Attempting direct HTTP download from public URL...")
-                    http_response = requests.get(public_url, timeout=30)
+                    logger.info(f"Attempting direct HTTP download from public URL: {public_url[:100]}...")
+                    http_response = requests.get(public_url, timeout=30, allow_redirects=True)
                     if http_response.status_code == 200:
-                        logger.info(f"✅ Direct HTTP download successful: {len(http_response.content)} bytes")
-                        return http_response.content
+                        content = http_response.content
+                        if content and len(content) > 0:
+                            logger.info(f"✅ Direct HTTP download successful: {len(content)} bytes")
+                            return content
+                        else:
+                            logger.error(f"Direct HTTP download returned empty content")
+                            return None
                     else:
-                        logger.error(f"Direct HTTP download failed: {http_response.status_code}")
+                        logger.error(f"Direct HTTP download failed with status: {http_response.status_code}")
+                        logger.error(f"Response preview: {http_response.text[:200] if hasattr(http_response, 'text') else 'N/A'}")
                         return None
                 except Exception as http_error:
                     logger.error(f"Direct HTTP download also failed: {http_error}")
+                    import traceback
+                    logger.error(f"HTTP error traceback: {traceback.format_exc()}")
                     return None
                 
         except Exception as e:
             logger.error(f"❌ Download failed for {public_url}: {e}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
+            
+            # Last resort: try direct HTTP download from the original URL
+            try:
+                import requests
+                logger.info("Last resort: attempting direct HTTP download from original URL...")
+                http_response = requests.get(public_url, timeout=30, allow_redirects=True)
+                if http_response.status_code == 200 and http_response.content and len(http_response.content) > 0:
+                    logger.info(f"✅ Last resort HTTP download successful: {len(http_response.content)} bytes")
+                    return http_response.content
+                else:
+                    logger.error(f"Last resort HTTP download failed: status={http_response.status_code if hasattr(http_response, 'status_code') else 'unknown'}, content_len={len(http_response.content) if hasattr(http_response, 'content') else 0}")
+            except Exception as last_error:
+                logger.error(f"Last resort HTTP download error: {last_error}")
+            
             return None
 
     def move_photo(

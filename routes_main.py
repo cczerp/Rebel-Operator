@@ -1119,201 +1119,30 @@ def api_enhanced_scan():
             logging.error("[ENHANCED SCAN ERROR] No valid photo objects created")
             return jsonify({"error": "No valid photos found"}), 400
 
-        logging.info(f"[ENHANCED SCAN] Created {len(photo_objects)} photo objects. Using OpenAI GPT-4 Vision (same download flow as regular scan - GUARANTEED TO WORK)")
+        logging.info(f"[ENHANCED SCAN] Created {len(photo_objects)} photo objects. Using Gemini (SAME AI as regular scan - GUARANTEED TO WORK)")
 
-        # Use OpenAI GPT-4 Vision for collectible analysis (same approach as regular scan)
-        openai_api_key = os.getenv("OPENAI_API_KEY")
-        if not openai_api_key:
-            # Cleanup temp files
-            for temp_file in temp_files:
-                try:
-                    os.unlink(temp_file)
-                except:
-                    pass
-            return jsonify({"error": "OpenAI API key not configured. Please set OPENAI_API_KEY in environment."}), 500
-
-        # Prepare images for OpenAI (base64 encode from local paths - EXACT SAME APPROACH)
-        import base64
-        import requests
-        import json
-        from PIL import Image
-        
-        image_contents = []
-        for photo in photo_objects[:4]:  # OpenAI supports multiple images
-            if photo.local_path and Path(photo.local_path).exists():
-                # Read image and encode to base64 (same approach as regular scan)
-                with open(photo.local_path, "rb") as img_file:
-                    image_bytes = img_file.read()
-                    image_b64 = base64.b64encode(image_bytes).decode("utf-8")
-                    
-                    # Detect MIME type
-                    img = Image.open(photo.local_path)
-                    mime_type = f"image/{img.format.lower()}" if img.format else "image/jpeg"
-                    
-                    image_contents.append({
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:{mime_type};base64,{image_b64}"
-                        }
-                    })
-
-        if not image_contents:
-            # Cleanup temp files
-            for temp_file in temp_files:
-                try:
-                    os.unlink(temp_file)
-                except:
-                    pass
-            return jsonify({"error": "Failed to process photos for analysis"}), 500
-
-        # Enhanced collectible analysis prompt
-        prompt = """Perform a deep collectible analysis of this item. Focus on collector-specific value indicators.
-
-Provide a comprehensive JSON analysis including:
-
-1. **Item Identification:**
-   - item_name: Full name/description
-   - brand: Brand or manufacturer
-   - franchise: Franchise/collection name if applicable
-   - category: Item category
-   - item_type: "card" if trading card, "collectible" otherwise
-
-2. **Historical Context:**
-   - release_year: Year of release/production
-   - backstory: Historical significance and background
-   - significance: Why this item is notable
-   - rarity_context: Rarity information
-
-3. **Value Context:**
-   - current_market_value_low: Lower estimated value
-   - current_market_value_high: Upper estimated value
-   - estimated_value: Single estimate
-   - market_trend: "Rising", "Stable", or "Declining"
-   - demand_level: "High", "Medium", or "Low"
-   - value_factors: Array of factors affecting value
-
-4. **Collector Details:**
-   - mint_mark: If coins/currency, mint mark info
-   - serial_number: Serial/production number
-   - signature: Autograph/signature info if present
-   - errors_variations: Known errors or variations
-
-5. **Authentication:**
-   - authentication_markers: Array of authenticity indicators
-   - red_flags: Array of concerns
-   - verification_notes: Notes on verification
-
-6. **Condition & Grading:**
-   - overall_grade: Condition grade
-   - condition_details: Detailed condition notes
-
-7. **Collector Notes:**
-   - collector_notes: General notes for collectors
-
-8. **Fun Fact:**
-   - fun_fact: One interesting fact about this item
-
-Format as JSON with all fields present (use empty strings/arrays if not applicable)."""
-
-        messages = [{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": prompt},
-                *image_contents,
-            ]
-        }]
-
-        headers = {
-            "Authorization": f"Bearer {openai_api_key}",
-            "Content-Type": "application/json",
-        }
-
-        payload = {
-            "model": "gpt-4o",  # GPT-4 Vision
-            "messages": messages,
-            "max_tokens": 4000,
-            "temperature": 0.7,
-        }
-
+        # Use Gemini for enhanced collectible analysis (SAME AI as regular scan - PROVEN TO WORK)
         try:
-            logging.info("[ENHANCED SCAN] Calling OpenAI GPT-4 Vision API...")
-            response = requests.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers=headers,
-                json=payload,
-                timeout=60,
-            )
-
-            if response.status_code == 200:
-                result_data = response.json()
-                content = result_data["choices"][0]["message"]["content"]
-                
-                # Parse JSON response (same approach as regular scan)
+            from src.ai.gemini_classifier import GeminiClassifier
+            classifier = GeminiClassifier.from_env()
+        except ValueError as e:
+            # Cleanup temp files
+            for temp_file in temp_files:
                 try:
-                    if "```json" in content:
-                        content = content.split("```json")[1].split("```")[0].strip()
-                    elif "```" in content:
-                        content = content.split("```")[1].split("```")[0].strip()
-                    
-                    analysis_data = json.loads(content)
-                    logging.info(f"[ENHANCED SCAN] ✅ OpenAI analysis successful: {list(analysis_data.keys())}")
-                    
-                    # Format result same way EnhancedScanner would
-                    item_type = analysis_data.get('item_type', 'collectible')
-                    if 'card' in analysis_data.get('category', '').lower() or 'trading card' in analysis_data.get('category', '').lower():
-                        item_type = 'card'
-                    
-                    # Check if it's a collectible
-                    if item_type == 'standard_item' or not analysis_data.get('item_name'):
-                        # Cleanup temp files
-                        for temp_file in temp_files:
-                            try:
-                                os.unlink(temp_file)
-                            except:
-                                pass
-                        return jsonify({
-                            'success': False,
-                            'type': 'standard_item',
-                            'message': 'Not a collectible. Use quick analysis for listing.',
-                        })
-                    
-                    # Format result to match EnhancedScanner format
-                    result = {
-                        'type': item_type,
-                        'data': analysis_data,
-                        'ai_provider': 'openai'
-                    }
-                    
-                except json.JSONDecodeError as e:
-                    logging.error(f"[ENHANCED SCAN] JSON parse error: {e}")
-                    logging.error(f"[ENHANCED SCAN] Response preview: {content[:500]}")
-                    # Cleanup temp files
-                    for temp_file in temp_files:
-                        try:
-                            os.unlink(temp_file)
-                        except:
-                            pass
-                    return jsonify({
-                        "success": False,
-                        "error": f"Failed to parse AI response: {str(e)}",
-                        "raw_response": content[:1000]
-                    }), 500
-            else:
-                error_text = response.text
-                logging.error(f"[ENHANCED SCAN] OpenAI API error ({response.status_code}): {error_text}")
-                # Cleanup temp files
-                for temp_file in temp_files:
-                    try:
-                        os.unlink(temp_file)
-                    except:
-                        pass
-                return jsonify({
-                    "success": False,
-                    "error": f"OpenAI API error ({response.status_code}): {error_text}"
-                }), 500
+                    os.unlink(temp_file)
+                except:
+                    pass
+            return jsonify({"error": f"AI service not configured: {str(e)}"}), 500
 
-        except Exception as ai_error:
-            logging.error(f"[ENHANCED SCAN] OpenAI API exception: {ai_error}")
+        # Analyze photos with Gemini (SAME method as regular scan, but with collectible-specific prompt)
+        # The GeminiClassifier.analyze_item() method handles base64 encoding internally
+        # Just pass the Photo objects - it does everything else (SAME AS REGULAR SCAN)
+        try:
+            logging.info("[ENHANCED SCAN] Analyzing with Gemini (same AI as regular scan)...")
+            result = classifier.analyze_item(photo_objects)
+            logging.info(f"[ENHANCED SCAN] ✅ Gemini analysis completed: {list(result.keys()) if result else 'empty'}")
+        except Exception as analyze_error:
+            logging.error(f"[ENHANCED SCAN] Gemini analysis error: {analyze_error}")
             import traceback
             logging.error(f"[ENHANCED SCAN] Traceback: {traceback.format_exc()}")
             # Cleanup temp files
@@ -1324,9 +1153,69 @@ Format as JSON with all fields present (use empty strings/arrays if not applicab
                     pass
             return jsonify({
                 "success": False,
-                "error": f"AI analysis failed: {str(ai_error)}"
+                "error": f"Analysis failed: {str(analyze_error)}"
             }), 500
 
+        # Check for errors from Gemini
+        if result.get("error"):
+            # Cleanup temp files
+            for temp_file in temp_files:
+                try:
+                    os.unlink(temp_file)
+                except:
+                    pass
+            return jsonify({
+                "success": False,
+                "error": result.get("error")
+            }), 500
+
+        # Format Gemini result for artifact creation (Gemini returns: suggested_title, description, brand, category, collectible, etc.)
+        analysis_data = result
+        
+        # Determine item type from Gemini's category
+        item_type = 'collectible'
+        category = analysis_data.get('category', '').lower()
+        if 'card' in category or 'trading card' in category:
+            item_type = 'card'
+        elif not analysis_data.get('collectible', False):
+            # If Gemini says it's not collectible, don't create artifact
+            # Cleanup temp files
+            for temp_file in temp_files:
+                try:
+                    os.unlink(temp_file)
+                except:
+                    pass
+            return jsonify({
+                'success': False,
+                'type': 'standard_item',
+                'message': 'Not a collectible. Use quick analysis for listing.',
+            })
+        
+        # Format result for artifact creation
+        result = {
+            'type': item_type,
+            'data': {
+                'item_name': analysis_data.get('suggested_title') or analysis_data.get('title', 'Unknown Item'),
+                'brand': analysis_data.get('brand', ''),
+                'franchise': analysis_data.get('franchise', ''),
+                'category': analysis_data.get('category', ''),
+                'release_year': analysis_data.get('year'),
+                'backstory': analysis_data.get('description', ''),
+                'significance': '',
+                'rarity_context': '',
+                'current_market_value_low': analysis_data.get('suggested_price'),
+                'current_market_value_high': analysis_data.get('suggested_price'),
+                'estimated_value': analysis_data.get('suggested_price'),
+                'market_trend': 'Stable',
+                'demand_level': 'Medium',
+                'value_factors': [],
+                'errors_variations': '',
+                'collector_notes': analysis_data.get('description', ''),
+                'fun_fact': ''
+            },
+            'ai_provider': 'gemini'
+        }
+        
         logging.info(f"[ENHANCED SCAN] ✅ Analysis completed, result type: {result.get('type')}")
 
         # Cleanup temp files
@@ -1354,7 +1243,7 @@ Format as JSON with all fields present (use empty strings/arrays if not applicab
                 'type': result.get('type')
             }), 500
 
-        # Extract artifact-relevant data from OpenAI analysis (data is already the analysis result)
+        # Extract artifact-relevant data from Gemini analysis (data is already formatted in result['data'])
         data = result.get('data', {})
         
         historical_context = {

@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Hall of Records{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="fas fa-monument"></i> Hall of Records</h2>
+    <div>
+        <a href="{{ url_for('main.create') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Create Listing
+        </a>
+    </div>
+</div>
+
+<!-- Filter by Franchise -->
+{% if franchises %}
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex align-items-center gap-3">
+            <label class="mb-0"><strong>Filter by Franchise:</strong></label>
+            <a href="{{ url_for('main.hall_of_records') }}" class="btn btn-sm {{ 'btn-primary' if not current_franchise else 'btn-outline-primary' }}">
+                All
+            </a>
+            {% for f in franchises %}
+            <a href="{{ url_for('main.hall_of_records', franchise=f) }}" class="btn btn-sm {{ 'btn-primary' if current_franchise == f else 'btn-outline-primary' }}">
+                {{ f }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Artifacts Grid -->
+{% if artifacts %}
+<div class="row">
+    {% for artifact in artifacts %}
+    <div class="col-md-4 mb-4">
+        <div class="card h-100" style="cursor: pointer; transition: transform 0.2s;" 
+             onclick="window.location.href='{{ url_for('main.artifact_detail', artifact_id=artifact.id) }}'"
+             onmouseover="this.style.transform='scale(1.02)'" 
+             onmouseout="this.style.transform='scale(1)'">
+            <div class="card-header" style="background: var(--carbon-matte-surface); border-bottom: 2px solid var(--alert-crimson);">
+                <h5 class="mb-0" style="color: var(--off-white-text);">
+                    <i class="fas fa-star"></i> {{ artifact.item_name }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    {% if artifact.brand %}
+                    <small class="text-muted"><i class="fas fa-tag"></i> <strong>Brand:</strong> {{ artifact.brand }}</small><br>
+                    {% endif %}
+                    {% if artifact.franchise %}
+                    <small class="text-muted"><i class="fas fa-film"></i> <strong>Franchise:</strong> {{ artifact.franchise }}</small><br>
+                    {% endif %}
+                    {% if artifact.category %}
+                    <small class="text-muted"><i class="fas fa-folder"></i> <strong>Category:</strong> {{ artifact.category }}</small><br>
+                    {% endif %}
+                    {% if artifact.item_type %}
+                    <small class="text-muted"><i class="fas fa-cube"></i> <strong>Type:</strong> {{ artifact.item_type|title }}</small>
+                    {% endif %}
+                </div>
+                
+                {% if artifact.photos and artifact.photos|length > 0 %}
+                <div class="mb-2">
+                    <img src="{{ artifact.photos[0] }}" class="img-fluid rounded" style="max-height: 200px; width: 100%; object-fit: cover;" alt="{{ artifact.item_name }}">
+                </div>
+                {% endif %}
+                
+                {% if artifact.historical_context and artifact.historical_context.get('backstory') %}
+                <p class="text-muted small mb-0" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                    {{ artifact.historical_context.backstory[:150] }}...
+                </p>
+                {% elif artifact.fun_fact %}
+                <p class="text-muted small mb-0" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                    {{ artifact.fun_fact[:150] }}...
+                </p>
+                {% endif %}
+            </div>
+            <div class="card-footer bg-transparent">
+                <small class="text-muted">
+                    <i class="fas fa-clock"></i> Added {{ artifact.created_at.strftime('%B %d, %Y') if artifact.created_at else 'Recently' }}
+                </small>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if page > 1 or artifacts|length == 20 %}
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+        {% if page > 1 %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('main.hall_of_records', page=page-1, franchise=current_franchise) }}">Previous</a>
+        </li>
+        {% endif %}
+        <li class="page-item active">
+            <span class="page-link">Page {{ page }}</span>
+        </li>
+        {% if artifacts|length == 20 %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('main.hall_of_records', page=page+1, franchise=current_franchise) }}">Next</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-monument fa-4x text-muted mb-3"></i>
+        <h4>Hall of Records is Empty</h4>
+        <p class="text-muted">Use Enhanced Scan on collectible items to start building the Hall of Records!</p>
+        <a href="{{ url_for('main.create') }}" class="btn btn-primary">
+            <i class="fas fa-microscope"></i> Run Enhanced Scan
+        </a>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+

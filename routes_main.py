@@ -1332,6 +1332,32 @@ def api_enhanced_scan():
 # ARTIFACT ROUTES (Hall of Records)
 # -------------------------------------------------------------------------
 
+@main_bp.route("/hall-of-records")
+@login_required
+def hall_of_records():
+    """Hall of Records - Browse all artifacts"""
+    franchise = request.args.get('franchise', None)
+    page = int(request.args.get('page', 1))
+    per_page = 20
+    offset = (page - 1) * per_page
+    
+    artifacts = db.get_all_artifacts(limit=per_page, offset=offset, franchise=franchise)
+    
+    # Get unique franchises for filter
+    cursor = db._get_cursor()
+    cursor.execute("""
+        SELECT DISTINCT franchise FROM public_artifacts
+        WHERE franchise IS NOT NULL AND franchise != ''
+        ORDER BY franchise
+    """)
+    franchises = [row['franchise'] for row in cursor.fetchall()]
+    
+    return render_template('hall_of_records.html', 
+                         artifacts=artifacts,
+                         franchises=franchises,
+                         current_franchise=franchise,
+                         page=page)
+
 @main_bp.route("/artifact/<int:artifact_id>")
 @login_required
 def artifact_detail(artifact_id):

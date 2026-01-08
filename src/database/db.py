@@ -1555,6 +1555,39 @@ class Database:
         
         return artifact
 
+    def get_all_artifacts(self, limit: int = 100, offset: int = 0, franchise: Optional[str] = None) -> List[Dict]:
+        """Get all artifacts from public Hall of Records"""
+        import json
+        cursor = self._get_cursor()
+        
+        if franchise:
+            cursor.execute("""
+                SELECT * FROM public_artifacts
+                WHERE franchise = %s
+                ORDER BY created_at DESC
+                LIMIT %s OFFSET %s
+            """, (franchise, limit, offset))
+        else:
+            cursor.execute("""
+                SELECT * FROM public_artifacts
+                ORDER BY created_at DESC
+                LIMIT %s OFFSET %s
+            """, (limit, offset))
+        
+        artifacts = []
+        for row in cursor.fetchall():
+            artifact = dict(row)
+            # Parse JSON fields
+            for field in ['historical_context', 'value_context', 'known_errors', 'photos']:
+                if artifact.get(field):
+                    try:
+                        artifact[field] = json.loads(artifact[field])
+                    except:
+                        pass
+            artifacts.append(artifact)
+        
+        return artifacts
+
     def save_artifact_to_user_collection(self, user_id: int, artifact_id: int) -> bool:
         """Save artifact to user's personal collection"""
         cursor = self._get_cursor()

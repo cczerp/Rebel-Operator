@@ -1059,15 +1059,67 @@ class Database:
         """Get all draft listings"""
         cursor = self._get_cursor()
         if user_id is not None:
+            # Explicitly cast user_id to INTEGER to avoid UUID comparison issues
+            # Also cast listing_uuid to TEXT in case it's stored as UUID type
             cursor.execute("""
-                SELECT * FROM listings
-                WHERE status = 'draft' AND user_id = %s
+                SELECT 
+                    id,
+                    listing_uuid::TEXT as listing_uuid,
+                    user_id,
+                    collectible_id,
+                    title,
+                    description,
+                    price,
+                    cost,
+                    condition,
+                    category,
+                    item_type,
+                    attributes,
+                    photos,
+                    quantity,
+                    storage_location,
+                    sku,
+                    upc,
+                    status,
+                    sold_platform,
+                    sold_date,
+                    sold_price,
+                    platform_statuses,
+                    created_at,
+                    updated_at
+                FROM listings
+                WHERE status = 'draft' AND user_id = %s::INTEGER
                 ORDER BY created_at DESC
                 LIMIT %s
             """, (user_id, limit))
         else:
             cursor.execute("""
-                SELECT * FROM listings
+                SELECT 
+                    id,
+                    listing_uuid::TEXT as listing_uuid,
+                    user_id,
+                    collectible_id,
+                    title,
+                    description,
+                    price,
+                    cost,
+                    condition,
+                    category,
+                    item_type,
+                    attributes,
+                    photos,
+                    quantity,
+                    storage_location,
+                    sku,
+                    upc,
+                    status,
+                    sold_platform,
+                    sold_date,
+                    sold_price,
+                    platform_statuses,
+                    created_at,
+                    updated_at
+                FROM listings
                 WHERE status = 'draft'
                 ORDER BY created_at DESC
                 LIMIT %s

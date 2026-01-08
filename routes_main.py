@@ -3570,58 +3570,119 @@ def api_save_vault():
             except:
                 year = None
         
-        # Determine card type from item_type or card_data
-        item_type = data.get('item_type', '')
-        card_type = 'unknown'
-        if 'trading card' in item_type.lower() or 'sports card' in item_type.lower():
-            if card_data.get('game_name'):
-                card_type = 'tcg'
-            elif card_data.get('sport'):
-                card_type = 'sports'
-            else:
-                card_type = 'trading_card'
-        elif card_data.get('card_type'):
-            card_type = card_data.get('card_type')
+        # Determine card type - prioritize TCG detection
+        item_type = data.get('item_type', '').lower()
+        category = card_data.get('category', '').lower() if isinstance(card_data.get('category'), str) else ''
+        game_name = card_data.get('game_name', '').lower() if isinstance(card_data.get('game_name'), str) else ''
         
-        # Create UnifiedCard
+        card_type = 'unknown'
+        
+        # Check for TCG cards first (Pokemon, MTG, Yu-Gi-Oh, etc.)
+        if 'pokemon' in game_name or 'pokemon' in category or 'pokemon' in item_type:
+            card_type = 'pokemon'
+        elif 'magic' in game_name or 'mtg' in game_name or 'magic' in category:
+            card_type = 'mtg'
+        elif 'yugioh' in game_name or 'yu-gi-oh' in game_name or 'yugioh' in category:
+            card_type = 'yugioh'
+        elif card_data.get('game_name'):
+            # Generic TCG - use game name to determine type
+            game = card_data.get('game_name').lower()
+            if 'pokemon' in game:
+                card_type = 'pokemon'
+            elif 'magic' in game or 'mtg' in game:
+                card_type = 'mtg'
+            elif 'yugioh' in game or 'yu-gi-oh' in game:
+                card_type = 'yugioh'
+            else:
+                card_type = 'tcg'  # Generic TCG
+        # Check for sports cards
+        elif card_data.get('sport'):
+            sport = card_data.get('sport').lower()
+            if 'football' in sport or 'nfl' in sport:
+                card_type = 'sports_nfl'
+            elif 'basketball' in sport or 'nba' in sport:
+                card_type = 'sports_nba'
+            elif 'baseball' in sport or 'mlb' in sport:
+                card_type = 'sports_mlb'
+            elif 'hockey' in sport or 'nhl' in sport:
+                card_type = 'sports_nhl'
+            else:
+                card_type = f'sports_{sport.replace(" ", "_")}'
+        elif 'sports card' in item_type or 'sports' in category:
+            card_type = 'sports'
+        elif 'trading card' in item_type or card_data.get('card_type'):
+            # Use provided card_type or default to generic
+            card_type = card_data.get('card_type', 'trading_card')
+        
+        # Determine if this is a TCG or Sports card
+        is_tcg = card_type in ['pokemon', 'mtg', 'yugioh', 'tcg', 'trading_card'] or card_type.startswith('tcg_')
+        is_sports = card_type.startswith('sports') or card_type == 'sports'
+        
+        # Extract game_name for TCG cards
+        tcg_game_name = None
+        if is_tcg:
+            if card_type == 'pokemon':
+                tcg_game_name = 'Pokemon'
+            elif card_type == 'mtg':
+                tcg_game_name = 'Magic: The Gathering'
+            elif card_type == 'yugioh':
+                tcg_game_name = 'Yu-Gi-Oh!'
+            else:
+                tcg_game_name = card_data.get('game_name') or 'Trading Card Game'
+        
+        # Create UnifiedCard - only set sport-related fields for sports cards
         manager = CardCollectionManager()
         
-        card = UnifiedCard(
-            card_type=card_type,
-            title=title,
-            user_id=current_user.id,
-            card_number=card_data.get('card_number') or data.get('card_number'),
-            quantity=int(data.get('quantity', 1)),
-            organization_mode='by_set',
+        # Build card with conditional fields
+        card_kwargs = {
+            'card_type': card_type,
+            'title': title,
+            'user_id': current_user.id,
+            'card_number': card_data.get('card_number') or data.get('card_number'),
+            'quantity': int(data.get('quantity', 1)),
+            'organization_mode': 'by_set' if is_tcg else 'by_year' if is_sports else 'by_set',
             
-            # TCG fields
-            game_name=card_data.get('game_name'),
-            set_name=card_data.get('set_name') or card_data.get('set'),
-            set_code=card_data.get('set_code'),
-            rarity=card_data.get('rarity'),
+            # Grading (universal)
+            'grading_company': card_data.get('grading_company'),
+            'grading_score': card_data.get('grading_score'),
+            'grading_serial': card_data.get('grading_serial'),
             
-            # Sports fields
-            sport=card_data.get('sport'),
-            year=year,
-            brand=brand,
-            series=card_data.get('series'),
-            player_name=card_data.get('player_name'),
-            is_rookie_card=card_data.get('is_rookie_card', False),
-            
-            # Grading
-            grading_company=card_data.get('grading_company'),
-            grading_score=card_data.get('grading_score'),
-            grading_serial=card_data.get('grading_serial'),
-            
-            # Value & storage
-            estimated_value=card_data.get('estimated_value') or card_data.get('estimated_value_avg'),
-            storage_location=data.get('storage_location', ''),
-            photos=data.get('photos', []),
-            notes=data.get('description', ''),
-            ai_identified=bool(card_data),
-            ai_confidence=card_data.get('confidence_score')
-        )
+            # Value & storage (universal)
+            'estimated_value': card_data.get('estimated_value') or card_data.get('estimated_value_avg'),
+            'storage_location': data.get('storage_location', ''),
+            'photos': data.get('photos', []),
+            'notes': data.get('description', ''),
+            'ai_identified': bool(card_data),
+            'ai_confidence': card_data.get('confidence_score', 0.0)
+        }
         
+        # Add TCG-specific fields
+        if is_tcg:
+            card_kwargs.update({
+                'game_name': tcg_game_name,
+                'set_name': card_data.get('set_name') or card_data.get('set'),
+                'set_code': card_data.get('set_code'),
+                'rarity': card_data.get('rarity'),
+            })
+        
+        # Add Sports-specific fields (only for sports cards)
+        if is_sports:
+            card_kwargs.update({
+                'sport': card_data.get('sport'),
+                'year': year,
+                'brand': brand or card_data.get('brand'),
+                'series': card_data.get('series'),
+                'player_name': card_data.get('player_name'),
+                'is_rookie_card': card_data.get('is_rookie_card', False),
+            })
+        elif is_tcg:
+            # For TCG cards, year and brand might still be useful
+            if year:
+                card_kwargs['year'] = year
+            if brand:
+                card_kwargs['brand'] = brand
+        
+        card = UnifiedCard(**card_kwargs)
         card_id = manager.add_card(card)
         
         return jsonify({

@@ -132,7 +132,6 @@ from routes_admin import admin_bp, init_routes as init_admin
 from routes_cards import cards_bp, init_routes as init_cards
 from routes_main import main_bp, init_routes as init_main
 from routes_csv import csv_bp
-from monitoring.health import health_bp
 
 # Initialize blueprints with database and User class
 init_auth(db, User)
@@ -146,7 +145,6 @@ app.register_blueprint(admin_bp)
 app.register_blueprint(cards_bp)
 app.register_blueprint(main_bp)
 app.register_blueprint(csv_bp)
-app.register_blueprint(health_bp)
 
 # ============================================================================
 # MAIN ROUTES (not in blueprints)

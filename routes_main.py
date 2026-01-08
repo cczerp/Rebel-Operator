@@ -3622,14 +3622,32 @@ def api_save_vault():
         # Get storage region guidance if enabled
         storage_region = None
         if use_storage_map:
-            # Determine franchise from card data
-            franchise = card_data.get('franchise') or card_data.get('game_name') or card_data.get('sport')
+            # Determine franchise from card data (try multiple sources)
+            franchise = (
+                card_data.get('franchise') or 
+                card_data.get('game_name') or 
+                data.get('franchise') or
+                data.get('game_name')
+            )
+            
             if not franchise and is_tcg:
                 # Try to get franchise from game_name
-                franchise = tcg_game_name
+                franchise = tcg_game_name or card_data.get('game_name')
             elif not franchise and is_sports:
                 # Try to get franchise from sport
-                franchise = card_data.get('sport', '').upper()
+                sport = card_data.get('sport') or data.get('sport')
+                if sport:
+                    franchise = sport.upper()
+            elif not franchise:
+                # Try to infer from card_type
+                if card_type == 'pokemon':
+                    franchise = 'Pokemon'
+                elif card_type == 'mtg':
+                    franchise = 'Magic: The Gathering'
+                elif card_type == 'yugioh':
+                    franchise = 'Yu-Gi-Oh!'
+                elif card_type.startswith('sports_'):
+                    franchise = card_type.replace('sports_', '').upper()
             
             # Get recommended region
             region, guidance = suggest_storage_region(

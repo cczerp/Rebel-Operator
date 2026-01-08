@@ -1369,9 +1369,9 @@
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('cards.cards_collection') }}" class="nav-link {% if request.endpoint == 'cards.cards_collection' %}active{% endif %}">
-                <i class="fas fa-id-card"></i>
-                <span>Cards</span>
+            <a href="{{ url_for('cards.cards_collection') }}" class="nav-link {% if request.endpoint == 'cards.cards_collection' %}active{% endif %}" title="My Card Collection / Vault">
+                <i class="fas fa-vault"></i>
+                <span>Vault</span>
             </a>
         </div>
 

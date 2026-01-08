@@ -144,7 +144,7 @@
         <button type="button" class="btn btn-secondary btn-lg" id="saveDraftBtn">
             <i class="fas fa-save"></i> Save Listing Draft
         </button>
-        <button type="button" class="btn btn-outline-success btn-lg" id="saveToVaultBtn">
+        <button type="button" class="btn btn-outline-success btn-lg" id="saveToVaultBtn" style="display: none;">
             <i class="fas fa-archive"></i> Save to Collection Vault
         </button>
         <div class="form-check mt-2" id="storageMapOption" style="display: none;">
@@ -1075,11 +1075,15 @@ function showCardResults(data) {
                 <div class="row">
                     <div class="col-md-8">
                         <h5>${cardData.card_name || cardData.player_name || 'Unknown Card'}</h5>
+                        ${cardData.franchise ? `<p class="mb-1"><strong><i class="fas fa-tag"></i> Franchise:</strong> ${cardData.franchise}</p>` : ''}
+                        ${cardData.game_name ? `<p class="mb-1"><strong><i class="fas fa-gamepad"></i> Game:</strong> ${cardData.game_name}</p>` : ''}
+                        ${cardData.card_type && cardData.card_type !== 'unknown' ? `<p class="mb-1"><strong><i class="fas fa-id-card"></i> Type:</strong> ${cardData.card_type.replace('_', ' ').toUpperCase()}</p>` : ''}
                         ${cardData.set_name ? `<p class="mb-1"><strong>Set:</strong> ${cardData.set_name}</p>` : ''}
                         ${cardData.card_number ? `<p class="mb-1"><strong>Number:</strong> #${cardData.card_number}</p>` : ''}
                         ${cardData.rarity ? `<p class="mb-1"><strong>Rarity:</strong> ${cardData.rarity}</p>` : ''}
                         ${cardData.year ? `<p class="mb-1"><strong>Year:</strong> ${cardData.year}</p>` : ''}
                         ${cardData.brand ? `<p class="mb-1"><strong>Brand:</strong> ${cardData.brand}</p>` : ''}
+                        ${cardData.sport ? `<p class="mb-1"><strong>Sport:</strong> ${cardData.sport}</p>` : ''}
                         ${cardData.is_rookie_card ? `<p class="mb-1"><span class="badge" style="background: #FF9800; color: white;">ROOKIE CARD</span></p>` : ''}
                         ${cardData.is_graded ? `<p class="mb-1"><strong>Graded:</strong> ${cardData.grading_company} ${cardData.grading_score}</p>` : ''}
                         
@@ -1170,28 +1174,33 @@ function showCardResults(data) {
                 <hr>
                 
                 <!-- Storage Map Option -->
-                <div class="mb-3" id="cardStorageMapOption" style="display: none;">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="cardUseStorageMap" checked>
-                        <label class="form-check-label" for="cardUseStorageMap">
-                            <i class="fas fa-map-marked-alt"></i> Use storage map guidance (suggests where to place this card in your collection)
-                        </label>
-                        <small class="text-muted d-block mt-1">
-                            This will suggest a recommended region (front/middle/back) based on the card's franchise and type.
-                        </small>
+                <div class="mb-3" id="cardStorageMapOption">
+                    <div class="alert alert-info" style="background: rgba(76, 175, 80, 0.1); border-color: #4CAF50;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="cardUseStorageMap" checked>
+                            <label class="form-check-label" for="cardUseStorageMap">
+                                <i class="fas fa-map-marked-alt"></i> <strong>Use storage map guidance</strong>
+                            </label>
+                            <small class="text-muted d-block mt-1">
+                                Suggests where to place this card in your collection (front/middle/back) based on franchise and type.
+                            </small>
+                        </div>
                     </div>
                 </div>
                 
-                <div class="d-flex gap-2">
-                    <button class="btn btn-success" onclick="storeCardOnly()">
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-success btn-lg" onclick="saveCardToVault()" style="flex: 1; min-width: 200px;">
+                        <i class="fas fa-archive"></i> Save to Vault
+                    </button>
+                    <button class="btn btn-outline-success" onclick="storeCardOnly()">
                         <i class="fas fa-box"></i> Store in Collection
                     </button>
-                    <button class="btn btn-outline-success" onclick="storeAndList()">
-                        <i class="fas fa-plus-circle"></i> Store + Create Listing
+                    <button class="btn btn-outline-primary" onclick="storeAndList()">
+                        <i class="fas fa-plus-circle"></i> Store + List
                     </button>
                     ${data.public_db_id ? `
                         <button class="btn btn-outline-info" onclick="window.open('/collectibles-database/${data.public_db_id}', '_blank')">
-                            <i class="fas fa-database"></i> View in Database
+                            <i class="fas fa-database"></i> View in DB
                         </button>
                     ` : ''}
                 </div>
@@ -1217,9 +1226,79 @@ function showCardResults(data) {
     if (mainStorageMapOption) {
         mainStorageMapOption.style.display = 'block';
     }
+    
+    // Show the Save to Vault button in the main action area
+    const saveToVaultBtn = document.getElementById('saveToVaultBtn');
+    if (saveToVaultBtn) {
+        saveToVaultBtn.style.display = 'inline-block';
+    }
+
+    // Store card data globally for vault saving
+    window.lastCardData = cardData;
+    window.lastCardPrices = prices;
+    window.lastEnhancedScanData = { data: cardData, prices: prices };
 
     // Fill form with detailed card info
     fillFormFromCardData(cardData, prices);
+}
+
+// Save card to vault (from card results)
+async function saveCardToVault() {
+    if (!window.lastCardData) {
+        showAlert('No card data available. Please scan a card first.', 'warning');
+        return;
+    }
+    
+    const formData = collectFormData();
+    
+    // Include card data from enhanced scan
+    formData.card_data = window.lastCardData;
+    
+    // Check if storage map guidance is enabled
+    const storageMapCheckbox = document.getElementById('cardUseStorageMap');
+    if (storageMapCheckbox) {
+        formData.use_storage_map = storageMapCheckbox.checked;
+    } else {
+        // Fallback to main checkbox
+        const mainCheckbox = document.getElementById('useStorageMap');
+        if (mainCheckbox) {
+            formData.use_storage_map = mainCheckbox.checked;
+        }
+    }
+    
+    showLoading();
+
+    try {
+        const response = await fetch('/api/save-vault', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            let message = 'Card saved to your collection vault!';
+            
+            // Show storage guidance if provided
+            if (data.storage_guidance) {
+                message += `<br><br><strong><i class="fas fa-map-marked-alt"></i> Storage Guidance:</strong><br>${data.storage_guidance}`;
+            }
+            
+            showAlert(message, 'success');
+            // Clear form and stay on page
+            clearForm();
+            setTimeout(() => {
+                hideLoading();
+            }, 1000);
+        } else {
+            showAlert(data.error || 'Failed to save to vault', 'danger');
+            hideLoading();
+        }
+    } catch (error) {
+        showAlert('Save failed: ' + error, 'danger');
+        hideLoading();
+    }
 }
 
 // Display Collectible Results

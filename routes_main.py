@@ -998,11 +998,11 @@ def api_enhanced_scan():
                 is_supabase_url = 'supabase.co' in path or path.startswith('http') and 'supabase' in path.lower()
                 
                 if is_supabase_url:
-                logging.info(f"[ENHANCED SCAN DEBUG] Downloading image {i+1}/{len(photo_paths)} from Supabase: {path[:100]}...")
+                    logging.info(f"[ENHANCED SCAN DEBUG] Downloading image {i+1}/{len(photo_paths)} from Supabase: {path[:100]}...")
 
-                # Download from Supabase Storage to temp file
+                    # Download from Supabase Storage to temp file
                     try:
-                file_data = storage.download_photo(path)
+                        file_data = storage.download_photo(path)
                     except ValueError as value_error:
                         # URL validation error
                         logging.error(f"[ENHANCED SCAN ERROR] Invalid URL format for photo {i+1}: {value_error}")
@@ -1017,44 +1017,48 @@ def api_enhanced_scan():
                         logging.error(f"[ENHANCED SCAN ERROR] Traceback: {traceback.format_exc()}")
                         file_data = None
 
-                # Debug logging
-                debug_info = {
-                    'hasFile': bool(file_data),
+                    # Debug logging
+                    debug_info = {
+                        'hasFile': bool(file_data),
                         'filePath': path[:100] if path else 'None',
-                    'dataLength': len(file_data) if file_data else 0,
-                    'isBytes': isinstance(file_data, bytes) if file_data else False
-                }
-                logging.info(f"[ENHANCED SCAN DEBUG] Image {i+1}: {debug_info}")
+                        'dataLength': len(file_data) if file_data else 0,
+                        'isBytes': isinstance(file_data, bytes) if file_data else False
+                    }
+                    logging.info(f"[ENHANCED SCAN DEBUG] Image {i+1}: {debug_info}")
 
-                if file_data and len(file_data) > 0:
-                    # Create temp file
-                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
-                    temp_file.write(file_data)
-                    temp_file.flush()  # Ensure data is written to buffer
-                    os.fsync(temp_file.fileno())  # Force write to disk
-                    temp_file.close()
-                    local_path = temp_file.name
-                    temp_files.append(local_path)
+                    if file_data and len(file_data) > 0:
+                        # Create temp file
+                        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+                        temp_file.write(file_data)
+                        temp_file.flush()  # Ensure data is written to buffer
+                        os.fsync(temp_file.fileno())  # Force write to disk
+                        temp_file.close()
+                        local_path = temp_file.name
+                        temp_files.append(local_path)
 
-                    # Verify file was written and exists
-                    file_exists = Path(local_path).exists()
-                    file_size = Path(local_path).stat().st_size if file_exists else 0
+                        # Verify file was written and exists
+                        file_exists = Path(local_path).exists()
+                        file_size = Path(local_path).stat().st_size if file_exists else 0
 
-                    logging.info(f"✅ Downloaded image {i+1} ({len(file_data)} bytes) to {local_path}")
-                    logging.info(f"[ENHANCED SCAN DEBUG] Temp file exists: {file_exists}, size: {file_size} bytes")
+                        logging.info(f"✅ Downloaded image {i+1} ({len(file_data)} bytes) to {local_path}")
+                        logging.info(f"[ENHANCED SCAN DEBUG] Temp file exists: {file_exists}, size: {file_size} bytes")
 
-                    if not file_exists or file_size == 0:
-                        logging.error(f"❌ Temp file was not created properly: {local_path}")
-                        # Cleanup temp files
-                        for temp_file in temp_files:
-                            try:
-                                os.unlink(temp_file)
-                            except:
-                                pass
-                        return jsonify({"error": f"Failed to create temp file for image {i+1}"}), 500
-                else:
-                    logging.error(f"❌ Failed to download image {i+1} from Supabase: {path}")
-                    logging.error(f"[ENHANCED SCAN DEBUG] file_data is None or empty: {file_data}")
+                        if not file_exists or file_size == 0:
+                            logging.error(f"❌ Temp file was not created properly: {local_path}")
+                            # Cleanup temp files
+                            for temp_file in temp_files:
+                                try:
+                                    os.unlink(temp_file)
+                                except:
+                                    pass
+                            return jsonify({"error": f"Failed to create temp file for image {i+1}"}), 500
+                        
+                        # Successfully downloaded - append photo object
+                        photo_objects.append(Photo(url=path, local_path=local_path))
+                        continue  # Continue to next photo
+                    else:
+                        logging.error(f"❌ Failed to download image {i+1} from Supabase: {path}")
+                        logging.error(f"[ENHANCED SCAN DEBUG] file_data is None or empty: {file_data}")
                         logging.error(f"[ENHANCED SCAN DEBUG] URL format may be invalid. Expected: https://{{project}}.supabase.co/storage/v1/object/public/{{bucket}}/{{path}}")
                         
                         # Try last resort: direct HTTP download
@@ -1076,19 +1080,19 @@ def api_enhanced_scan():
                                 continue  # Continue to next photo
                         except Exception as http_error:
                             logging.error(f"[ENHANCED SCAN] Last resort HTTP download also failed: {http_error}")
-                    
-                    # If all download methods failed, return error
-                    # Cleanup temp files
-                    for temp_file in temp_files:
-                        try:
-                            os.unlink(temp_file)
-                        except:
-                            pass
-                    return jsonify({
-                        "error": f"Failed to download photo {i+1} from Supabase Storage. URL may be invalid or file may not exist.",
-                        "url_preview": path[:100] if path else "No URL provided",
-                        "hint": "Check that the photo URL is a valid Supabase Storage URL"
-                    }), 404
+                        
+                        # If all download methods failed, return error
+                        # Cleanup temp files
+                        for temp_file in temp_files:
+                            try:
+                                os.unlink(temp_file)
+                            except:
+                                pass
+                        return jsonify({
+                            "error": f"Failed to download photo {i+1} from Supabase Storage. URL may be invalid or file may not exist.",
+                            "url_preview": path[:100] if path else "No URL provided",
+                            "hint": "Check that the photo URL is a valid Supabase Storage URL"
+                        }), 404
             else:
                 # Assume local path (legacy support)
                 if path.startswith('/'):
@@ -1106,8 +1110,8 @@ def api_enhanced_scan():
                         except:
                             pass
                     return jsonify({"error": f"Photo file not found: {local_path}"}), 404
-
-            photo_objects.append(Photo(url=path, local_path=local_path))
+                
+                photo_objects.append(Photo(url=path, local_path=local_path))
 
         if not photo_objects:
             # Cleanup temp files

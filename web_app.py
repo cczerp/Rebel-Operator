@@ -233,6 +233,12 @@ def storage_map():
     """Storage map"""
     return render_template('storage_map.html')
 
+@app.route('/storage/instructions')
+@login_required
+def storage_instructions():
+    """Storage organization instructions and guide"""
+    return render_template('storage_instructions.html')
+
 @app.route('/settings')
 @login_required
 def settings():

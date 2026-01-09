@@ -101,113 +101,317 @@ class FranchiseStorageMap:
 def get_storage_map_for_franchise(franchise: str) -> Optional[FranchiseStorageMap]:
     """
     Get storage map for a franchise.
-    
+
     Args:
         franchise: Franchise name (e.g., "Pokemon", "Magic: The Gathering", "NFL")
-    
+
     Returns:
         FranchiseStorageMap or None if no map exists
     """
     franchise_lower = franchise.lower()
-    
+
+    # ========================================================================
+    # TRADING CARD GAMES (TCG)
+    # ========================================================================
+
     # Pokemon storage map
-    if 'pokemon' in franchise_lower:
+    if 'pokemon' in franchise_lower or 'pokémon' in franchise_lower:
         return FranchiseStorageMap(
             franchise="Pokemon",
             rules=[
+                # Ultra Rare / Secret Rare - Top priority access
                 StorageMapRule(
-                    card_types=['pokemon'],
+                    card_types=['pokemon_ultra_rare', 'pokemon_secret_rare', 'pokemon_full_art'],
+                    region=StorageRegion.TOP,
+                    description="Ultra Rare Pokemon - premium storage (binder recommended)"
+                ),
+                # Rare / Holo Rare - Front access for trading
+                StorageMapRule(
+                    card_types=['pokemon_rare', 'pokemon_holo_rare'],
                     region=StorageRegion.FRONT,
-                    description="Pokemon cards - store in front"
+                    description="Rare Pokemon - easy access for trading/selling"
+                ),
+                # Uncommon - Middle storage
+                StorageMapRule(
+                    card_types=['pokemon_uncommon'],
+                    region=StorageRegion.MIDDLE,
+                    description="Uncommon Pokemon - moderate access"
+                ),
+                # Common / Bulk - Back storage
+                StorageMapRule(
+                    card_types=['pokemon_common', 'pokemon'],
+                    region=StorageRegion.BACK,
+                    description="Common Pokemon - bulk storage"
                 ),
             ],
             default_region=StorageRegion.FRONT
         )
-    
+
     # Magic: The Gathering storage map
     elif 'magic' in franchise_lower or 'mtg' in franchise_lower:
         return FranchiseStorageMap(
             franchise="Magic: The Gathering",
             rules=[
+                # Mythic Rare - Top storage
                 StorageMapRule(
-                    card_types=['mtg'],
+                    card_types=['mtg_mythic', 'mtg_mythic_rare'],
+                    region=StorageRegion.TOP,
+                    description="Mythic Rare - premium storage"
+                ),
+                # Rare - Front storage
+                StorageMapRule(
+                    card_types=['mtg_rare'],
+                    region=StorageRegion.FRONT,
+                    description="MTG Rare - front access for decks"
+                ),
+                # Uncommon - Middle storage
+                StorageMapRule(
+                    card_types=['mtg_uncommon'],
                     region=StorageRegion.MIDDLE,
-                    description="MTG cards - store in middle"
+                    description="MTG Uncommon - moderate access"
+                ),
+                # Common / Bulk - Back storage
+                StorageMapRule(
+                    card_types=['mtg_common', 'mtg'],
+                    region=StorageRegion.BACK,
+                    description="MTG Common - bulk storage"
                 ),
             ],
             default_region=StorageRegion.MIDDLE
         )
-    
+
     # Yu-Gi-Oh storage map
     elif 'yugioh' in franchise_lower or 'yu-gi-oh' in franchise_lower:
         return FranchiseStorageMap(
             franchise="Yu-Gi-Oh!",
             rules=[
+                # Secret Rare / Ultimate Rare - Top storage
                 StorageMapRule(
-                    card_types=['yugioh'],
+                    card_types=['yugioh_secret_rare', 'yugioh_ultimate_rare', 'yugioh_ghost_rare'],
+                    region=StorageRegion.TOP,
+                    description="Secret/Ultimate Rare - premium storage"
+                ),
+                # Ultra Rare - Front storage
+                StorageMapRule(
+                    card_types=['yugioh_ultra_rare'],
+                    region=StorageRegion.FRONT,
+                    description="Ultra Rare Yu-Gi-Oh - easy access"
+                ),
+                # Super Rare - Middle storage
+                StorageMapRule(
+                    card_types=['yugioh_super_rare'],
                     region=StorageRegion.MIDDLE,
-                    description="Yu-Gi-Oh cards - store in middle"
+                    description="Super Rare - moderate access"
+                ),
+                # Common / Rare - Back storage
+                StorageMapRule(
+                    card_types=['yugioh_common', 'yugioh_rare', 'yugioh'],
+                    region=StorageRegion.BACK,
+                    description="Common/Rare - bulk storage"
                 ),
             ],
             default_region=StorageRegion.MIDDLE
         )
-    
+
+    # ========================================================================
+    # SPORTS CARDS
+    # ========================================================================
+
     # NFL storage map
     elif 'nfl' in franchise_lower or 'football' in franchise_lower:
         return FranchiseStorageMap(
             franchise="NFL",
             rules=[
+                # Graded cards - Top storage
                 StorageMapRule(
-                    card_types=['sports_nfl'],
+                    card_types=['sports_nfl_graded'],
+                    region=StorageRegion.TOP,
+                    description="Graded NFL cards - top loader storage"
+                ),
+                # Rookie cards - Front storage
+                StorageMapRule(
+                    card_types=['sports_nfl_rookie'],
                     region=StorageRegion.FRONT,
-                    description="NFL cards - store in front"
+                    description="NFL Rookie cards - front access (high value)"
+                ),
+                # Autographed / Memorabilia - Front storage
+                StorageMapRule(
+                    card_types=['sports_nfl_auto', 'sports_nfl_patch'],
+                    region=StorageRegion.FRONT,
+                    description="Autographed/Memorabilia - front access"
+                ),
+                # Star players - Middle storage
+                StorageMapRule(
+                    card_types=['sports_nfl_star'],
+                    region=StorageRegion.MIDDLE,
+                    description="Star players - middle storage"
+                ),
+                # Base / Common - Back storage
+                StorageMapRule(
+                    card_types=['sports_nfl_base', 'sports_nfl'],
+                    region=StorageRegion.BACK,
+                    description="NFL base cards - back storage"
                 ),
             ],
             default_region=StorageRegion.FRONT
         )
-    
+
     # NBA storage map
     elif 'nba' in franchise_lower or 'basketball' in franchise_lower:
         return FranchiseStorageMap(
             franchise="NBA",
             rules=[
+                # Graded cards - Top storage
                 StorageMapRule(
-                    card_types=['sports_nba'],
+                    card_types=['sports_nba_graded'],
+                    region=StorageRegion.TOP,
+                    description="Graded NBA cards - top loader storage"
+                ),
+                # Rookie cards - Front storage
+                StorageMapRule(
+                    card_types=['sports_nba_rookie'],
                     region=StorageRegion.FRONT,
-                    description="NBA cards - store in front"
+                    description="NBA Rookie cards - front access (high value)"
+                ),
+                # Autographed / Memorabilia - Front storage
+                StorageMapRule(
+                    card_types=['sports_nba_auto', 'sports_nba_patch'],
+                    region=StorageRegion.FRONT,
+                    description="Autographed/Memorabilia - front access"
+                ),
+                # Star players - Middle storage
+                StorageMapRule(
+                    card_types=['sports_nba_star'],
+                    region=StorageRegion.MIDDLE,
+                    description="Star players - middle storage"
+                ),
+                # Base / Common - Back storage
+                StorageMapRule(
+                    card_types=['sports_nba_base', 'sports_nba'],
+                    region=StorageRegion.BACK,
+                    description="NBA base cards - back storage"
                 ),
             ],
             default_region=StorageRegion.FRONT
         )
-    
+
     # MLB storage map
     elif 'mlb' in franchise_lower or 'baseball' in franchise_lower:
         return FranchiseStorageMap(
             franchise="MLB",
             rules=[
+                # Graded cards - Top storage
                 StorageMapRule(
-                    card_types=['sports_mlb'],
+                    card_types=['sports_mlb_graded'],
+                    region=StorageRegion.TOP,
+                    description="Graded MLB cards - top loader storage"
+                ),
+                # Rookie cards - Front storage
+                StorageMapRule(
+                    card_types=['sports_mlb_rookie'],
                     region=StorageRegion.FRONT,
-                    description="MLB cards - store in front"
+                    description="MLB Rookie cards - front access (high value)"
+                ),
+                # Autographed / Memorabilia - Front storage
+                StorageMapRule(
+                    card_types=['sports_mlb_auto', 'sports_mlb_patch'],
+                    region=StorageRegion.FRONT,
+                    description="Autographed/Memorabilia - front access"
+                ),
+                # Star players - Middle storage
+                StorageMapRule(
+                    card_types=['sports_mlb_star'],
+                    region=StorageRegion.MIDDLE,
+                    description="Star players - middle storage"
+                ),
+                # Vintage (pre-1980) - Front storage
+                StorageMapRule(
+                    card_types=['sports_mlb_vintage'],
+                    region=StorageRegion.FRONT,
+                    description="Vintage MLB - front access (collectible value)"
+                ),
+                # Base / Common - Back storage
+                StorageMapRule(
+                    card_types=['sports_mlb_base', 'sports_mlb'],
+                    region=StorageRegion.BACK,
+                    description="MLB base cards - back storage"
                 ),
             ],
             default_region=StorageRegion.FRONT
         )
-    
+
     # NHL storage map
     elif 'nhl' in franchise_lower or 'hockey' in franchise_lower:
         return FranchiseStorageMap(
             franchise="NHL",
             rules=[
+                # Graded cards - Top storage
                 StorageMapRule(
-                    card_types=['sports_nhl'],
+                    card_types=['sports_nhl_graded'],
+                    region=StorageRegion.TOP,
+                    description="Graded NHL cards - top loader storage"
+                ),
+                # Rookie cards - Front storage
+                StorageMapRule(
+                    card_types=['sports_nhl_rookie'],
                     region=StorageRegion.FRONT,
-                    description="NHL cards - store in front"
+                    description="NHL Rookie cards - front access (high value)"
+                ),
+                # Autographed / Memorabilia - Front storage
+                StorageMapRule(
+                    card_types=['sports_nhl_auto', 'sports_nhl_patch'],
+                    region=StorageRegion.FRONT,
+                    description="Autographed/Memorabilia - front access"
+                ),
+                # Star players - Middle storage
+                StorageMapRule(
+                    card_types=['sports_nhl_star'],
+                    region=StorageRegion.MIDDLE,
+                    description="Star players - middle storage"
+                ),
+                # Base / Common - Back storage
+                StorageMapRule(
+                    card_types=['sports_nhl_base', 'sports_nhl'],
+                    region=StorageRegion.BACK,
+                    description="NHL base cards - back storage"
                 ),
             ],
             default_region=StorageRegion.FRONT
         )
-    
+
+    # Soccer storage map
+    elif 'soccer' in franchise_lower or 'football' in franchise_lower and 'premier' in franchise_lower:
+        return FranchiseStorageMap(
+            franchise="Soccer",
+            rules=[
+                # Graded cards - Top storage
+                StorageMapRule(
+                    card_types=['sports_soccer_graded'],
+                    region=StorageRegion.TOP,
+                    description="Graded soccer cards - top loader storage"
+                ),
+                # Rookie cards - Front storage
+                StorageMapRule(
+                    card_types=['sports_soccer_rookie'],
+                    region=StorageRegion.FRONT,
+                    description="Soccer Rookie cards - front access"
+                ),
+                # Autographed - Front storage
+                StorageMapRule(
+                    card_types=['sports_soccer_auto'],
+                    region=StorageRegion.FRONT,
+                    description="Autographed soccer cards - front access"
+                ),
+                # Base / Common - Back storage
+                StorageMapRule(
+                    card_types=['sports_soccer_base', 'sports_soccer'],
+                    region=StorageRegion.BACK,
+                    description="Soccer base cards - back storage"
+                ),
+            ],
+            default_region=StorageRegion.MIDDLE
+        )
+
     # Default: no specific map
     return None
 

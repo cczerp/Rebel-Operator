@@ -1619,6 +1619,26 @@ class Database:
         
         return artifact
 
+    def get_all_artifacts(self, limit: int = 100, offset: int = 0) -> List[Dict]:
+        """Get all artifacts in the public Hall of Records"""
+        import json
+        cursor = self._get_cursor()
+        cursor.execute("""
+            SELECT id, item_name, brand, franchise, category, item_type,
+                   created_at, updated_at, times_contributed
+            FROM public_artifacts
+            ORDER BY updated_at DESC
+            LIMIT %s OFFSET %s
+        """, (limit, offset))
+
+        results = cursor.fetchall()
+        artifacts = []
+        for row in results:
+            artifact = dict(row)
+            artifacts.append(artifact)
+
+        return artifacts
+
     def save_artifact_to_user_collection(self, user_id: int, artifact_id: int) -> bool:
         """Save artifact to user's personal collection"""
         cursor = self._get_cursor()
@@ -1669,6 +1689,92 @@ class Database:
             WHERE user_id = %s AND artifact_id = %s
         """, (user_id, artifact_id))
         return cursor.fetchone() is not None
+
+    def get_artifacts_with_pending_photos(self) -> List[Dict]:
+        """Get all artifacts that have pending photos for admin curation"""
+        import json
+        cursor = self._get_cursor()
+
+        # Get artifacts with their pending photos
+        cursor.execute("""
+            SELECT DISTINCT a.id, a.item_name, a.brand, a.franchise, a.category, a.item_type,
+                   a.created_at, a.updated_at, a.photos
+            FROM public_artifacts a
+            INNER JOIN pending_artifact_photos p ON a.id = p.artifact_id
+            ORDER BY p.created_at DESC
+        """)
+
+        artifacts = cursor.fetchall()
+        result = []
+
+        for artifact in artifacts:
+            artifact_dict = dict(artifact)
+
+            # Parse photos JSON
+            if artifact_dict.get('photos'):
+                try:
+                    artifact_dict['photos'] = json.loads(artifact_dict['photos'])
+                except:
+                    artifact_dict['photos'] = []
+            else:
+                artifact_dict['photos'] = []
+
+            # Get pending photos for this artifact
+            cursor.execute("""
+                SELECT id, photo_url, is_selected, created_at, user_id
+                FROM pending_artifact_photos
+                WHERE artifact_id = %s
+                ORDER BY created_at ASC
+            """, (artifact_dict['id'],))
+
+            pending_photos = [dict(row) for row in cursor.fetchall()]
+
+            # Count published vs pending
+            published_count = len([p for p in pending_photos if p['is_selected']])
+            pending_count = len([p for p in pending_photos if not p['is_selected']])
+
+            result.append({
+                'artifact': artifact_dict,
+                'pending_photos': pending_photos,
+                'pending_count': pending_count,
+                'published_count': published_count
+            })
+
+        return result
+
+    def get_photo_curation_stats(self) -> Dict:
+        """Get statistics for photo curation dashboard"""
+        cursor = self._get_cursor()
+
+        # Total pending photos
+        cursor.execute("""
+            SELECT COUNT(*) as count
+            FROM pending_artifact_photos
+            WHERE is_selected = FALSE
+        """)
+        pending_count = cursor.fetchone()['count']
+
+        # Total published photos
+        cursor.execute("""
+            SELECT COUNT(*) as count
+            FROM pending_artifact_photos
+            WHERE is_selected = TRUE
+        """)
+        published_count = cursor.fetchone()['count']
+
+        # Artifacts with pending photos
+        cursor.execute("""
+            SELECT COUNT(DISTINCT artifact_id) as count
+            FROM pending_artifact_photos
+            WHERE is_selected = FALSE
+        """)
+        artifacts_count = cursor.fetchone()['count']
+
+        return {
+            'pending_count': pending_count,
+            'published_count': published_count,
+            'artifacts_count': artifacts_count
+        }
 
     def get_pending_artifact_photos(self, artifact_id: int, user_id: int) -> List[Dict]:
         """Get pending photos for artifact that user can select to make public"""

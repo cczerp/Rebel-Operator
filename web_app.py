@@ -251,6 +251,12 @@ def vault():
     """Collection Vault page"""
     return render_template('vault.html')
 
+@app.route('/hall-of-records')
+def hall_of_records():
+    """Hall of Records - Browse all public artifacts"""
+    artifacts = db.get_all_artifacts(limit=100)
+    return render_template('hall_of_records.html', artifacts=artifacts)
+
 @app.route('/post-listing')
 @login_required
 def post_listing_page():

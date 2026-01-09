@@ -233,11 +233,11 @@ def storage_map():
     """Storage map"""
     return render_template('storage_map.html')
 
-@app.route('/vault')
+@app.route('/storage/instructions')
 @login_required
-def vault():
-    """Vault - User's card collection"""
-    return redirect(url_for('cards.cards_collection'))
+def storage_instructions():
+    """Storage organization instructions and guide"""
+    return render_template('storage_instructions.html')
 
 @app.route('/settings')
 @login_required
@@ -250,6 +250,12 @@ def settings():
 def vault():
     """Collection Vault page"""
     return render_template('vault.html')
+
+@app.route('/hall-of-records')
+def hall_of_records():
+    """Hall of Records - Browse all public artifacts"""
+    artifacts = db.get_all_artifacts(limit=100)
+    return render_template('hall_of_records.html', artifacts=artifacts)
 
 @app.route('/post-listing')
 @login_required

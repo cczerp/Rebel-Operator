@@ -385,26 +385,48 @@ def api_google_signin():
         if not credential:
             return jsonify({"error": "No credential provided"}), 400
         
-        # Decode JWT token (Google Sign-In uses JWT)
+        # Verify Google ID token with proper signature verification
+        GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+
+        if not GOOGLE_CLIENT_ID:
+            return jsonify({"error": "Google Sign-In not configured on server"}), 500
+
         try:
-            # Decode without verification first to get the payload
-            decoded = jwt.decode(credential, options={"verify_signature": False})
+            # Use google-auth library for proper JWT verification
+            from google.oauth2 import id_token
+            from google.auth.transport import requests as google_requests
+
+            # Verify the token with Google's public keys
+            # This validates: signature, issuer, audience, and expiration
+            decoded = id_token.verify_oauth2_token(
+                credential,
+                google_requests.Request(),
+                GOOGLE_CLIENT_ID,
+                clock_skew_in_seconds=10
+            )
+
+            # Verify issuer (must be Google)
+            if decoded.get('iss') not in ['accounts.google.com', 'https://accounts.google.com']:
+                return jsonify({"error": "Invalid token issuer"}), 400
+
+            # Extract user info from verified token
             email = decoded.get('email')
             name = decoded.get('name', '')
             given_name = decoded.get('given_name', '')
             family_name = decoded.get('family_name', '')
-            
-            # Verify token with Google's public keys (optional but recommended)
-            # For now, we'll trust the token since it comes from Google's JS library
-            # In production, you should verify the signature
-            GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
-            if GOOGLE_CLIENT_ID and decoded.get('aud') != GOOGLE_CLIENT_ID:
-                return jsonify({"error": "Invalid client ID"}), 400
-                
-        except jwt.DecodeError as e:
-            return jsonify({"error": f"Failed to decode token: {str(e)}"}), 400
+            email_verified = decoded.get('email_verified', False)
+
+            # Require verified email
+            if not email_verified:
+                return jsonify({"error": "Email not verified with Google"}), 400
+
+        except ValueError as e:
+            # Invalid token (expired, wrong audience, bad signature, etc.)
+            return jsonify({"error": f"Invalid Google token: {str(e)}"}), 401
         except Exception as e:
-            return jsonify({"error": f"Token validation error: {str(e)}"}), 400
+            import logging
+            logging.error(f"Google token verification error: {e}")
+            return jsonify({"error": "Token verification failed"}), 500
         
         if not email:
             return jsonify({"error": "Email not found in Google account"}), 400

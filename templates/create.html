@@ -138,14 +138,22 @@
             You can test the AI photo analysis above without signing up!
         </small>
         {% else %}
+        <div class="alert alert-info mb-3">
+            <i class="fas fa-lightbulb"></i> <strong>Choose how to save:</strong>
+            <ul class="mb-0 mt-2">
+                <li><strong>Post as Listing:</strong> Ready to sell now? Post to marketplaces immediately</li>
+                <li><strong>Save as Draft:</strong> Not ready yet? Save for later to finish and post</li>
+                <li><strong>Save to My Vault:</strong> Just collecting? Store in your personal collection vault</li>
+            </ul>
+        </div>
         <button type="button" class="btn btn-primary btn-lg" id="postListingBtn">
-            <i class="fas fa-rocket"></i> Post Listing
+            <i class="fas fa-rocket"></i> Post as Listing
         </button>
         <button type="button" class="btn btn-secondary btn-lg" id="saveDraftBtn">
-            <i class="fas fa-save"></i> Save Listing Draft
+            <i class="fas fa-save"></i> Save as Draft
         </button>
-        <button type="button" class="btn btn-outline-success btn-lg" id="saveToVaultBtn" style="display: none;">
-            <i class="fas fa-archive"></i> Save to Collection Vault
+        <button type="button" class="btn btn-outline-success btn-lg" id="saveToVaultBtn">
+            <i class="fas fa-vault"></i> Save to My Vault
         </button>
         <div class="form-check mt-2" id="storageMapOption" style="display: none;">
             <input class="form-check-input" type="checkbox" id="useStorageMap" checked>
@@ -1220,17 +1228,11 @@ function showCardResults(data) {
     if (storageMapOption) {
         storageMapOption.style.display = 'block';
     }
-    
+
     // Also show the main storage map option
     const mainStorageMapOption = document.getElementById('storageMapOption');
     if (mainStorageMapOption) {
         mainStorageMapOption.style.display = 'block';
-    }
-    
-    // Show the Save to Vault button in the main action area
-    const saveToVaultBtn = document.getElementById('saveToVaultBtn');
-    if (saveToVaultBtn) {
-        saveToVaultBtn.style.display = 'inline-block';
     }
 
     // Store card data globally for vault saving

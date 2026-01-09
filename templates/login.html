@@ -178,7 +178,8 @@
         </form>
 
         <!-- Google Sign-In -->
-        <div class="text-center mb-3">
+        <div id="googleSignInSection" class="text-center mb-3" style="display: none;">
+            <div class="mb-2" style="color: #E0E0E0; font-size: 14px;">or</div>
             <div id="g_id_onload"
                  data-client_id=""
                  data-callback="handleGoogleSignIn"
@@ -212,35 +213,99 @@
     <!-- Google Sign-In -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script>
-        // Get Google Client ID from server
-        fetch('/api/auth/google-client-id')
-            .then(res => res.json())
-            .then(data => {
-                if (data.client_id) {
-                    document.getElementById('g_id_onload').setAttribute('data-client_id', data.client_id);
-                    // Reinitialize Google Sign-In
-                    if (window.google && window.google.accounts) {
-                        window.google.accounts.id.initialize({
-                            client_id: data.client_id,
-                            callback: handleGoogleSignIn
-                        });
-                        window.google.accounts.id.renderButton(
-                            document.querySelector('.g_id_signin'),
-                            { theme: 'filled_blue', size: 'large', width: '100%' }
-                        );
+        // Wait for Google Sign-In library to load, then initialize
+        function initializeGoogleSignIn() {
+            // Get Google Client ID from server
+            fetch('/api/auth/google-client-id')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.client_id && data.client_id.trim() !== '') {
+                        // Show Google Sign-In section
+                        const googleSignInSection = document.getElementById('googleSignInSection');
+                        if (googleSignInSection) {
+                            googleSignInSection.style.display = 'block';
+                        }
+                        const googleSignInContainer = document.querySelector('.g_id_signin');
+                        if (googleSignInContainer) {
+                            googleSignInContainer.style.display = 'block';
+                        }
+                        
+                        // Wait for Google library to be available
+                        function tryInitialize() {
+                            if (window.google && window.google.accounts && window.google.accounts.id) {
+                                // Initialize Google Sign-In
+                                window.google.accounts.id.initialize({
+                                    client_id: data.client_id,
+                                    callback: handleGoogleSignIn
+                                });
+                                
+                                // Render the button
+                                const buttonContainer = document.querySelector('.g_id_signin');
+                                if (buttonContainer && !buttonContainer.querySelector('iframe')) {
+                                    window.google.accounts.id.renderButton(buttonContainer, {
+                                        theme: 'filled_blue',
+                                        size: 'large',
+                                        text: 'signin_with',
+                                        shape: 'rectangular',
+                                        logo_alignment: 'left',
+                                        width: '100%'
+                                    });
+                                }
+                                
+                                // Also set up the onload div
+                                const onloadDiv = document.getElementById('g_id_onload');
+                                if (onloadDiv) {
+                                    onloadDiv.setAttribute('data-client_id', data.client_id);
+                                }
+                            } else {
+                                // Retry after a short delay if Google library not loaded yet
+                                setTimeout(tryInitialize, 100);
+                            }
+                        }
+                        
+                        tryInitialize();
+                    } else {
+                        // Hide Google Sign-In if no client ID configured
+                        const googleSignInSection = document.getElementById('googleSignInSection');
+                        if (googleSignInSection) {
+                            googleSignInSection.style.display = 'none';
+                        }
+                        const googleSignInContainer = document.querySelector('.g_id_signin');
+                        if (googleSignInContainer) {
+                            googleSignInContainer.style.display = 'none';
+                        }
                     }
-                } else {
-                    // Hide Google Sign-In if no client ID
-                    document.querySelector('.g_id_signin').style.display = 'none';
-                }
-            })
-            .catch(err => {
-                console.error('Failed to load Google Client ID:', err);
-                document.querySelector('.g_id_signin').style.display = 'none';
-            });
+                })
+                .catch(err => {
+                    console.error('Failed to load Google Client ID:', err);
+                    const googleSignInSection = document.getElementById('googleSignInSection');
+                    if (googleSignInSection) {
+                        googleSignInSection.style.display = 'none';
+                    }
+                    const googleSignInContainer = document.querySelector('.g_id_signin');
+                    if (googleSignInContainer) {
+                        googleSignInContainer.style.display = 'none';
+                    }
+                });
+        }
+        
+        // Start initialization when page loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeGoogleSignIn);
+        } else {
+            // DOM already loaded
+            initializeGoogleSignIn();
+        }
+        
+        // Also try when Google library loads (in case DOMContentLoaded already fired)
+        window.addEventListener('load', function() {
+            if (window.google && window.google.accounts) {
+                initializeGoogleSignIn();
+            }
+        });
         
         async function handleGoogleSignIn(response) {
-            // Send the credential to the server
+            // Send the credential to the server for verification
             try {
                 showLoading();
                 const result = await fetch('/api/auth/google', {

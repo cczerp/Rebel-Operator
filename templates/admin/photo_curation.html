@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}Photo Curation - Admin{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2><i class="fas fa-images"></i> Photo Curation Dashboard</h2>
+    <p class="text-muted">Review and select the best quality photos for Hall of Records artifacts</p>
+</div>
+
+<div class="alert alert-info mb-4">
+    <i class="fas fa-info-circle"></i>
+    <strong>How it works:</strong> Users scan items and photos are automatically stored here.
+    Select the highest quality photo for each artifact to make it public in the Hall of Records.
+</div>
+
+<!-- Summary Stats -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5><i class="fas fa-clock"></i> Pending Review</h5>
+                <h2>{{ stats.pending_count }}</h2>
+                <small>photos waiting for curation</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5><i class="fas fa-check"></i> Published</h5>
+                <h2>{{ stats.published_count }}</h2>
+                <small>photos in Hall of Records</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <h5><i class="fas fa-cube"></i> Artifacts</h5>
+                <h2>{{ stats.artifacts_count }}</h2>
+                <small>artifacts with pending photos</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pending Photos by Artifact -->
+{% if artifacts_with_photos %}
+<div class="row">
+    {% for item in artifacts_with_photos %}
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header" style="background: var(--carbon-matte-surface); border-bottom: 2px solid var(--cold-steel-accent);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0" style="color: var(--off-white-text);">
+                        <i class="fas fa-star"></i> {{ item.artifact.item_name }}
+                    </h5>
+                    <a href="/artifact/{{ item.artifact.id }}" class="btn btn-sm btn-outline-light" target="_blank">
+                        <i class="fas fa-external-link-alt"></i> View Artifact
+                    </a>
+                </div>
+                {% if item.artifact.franchise %}
+                <small class="text-muted">
+                    <i class="fas fa-film"></i> {{ item.artifact.franchise }}
+                    {% if item.artifact.category %} | {{ item.artifact.category }}{% endif %}
+                </small>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="mb-3">
+                    <strong>{{ item.pending_count }} pending photo(s)</strong>
+                    {% if item.published_count > 0 %}
+                    | <span class="text-success">{{ item.published_count }} already published</span>
+                    {% endif %}
+                </p>
+
+                <!-- Pending Photos Grid -->
+                <div class="row g-3 mb-3">
+                    {% for photo in item.pending_photos %}
+                    <div class="col-md-3">
+                        <div class="photo-card" data-photo-id="{{ photo.id }}" data-artifact-id="{{ item.artifact.id }}">
+                            <div class="photo-container position-relative">
+                                <img src="{{ photo.photo_url }}"
+                                     class="img-thumbnail photo-preview {% if photo.is_selected %}selected{% endif %}"
+                                     style="width: 100%; height: 200px; object-fit: cover; cursor: pointer;"
+                                     onclick="togglePhotoSelection({{ photo.id }}, {{ item.artifact.id }})">
+
+                                {% if photo.is_selected %}
+                                <div class="badge bg-success position-absolute" style="top: 10px; right: 10px;">
+                                    <i class="fas fa-check"></i> Published
+                                </div>
+                                {% else %}
+                                <div class="badge bg-secondary position-absolute" style="top: 10px; right: 10px;">
+                                    Pending
+                                </div>
+                                {% endif %}
+
+                                <div class="photo-info bg-dark bg-opacity-75 text-white p-2 position-absolute bottom-0 start-0 end-0" style="font-size: 0.75rem;">
+                                    <i class="fas fa-user"></i> User {{ photo.user_id }}
+                                    <br>
+                                    <i class="fas fa-clock"></i> {{ photo.created_at.strftime('%Y-%m-%d %H:%M') if photo.created_at else 'N/A' }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" onclick="publishSelectedForArtifact({{ item.artifact.id }})">
+                        <i class="fas fa-check-circle"></i> Publish Selected Photos
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="selectAllForArtifact({{ item.artifact.id }})">
+                        <i class="fas fa-check-double"></i> Select All
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="deselectAllForArtifact({{ item.artifact.id }})">
+                        <i class="fas fa-times"></i> Deselect All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-success text-center">
+    <i class="fas fa-check-circle"></i>
+    <strong>All caught up!</strong> No pending photos to review.
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedPhotos = {}; // artifactId -> Set of photoIds
+
+// Initialize selected photos from already-published ones
+{% for item in artifacts_with_photos %}
+selectedPhotos[{{ item.artifact.id }}] = new Set();
+{% for photo in item.pending_photos %}
+{% if photo.is_selected %}
+selectedPhotos[{{ item.artifact.id }}].add({{ photo.id }});
+{% endif %}
+{% endfor %}
+{% endfor %}
+
+function togglePhotoSelection(photoId, artifactId) {
+    const photoCard = document.querySelector(`[data-photo-id="${photoId}"][data-artifact-id="${artifactId}"]`);
+    const img = photoCard.querySelector('img');
+    const badge = photoCard.querySelector('.badge');
+
+    if (!selectedPhotos[artifactId]) {
+        selectedPhotos[artifactId] = new Set();
+    }
+
+    if (selectedPhotos[artifactId].has(photoId)) {
+        // Deselect
+        selectedPhotos[artifactId].delete(photoId);
+        img.classList.remove('selected');
+        badge.className = 'badge bg-secondary position-absolute';
+        badge.innerHTML = 'Pending';
+    } else {
+        // Select
+        selectedPhotos[artifactId].add(photoId);
+        img.classList.add('selected');
+        badge.className = 'badge bg-success position-absolute';
+        badge.innerHTML = '<i class="fas fa-check"></i> Selected';
+    }
+}
+
+function selectAllForArtifact(artifactId) {
+    const cards = document.querySelectorAll(`[data-artifact-id="${artifactId}"]`);
+    selectedPhotos[artifactId] = new Set();
+
+    cards.forEach(card => {
+        const photoId = parseInt(card.dataset.photoId);
+        selectedPhotos[artifactId].add(photoId);
+
+        const img = card.querySelector('img');
+        const badge = card.querySelector('.badge');
+        img.classList.add('selected');
+        badge.className = 'badge bg-success position-absolute';
+        badge.innerHTML = '<i class="fas fa-check"></i> Selected';
+    });
+}
+
+function deselectAllForArtifact(artifactId) {
+    const cards = document.querySelectorAll(`[data-artifact-id="${artifactId}"]`);
+    selectedPhotos[artifactId] = new Set();
+
+    cards.forEach(card => {
+        const img = card.querySelector('img');
+        const badge = card.querySelector('.badge');
+        img.classList.remove('selected');
+        badge.className = 'badge bg-secondary position-absolute';
+        badge.innerHTML = 'Pending';
+    });
+}
+
+async function publishSelectedForArtifact(artifactId) {
+    const selected = selectedPhotos[artifactId];
+
+    if (!selected || selected.size === 0) {
+        showAlert('Please select at least one photo to publish', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/artifacts/${artifactId}/select-photos`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                photo_ids: Array.from(selected)
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert(data.message || 'Photos published successfully!', 'success');
+            // Reload page to show updated status
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            throw new Error(data.error || 'Failed to publish photos');
+        }
+    } catch (error) {
+        showAlert('Error: ' + error.message, 'danger');
+    }
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    setTimeout(() => alertDiv.remove(), 5000);
+}
+</script>
+
+<style>
+.photo-preview {
+    transition: all 0.2s;
+    border: 3px solid transparent;
+}
+
+.photo-preview:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.photo-preview.selected {
+    border-color: #28a745 !important;
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.25);
+}
+
+.photo-card {
+    transition: all 0.2s;
+}
+
+.photo-info {
+    transition: opacity 0.2s;
+    opacity: 0;
+}
+
+.photo-card:hover .photo-info {
+    opacity: 1;
+}
+</style>
+{% endblock %}

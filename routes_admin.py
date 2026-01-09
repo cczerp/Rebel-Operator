@@ -228,3 +228,26 @@ def api_debug_users():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# -------------------------------------------------------------------------
+# PHOTO CURATION DASHBOARD
+# -------------------------------------------------------------------------
+
+@admin_bp.route("/admin/photo-curation")
+@admin_required
+def photo_curation():
+    """Admin dashboard for curating artifact photos"""
+    try:
+        # Get all artifacts with pending photos
+        artifacts_with_photos = db.get_artifacts_with_pending_photos()
+
+        # Get stats
+        stats = db.get_photo_curation_stats()
+
+        return render_template('admin/photo_curation.html',
+                             artifacts_with_photos=artifacts_with_photos,
+                             stats=stats)
+    except Exception as e:
+        flash(f'Error loading photo curation dashboard: {str(e)}', 'error')
+        return redirect(url_for('admin.admin_dashboard'))

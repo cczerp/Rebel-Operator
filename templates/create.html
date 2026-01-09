@@ -4,9 +4,17 @@
 
 {% block content %}
 {% if is_guest %}
-<div class="alert alert-success mb-4">
-    <h5 class="alert-heading"><i class="fas fa-magic"></i> Try ResellGenie AI FREE!</h5>
-    <p class="mb-0">Upload a photo and watch AI create your listing instantly. No sign-up required to test!</p>
+<div class="alert alert-info mb-4">
+    <h5 class="alert-heading"><i class="fas fa-magic"></i> Try AI Analyzer FREE!</h5>
+    <p class="mb-2">Upload photos and watch AI create your listing instantly. No sign-up required!</p>
+    {% if guest_uses_remaining is not none %}
+    <p class="mb-0">
+        <strong>Free uses remaining: {{ guest_uses_remaining }} / 8</strong>
+        {% if guest_uses_remaining == 0 %}
+        <br><a href="{{ url_for('auth.register') }}" class="alert-link">Sign up now</a> to continue using AI features!
+        {% endif %}
+    </p>
+    {% endif %}
 </div>
 {% endif %}
 
@@ -38,9 +46,11 @@
                 <button type="button" class="btn btn-primary" id="analyzeBtn" disabled title="Upload photos first to enable AI analysis">
                     <i class="fas fa-magic"></i> Analyze with AI
                 </button>
+                {% if not is_guest %}
                 <button type="button" class="btn btn-outline-primary" id="enhancedScanBtn" disabled title="Run quick AI scan first to enable Enhanced Scan" onclick="runEnhancedScan()">
                     <i class="fas fa-microscope"></i> Enhanced Scan
                 </button>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -868,10 +878,44 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
         const data = await response.json();
 
         if (!data.success) {
-            showAlert(data.error || 'Analysis failed', 'danger');
+            // Check if user needs to sign up
+            if (data.requires_signup) {
+                showAlert(data.error || 'You\'ve used all free analyses. Please sign up to continue!', 'warning');
+                // Show signup prompt
+                if (confirm(data.error + '\n\nWould you like to sign up now?')) {
+                    window.location.href = '{{ url_for("auth.register") }}';
+                }
+            } else {
+                showAlert(data.error || 'Analysis failed', 'danger');
+            }
             hideLoading();
             return;
         }
+        
+        // Update guest usage counter if shown (will be updated on next page load)
+        {% if is_guest and guest_uses_remaining is not none %}
+        // Note: Counter will be updated on next page load since session is server-side
+        // For immediate feedback, we can show a message
+        const guestAlert = document.querySelector('.alert-info');
+        if (guestAlert) {
+            const newRemaining = Math.max(0, {{ guest_uses_remaining }} - 1);
+            const usesText = guestAlert.querySelector('strong');
+            if (usesText) {
+                usesText.textContent = `Free uses remaining: ${newRemaining} / 8`;
+                if (newRemaining === 0) {
+                    const lastP = guestAlert.querySelector('p:last-child');
+                    if (lastP && !lastP.querySelector('a')) {
+                        const signupLink = document.createElement('a');
+                        signupLink.href = '{{ url_for("auth.register") }}';
+                        signupLink.className = 'alert-link';
+                        signupLink.textContent = 'Sign up now to continue using AI features!';
+                        lastP.appendChild(document.createElement('br'));
+                        lastP.appendChild(signupLink);
+                    }
+                }
+            }
+        }
+        {% endif %}
 
         const analysis = data.analysis;
 
@@ -1005,6 +1049,15 @@ function getDemandEmoji(demand) {
 // TIER 2: Enhanced Scanner (Claude - Deep Dive)
 // Creates artifact in Hall of Records and redirects to artifact detail page
 async function runEnhancedScan() {
+    {% if is_guest %}
+    // Enhanced Scan requires authentication
+    showAlert('Enhanced Scan is only available for registered users. Please sign up to access this feature!', 'warning');
+    if (confirm('Would you like to sign up now?')) {
+        window.location.href = '{{ url_for("auth.register") }}';
+    }
+    return;
+    {% endif %}
+    
     // Check if button is enabled (collectible detected)
     const btn = document.getElementById('enhancedScanBtn');
     if (btn && btn.disabled) {
@@ -1032,6 +1085,16 @@ async function runEnhancedScan() {
         const data = await response.json();
 
         if (!data.success) {
+            // Check if authentication is required
+            if (response.status === 401 || response.status === 403) {
+                showAlert('Enhanced Scan requires authentication. Please sign up to access this feature!', 'warning');
+                if (confirm('Would you like to sign up now?')) {
+                    window.location.href = '{{ url_for("auth.register") }}';
+                }
+                hideLoading();
+                return;
+            }
+            
             if (data.type === 'standard_item') {
                 showAlert('Not a collectible. Quick analysis is sufficient for this item.', 'info');
             } else {

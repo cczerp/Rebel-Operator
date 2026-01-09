@@ -739,9 +739,25 @@ def get_api_credentials(platform):
 # -------------------------------------------------------------------------
 
 @main_bp.route("/api/analyze", methods=["POST"])
-@login_required
 def api_analyze():
-    """Analyze general items with Gemini (fast, cheap)"""
+    """Analyze general items with Gemini (fast, cheap) - allows guest access with 8 free uses"""
+    from flask import session
+    from flask_login import current_user
+    
+    # Check guest usage limit if not authenticated
+    if not current_user.is_authenticated:
+        guest_uses = session.get('guest_ai_uses', 0)
+        if guest_uses >= 8:
+            return jsonify({
+                "success": False,
+                "error": "You've used all 8 free AI analyses. Please sign up to continue using AI features!",
+                "requires_signup": True
+            }), 403
+        
+        # Increment guest usage counter
+        session['guest_ai_uses'] = guest_uses + 1
+        session.permanent = True  # Make session persist
+    
     try:
         from src.ai.gemini_classifier import GeminiClassifier
         from src.schema.unified_listing import Photo

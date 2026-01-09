@@ -154,18 +154,27 @@ app.register_blueprint(health_bp)
 
 @app.route('/')
 def index():
-    """Landing page / dashboard"""
-    if current_user.is_authenticated:
-        return render_template('index.html')
-    else:
-        return render_template('index.html')
+    """Landing page / dashboard - allows guest access"""
+    return render_template('index.html', is_guest=not current_user.is_authenticated)
 
 @app.route('/create')
-@login_required
 def create_listing():
-    """Create new listing page"""
+    """Create new listing page - allows guest access with 8 free AI uses"""
+    from flask import session
     draft_id = request.args.get('draft_id', type=int)
-    return render_template('create.html', draft_id=draft_id)
+    
+    # Initialize guest usage tracking if not authenticated
+    if not current_user.is_authenticated:
+        if 'guest_ai_uses' not in session:
+            session['guest_ai_uses'] = 0
+        guest_uses_remaining = 8 - session.get('guest_ai_uses', 0)
+    else:
+        guest_uses_remaining = None
+    
+    return render_template('create.html', 
+                         draft_id=draft_id,
+                         is_guest=not current_user.is_authenticated,
+                         guest_uses_remaining=guest_uses_remaining)
 
 @app.route('/drafts')
 @login_required

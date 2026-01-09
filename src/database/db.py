@@ -1619,6 +1619,26 @@ class Database:
         
         return artifact
 
+    def get_all_artifacts(self, limit: int = 100, offset: int = 0) -> List[Dict]:
+        """Get all artifacts in the public Hall of Records"""
+        import json
+        cursor = self._get_cursor()
+        cursor.execute("""
+            SELECT id, item_name, brand, franchise, category, item_type,
+                   created_at, updated_at, times_contributed
+            FROM public_artifacts
+            ORDER BY updated_at DESC
+            LIMIT %s OFFSET %s
+        """, (limit, offset))
+
+        results = cursor.fetchall()
+        artifacts = []
+        for row in results:
+            artifact = dict(row)
+            artifacts.append(artifact)
+
+        return artifacts
+
     def save_artifact_to_user_collection(self, user_id: int, artifact_id: int) -> bool:
         """Save artifact to user's personal collection"""
         cursor = self._get_cursor()

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Hall of Records{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="fas fa-monument"></i> Hall of Records</h2>
+    <p class="text-muted mb-0">Public collectibles database</p>
+</div>
+
+<div class="alert alert-info mb-4">
+    <i class="fas fa-info-circle"></i>
+    <strong>About Hall of Records:</strong> This is a public, read-only database of collectibles automatically enriched when items are scanned.
+    Artifact data is updated automatically through enhanced scans. This is for learning and reference only.
+</div>
+
+{% if artifacts and artifacts|length > 0 %}
+<div class="row">
+    {% for artifact in artifacts %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100" style="border-color: var(--cold-steel-accent);">
+            <div class="card-header" style="background: var(--carbon-matte-surface); border-bottom: 2px solid var(--cold-steel-accent);">
+                <h5 class="mb-0" style="color: var(--off-white-text);">
+                    <i class="fas fa-star"></i> {{ artifact.item_name }}
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if artifact.franchise %}
+                <p class="mb-2">
+                    <strong><i class="fas fa-film"></i> Franchise:</strong>
+                    <span class="badge bg-secondary">{{ artifact.franchise }}</span>
+                </p>
+                {% endif %}
+
+                {% if artifact.category %}
+                <p class="mb-2">
+                    <strong><i class="fas fa-folder"></i> Category:</strong>
+                    {{ artifact.category }}
+                </p>
+                {% endif %}
+
+                {% if artifact.brand %}
+                <p class="mb-2">
+                    <strong><i class="fas fa-tag"></i> Brand:</strong>
+                    {{ artifact.brand }}
+                </p>
+                {% endif %}
+
+                <hr>
+
+                <small class="text-muted">
+                    <i class="fas fa-clock"></i> Last updated: {{ artifact.updated_at.strftime('%Y-%m-%d %H:%M') if artifact.updated_at else 'N/A' }}
+                    <br>
+                    <i class="fas fa-microscope"></i> Source: Enhanced Scan
+                    <br>
+                    <i class="fas fa-users"></i> Contributed {{ artifact.times_contributed|default(1) }} time(s)
+                </small>
+            </div>
+            <div class="card-footer bg-transparent">
+                <a href="/artifact/{{ artifact.id }}" class="btn btn-outline-primary btn-sm w-100">
+                    <i class="fas fa-eye"></i> View Details
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-warning text-center">
+    <i class="fas fa-exclamation-triangle"></i>
+    <strong>No artifacts yet.</strong> Run an Enhanced Scan on collectible items to start building the Hall of Records.
+</div>
+{% endif %}
+
+<div class="text-center mt-4">
+    <a href="/create" class="btn btn-primary">
+        <i class="fas fa-plus-circle"></i> Add New Artifact (Enhanced Scan)
+    </a>
+</div>
+{% endblock %}

@@ -5,8 +5,8 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0"><i class="fas fa-monument"></i> Hall of Records</h2>
-    <a href="/" class="btn btn-outline-secondary">
-        <i class="fas fa-arrow-left"></i> Back to Create Listing
+    <a href="/create" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Create
     </a>
 </div>
 
@@ -198,7 +198,7 @@
         <div class="mt-4 d-flex gap-2">
             {% if not in_collection %}
             <button class="btn btn-primary" onclick="saveToCollection()" id="saveToCollectionBtn">
-                <i class="fas fa-bookmark"></i> Save to My Hall of Records
+                <i class="fas fa-bookmark"></i> Save to My Vault
             </button>
             {% else %}
             <button class="btn btn-success" disabled>

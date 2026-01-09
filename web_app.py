@@ -233,12 +233,6 @@ def storage_map():
     """Storage map"""
     return render_template('storage_map.html')
 
-@app.route('/vault')
-@login_required
-def vault():
-    """Vault - User's card collection"""
-    return redirect(url_for('cards.cards_collection'))
-
 @app.route('/settings')
 @login_required
 def settings():

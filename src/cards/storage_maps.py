@@ -119,17 +119,11 @@ def get_storage_map_for_franchise(franchise: str) -> Optional[FranchiseStorageMa
         return FranchiseStorageMap(
             franchise="Pokemon",
             rules=[
-                # Ultra Rare / Secret Rare - Top priority access
+                # Common / Bulk - Front access (high frequency, trading)
                 StorageMapRule(
-                    card_types=['pokemon_ultra_rare', 'pokemon_secret_rare', 'pokemon_full_art'],
-                    region=StorageRegion.TOP,
-                    description="Ultra Rare Pokemon - premium storage (binder recommended)"
-                ),
-                # Rare / Holo Rare - Front access for trading
-                StorageMapRule(
-                    card_types=['pokemon_rare', 'pokemon_holo_rare'],
+                    card_types=['pokemon_common', 'pokemon'],
                     region=StorageRegion.FRONT,
-                    description="Rare Pokemon - easy access for trading/selling"
+                    description="Common Pokemon - front access for frequent trading/selling"
                 ),
                 # Uncommon - Middle storage
                 StorageMapRule(
@@ -137,14 +131,20 @@ def get_storage_map_for_franchise(franchise: str) -> Optional[FranchiseStorageMa
                     region=StorageRegion.MIDDLE,
                     description="Uncommon Pokemon - moderate access"
                 ),
-                # Common / Bulk - Back storage
+                # Rare / Holo Rare - Back storage (protection)
                 StorageMapRule(
-                    card_types=['pokemon_common', 'pokemon'],
+                    card_types=['pokemon_rare', 'pokemon_holo_rare'],
                     region=StorageRegion.BACK,
-                    description="Common Pokemon - bulk storage"
+                    description="Rare Pokemon - back storage for protection"
+                ),
+                # Ultra Rare / Secret Rare - Bottom storage (maximum protection)
+                StorageMapRule(
+                    card_types=['pokemon_ultra_rare', 'pokemon_secret_rare', 'pokemon_full_art'],
+                    region=StorageRegion.BOTTOM,
+                    description="Ultra Rare Pokemon - bottom storage, maximum protection"
                 ),
             ],
-            default_region=StorageRegion.FRONT
+            default_region=StorageRegion.MIDDLE
         )
 
     # Magic: The Gathering storage map
@@ -152,17 +152,11 @@ def get_storage_map_for_franchise(franchise: str) -> Optional[FranchiseStorageMa
         return FranchiseStorageMap(
             franchise="Magic: The Gathering",
             rules=[
-                # Mythic Rare - Top storage
+                # Common / Bulk - Front access (high frequency)
                 StorageMapRule(
-                    card_types=['mtg_mythic', 'mtg_mythic_rare'],
-                    region=StorageRegion.TOP,
-                    description="Mythic Rare - premium storage"
-                ),
-                # Rare - Front storage
-                StorageMapRule(
-                    card_types=['mtg_rare'],
+                    card_types=['mtg_common', 'mtg'],
                     region=StorageRegion.FRONT,
-                    description="MTG Rare - front access for decks"
+                    description="MTG Common - front access for frequent use"
                 ),
                 # Uncommon - Middle storage
                 StorageMapRule(
@@ -170,11 +164,17 @@ def get_storage_map_for_franchise(franchise: str) -> Optional[FranchiseStorageMa
                     region=StorageRegion.MIDDLE,
                     description="MTG Uncommon - moderate access"
                 ),
-                # Common / Bulk - Back storage
+                # Rare - Back storage (protection)
                 StorageMapRule(
-                    card_types=['mtg_common', 'mtg'],
+                    card_types=['mtg_rare'],
                     region=StorageRegion.BACK,
-                    description="MTG Common - bulk storage"
+                    description="MTG Rare - back storage for protection"
+                ),
+                # Mythic Rare - Bottom storage (maximum protection)
+                StorageMapRule(
+                    card_types=['mtg_mythic', 'mtg_mythic_rare'],
+                    region=StorageRegion.BOTTOM,
+                    description="Mythic Rare - bottom storage, maximum protection"
                 ),
             ],
             default_region=StorageRegion.MIDDLE
@@ -185,17 +185,11 @@ def get_storage_map_for_franchise(franchise: str) -> Optional[FranchiseStorageMa
         return FranchiseStorageMap(
             franchise="Yu-Gi-Oh!",
             rules=[
-                # Secret Rare / Ultimate Rare - Top storage
+                # Common / Rare - Front access (high frequency)
                 StorageMapRule(
-                    card_types=['yugioh_secret_rare', 'yugioh_ultimate_rare', 'yugioh_ghost_rare'],
-                    region=StorageRegion.TOP,
-                    description="Secret/Ultimate Rare - premium storage"
-                ),
-                # Ultra Rare - Front storage
-                StorageMapRule(
-                    card_types=['yugioh_ultra_rare'],
+                    card_types=['yugioh_common', 'yugioh_rare', 'yugioh'],
                     region=StorageRegion.FRONT,
-                    description="Ultra Rare Yu-Gi-Oh - easy access"
+                    description="Common/Rare Yu-Gi-Oh - front access for frequent trading"
                 ),
                 # Super Rare - Middle storage
                 StorageMapRule(
@@ -203,11 +197,17 @@ def get_storage_map_for_franchise(franchise: str) -> Optional[FranchiseStorageMa
                     region=StorageRegion.MIDDLE,
                     description="Super Rare - moderate access"
                 ),
-                # Common / Rare - Back storage
+                # Ultra Rare - Back storage (protection)
                 StorageMapRule(
-                    card_types=['yugioh_common', 'yugioh_rare', 'yugioh'],
+                    card_types=['yugioh_ultra_rare'],
                     region=StorageRegion.BACK,
-                    description="Common/Rare - bulk storage"
+                    description="Ultra Rare - back storage for protection"
+                ),
+                # Secret/Ultimate/Ghost Rare - Bottom storage (maximum protection)
+                StorageMapRule(
+                    card_types=['yugioh_secret_rare', 'yugioh_ultimate_rare', 'yugioh_ghost_rare'],
+                    region=StorageRegion.BOTTOM,
+                    description="Secret/Ultimate/Ghost Rare - bottom storage, maximum protection"
                 ),
             ],
             default_region=StorageRegion.MIDDLE
@@ -222,38 +222,32 @@ def get_storage_map_for_franchise(franchise: str) -> Optional[FranchiseStorageMa
         return FranchiseStorageMap(
             franchise="NFL",
             rules=[
-                # Graded cards - Top storage
+                # Base / Common - Front access (high frequency)
                 StorageMapRule(
-                    card_types=['sports_nfl_graded'],
-                    region=StorageRegion.TOP,
-                    description="Graded NFL cards - top loader storage"
-                ),
-                # Rookie cards - Front storage
-                StorageMapRule(
-                    card_types=['sports_nfl_rookie'],
+                    card_types=['sports_nfl_base', 'sports_nfl'],
                     region=StorageRegion.FRONT,
-                    description="NFL Rookie cards - front access (high value)"
-                ),
-                # Autographed / Memorabilia - Front storage
-                StorageMapRule(
-                    card_types=['sports_nfl_auto', 'sports_nfl_patch'],
-                    region=StorageRegion.FRONT,
-                    description="Autographed/Memorabilia - front access"
+                    description="NFL base cards - front access for frequent trading"
                 ),
                 # Star players - Middle storage
                 StorageMapRule(
                     card_types=['sports_nfl_star'],
                     region=StorageRegion.MIDDLE,
-                    description="Star players - middle storage"
+                    description="Star players - moderate access"
                 ),
-                # Base / Common - Back storage
+                # Autographed / Memorabilia - Back storage (protection)
                 StorageMapRule(
-                    card_types=['sports_nfl_base', 'sports_nfl'],
+                    card_types=['sports_nfl_auto', 'sports_nfl_patch'],
                     region=StorageRegion.BACK,
-                    description="NFL base cards - back storage"
+                    description="Autographed/Memorabilia - back storage for protection"
+                ),
+                # Rookie / Graded - Bottom storage (maximum protection)
+                StorageMapRule(
+                    card_types=['sports_nfl_rookie', 'sports_nfl_graded'],
+                    region=StorageRegion.BOTTOM,
+                    description="Rookie/Graded NFL - bottom storage, maximum protection"
                 ),
             ],
-            default_region=StorageRegion.FRONT
+            default_region=StorageRegion.MIDDLE
         )
 
     # NBA storage map
@@ -261,38 +255,32 @@ def get_storage_map_for_franchise(franchise: str) -> Optional[FranchiseStorageMa
         return FranchiseStorageMap(
             franchise="NBA",
             rules=[
-                # Graded cards - Top storage
+                # Base / Common - Front access (high frequency)
                 StorageMapRule(
-                    card_types=['sports_nba_graded'],
-                    region=StorageRegion.TOP,
-                    description="Graded NBA cards - top loader storage"
-                ),
-                # Rookie cards - Front storage
-                StorageMapRule(
-                    card_types=['sports_nba_rookie'],
+                    card_types=['sports_nba_base', 'sports_nba'],
                     region=StorageRegion.FRONT,
-                    description="NBA Rookie cards - front access (high value)"
-                ),
-                # Autographed / Memorabilia - Front storage
-                StorageMapRule(
-                    card_types=['sports_nba_auto', 'sports_nba_patch'],
-                    region=StorageRegion.FRONT,
-                    description="Autographed/Memorabilia - front access"
+                    description="NBA base cards - front access for frequent trading"
                 ),
                 # Star players - Middle storage
                 StorageMapRule(
                     card_types=['sports_nba_star'],
                     region=StorageRegion.MIDDLE,
-                    description="Star players - middle storage"
+                    description="Star players - moderate access"
                 ),
-                # Base / Common - Back storage
+                # Autographed / Memorabilia - Back storage (protection)
                 StorageMapRule(
-                    card_types=['sports_nba_base', 'sports_nba'],
+                    card_types=['sports_nba_auto', 'sports_nba_patch'],
                     region=StorageRegion.BACK,
-                    description="NBA base cards - back storage"
+                    description="Autographed/Memorabilia - back storage for protection"
+                ),
+                # Rookie / Graded - Bottom storage (maximum protection)
+                StorageMapRule(
+                    card_types=['sports_nba_rookie', 'sports_nba_graded'],
+                    region=StorageRegion.BOTTOM,
+                    description="Rookie/Graded NBA - bottom storage, maximum protection"
                 ),
             ],
-            default_region=StorageRegion.FRONT
+            default_region=StorageRegion.MIDDLE
         )
 
     # MLB storage map
@@ -300,44 +288,32 @@ def get_storage_map_for_franchise(franchise: str) -> Optional[FranchiseStorageMa
         return FranchiseStorageMap(
             franchise="MLB",
             rules=[
-                # Graded cards - Top storage
+                # Base / Common - Front access (high frequency)
                 StorageMapRule(
-                    card_types=['sports_mlb_graded'],
-                    region=StorageRegion.TOP,
-                    description="Graded MLB cards - top loader storage"
-                ),
-                # Rookie cards - Front storage
-                StorageMapRule(
-                    card_types=['sports_mlb_rookie'],
+                    card_types=['sports_mlb_base', 'sports_mlb'],
                     region=StorageRegion.FRONT,
-                    description="MLB Rookie cards - front access (high value)"
-                ),
-                # Autographed / Memorabilia - Front storage
-                StorageMapRule(
-                    card_types=['sports_mlb_auto', 'sports_mlb_patch'],
-                    region=StorageRegion.FRONT,
-                    description="Autographed/Memorabilia - front access"
+                    description="MLB base cards - front access for frequent trading"
                 ),
                 # Star players - Middle storage
                 StorageMapRule(
                     card_types=['sports_mlb_star'],
                     region=StorageRegion.MIDDLE,
-                    description="Star players - middle storage"
+                    description="Star players - moderate access"
                 ),
-                # Vintage (pre-1980) - Front storage
+                # Autographed / Memorabilia - Back storage (protection)
                 StorageMapRule(
-                    card_types=['sports_mlb_vintage'],
-                    region=StorageRegion.FRONT,
-                    description="Vintage MLB - front access (collectible value)"
-                ),
-                # Base / Common - Back storage
-                StorageMapRule(
-                    card_types=['sports_mlb_base', 'sports_mlb'],
+                    card_types=['sports_mlb_auto', 'sports_mlb_patch'],
                     region=StorageRegion.BACK,
-                    description="MLB base cards - back storage"
+                    description="Autographed/Memorabilia - back storage for protection"
+                ),
+                # Vintage / Rookie / Graded - Bottom storage (maximum protection)
+                StorageMapRule(
+                    card_types=['sports_mlb_vintage', 'sports_mlb_rookie', 'sports_mlb_graded'],
+                    region=StorageRegion.BOTTOM,
+                    description="Vintage/Rookie/Graded MLB - bottom storage, maximum protection"
                 ),
             ],
-            default_region=StorageRegion.FRONT
+            default_region=StorageRegion.MIDDLE
         )
 
     # NHL storage map
@@ -345,38 +321,32 @@ def get_storage_map_for_franchise(franchise: str) -> Optional[FranchiseStorageMa
         return FranchiseStorageMap(
             franchise="NHL",
             rules=[
-                # Graded cards - Top storage
+                # Base / Common - Front access (high frequency)
                 StorageMapRule(
-                    card_types=['sports_nhl_graded'],
-                    region=StorageRegion.TOP,
-                    description="Graded NHL cards - top loader storage"
-                ),
-                # Rookie cards - Front storage
-                StorageMapRule(
-                    card_types=['sports_nhl_rookie'],
+                    card_types=['sports_nhl_base', 'sports_nhl'],
                     region=StorageRegion.FRONT,
-                    description="NHL Rookie cards - front access (high value)"
-                ),
-                # Autographed / Memorabilia - Front storage
-                StorageMapRule(
-                    card_types=['sports_nhl_auto', 'sports_nhl_patch'],
-                    region=StorageRegion.FRONT,
-                    description="Autographed/Memorabilia - front access"
+                    description="NHL base cards - front access for frequent trading"
                 ),
                 # Star players - Middle storage
                 StorageMapRule(
                     card_types=['sports_nhl_star'],
                     region=StorageRegion.MIDDLE,
-                    description="Star players - middle storage"
+                    description="Star players - moderate access"
                 ),
-                # Base / Common - Back storage
+                # Autographed / Memorabilia - Back storage (protection)
                 StorageMapRule(
-                    card_types=['sports_nhl_base', 'sports_nhl'],
+                    card_types=['sports_nhl_auto', 'sports_nhl_patch'],
                     region=StorageRegion.BACK,
-                    description="NHL base cards - back storage"
+                    description="Autographed/Memorabilia - back storage for protection"
+                ),
+                # Rookie / Graded - Bottom storage (maximum protection)
+                StorageMapRule(
+                    card_types=['sports_nhl_rookie', 'sports_nhl_graded'],
+                    region=StorageRegion.BOTTOM,
+                    description="Rookie/Graded NHL - bottom storage, maximum protection"
                 ),
             ],
-            default_region=StorageRegion.FRONT
+            default_region=StorageRegion.MIDDLE
         )
 
     # Soccer storage map
@@ -384,29 +354,23 @@ def get_storage_map_for_franchise(franchise: str) -> Optional[FranchiseStorageMa
         return FranchiseStorageMap(
             franchise="Soccer",
             rules=[
-                # Graded cards - Top storage
-                StorageMapRule(
-                    card_types=['sports_soccer_graded'],
-                    region=StorageRegion.TOP,
-                    description="Graded soccer cards - top loader storage"
-                ),
-                # Rookie cards - Front storage
-                StorageMapRule(
-                    card_types=['sports_soccer_rookie'],
-                    region=StorageRegion.FRONT,
-                    description="Soccer Rookie cards - front access"
-                ),
-                # Autographed - Front storage
-                StorageMapRule(
-                    card_types=['sports_soccer_auto'],
-                    region=StorageRegion.FRONT,
-                    description="Autographed soccer cards - front access"
-                ),
-                # Base / Common - Back storage
+                # Base / Common - Front access (high frequency)
                 StorageMapRule(
                     card_types=['sports_soccer_base', 'sports_soccer'],
+                    region=StorageRegion.FRONT,
+                    description="Soccer base cards - front access for frequent trading"
+                ),
+                # Autographed - Back storage (protection)
+                StorageMapRule(
+                    card_types=['sports_soccer_auto'],
                     region=StorageRegion.BACK,
-                    description="Soccer base cards - back storage"
+                    description="Autographed soccer - back storage for protection"
+                ),
+                # Rookie / Graded - Bottom storage (maximum protection)
+                StorageMapRule(
+                    card_types=['sports_soccer_rookie', 'sports_soccer_graded'],
+                    region=StorageRegion.BOTTOM,
+                    description="Rookie/Graded soccer - bottom storage, maximum protection"
                 ),
             ],
             default_region=StorageRegion.MIDDLE

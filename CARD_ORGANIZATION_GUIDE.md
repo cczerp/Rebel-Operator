@@ -246,37 +246,42 @@ Storage maps are **conceptual guidance systems** that suggest where to physicall
 
 Cards can be assigned to conceptual regions:
 
-- **FRONT** - Easy access, frequently traded
-- **MIDDLE** - Regular access, balanced storage
-- **BACK** - Long-term holds, rarely accessed
-- **LEFT/RIGHT** - Separation by type or value
-- **TOP** - Premium, high-value cards
-- **BOTTOM** - Bulk, common cards
+- **FRONT** - High-frequency cards (commons, frequently traded bulk)
+- **MIDDLE** - Regular access (uncommons, mid-tier cards)
+- **BACK** - Protected storage (rares, autographed, memorabilia)
+- **BOTTOM** - Maximum protection (ultra rares, graded cards, rookies)
+- **LEFT/RIGHT** - Separation by type or franchise
 - **CENTER** - Mixed or unsorted
+
+**Key Principle:** Common/high-frequency cards go in FRONT for easy access. Rare/valuable cards go in BACK/BOTTOM for protection.
 
 ### Franchise-Based Storage Maps
 
 Different franchises have different storage recommendations:
 
 #### **Pokémon Cards**
-- **Region:** FRONT (high turnover)
-- **Why:** Popular for resale, frequently traded
-- **Suggested Layout:** Sets in front, bulk in back
+- **Common/Bulk:** FRONT (high-frequency trading)
+- **Uncommon:** MIDDLE (moderate access)
+- **Rare/Holo:** BACK (protection)
+- **Ultra Rare/Secret:** BOTTOM (maximum protection)
 
 #### **Magic: The Gathering**
-- **Region:** MIDDLE (moderate turnover)
-- **Why:** Commander staples hold value, some bulk
-- **Suggested Layout:** Playables in middle, bulk separate
+- **Common/Bulk:** FRONT (frequently played)
+- **Uncommon:** MIDDLE (moderate access)
+- **Rare:** BACK (protection)
+- **Mythic Rare:** BOTTOM (maximum protection)
 
 #### **Sports Cards (NFL/NBA/MLB/NHL)**
-- **Region:** FRONT (seasonal demand)
-- **Why:** Season-dependent value, rookie cards spike
-- **Suggested Layout:** Rookies front, veterans middle, retired back
+- **Base/Common:** FRONT (high-frequency trading)
+- **Star Players:** MIDDLE (moderate access)
+- **Autographed/Patch:** BACK (protection)
+- **Rookie/Graded:** BOTTOM (maximum protection)
 
 #### **Yu-Gi-Oh!**
-- **Region:** MIDDLE (meta-dependent)
-- **Why:** Meta shifts affect value frequently
-- **Suggested Layout:** Meta cards front, collection middle
+- **Common/Rare:** FRONT (frequent trading)
+- **Super Rare:** MIDDLE (moderate access)
+- **Ultra Rare:** BACK (protection)
+- **Secret/Ultimate:** BOTTOM (maximum protection)
 
 ---
 
@@ -285,28 +290,38 @@ Different franchises have different storage recommendations:
 ### Container Organization
 
 #### **Binders**
-- **Best for:** Display cards, high-value singles, rookie cards
+- **Best for:** Display cards, mid-value singles ($5-$50), organized sets
 - **Capacity:** 360-720 cards (9-pocket pages)
-- **Pros:** Visual, protective, portable
-- **Cons:** Time-consuming to add/remove, limited space
-- **Recommendation:** Use for $5+ cards or display collection
+- **Pros:** Visual, protective, portable, easy to browse
+- **Cons:** Time-consuming to reorganize, limited space
+- **Recommendation:** Use for cards you want to see and show off
+
+**Binder Spacing Rule (Reduces Future Reshuffling):**
+When starting a new section in a binder:
+1. Insert every 4th card initially
+2. Skip 2 slots between each card
+3. Apply this spacing for 2-3 full pages
+4. Return later to fill gaps once you identify groupings or pairs
+
+This gives you room to add related cards later without having to reorganize the entire binder!
 
 #### **Storage Boxes**
-- **Best for:** Bulk commons, set storage, sorted inventory
+- **Best for:** Bulk commons, sorted inventory, high-frequency cards
 - **Types:**
   - 100-count: Quick access, small sets
   - 660-count: Medium sets, sorted inventory
   - 3200-count (monster box): Bulk storage
 - **Pros:** High capacity, stackable, affordable
-- **Cons:** Hard to browse, no protection
-- **Recommendation:** Use for bulk and sorted inventory
+- **Cons:** Hard to browse without removing cards
+- **Recommendation:** Use for commons in FRONT region, bulk storage
 
-#### **Top Loaders + Storage Bins**
-- **Best for:** High-value singles ($10+), graded cards
-- **Capacity:** 20-50 cards per bin
-- **Pros:** Maximum protection, easy to label
-- **Cons:** Expensive, takes space
-- **Recommendation:** Use for valuable singles and graded cards
+#### **Top Loaders & Card Slabs (Protection Methods)**
+- **Purpose:** PROTECTION, not storage destinations
+- **Best for:** High-value singles ($50+), graded cards (PSA/BGS), autographed cards
+- **Important:** Protected cards should still be grouped and stored in boxes (shoebox, small card box)
+- **Don't:** Leave protected cards free-floating or isolated
+- **Do:** Group slabs/top loaders together in a dedicated box, stored in BACK/BOTTOM region
+- **Recommendation:** Protect valuable cards, then store protected cards together in boxes
 
 #### **Card Sleeves + Deck Boxes**
 - **Best for:** Complete decks, playsets, frequently used cards

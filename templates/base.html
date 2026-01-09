@@ -1329,6 +1329,110 @@
 </div>
 {% endif %}
 
+<!-- Inventory Submenu Modal -->
+<div class="modal fade" id="inventoryModal" tabindex="-1" aria-labelledby="inventoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-bottom">
+        <div class="modal-content" style="background: var(--carbon-matte); border: 2px solid var(--alert-crimson); border-radius: 20px 20px 0 0;">
+            <div class="modal-header" style="border-bottom: 2px solid var(--cold-steel-dark);">
+                <h5 class="modal-title" id="inventoryModalLabel">
+                    <i class="fas fa-boxes" style="color: var(--alert-crimson);"></i> Inventory
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <a href="{{ url_for('cards.cards_collection') }}" class="text-decoration-none">
+                            <div class="inventory-menu-item">
+                                <i class="fas fa-vault fa-3x mb-2" style="color: var(--alert-crimson);"></i>
+                                <h6>Collection Vault</h6>
+                                <small class="text-muted">Personal cards<br>Not for sale</small>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{{ url_for('drafts') }}" class="text-decoration-none">
+                            <div class="inventory-menu-item">
+                                <i class="fas fa-folder fa-3x mb-2" style="color: var(--cold-steel-light);"></i>
+                                <h6>Draft Listings</h6>
+                                <small class="text-muted">Prepared<br>Not live yet</small>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{{ url_for('listings') }}" class="text-decoration-none">
+                            <div class="inventory-menu-item">
+                                <i class="fas fa-list-check fa-3x mb-2" style="color: #4CAF50;"></i>
+                                <h6>Active Listings</h6>
+                                <small class="text-muted">Currently<br>Posted for sale</small>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{{ url_for('storage') }}" class="text-decoration-none">
+                            <div class="inventory-menu-item">
+                                <i class="fas fa-warehouse fa-3x mb-2" style="color: #FF9800;"></i>
+                                <h6>Organization</h6>
+                                <small class="text-muted">Stock placement<br>Quantity tracking</small>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.modal-dialog-bottom {
+    position: fixed;
+    bottom: 80px;
+    left: 0;
+    right: 0;
+    margin: 0;
+    max-width: 100%;
+}
+
+.modal-dialog-bottom .modal-content {
+    border-radius: 20px 20px 0 0;
+    margin: 0;
+}
+
+.inventory-menu-item {
+    background: var(--carbon-matte-surface);
+    border: 2px solid var(--cold-steel-dark);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.inventory-menu-item:hover {
+    background: var(--carbon-matte-light);
+    border-color: var(--alert-crimson);
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(139, 0, 0, 0.3);
+}
+
+.inventory-menu-item h6 {
+    color: var(--off-white-text);
+    font-weight: 700;
+    margin-bottom: 5px;
+    font-size: 0.95rem;
+}
+
+.inventory-menu-item small {
+    font-size: 0.75rem;
+    line-height: 1.3;
+}
+</style>
+
 <!-- Bottom Navigation -->
 {% if current_user.is_authenticated %}
 <nav class="bottom-nav">
@@ -1348,30 +1452,16 @@
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('drafts') }}" class="nav-link {% if request.endpoint == 'drafts' %}active{% endif %}">
-                <i class="fas fa-folder"></i>
-                <span>Drafts</span>
+            <a href="#" class="nav-link {% if request.endpoint in ['cards.cards_collection', 'drafts', 'listings', 'storage', 'storage_clothing', 'storage_map'] %}active{% endif %}" data-bs-toggle="modal" data-bs-target="#inventoryModal">
+                <i class="fas fa-boxes"></i>
+                <span>Inventory</span>
             </a>
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('listings') }}" class="nav-link {% if request.endpoint == 'listings' %}active{% endif %}">
-                <i class="fas fa-list"></i>
-                <span>Listings</span>
-            </a>
-        </div>
-
-        <div class="nav-item">
-            <a href="{{ url_for('storage') }}" class="nav-link {% if request.endpoint in ['storage','storage_clothing','storage_map'] %}active{% endif %}">
-                <i class="fas fa-box"></i>
-                <span>Storage</span>
-            </a>
-        </div>
-
-        <div class="nav-item">
-            <a href="{{ url_for('cards.cards_collection') }}" class="nav-link {% if request.endpoint == 'cards.cards_collection' %}active{% endif %}" title="My Card Collection / Vault">
-                <i class="fas fa-vault"></i>
-                <span>Vault</span>
+            <a href="{{ url_for('my_artifacts') }}" class="nav-link {% if request.endpoint == 'my_artifacts' %}active{% endif %}" title="Public Card Knowledge Base">
+                <i class="fas fa-landmark"></i>
+                <span>Hall of Records</span>
             </a>
         </div>
 

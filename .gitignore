@@ -1,6 +1,11 @@
 # Custom project ignores
 .env
 *.json
+!package.json
+!package-lock.json
+
+# Node
+node_modules/
 
 # Python
 __pycache__/

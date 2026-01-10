@@ -1,11 +1,13 @@
 {
   "name": "resell-rebel-agent-api",
   "version": "1.0.0",
-  "description": "Agent API server for n8n workflow integration",
-  "main": "server.js",
+  "description": "Agent API servers for n8n workflow integration",
+  "main": "judge-trudy-server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "start": "node judge-trudy-server.js",
+    "start:trudy": "node judge-trudy-server.js",
+    "start:qwen": "node qwen-ryche-server.js",
+    "dev": "node judge-trudy-server.js"
   },
   "dependencies": {
     "express": "^4.18.2",

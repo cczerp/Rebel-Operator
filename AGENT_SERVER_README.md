@@ -1,6 +1,8 @@
-# Agent API Server for n8n
+# Agent API Servers for n8n
 
-This server receives tasks from n8n and processes them using the Ollama-powered agent.
+Two AI agent servers that receive tasks from n8n and process them using Ollama-powered agents:
+- **Judge Trudy** - Port 3030
+- **Qwen Ryche** - Port 3131
 
 ## Quick Start
 
@@ -10,39 +12,50 @@ This server receives tasks from n8n and processes them using the Ollama-powered 
 ollama serve
 ```
 
-### 2. Start the Agent API Server
-**Windows:**
+### 2. Start the Agent Servers
+
+**Option A - Start BOTH agents:**
 ```cmd
-start-agent-server.cmd
+start-both-agents.cmd
 ```
 
-**Linux/Mac:**
+**Option B - Start individually:**
+
+Judge Trudy (port 3030):
 ```bash
-./start-agent-server.sh
+npm run start:trudy
+```
+
+Qwen Ryche (port 3131):
+```bash
+npm run start:qwen
 ```
 
 **Or directly:**
 ```bash
-node server.js
+node judge-trudy-server.js
+node qwen-ryche-server.js
 ```
-
-The server will start on `http://localhost:3030`
 
 ## Testing
 
-Test if it's working:
+Test if they're working:
 ```bash
 curl http://localhost:3030/health
+curl http://localhost:3131/health
 ```
 
 Should return:
 ```json
-{"status":"ok","timestamp":"2026-01-10T..."}
+{"status":"ok","agent":"Judge Trudy","timestamp":"2026-01-10T..."}
+{"status":"ok","agent":"Qwen Ryche","timestamp":"2026-01-10T..."}
 ```
 
 ## n8n Configuration
 
-In your n8n workflow, configure the HTTP Request node:
+Configure the HTTP Request nodes for each agent:
+
+**Judge Trudy:**
 - **Method:** POST
 - **URL:** `http://localhost:3030/execute-task`
 - **Body:**
@@ -53,11 +66,22 @@ In your n8n workflow, configure the HTTP Request node:
   }
   ```
 
+**Qwen Ryche:**
+- **Method:** POST
+- **URL:** `http://localhost:3131/execute-task`
+- **Body:**
+  ```json
+  {
+    "task_id": "task_456",
+    "task_instruction": "Your instruction here"
+  }
+  ```
+
 ## Troubleshooting
 
-### Error: ECONNREFUSED on port 3030
-- Make sure you ran `node server.js` or the start script
-- Check if something else is using port 3030: `netstat -ano | findstr :3030` (Windows)
+### Error: ECONNREFUSED on port 3030 or 3131
+- Make sure you started the appropriate server
+- Check if something else is using the port: `netstat -ano | findstr :3030` or `netstat -ano | findstr :3131` (Windows)
 
 ### Error: Ollama connection failed
 - Start Ollama: `ollama serve` in a separate terminal
@@ -71,10 +95,12 @@ In your n8n workflow, configure the HTTP Request node:
 ## Files Structure
 ```
 /
-├── server.js                  # Main API server (port 3030)
+├── judge-trudy-server.js      # Judge Trudy API server (port 3030)
+├── qwen-ryche-server.js       # Qwen Ryche API server (port 3131)
 ├── agents/
-│   └── agent.js              # Ollama-powered agent
-├── package.json              # Dependencies
-├── start-agent-server.cmd    # Windows startup script
-└── start-agent-server.sh     # Linux/Mac startup script
+│   └── agent.js              # Ollama-powered agent (shared by both)
+├── package.json              # Dependencies with npm scripts
+├── start-both-agents.cmd     # Windows: Start both servers
+├── start-agent-server.cmd    # Windows: Legacy single server script
+└── start-agent-server.sh     # Linux/Mac: Legacy single server script
 ```

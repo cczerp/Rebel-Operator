@@ -12,7 +12,7 @@ app.use(express.json());
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', agent: 'Judge Trudy', timestamp: new Date().toISOString() });
 });
 
 // Main task execution endpoint
@@ -27,7 +27,7 @@ app.post('/execute-task', async (req, res) => {
       });
     }
 
-    console.log(`[${new Date().toISOString()}] Received task: ${task_id}`);
+    console.log(`[JUDGE TRUDY - ${new Date().toISOString()}] Received task: ${task_id}`);
 
     // Prepare task data
     const taskData = JSON.stringify({ task_id, task_instruction });
@@ -45,11 +45,11 @@ app.post('/execute-task', async (req, res) => {
 
     agentProcess.stderr.on('data', (data) => {
       stderr += data.toString();
-      console.error(`[AGENT STDERR]: ${data}`);
+      console.error(`[JUDGE TRUDY STDERR]: ${data}`);
     });
 
     agentProcess.on('close', (code) => {
-      console.log(`[${new Date().toISOString()}] Agent process exited with code ${code}`);
+      console.log(`[JUDGE TRUDY - ${new Date().toISOString()}] Agent process exited with code ${code}`);
 
       if (code === 0) {
         try {
@@ -93,7 +93,7 @@ app.post('/execute-task', async (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`✅ Agent API Server running on http://localhost:${PORT}`);
+  console.log(`✅ Judge Trudy Agent API Server running on http://localhost:${PORT}`);
   console.log(`   - Health check: http://localhost:${PORT}/health`);
   console.log(`   - Execute task: POST http://localhost:${PORT}/execute-task`);
   console.log(`\nWaiting for tasks from n8n...`);
@@ -101,6 +101,6 @@ app.listen(PORT, () => {
 
 // Graceful shutdown
 process.on('SIGINT', () => {
-  console.log('\n\n👋 Shutting down server...');
+  console.log('\n\n👋 Shutting down Judge Trudy server...');
   process.exit(0);
 });

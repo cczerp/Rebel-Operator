@@ -178,7 +178,7 @@
         </form>
 
         <!-- Google Sign-In -->
-        <div id="googleSignInSection" class="text-center mb-3" style="display: none;">
+        <div id="googleSignInSection" class="text-center mb-3">
             <div class="mb-2" style="color: #E0E0E0; font-size: 14px;">or</div>
             <div id="g_id_onload"
                  data-client_id=""
@@ -213,101 +213,75 @@
     <!-- Google Sign-In -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script>
-        // Wait for Google Sign-In library to load, then initialize
+        // Initialize Google Sign-In - button always shows
         function initializeGoogleSignIn() {
             // Get Google Client ID from server
             fetch('/api/auth/google-client-id')
                 .then(res => res.json())
                 .then(data => {
-                    if (data.client_id && data.client_id.trim() !== '') {
-                        // Show Google Sign-In section
-                        const googleSignInSection = document.getElementById('googleSignInSection');
-                        if (googleSignInSection) {
-                            googleSignInSection.style.display = 'block';
-                        }
-                        const googleSignInContainer = document.querySelector('.g_id_signin');
-                        if (googleSignInContainer) {
-                            googleSignInContainer.style.display = 'block';
-                        }
-                        
-                        // Wait for Google library to be available
-                        function tryInitialize() {
-                            if (window.google && window.google.accounts && window.google.accounts.id) {
-                                // Initialize Google Sign-In
-                                window.google.accounts.id.initialize({
-                                    client_id: data.client_id,
-                                    callback: handleGoogleSignIn
+                    const clientId = data.client_id && data.client_id.trim() !== '' ? data.client_id : null;
+                    
+                    if (!clientId) {
+                        console.warn('Google Client ID not configured');
+                        return;
+                    }
+                    
+                    // Wait for Google library to be available
+                    function tryInitialize() {
+                        if (window.google && window.google.accounts && window.google.accounts.id) {
+                            // Initialize Google Sign-In
+                            window.google.accounts.id.initialize({
+                                client_id: clientId,
+                                callback: handleGoogleSignIn
+                            });
+                            
+                            // Render the button if not already rendered
+                            const buttonContainer = document.querySelector('.g_id_signin');
+                            if (buttonContainer && !buttonContainer.querySelector('iframe') && !buttonContainer.querySelector('button')) {
+                                window.google.accounts.id.renderButton(buttonContainer, {
+                                    theme: 'filled_blue',
+                                    size: 'large',
+                                    text: 'signin_with',
+                                    shape: 'rectangular',
+                                    logo_alignment: 'left',
+                                    width: '100%'
                                 });
-                                
-                                // Render the button
-                                const buttonContainer = document.querySelector('.g_id_signin');
-                                if (buttonContainer && !buttonContainer.querySelector('iframe')) {
-                                    window.google.accounts.id.renderButton(buttonContainer, {
-                                        theme: 'filled_blue',
-                                        size: 'large',
-                                        text: 'signin_with',
-                                        shape: 'rectangular',
-                                        logo_alignment: 'left',
-                                        width: '100%'
-                                    });
-                                }
-                                
-                                // Also set up the onload div
-                                const onloadDiv = document.getElementById('g_id_onload');
-                                if (onloadDiv) {
-                                    onloadDiv.setAttribute('data-client_id', data.client_id);
-                                }
-                            } else {
-                                // Retry after a short delay if Google library not loaded yet
-                                setTimeout(tryInitialize, 100);
                             }
-                        }
-                        
-                        tryInitialize();
-                    } else {
-                        // Hide Google Sign-In if no client ID configured
-                        const googleSignInSection = document.getElementById('googleSignInSection');
-                        if (googleSignInSection) {
-                            googleSignInSection.style.display = 'none';
-                        }
-                        const googleSignInContainer = document.querySelector('.g_id_signin');
-                        if (googleSignInContainer) {
-                            googleSignInContainer.style.display = 'none';
+                        } else {
+                            // Retry after a short delay if Google library not loaded yet
+                            setTimeout(tryInitialize, 100);
                         }
                     }
+                    
+                    tryInitialize();
                 })
                 .catch(err => {
                     console.error('Failed to load Google Client ID:', err);
-                    const googleSignInSection = document.getElementById('googleSignInSection');
-                    if (googleSignInSection) {
-                        googleSignInSection.style.display = 'none';
-                    }
-                    const googleSignInContainer = document.querySelector('.g_id_signin');
-                    if (googleSignInContainer) {
-                        googleSignInContainer.style.display = 'none';
-                    }
                 });
         }
         
-        // Start initialization when page loads
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initializeGoogleSignIn);
-        } else {
-            // DOM already loaded
-            initializeGoogleSignIn();
+        // Start initialization when Google library loads
+        function waitForGoogle() {
+            if (window.google && window.google.accounts && window.google.accounts.id) {
+                initializeGoogleSignIn();
+            } else {
+                setTimeout(waitForGoogle, 100);
+            }
         }
         
-        // Also try when Google library loads (in case DOMContentLoaded already fired)
-        window.addEventListener('load', function() {
-            if (window.google && window.google.accounts) {
-                initializeGoogleSignIn();
-            }
-        });
+        // Try to initialize when page loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', waitForGoogle);
+        } else {
+            waitForGoogle();
+        }
+        
+        // Also try when window loads
+        window.addEventListener('load', waitForGoogle);
         
         async function handleGoogleSignIn(response) {
             // Send the credential to the server for verification
             try {
-                showLoading();
                 const result = await fetch('/api/auth/google', {
                     method: 'POST',
                     headers: {
@@ -317,7 +291,6 @@
                 });
                 
                 const data = await result.json();
-                hideLoading();
                 
                 if (data.success) {
                     // Redirect to create listing page
@@ -326,21 +299,9 @@
                     alert('Google sign-in failed: ' + (data.error || 'Unknown error'));
                 }
             } catch (error) {
-                hideLoading();
                 console.error('Google sign-in error:', error);
                 alert('Failed to sign in with Google. Please try again.');
             }
-        }
-        
-        function showLoading() {
-            // Simple loading indicator
-            const btn = document.querySelector('.g_id_signin');
-            if (btn) btn.style.opacity = '0.5';
-        }
-        
-        function hideLoading() {
-            const btn = document.querySelector('.g_id_signin');
-            if (btn) btn.style.opacity = '1';
         }
     </script>
 </body>

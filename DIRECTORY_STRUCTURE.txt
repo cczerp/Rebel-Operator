@@ -1,0 +1,518 @@
+================================================================================
+RESELL-REBEL REPOSITORY DIRECTORY STRUCTURE
+================================================================================
+Generated: 2026-01-11
+Purpose: Comprehensive file listing for n8n system prompt integration
+
+================================================================================
+COMPLETE FILE TREE
+================================================================================
+
+Resell-Rebel/
+├── .github
+│   └── workflows
+│       └── cursor-dispatch.yml
+├── agents
+│   └── agent.js
+├── data
+│   ├── drafts.csv
+│   ├── post_queue.csv
+│   └── vault.csv
+├── docs
+│   ├── INVENTORY_MANAGEMENT.md
+│   └── WEB_APP_DEPLOYMENT.md
+├── examples
+│   ├── README.md
+│   ├── advanced_usage.py
+│   ├── ai_photo_analysis.py
+│   ├── batch_listing.py
+│   ├── preview_before_publish.py
+│   └── quick_start.py
+├── image flow
+│   ├── 01_frontend_image_flow_javascript.txt
+│   ├── 02_frontend_ai_analysis_javascript.txt
+│   ├── 03_frontend_html_css.txt
+│   ├── 04_backend_photo_upload_api.txt
+│   ├── 05_backend_photo_edit_api.txt
+│   ├── 06_backend_ai_analyze_api.txt
+│   ├── 07_backend_enhanced_scan_api.txt
+│   ├── 08_ai_image_format_conversion.txt
+│   ├── 09_ai_gemini_classifier.txt
+│   ├── 10_ai_claude_analysis.txt
+│   └── README.txt
+├── mobile_app
+│   ├── android
+│   │   ├── App.tsx
+│   │   ├── app.json
+│   │   ├── eas.json
+│   │   └── package.json
+│   ├── backend
+│   │   ├── Dockerfile
+│   │   ├── main.py
+│   │   └── requirements.txt
+│   ├── GOOGLE_PLAY_GUIDE.md
+│   ├── README.md
+│   └── docker-compose.yml
+├── monitoring
+│   ├── health
+│   │   ├── __init__.py
+│   │   └── health_checks.py
+│   └── __init__.py
+├── src
+│   ├── adapters
+│   │   ├── __init__.py
+│   │   ├── all_platforms.py
+│   │   ├── base_adapter.py
+│   │   ├── field_mapper.py
+│   │   ├── platform_configs.py
+│   │   └── poshmark_adapter.py
+│   ├── ai
+│   │   ├── claude_collectible_analyzer.py
+│   │   ├── gemini_classifier.py
+│   │   ├── knowledge_distillation.py
+│   │   └── market_analyzer.py
+│   ├── cards
+│   │   ├── classifiers
+│   │   │   ├── __init__.py
+│   │   │   ├── base_classifier.py
+│   │   │   ├── mtg_classifier.py
+│   │   │   ├── pokemon_classifier.py
+│   │   │   ├── sports_classifier.py
+│   │   │   └── yugioh_classifier.py
+│   │   ├── __init__.py
+│   │   ├── ai_integration.py
+│   │   ├── card_manager.py
+│   │   ├── storage_maps.py
+│   │   └── unified_card.py
+│   ├── collectibles
+│   │   ├── __init__.py
+│   │   ├── attribute_detector.py
+│   │   ├── enhanced_scanner.py
+│   │   └── recognizer.py
+│   ├── database
+│   │   ├── __init__.py
+│   │   └── db.py
+│   ├── enhancer
+│   │   ├── __init__.py
+│   │   └── ai_enhancer.py
+│   ├── notifications
+│   │   ├── __init__.py
+│   │   └── notification_manager.py
+│   ├── publisher
+│   │   ├── __init__.py
+│   │   ├── cross_platform_publisher.py
+│   │   └── preview.py
+│   ├── schema
+│   │   ├── __init__.py
+│   │   └── unified_listing.py
+│   ├── shopping
+│   │   ├── __init__.py
+│   │   └── lookup.py
+│   ├── storage
+│   │   ├── __init__.py
+│   │   ├── cloud_storage.py
+│   │   └── supabase_storage.py
+│   ├── sync
+│   │   ├── __init__.py
+│   │   ├── cancellation_scheduler.py
+│   │   └── multi_platform_sync.py
+│   └── __init__.py
+├── static
+│   ├── icon-192.png
+│   ├── icon-512.png
+│   ├── manifest.json
+│   ├── resell-rebel-icon.svg
+│   ├── resell-rebel-logo.png
+│   ├── resell-rebel-logo.svg
+│   └── sw.js
+├── templates
+│   ├── admin
+│   │   ├── activity.html
+│   │   ├── dashboard.html
+│   │   ├── photo_curation.html
+│   │   ├── user_detail.html
+│   │   └── users.html
+│   ├── artifact_detail.html
+│   ├── base.html
+│   ├── cards.html
+│   ├── create.html
+│   ├── drafts.html
+│   ├── forgot_password.html
+│   ├── hall_of_records.html
+│   ├── index.html
+│   ├── listings.html
+│   ├── login.html
+│   ├── notifications.html
+│   ├── post-listing.html
+│   ├── register.html
+│   ├── reset_password.html
+│   ├── settings.html
+│   ├── storage.html
+│   ├── storage_cards.html
+│   ├── storage_clothing.html
+│   ├── storage_instructions.html
+│   ├── storage_map.html
+│   └── vault.html
+├── .cursor-task.md
+├── .env.example
+├── .gitignore
+├── 25.3
+├── AGENT_SERVER_README.md
+├── AI_ANALYZER_ISSUE_SUMMARY.md
+├── AI_TASKS.md
+├── AUTHENTICATION.md
+├── BUCKET_FLOW_SUMMARY.md
+├── CARD_ORGANIZATION_GUIDE.md
+├── COMPLIANCE_INDEX.md
+├── COMPLIANCE_QUICK_REFERENCE.md
+├── COMPLIANCE_REPORT.md
+├── CREDENTIALS_MANAGEMENT.md
+├── DATABASE_CONNECTION_POOL_FIX.md
+├── DATABASE_URL=postgresqlresell_genie.txt
+├── DEPLOYMENT.md
+├── ENVIRONMENT_VARIABLES.md
+├── FEATURESs.md
+├── FRESH_START_INSTRUCTIONS.md
+├── GEMINI_API_IMAGE_REQUIREMENTS.md
+├── GEMINI_API_KEY_DEBUG_FIX.md
+├── GEMINI_FAILURE_BRAINSTORM.md
+├── GEMINI_IMAGE_FORMAT_RESEARCH.md
+├── GETTING_STARTED.md
+├── GOOGLE_SIGNIN_SETUP.md
+├── GUI_README.md
+├── IMAGE_FLOW_AI_SNAPSHOT.md
+├── IMAGE_UPLOAD_FLOW_DOCUMENTATION.md
+├── LICENSE
+├── MERCARI_DEBUG.md
+├── New-NetFirewallRule
+├── PHOTOSYNC_SETUP.md
+├── PHOTO_STORAGE_GUIDE.md
+├── PHOTO_UPLOAD_DOCUMENTATION.md
+├── PLATFORMS_README.md
+├── PLATFORM_INTEGRATION_PLAN.md
+├── README.md
+├── README_WEB_APP.md
+├── REFACTORING_PLAN.md
+├── RLS_FIX.md
+├── SERVICE_ROLE_KEY_SETUP.md
+├── SETUP_LINUX_SERVER.md
+├── SUPABASE_KEY_CONFIRMATION.md
+├── SUPABASE_MIGRATION_SUMMARY.md
+├── SUPABASE_STORAGE_SETUP.md
+├── VIOLATIONS_SUMMARY.md
+├── WORKING_FLOWS_DOCUMENTATION.md
+├── agent.js
+├── cl-v4.mjs
+├── clear_database.py
+├── config.py
+├── create_admin.py
+├── git
+├── gui.py
+├── image-flow-standalone.html
+├── image-flow-standalone.txt
+├── judge-trudy-server.js
+├── main.py
+├── node
+├── python
+├── qwen-ryche-server.js
+├── render.yaml
+├── requirements-web.txt
+├── requirements.txt
+├── routes_admin.py
+├── routes_auth.py
+├── routes_cards.py
+├── routes_csv.py
+├── routes_main.py
+├── setup.py
+├── start-agent-server.cmd
+├── start-agent-server.sh
+├── start-both-agents.cmd
+├── start-dev.cmd
+├── start.sh
+├── verify_database.py
+├── web_app.py
+└── web_app.py.backup
+
+================================================================================
+DIRECTORY ORGANIZATION BY CATEGORY
+================================================================================
+
+CONFIGURATION FILES:
+├── .env.example                    - Environment variables template
+├── .gitignore                      - Git ignore patterns
+├── package.json                    - Node.js dependencies
+├── package-lock.json               - Node.js dependency lock
+├── requirements.txt                - Python dependencies (main)
+├── requirements-web.txt            - Python web app dependencies
+├── setup.py                        - Python package setup
+├── render.yaml                     - Render deployment config
+└── config.py                       - Application configuration
+
+DOCUMENTATION:
+├── README.md                       - Main project documentation
+├── README_WEB_APP.md              - Web application documentation
+├── GETTING_STARTED.md             - Quick start guide
+├── DEPLOYMENT.md                  - Deployment instructions
+├── AGENT_SERVER_README.md         - Agent server documentation
+├── GUI_README.md                  - GUI documentation
+├── PLATFORMS_README.md            - Platform integration docs
+├── AUTHENTICATION.md              - Auth setup and config
+├── ENVIRONMENT_VARIABLES.md       - Environment variable guide
+├── CREDENTIALS_MANAGEMENT.md      - Credentials handling
+├── COMPLIANCE_INDEX.md            - Compliance documentation
+├── COMPLIANCE_QUICK_REFERENCE.md  - Quick compliance reference
+├── COMPLIANCE_REPORT.md           - Compliance status report
+└── 30+ additional documentation files
+
+MAIN APPLICATION FILES:
+├── main.py                        - Main Python application entry
+├── web_app.py                     - Flask web application
+├── web_app.py.backup             - Backup of web app
+├── gui.py                         - GUI application
+└── agent.js                       - Main agent script
+
+ROUTE HANDLERS (Flask):
+├── routes_admin.py                - Admin routes
+├── routes_auth.py                 - Authentication routes
+├── routes_cards.py                - Card management routes
+├── routes_csv.py                  - CSV operations routes
+└── routes_main.py                 - Main application routes
+
+DATABASE UTILITIES:
+├── clear_database.py              - Database cleanup
+├── create_admin.py                - Admin user creation
+└── verify_database.py             - Database verification
+
+AGENT SERVERS:
+├── judge-trudy-server.js          - Judge Trudy agent (port 3030)
+├── qwen-ryche-server.js           - Qwen Ryche agent (port 3131)
+├── start-agent-server.sh          - Agent server startup (Linux)
+├── start-agent-server.cmd         - Agent server startup (Windows)
+└── start-both-agents.cmd          - Start both agents (Windows)
+
+STARTUP SCRIPTS:
+├── start.sh                       - Main startup script (Linux)
+└── start-dev.cmd                  - Development mode (Windows)
+
+SOURCE CODE MODULES (src/):
+
+ADAPTERS (src/adapters/):
+├── all_platforms.py               - Multi-platform integration
+├── base_adapter.py                - Base adapter class
+├── field_mapper.py                - Field mapping utilities
+├── platform_configs.py            - Platform configurations
+└── poshmark_adapter.py            - Poshmark-specific adapter
+
+AI MODULES (src/ai/):
+├── claude_collectible_analyzer.py - Claude AI collectible analysis
+├── gemini_classifier.py           - Gemini AI classification
+├── knowledge_distillation.py      - AI knowledge distillation
+└── market_analyzer.py             - Market analysis AI
+
+CARD MANAGEMENT (src/cards/):
+├── ai_integration.py              - AI integration for cards
+├── card_manager.py                - Card management logic
+├── storage_maps.py                - Storage mapping
+├── unified_card.py                - Unified card model
+└── classifiers/                   - Card type classifiers
+    ├── base_classifier.py         - Base classifier
+    ├── mtg_classifier.py          - Magic: The Gathering
+    ├── pokemon_classifier.py      - Pokemon cards
+    ├── sports_classifier.py       - Sports cards
+    └── yugioh_classifier.py       - Yu-Gi-Oh cards
+
+COLLECTIBLES (src/collectibles/):
+├── attribute_detector.py          - Attribute detection
+├── enhanced_scanner.py            - Enhanced scanning
+└── recognizer.py                  - Object recognition
+
+DATABASE (src/database/):
+└── db.py                          - Database connections
+
+ENHANCER (src/enhancer/):
+└── ai_enhancer.py                 - AI enhancement utilities
+
+NOTIFICATIONS (src/notifications/):
+└── notification_manager.py        - Notification handling
+
+PUBLISHER (src/publisher/):
+├── cross_platform_publisher.py    - Multi-platform publishing
+└── preview.py                     - Listing preview
+
+SCHEMA (src/schema/):
+└── unified_listing.py             - Unified listing schema
+
+SHOPPING (src/shopping/):
+└── lookup.py                      - Product lookup
+
+STORAGE (src/storage/):
+├── cloud_storage.py               - Cloud storage interface
+└── supabase_storage.py            - Supabase storage integration
+
+SYNC (src/sync/):
+├── cancellation_scheduler.py      - Cancellation scheduling
+└── multi_platform_sync.py         - Cross-platform sync
+
+MONITORING (monitoring/):
+└── health/
+    └── health_checks.py           - Health check endpoints
+
+TEMPLATES (HTML):
+
+ADMIN TEMPLATES (templates/admin/):
+├── activity.html                  - Activity dashboard
+├── dashboard.html                 - Admin dashboard
+├── photo_curation.html            - Photo curation interface
+├── user_detail.html               - User detail view
+└── users.html                     - User management
+
+USER TEMPLATES (templates/):
+├── base.html                      - Base template
+├── index.html                     - Home page
+├── login.html                     - Login page
+├── register.html                  - Registration page
+├── forgot_password.html           - Password recovery
+├── reset_password.html            - Password reset
+├── cards.html                     - Card management
+├── create.html                    - Create listing
+├── drafts.html                    - Draft listings
+├── listings.html                  - Active listings
+├── vault.html                     - Vault storage
+├── hall_of_records.html           - Records hall
+├── artifact_detail.html           - Artifact details
+├── notifications.html             - Notifications
+├── settings.html                  - User settings
+├── post-listing.html              - Post listing
+├── storage.html                   - Storage overview
+├── storage_cards.html             - Card storage
+├── storage_clothing.html          - Clothing storage
+├── storage_instructions.html      - Storage instructions
+└── storage_map.html               - Storage map view
+
+STATIC ASSETS (static/):
+├── icon-192.png                   - App icon (192px)
+├── icon-512.png                   - App icon (512px)
+├── resell-rebel-icon.svg          - Icon (SVG)
+├── resell-rebel-logo.png          - Logo (PNG)
+├── resell-rebel-logo.svg          - Logo (SVG)
+├── manifest.json                  - PWA manifest
+└── sw.js                          - Service worker
+
+DATA FILES (data/):
+├── drafts.csv                     - Draft listings data
+├── post_queue.csv                 - Post queue data
+└── vault.csv                      - Vault inventory data
+
+EXAMPLES (examples/):
+├── README.md                      - Examples documentation
+├── advanced_usage.py              - Advanced usage examples
+├── ai_photo_analysis.py           - AI photo analysis example
+├── batch_listing.py               - Batch listing example
+├── preview_before_publish.py      - Preview example
+└── quick_start.py                 - Quick start example
+
+IMAGE FLOW (image flow/):
+├── 01_frontend_image_flow_javascript.txt
+├── 02_frontend_ai_analysis_javascript.txt
+├── 03_frontend_html_css.txt
+├── 04_backend_photo_upload_api.txt
+├── 05_backend_photo_edit_api.txt
+├── 06_backend_ai_analyze_api.txt
+├── 07_backend_enhanced_scan_api.txt
+├── 08_ai_image_format_conversion.txt
+├── 09_ai_gemini_classifier.txt
+├── 10_ai_claude_analysis.txt
+└── README.txt
+
+MOBILE APP (mobile_app/):
+├── android/
+│   ├── App.tsx                    - React Native app component
+│   ├── app.json                   - App configuration
+│   ├── eas.json                   - EAS Build config
+│   └── package.json               - Dependencies
+├── backend/
+│   ├── Dockerfile                 - Docker container config
+│   ├── main.py                    - Backend entry point
+│   └── requirements.txt           - Python dependencies
+├── docker-compose.yml             - Docker Compose config
+├── GOOGLE_PLAY_GUIDE.md          - Google Play deployment
+└── README.md                      - Mobile app documentation
+
+GITHUB WORKFLOWS (.github/workflows/):
+└── cursor-dispatch.yml            - Cursor automation workflow
+
+================================================================================
+FILE TYPE SUMMARY
+================================================================================
+
+Python Files (.py):        50+
+JavaScript Files (.js):    5
+TypeScript Files (.tsx):   1
+HTML Templates (.html):    27
+Markdown Docs (.md):       40+
+JSON Config (.json):       4
+CSV Data (.csv):           3
+YAML Config (.yml):        2
+Text Files (.txt):         13
+SVG Images (.svg):         3
+PNG Images (.png):         3
+Shell Scripts (.sh):       2
+Batch Scripts (.cmd):      3
+Other Files:               15+
+
+Total Directories:         30+
+Total Files:               180+
+
+================================================================================
+KEY SYSTEM COMPONENTS
+================================================================================
+
+1. WEB APPLICATION
+   - Flask-based web server (web_app.py)
+   - Multi-page UI with admin panel
+   - Authentication system
+   - Database integration
+
+2. AI INTEGRATION
+   - Claude AI for collectible analysis
+   - Gemini AI for classification
+   - Market analysis capabilities
+   - Image analysis and enhancement
+
+3. MULTI-PLATFORM SUPPORT
+   - Poshmark adapter
+   - Cross-platform publisher
+   - Platform-agnostic field mapping
+   - Unified listing schema
+
+4. CARD MANAGEMENT
+   - Support for MTG, Pokemon, Yu-Gi-Oh, Sports cards
+   - AI-powered classification
+   - Storage mapping and organization
+   - Inventory tracking
+
+5. STORAGE SYSTEM
+   - Supabase cloud storage
+   - Photo management
+   - Vault inventory
+   - Draft and queue management
+
+6. MOBILE APPLICATION
+   - React Native Android app
+   - Backend API
+   - Docker deployment ready
+   - Google Play integration
+
+7. AGENT SERVERS
+   - Judge Trudy (port 3030)
+   - Qwen Ryche (port 3131)
+   - n8n workflow integration
+
+8. MONITORING
+   - Health check endpoints
+   - System monitoring
+   - Activity tracking
+
+================================================================================
+END OF DIRECTORY STRUCTURE
+================================================================================

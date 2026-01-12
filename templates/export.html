@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}Export to CSV - RESELL-REBEL{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <h2><i class="fas fa-file-export"></i> Export Listings</h2>
+    <p class="text-muted">Export your listings to platform-specific CSV format for bulk upload</p>
+</div>
+
+<!-- Platform Selection -->
+<div class="card mb-3">
+    <div class="card-header" style="background: var(--alert-crimson);">
+        <h5 class="mb-0" style="color: white;"><i class="fas fa-store"></i> Select Export Platform</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-muted small">
+            Choose which platform you want to export to. Your listings will be automatically formatted for that platform's CSV requirements.
+        </p>
+
+        <div class="row g-3" id="platform-grid">
+            <!-- Platform cards will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<!-- Listing Selection -->
+<div class="card mb-3" id="listing-selection" style="display: none;">
+    <div class="card-header" style="background: var(--cold-steel);">
+        <h5 class="mb-0" style="color: white;"><i class="fas fa-list-check"></i> Select Listings</h5>
+    </div>
+    <div class="card-body">
+        <div class="mb-3">
+            <button class="btn btn-sm btn-outline-primary" id="select-all-btn">
+                <i class="fas fa-check-double"></i> Select All
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" id="deselect-all-btn">
+                <i class="fas fa-times"></i> Deselect All
+            </button>
+            <span class="ms-3 text-muted" id="selection-count">0 selected</span>
+        </div>
+
+        <div id="listings-container">
+            <!-- Listings will be loaded here -->
+        </div>
+
+        <div class="mt-3">
+            <button class="btn btn-primary" id="export-btn" disabled>
+                <i class="fas fa-download"></i> Export to CSV
+            </button>
+            <button class="btn btn-outline-info" id="preview-btn" disabled>
+                <i class="fas fa-eye"></i> Preview Mapping
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content" style="background: var(--carbon-matte); border: 2px solid var(--cold-steel-dark);">
+            <div class="modal-header" style="border-bottom: 2px solid var(--cold-steel-dark);">
+                <h5 class="modal-title" id="previewModalLabel">
+                    <i class="fas fa-eye"></i> CSV Export Preview
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="preview-content">
+                <!-- Preview content will be loaded here -->
+            </div>
+            <div class="modal-footer" style="border-top: 2px solid var(--cold-steel-dark);">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="confirm-export-btn">
+                    <i class="fas fa-download"></i> Export CSV
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedPlatform = null;
+let selectedListings = new Set();
+let allListings = [];
+
+// Load available platforms
+async function loadPlatforms() {
+    try {
+        const response = await fetch('/api/export/platforms');
+        const data = await response.json();
+
+        if (data.success) {
+            const platformGrid = document.getElementById('platform-grid');
+            platformGrid.innerHTML = '';
+
+            data.platforms.forEach(platform => {
+                const card = document.createElement('div');
+                card.className = 'col-md-4 col-sm-6';
+                card.innerHTML = `
+                    <div class="platform-card border rounded p-3 text-center"
+                         style="cursor: pointer; transition: all 0.3s; border-color: var(--cold-steel-dark);"
+                         data-platform="${platform.key}">
+                        <i class="fas fa-file-csv fa-3x mb-2" style="color: var(--alert-crimson);"></i>
+                        <h6>${platform.name}</h6>
+                        <small class="text-muted">${platform.description}</small>
+                    </div>
+                `;
+
+                card.querySelector('.platform-card').addEventListener('click', function() {
+                    selectPlatform(platform.key, platform.name);
+                });
+
+                platformGrid.appendChild(card);
+            });
+
+            // Add hover effect
+            document.querySelectorAll('.platform-card').forEach(card => {
+                card.addEventListener('mouseenter', function() {
+                    this.style.borderColor = 'var(--alert-crimson)';
+                    this.style.transform = 'translateY(-5px)';
+                    this.style.boxShadow = '0 8px 20px rgba(139, 0, 0, 0.3)';
+                });
+                card.addEventListener('mouseleave', function() {
+                    if (!this.classList.contains('selected')) {
+                        this.style.borderColor = 'var(--cold-steel-dark)';
+                        this.style.transform = 'translateY(0)';
+                        this.style.boxShadow = 'none';
+                    }
+                });
+            });
+        }
+    } catch (error) {
+        showAlert('Error loading platforms: ' + error.message, 'danger');
+    }
+}
+
+// Select platform and load listings
+async function selectPlatform(platformKey, platformName) {
+    selectedPlatform = platformKey;
+
+    // Update UI
+    document.querySelectorAll('.platform-card').forEach(card => {
+        card.classList.remove('selected');
+        card.style.borderColor = 'var(--cold-steel-dark)';
+        card.style.backgroundColor = 'transparent';
+    });
+
+    const selectedCard = document.querySelector(`[data-platform="${platformKey}"]`);
+    selectedCard.classList.add('selected');
+    selectedCard.style.borderColor = 'var(--alert-crimson)';
+    selectedCard.style.backgroundColor = 'rgba(139, 0, 0, 0.1)';
+    selectedCard.style.transform = 'translateY(-5px)';
+    selectedCard.style.boxShadow = '0 8px 20px rgba(139, 0, 0, 0.3)';
+
+    // Show listings section
+    document.getElementById('listing-selection').style.display = 'block';
+
+    // Load draft listings
+    await loadListings();
+}
+
+// Load draft listings
+async function loadListings() {
+    try {
+        showLoading();
+        const response = await fetch('/drafts-data');  // Assuming this endpoint exists
+
+        // If that doesn't exist, let's use a generic approach
+        const listingsContainer = document.getElementById('listings-container');
+        listingsContainer.innerHTML = '<p class="text-muted">Loading your draft listings...</p>';
+
+        // For now, show a message that they can export all drafts
+        listingsContainer.innerHTML = `
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> All your draft listings will be exported.
+                <br><small>You can modify this selection in a future update.</small>
+            </div>
+        `;
+
+        // Enable buttons
+        document.getElementById('export-btn').disabled = false;
+        document.getElementById('preview-btn').disabled = false;
+
+        hideLoading();
+
+    } catch (error) {
+        hideLoading();
+        showAlert('Error loading listings: ' + error.message, 'danger');
+    }
+}
+
+// Export to CSV
+document.getElementById('export-btn').addEventListener('click', async function() {
+    if (!selectedPlatform) {
+        showAlert('Please select a platform first', 'warning');
+        return;
+    }
+
+    try {
+        showLoading();
+
+        const response = await fetch(`/api/export/csv/${selectedPlatform}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                include_drafts: true
+            })
+        });
+
+        if (response.ok) {
+            // Download the CSV file
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${selectedPlatform}_export.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+
+            hideLoading();
+            showAlert('CSV export successful! Check your downloads folder.', 'success');
+        } else {
+            const error = await response.json();
+            hideLoading();
+            showAlert('Export failed: ' + (error.error || 'Unknown error'), 'danger');
+        }
+    } catch (error) {
+        hideLoading();
+        showAlert('Error: ' + error.message, 'danger');
+    }
+});
+
+// Preview mapping
+document.getElementById('preview-btn').addEventListener('click', async function() {
+    if (!selectedPlatform) {
+        showAlert('Please select a platform first', 'warning');
+        return;
+    }
+
+    try {
+        showLoading();
+
+        const response = await fetch(`/api/export/preview/${selectedPlatform}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({})
+        });
+
+        const data = await response.json();
+        hideLoading();
+
+        if (data.success) {
+            showPreview(data);
+            const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+            modal.show();
+        } else {
+            showAlert('Preview failed: ' + (data.error || 'Unknown error'), 'danger');
+        }
+    } catch (error) {
+        hideLoading();
+        showAlert('Error: ' + error.message, 'danger');
+    }
+});
+
+// Show preview
+function showPreview(data) {
+    const previewContent = document.getElementById('preview-content');
+
+    let html = `<h6 class="mb-3">Exporting to: <strong>${data.platform}</strong></h6>`;
+    html += '<p class="text-muted small">Here\'s how your first few listings will be mapped:</p>';
+
+    data.preview.forEach((listing, index) => {
+        html += `<div class="border rounded p-3 mb-3" style="border-color: var(--cold-steel-dark);">`;
+        html += `<h6 class="text-info">Listing ${index + 1}</h6>`;
+        html += '<table class="table table-sm table-dark">';
+        html += '<thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>';
+
+        for (const [key, value] of Object.entries(listing)) {
+            const displayValue = value ? value.toString().substring(0, 100) : '(empty)';
+            html += `<tr><td><strong>${key}</strong></td><td>${displayValue}</td></tr>`;
+        }
+
+        html += '</tbody></table></div>';
+    });
+
+    previewContent.innerHTML = html;
+}
+
+// Confirm export from modal
+document.getElementById('confirm-export-btn').addEventListener('click', function() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('previewModal'));
+    modal.hide();
+    document.getElementById('export-btn').click();
+});
+
+// Initialize
+loadPlatforms();
+</script>
+{% endblock %}

@@ -254,6 +254,12 @@ def settings():
     """User settings"""
     return render_template('settings.html')
 
+@app.route('/export')
+@login_required
+def export_page():
+    """CSV export page"""
+    return render_template('export.html')
+
 @app.route('/vault')
 @login_required
 def vault():

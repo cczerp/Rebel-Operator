@@ -2,25 +2,62 @@
 
 {% block title %}Drafts{% endblock %}
 
-{% block content %}
-<h2 class="mb-4"><i class="fas fa-folder"></i> Saved Listings</h2>
+{% block extra_css %}
+<style>
+.dropdown-menu {
+    max-height: 400px;
+    overflow-y: auto;
+}
 
-<!-- CSV Import/Export -->
-<div class="card mb-3">
-    <div class="card-body">
-        <div class="d-grid gap-2">
-            <a href="/api/export-csv" class="btn btn-success">
-                <i class="fas fa-download"></i> Export to CSV
-            </a>
-            <button class="btn btn-primary" onclick="document.getElementById('csvFile').click()">
-                <i class="fas fa-upload"></i> Import CSV (Update Storage Locations)
-            </button>
-            <input type="file" id="csvFile" accept=".csv" style="display:none;" onchange="importCSV(this)">
-        </div>
-        <small class="text-muted d-block mt-2">
-            Export listings to CSV, edit storage locations in Excel/Sheets, then import to update
-        </small>
+.dropdown-item {
+    transition: all 0.2s ease;
+}
+
+.dropdown-item:hover {
+    background: var(--cold-steel) !important;
+    color: white !important;
+    transform: translateX(5px);
+}
+
+.dropdown-item i {
+    width: 20px;
+    margin-right: 8px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-folder"></i> Draft Listings</h2>
+    <div class="dropdown">
+        <button class="btn btn-success dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-file-export"></i> Export CSV as
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown" style="background: var(--carbon-matte); border: 2px solid var(--cold-steel-dark);">
+            <li><h6 class="dropdown-header" style="color: var(--off-white-text);">Select Platform</h6></li>
+            <li><hr class="dropdown-divider" style="border-color: var(--cold-steel-dark);"></li>
+            <li><a class="dropdown-item" href="#" onclick="exportToCSV('poshmark'); return false;" style="color: var(--off-white-text);">
+                <i class="fas fa-tag"></i> Poshmark
+            </a></li>
+            <li><a class="dropdown-item" href="#" onclick="exportToCSV('rubylane'); return false;" style="color: var(--off-white-text);">
+                <i class="fas fa-gem"></i> Ruby Lane
+            </a></li>
+            <li><a class="dropdown-item" href="#" onclick="exportToCSV('ecrater'); return false;" style="color: var(--off-white-text);">
+                <i class="fas fa-store"></i> Ecrater
+            </a></li>
+            <li><a class="dropdown-item" href="#" onclick="exportToCSV('bonanza'); return false;" style="color: var(--off-white-text);">
+                <i class="fas fa-shopping-cart"></i> Bonanza
+            </a></li>
+            <li><a class="dropdown-item" href="#" onclick="exportToCSV('google_shopping'); return false;" style="color: var(--off-white-text);">
+                <i class="fab fa-google"></i> Google Shopping
+            </a></li>
+        </ul>
     </div>
+</div>
+
+<div class="alert alert-info mb-3">
+    <i class="fas fa-info-circle"></i> <strong>How it works:</strong>
+    Click "Export CSV as" above and select your platform (e.g., Poshmark). Your drafts will be automatically formatted and downloaded as a CSV file ready to upload!
 </div>
 
 {% if drafts %}
@@ -357,6 +394,44 @@ async function importCSV(input) {
     } finally {
         hideLoading();
         input.value = ''; // Reset file input
+    }
+}
+
+// Export drafts to platform-specific CSV
+async function exportToCSV(platform) {
+    try {
+        showLoading();
+
+        const response = await fetch(`/api/export/csv/${platform}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                include_drafts: true
+            })
+        });
+
+        if (response.ok) {
+            // Download the CSV file
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${platform}_export.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+
+            hideLoading();
+            showAlert(`${platform.toUpperCase()} CSV exported successfully! Check your downloads folder.`, 'success');
+        } else {
+            const error = await response.json();
+            hideLoading();
+            showAlert('Export failed: ' + (error.error || 'Unknown error'), 'danger');
+        }
+    } catch (error) {
+        hideLoading();
+        showAlert('Error exporting CSV: ' + error.message, 'danger');
     }
 }
 </script>

@@ -42,6 +42,78 @@
             {% endif %}
         </div>
 
+        {% if artifact.coin_info and artifact.coin_info.is_coin %}
+        <div class="mb-4">
+            <h5><i class="fas fa-coins"></i> Coin Information</h5>
+            <div class="card" style="background: linear-gradient(135deg, #d4af37 0%, #f4e5c2 100%); border: 2px solid #c5a028;">
+                <div class="card-body">
+                    <div class="row">
+                        {% if artifact.coin_info.denomination %}
+                        <div class="col-md-4 mb-3">
+                            <strong><i class="fas fa-money-bill"></i> Denomination:</strong><br>
+                            <span class="fs-5">{{ artifact.coin_info.denomination }}</span>
+                        </div>
+                        {% endif %}
+                        {% if artifact.coin_info.year %}
+                        <div class="col-md-4 mb-3">
+                            <strong><i class="fas fa-calendar"></i> Year:</strong><br>
+                            <span class="fs-5">{{ artifact.coin_info.year }}</span>
+                        </div>
+                        {% endif %}
+                        {% if artifact.coin_info.coin_type %}
+                        <div class="col-md-4 mb-3">
+                            <strong><i class="fas fa-tag"></i> Type/Series:</strong><br>
+                            {{ artifact.coin_info.coin_type }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="row">
+                        {% if artifact.coin_info.composition %}
+                        <div class="col-md-4 mb-3">
+                            <strong><i class="fas fa-flask"></i> Composition:</strong><br>
+                            {{ artifact.coin_info.composition }}
+                        </div>
+                        {% endif %}
+                        {% if artifact.coin_info.mintage %}
+                        <div class="col-md-4 mb-3">
+                            <strong><i class="fas fa-industry"></i> Mintage:</strong><br>
+                            {{ "{:,}".format(artifact.coin_info.mintage) }} produced
+                        </div>
+                        {% endif %}
+                        {% if artifact.coin_info.special_designation %}
+                        <div class="col-md-4 mb-3">
+                            <strong><i class="fas fa-star"></i> Designation:</strong><br>
+                            <span class="badge bg-primary">{{ artifact.coin_info.special_designation }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if artifact.coin_info.diameter_mm or artifact.coin_info.weight_grams %}
+                    <div class="row">
+                        {% if artifact.coin_info.diameter_mm %}
+                        <div class="col-md-4 mb-3">
+                            <strong><i class="fas fa-ruler-horizontal"></i> Diameter:</strong><br>
+                            {{ artifact.coin_info.diameter_mm }} mm
+                        </div>
+                        {% endif %}
+                        {% if artifact.coin_info.weight_grams %}
+                        <div class="col-md-4 mb-3">
+                            <strong><i class="fas fa-weight"></i> Weight:</strong><br>
+                            {{ artifact.coin_info.weight_grams }} grams
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% if artifact.coin_info.series_info %}
+                    <div class="mt-3">
+                        <strong><i class="fas fa-info-circle"></i> Series Information:</strong><br>
+                        {{ artifact.coin_info.series_info }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         {% if is_admin and pending_photos and pending_photos|length > 0 %}
         <div class="mb-4">
             <h5><i class="fas fa-images"></i> Select Photos to Make Public (Admin Only)</h5>
@@ -49,8 +121,8 @@
             <div class="d-flex flex-wrap gap-2 mb-3" id="pendingPhotosContainer">
                 {% for photo in pending_photos %}
                 <div class="photo-selection-item" data-photo-id="{{ photo.id }}" style="position: relative;">
-                    <img src="{{ photo.photo_url }}" alt="Pending photo" 
-                         class="img-thumbnail photo-selectable {% if photo.is_selected %}selected{% endif %}" 
+                    <img src="{{ photo.photo_url }}" alt="Pending photo"
+                         class="img-thumbnail photo-selectable {% if photo.is_selected %}selected{% endif %}"
                          style="max-width: 200px; max-height: 200px; object-fit: cover; cursor: pointer; border: 2px solid {% if photo.is_selected %}#28a745{% else %}#dee2e6{% endif %};"
                          onclick="togglePhotoSelection({{ photo.id }})">
                     {% if photo.is_selected %}

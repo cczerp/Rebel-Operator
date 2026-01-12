@@ -675,6 +675,19 @@ class Database:
             )
         """)
 
+        # Add coin_info column if it doesn't exist (migration)
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name='public_artifacts' AND column_name='coin_info'
+                ) THEN
+                    ALTER TABLE public_artifacts ADD COLUMN coin_info TEXT;
+                END IF;
+            END $$;
+        """)
+
         # Create indexes for artifacts
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_public_artifacts_name_brand
@@ -1454,7 +1467,8 @@ class Database:
         collector_notes: Optional[str] = None,
         fun_fact: Optional[str] = None,
         photos: Optional[List[str]] = None,
-        user_id: Optional[int] = None
+        user_id: Optional[int] = None,
+        coin_info: Optional[Dict] = None
     ) -> int:
         """
         Create or update a public artifact in the Hall of Records.
@@ -1471,7 +1485,7 @@ class Database:
         
         # Check if artifact already exists (same item)
         cursor.execute("""
-            SELECT id, historical_context, value_context, known_errors, collector_notes, fun_fact, photos
+            SELECT id, historical_context, value_context, known_errors, collector_notes, fun_fact, photos, coin_info
             FROM public_artifacts
             WHERE item_name = %s
             AND (brand IS NULL AND %s IS NULL OR brand = %s)
@@ -1489,31 +1503,39 @@ class Database:
             existing_historical = json.loads(existing['historical_context']) if existing['historical_context'] else {}
             existing_value = json.loads(existing['value_context']) if existing['value_context'] else {}
             existing_errors = json.loads(existing['known_errors']) if existing['known_errors'] else {}
+            existing_coin_info = json.loads(existing['coin_info']) if existing.get('coin_info') else {}
             existing_notes = existing['collector_notes'] or ''
             existing_fun_fact = existing['fun_fact'] or ''
             existing_photos = json.loads(existing['photos']) if existing['photos'] else []
-            
+
             # Merge historical_context: only add NEW keys, don't overwrite
             merged_historical = existing_historical.copy()
             if historical_context:
                 for key, value in historical_context.items():
                     if key not in merged_historical or not merged_historical[key]:
                         merged_historical[key] = value
-            
+
             # Merge value_context: only add NEW keys
             merged_value = existing_value.copy()
             if value_context:
                 for key, value in value_context.items():
                     if key not in merged_value or not merged_value[key]:
                         merged_value[key] = value
-            
+
             # Merge known_errors: only add NEW keys
             merged_errors = existing_errors.copy()
             if known_errors:
                 for key, value in known_errors.items():
                     if key not in merged_errors or not merged_errors[key]:
                         merged_errors[key] = value
-            
+
+            # Merge coin_info: only add NEW keys
+            merged_coin_info = existing_coin_info.copy()
+            if coin_info:
+                for key, value in coin_info.items():
+                    if key not in merged_coin_info or not merged_coin_info[key]:
+                        merged_coin_info[key] = value
+
             # Only update notes/fun_fact if they're empty
             final_notes = existing_notes if existing_notes else (collector_notes or '')
             final_fun_fact = existing_fun_fact if existing_fun_fact else (fun_fact or '')
@@ -1524,6 +1546,7 @@ class Database:
                 SET historical_context = %s,
                     value_context = %s,
                     known_errors = %s,
+                    coin_info = %s,
                     collector_notes = %s,
                     fun_fact = %s,
                     updated_at = CURRENT_TIMESTAMP,
@@ -1533,6 +1556,7 @@ class Database:
                 json.dumps(merged_historical) if merged_historical else None,
                 json.dumps(merged_value) if merged_value else None,
                 json.dumps(merged_errors) if merged_errors else None,
+                json.dumps(merged_coin_info) if merged_coin_info else None,
                 final_notes,
                 final_fun_fact,
                 artifact_id
@@ -1542,9 +1566,9 @@ class Database:
             cursor.execute("""
                 INSERT INTO public_artifacts (
                     item_name, brand, franchise, category, item_type,
-                    historical_context, value_context, known_errors,
+                    historical_context, value_context, known_errors, coin_info,
                     collector_notes, fun_fact, photos
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 item_name,
@@ -1555,6 +1579,7 @@ class Database:
                 json.dumps(historical_context) if historical_context else None,
                 json.dumps(value_context) if value_context else None,
                 json.dumps(known_errors) if known_errors else None,
+                json.dumps(coin_info) if coin_info else None,
                 collector_notes,
                 fun_fact,
                 json.dumps([])  # Start with empty photos - user will select which to make public
@@ -1611,12 +1636,17 @@ class Database:
                 artifact['known_errors'] = json.loads(artifact['known_errors'])
             except:
                 pass
+        if artifact.get('coin_info'):
+            try:
+                artifact['coin_info'] = json.loads(artifact['coin_info'])
+            except:
+                pass
         if artifact.get('photos'):
             try:
                 artifact['photos'] = json.loads(artifact['photos'])
             except:
                 pass
-        
+
         return artifact
 
     def get_all_artifacts(self, limit: int = 100, offset: int = 0) -> List[Dict]:
@@ -1671,14 +1701,14 @@ class Database:
         for row in cursor.fetchall():
             artifact = dict(row)
             # Parse JSON fields
-            for field in ['historical_context', 'value_context', 'known_errors', 'photos']:
+            for field in ['historical_context', 'value_context', 'known_errors', 'coin_info', 'photos']:
                 if artifact.get(field):
                     try:
                         artifact[field] = json.loads(artifact[field])
                     except:
                         pass
             artifacts.append(artifact)
-        
+
         return artifacts
 
     def is_artifact_in_user_collection(self, user_id: int, artifact_id: int) -> bool:

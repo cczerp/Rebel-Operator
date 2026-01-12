@@ -176,8 +176,19 @@ I need you to perform a COMPREHENSIVE DEEP ANALYSIS of this collectible item, wi
 
 **YOUR CRITICAL TASK - Focus on Collector Value Indicators:**
 
-1. **MINT MARKS & PRODUCTION MARKINGS**
-   - For coins: Identify mint mark location and letter (P, D, S, W, etc.)
+1. **COIN IDENTIFICATION** (CRITICAL FOR COINS - Skip if not a coin)
+   - **Denomination**: Identify the exact coin type (Penny/Cent, Nickel, Dime, Quarter, Half Dollar, Dollar Coin, Other)
+   - **Year**: Extract the year minted (visible on the coin)
+   - **Mint Mark**: Location and letter (P=Philadelphia, D=Denver, S=San Francisco, W=West Point, CC=Carson City, O=New Orleans, etc.)
+   - **Coin Type/Series**: (Lincoln Penny, Jefferson Nickel, Roosevelt Dime, Washington Quarter, Kennedy Half Dollar, Eisenhower Dollar, Sacagawea Dollar, etc.)
+   - **Composition**: Material (Copper, Nickel, Silver, etc.) - identify by year and appearance
+   - **Mintage**: If known, provide the mintage number (how many were produced)
+   - **Diameter/Weight**: Standard measurements if known
+   - **Special Designations**: (Proof, Commemorative, Error, Variety, etc.)
+
+2. **MINT MARKS & PRODUCTION MARKINGS**
+   - For coins: Identify mint mark location and letter (P, D, S, W, CC, O, etc.)
+   - Location matters: Penny mint mark is below date, Quarter is behind neck/head, etc.
    - For collectibles: Identify production facility marks, factory codes, or manufacturing location indicators
    - Note any special mint marks or rare production locations
    - Explain the significance of the mint mark for value
@@ -231,7 +242,20 @@ You MUST respond with ONLY valid JSON (no markdown, no explanations). Use this e
   "category": "{category}",
   "brand": "{brand}",
   "franchise": "{franchise}",
-  
+
+  "coin_info": {{
+    "is_coin": true/false,
+    "denomination": "Penny / Nickel / Dime / Quarter / Half Dollar / Dollar Coin / Other",
+    "year": 0,
+    "coin_type": "Lincoln Penny / Jefferson Nickel / Roosevelt Dime / Washington Quarter / Kennedy Half Dollar / Eisenhower Dollar / Sacagawea Dollar / etc.",
+    "composition": "Copper / Nickel / Silver / etc.",
+    "mintage": 0,
+    "diameter_mm": 0.0,
+    "weight_grams": 0.0,
+    "special_designation": "Proof / Commemorative / Error / Variety / Standard",
+    "series_info": "description of the series or variety"
+  }},
+
   "card_type": "pokemon / mtg / yugioh / sports_nfl / sports_nba / sports_mlb / sports_nhl / tcg / unknown (ONLY if this is a card)",
   "game_name": "Pokemon / Magic: The Gathering / Yu-Gi-Oh! / etc. (ONLY for TCG cards)",
   "sport": "NFL / NBA / MLB / NHL / etc. (ONLY for sports cards)",
@@ -241,7 +265,7 @@ You MUST respond with ONLY valid JSON (no markdown, no explanations). Use this e
   "player_name": "player name (ONLY for sports cards)",
   "is_rookie_card": true/false,
   "is_graded": true/false,
-  "grading_company": "PSA / BGS / CGC / etc. (if graded)",
+  "grading_company": "PSA / BGS / CGC / PCGS / NGC / ANACS / etc. (if graded)",
   "grading_score": 9.5,
   
   "mint_mark": {{
@@ -406,23 +430,27 @@ You MUST respond with ONLY valid JSON (no markdown, no explanations). Use this e
             'franchise': deep_analysis.get('franchise') or basic_analysis.get('franchise', ''),
             'brand': deep_analysis.get('brand') or basic_analysis.get('brand', ''),
             'category': deep_analysis.get('category') or basic_analysis.get('category', ''),
-            
+
+            # Coin-specific information
+            'coin_info': deep_analysis.get('coin_info', {}),
+            'is_coin': deep_analysis.get('coin_info', {}).get('is_coin', False),
+
             # Key collector attributes
             'mint_mark': deep_analysis.get('mint_mark', {}),
             'serial_number': deep_analysis.get('serial_number', {}),
             'signature': deep_analysis.get('signature', {}),
             'errors_variations': deep_analysis.get('errors_variations', {}),
             'historical_context': deep_analysis.get('historical_context', {}),
-            
+
             # Condition and authentication
             'condition': deep_analysis.get('condition', {}),
             'authentication': deep_analysis.get('authentication', {}),
-            
+
             # Display-friendly fields
             'item_significance': deep_analysis.get('historical_context', {}).get('backstory', ''),
             'rarity_info': deep_analysis.get('collector_notes', ''),
             'authentication_markers': deep_analysis.get('authentication', {}).get('authentication_markers', []),
-            
+
             # Market info
             'market_analysis': market_analysis,
             'collector_notes': deep_analysis.get('collector_notes', '')

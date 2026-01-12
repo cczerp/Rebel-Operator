@@ -1414,7 +1414,8 @@ def api_enhanced_scan():
             collector_notes=collector_notes,
             fun_fact=fun_fact,
             photos=photo_paths,  # Stored as PENDING - admin selects which to make public
-            user_id=current_user.id  # Track who uploaded photos
+            user_id=current_user.id,  # Track who uploaded photos
+            coin_info=data.get('coin_info', {})  # Coin-specific metadata
         )
         
         logging.info(f"[ENHANCED SCAN] Automatically created/updated artifact {artifact_id} in public Hall of Records (no user approval required)")

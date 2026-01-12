@@ -3810,3 +3810,167 @@ def api_save_vault():
         import traceback
         logging.error(f"Save vault error: {e}\n{traceback.format_exc()}")
         return jsonify({"error": str(e)}), 500
+
+
+# -------------------------------------------------------------------------
+# CSV EXPORT ENDPOINTS
+# -------------------------------------------------------------------------
+
+@main_bp.route("/api/export/csv/<platform>", methods=["POST"])
+@login_required
+def export_csv_for_platform(platform):
+    """
+    Export listings to platform-specific CSV format
+    
+    POST body:
+    {
+        "listing_ids": [1, 2, 3],  // Optional, if not provided exports all drafts
+        "include_drafts": true      // Optional, default true
+    }
+    """
+    try:
+        from src.csv_exporters import get_exporter
+        from flask import make_response
+        
+        # Get request data
+        data = request.json or {}
+        listing_ids = data.get('listing_ids', [])
+        include_drafts = data.get('include_drafts', True)
+        
+        # Get listings
+        cursor = db._get_cursor()
+        
+        if listing_ids:
+            # Export specific listings
+            placeholders = ','.join(['%s'] * len(listing_ids))
+            query = f"""
+                SELECT * FROM listings
+                WHERE id IN ({placeholders}) AND user_id = %s
+                ORDER BY created_at DESC
+            """
+            cursor.execute(query, (*listing_ids, current_user.id))
+        else:
+            # Export all drafts by default
+            if include_drafts:
+                cursor.execute("""
+                    SELECT * FROM listings
+                    WHERE user_id = %s AND status = 'draft'
+                    ORDER BY created_at DESC
+                """, (current_user.id,))
+            else:
+                cursor.execute("""
+                    SELECT * FROM listings
+                    WHERE user_id = %s AND status != 'draft'
+                    ORDER BY created_at DESC
+                """, (current_user.id,))
+        
+        listings = [dict(row) for row in cursor.fetchall()]
+        cursor.close()
+        
+        if not listings:
+            return jsonify({"error": "No listings found to export"}), 404
+        
+        # Get the appropriate exporter
+        try:
+            exporter = get_exporter(platform)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        
+        # Generate CSV
+        csv_content = exporter.export_to_csv(listings)
+        
+        # Create response with CSV file
+        response = make_response(csv_content)
+        response.headers['Content-Type'] = 'text/csv'
+        response.headers['Content-Disposition'] = f'attachment; filename={platform}_export.csv'
+        
+        return response
+        
+    except Exception as e:
+        import traceback
+        logging.error(f"CSV export error: {e}\n{traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/export/platforms", methods=["GET"])
+@login_required
+def get_export_platforms():
+    """Get list of available CSV export platforms"""
+    try:
+        from src.csv_exporters import EXPORTERS
+        
+        platforms = []
+        for platform_key, exporter_class in EXPORTERS.items():
+            exporter = exporter_class()
+            platforms.append({
+                'key': platform_key,
+                'name': exporter.platform_name,
+                'description': f'Export to {exporter.platform_name} CSV format'
+            })
+        
+        return jsonify({
+            "success": True,
+            "platforms": platforms
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/export/preview/<platform>", methods=["POST"])
+@login_required
+def preview_csv_export(platform):
+    """
+    Preview how listings will be mapped to platform format
+    Returns first 3 transformed listings for preview
+    """
+    try:
+        from src.csv_exporters import get_exporter
+        
+        data = request.json or {}
+        listing_ids = data.get('listing_ids', [])
+        
+        # Get first few listings
+        cursor = db._get_cursor()
+        
+        if listing_ids:
+            query = """
+                SELECT * FROM listings
+                WHERE id IN (%s, %s, %s) AND user_id = %s
+                LIMIT 3
+            """
+            cursor.execute(query, (*listing_ids[:3], current_user.id))
+        else:
+            cursor.execute("""
+                SELECT * FROM listings
+                WHERE user_id = %s AND status = 'draft'
+                ORDER BY created_at DESC
+                LIMIT 3
+            """, (current_user.id,))
+        
+        listings = [dict(row) for row in cursor.fetchall()]
+        cursor.close()
+        
+        if not listings:
+            return jsonify({"error": "No listings found"}), 404
+        
+        # Get exporter and transform
+        try:
+            exporter = get_exporter(platform)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        
+        # Transform listings for preview
+        transformed = [exporter.transform_listing(listing) for listing in listings]
+        
+        return jsonify({
+            "success": True,
+            "platform": exporter.platform_name,
+            "preview": transformed,
+            "field_mapping": exporter.get_field_mapping()
+        })
+        
+    except Exception as e:
+        import traceback
+        logging.error(f"CSV preview error: {e}\n{traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500

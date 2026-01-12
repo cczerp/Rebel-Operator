@@ -93,7 +93,7 @@
     </g>
   </g>
 
-  <!-- Text: RESELL REBEL -->
+  <!-- Text: REBEL OPERATOR -->
   <g id="text" transform="translate(250, 420)">
     <text x="0" y="0"
           font-family="Arial Black, Arial, sans-serif"
@@ -101,8 +101,8 @@
           font-weight="900"
           text-anchor="middle"
           letter-spacing="2">
-      <tspan fill="#000000">RESELL</tspan>
-      <tspan fill="#C41E3A" dx="8">REBEL</tspan>
+      <tspan fill="#000000">REBEL</tspan>
+      <tspan fill="#C41E3A" dx="8">OPERATOR</tspan>
     </text>
 
     <!-- Tagline -->

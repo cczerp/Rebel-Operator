@@ -1,5 +1,5 @@
 {
-  "name": "resell-rebel-agent-api",
+  "name": "rebel-operator-agent-api",
   "version": "1.0.0",
   "description": "Agent API servers for n8n workflow integration",
   "main": "judge-trudy-server.js",

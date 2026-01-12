@@ -1193,30 +1193,108 @@ def api_enhanced_scan():
             logging.error("[ENHANCED SCAN ERROR] No valid photo objects created")
             return jsonify({"error": "No valid photos found"}), 400
 
-        logging.info(f"[ENHANCED SCAN] Created {len(photo_objects)} photo objects. Using Gemini (SAME AI as regular scan - GUARANTEED TO WORK)")
+        logging.info(f"[ENHANCED SCAN] Created {len(photo_objects)} photo objects. Using Gemini with detailed collectible analysis prompt...")
 
-        # Use Gemini for enhanced collectible analysis (SAME AI as regular scan - PROVEN TO WORK)
+        # Use Gemini with detailed prompt (same prompt that was designed for Claude)
         try:
             from src.ai.gemini_classifier import GeminiClassifier
             classifier = GeminiClassifier.from_env()
-        except ValueError as e:
-            # Cleanup temp files
-            for temp_file in temp_files:
-                try:
-                    os.unlink(temp_file)
-                except:
-                    pass
-            return jsonify({"error": f"AI service not configured: {str(e)}"}), 500
-
-        # Analyze photos with Gemini (SAME method as regular scan, but with collectible-specific prompt)
-        # The GeminiClassifier.analyze_item() method handles base64 encoding internally
-        # Just pass the Photo objects - it does everything else (SAME AS REGULAR SCAN)
-        try:
-            logging.info("[ENHANCED SCAN] Analyzing with Gemini (same AI as regular scan)...")
-            result = classifier.analyze_item(photo_objects)
-            logging.info(f"[ENHANCED SCAN] ✅ Gemini analysis completed: {list(result.keys()) if result else 'empty'}")
+            logging.info("[ENHANCED SCAN] Analyzing with Gemini using detailed collectible prompt (mint marks, serial numbers, signatures, errors, historical context, etc.)...")
+            detailed_analysis = classifier.analyze_collectible_detailed(photo_objects)
+            logging.info(f"[ENHANCED SCAN] ✅ Gemini detailed analysis completed: {list(detailed_analysis.keys()) if detailed_analysis else 'empty'}")
+            
+            if detailed_analysis.get("error"):
+                # Cleanup temp files
+                for temp_file in temp_files:
+                    try:
+                        os.unlink(temp_file)
+                    except:
+                        pass
+                return jsonify({
+                    "success": False,
+                    "error": f"Detailed analysis failed: {detailed_analysis.get('error')}"
+                }), 500
+            
+            # Format Gemini's detailed analysis (same structure as Claude's EnhancedScanner returns)
+            # Determine item type
+            item_type = 'collectible'
+            category = detailed_analysis.get('category', '').lower()
+            if 'card' in category or 'trading card' in category or detailed_analysis.get('card_type'):
+                item_type = 'card'
+            
+            # Extract market analysis
+            market_analysis = detailed_analysis.get('market_analysis', {})
+            
+            # Format as collectible or card response (similar to EnhancedScanner)
+            if item_type == 'card':
+                # Format as card
+                result = {
+                    'type': 'card',
+                    'data': {
+                        'card_name': detailed_analysis.get('item_name', 'Unknown Card'),
+                        'player_name': detailed_analysis.get('player_name', ''),
+                        'set_name': detailed_analysis.get('set_name', ''),
+                        'card_number': detailed_analysis.get('card_number', ''),
+                        'card_type': detailed_analysis.get('card_type', 'unknown'),
+                        'game_name': detailed_analysis.get('game_name', ''),
+                        'franchise': detailed_analysis.get('franchise', ''),
+                        'rarity': detailed_analysis.get('rarity', ''),
+                        'brand': detailed_analysis.get('brand', ''),
+                        'sport': detailed_analysis.get('sport', ''),
+                        'serial_number': detailed_analysis.get('serial_number', {}),
+                        'signature': detailed_analysis.get('signature', {}),
+                        'errors_variations': detailed_analysis.get('errors_variations', {}),
+                        'historical_context': detailed_analysis.get('historical_context', {}),
+                        'condition': detailed_analysis.get('condition', {}),
+                        'authentication': detailed_analysis.get('authentication', {}),
+                        'estimated_value_low': market_analysis.get('current_market_value_low', 0),
+                        'estimated_value_high': market_analysis.get('current_market_value_high', 0),
+                        'collector_notes': detailed_analysis.get('collector_notes', ''),
+                        'is_card': True
+                    },
+                    'market_prices': {
+                        'tcgplayer': {'market': market_analysis.get('estimated_value')},
+                        'ebay': {'avg': market_analysis.get('estimated_value')},
+                        'actual_selling': market_analysis.get('estimated_value'),
+                        'quick_sale': market_analysis.get('current_market_value_low')
+                    },
+                    'ai_provider': 'gemini'
+                }
+            else:
+                # Format as collectible
+                result = {
+                    'type': 'collectible',
+                    'data': {
+                        'item_name': detailed_analysis.get('item_name', 'Unknown Collectible'),
+                        'franchise': detailed_analysis.get('franchise', ''),
+                        'brand': detailed_analysis.get('brand', ''),
+                        'category': detailed_analysis.get('category', ''),
+                        'mint_mark': detailed_analysis.get('mint_mark', {}),
+                        'serial_number': detailed_analysis.get('serial_number', {}),
+                        'signature': detailed_analysis.get('signature', {}),
+                        'errors_variations': detailed_analysis.get('errors_variations', {}),
+                        'historical_context': detailed_analysis.get('historical_context', {}),
+                        'condition': detailed_analysis.get('condition', {}),
+                        'authentication': detailed_analysis.get('authentication', {}),
+                        'item_significance': detailed_analysis.get('historical_context', {}).get('backstory', ''),
+                        'rarity_info': detailed_analysis.get('collector_notes', ''),
+                        'authentication_markers': detailed_analysis.get('authentication', {}).get('authentication_markers', []),
+                        'market_analysis': market_analysis,
+                        'collector_notes': detailed_analysis.get('collector_notes', '')
+                    },
+                    'market_prices': {
+                        'retail': market_analysis.get('estimated_value') or market_analysis.get('current_market_value_high'),
+                        'actual_selling': market_analysis.get('estimated_value'),
+                        'quick_sale': market_analysis.get('current_market_value_low'),
+                        'value_range': {
+                            'low': market_analysis.get('current_market_value_low', 0),
+                            'high': market_analysis.get('current_market_value_high', 0)
+                        }
+                    },
+                    'ai_provider': 'gemini'
+                }
         except Exception as analyze_error:
-            logging.error(f"[ENHANCED SCAN] Gemini analysis error: {analyze_error}")
+            logging.error(f"[ENHANCED SCAN] Gemini detailed analysis error: {analyze_error}")
             import traceback
             logging.error(f"[ENHANCED SCAN] Traceback: {traceback.format_exc()}")
             # Cleanup temp files
@@ -1229,66 +1307,6 @@ def api_enhanced_scan():
                 "success": False,
                 "error": f"Analysis failed: {str(analyze_error)}"
             }), 500
-
-        # Check for errors from Gemini
-        if result.get("error"):
-            # Cleanup temp files
-            for temp_file in temp_files:
-                try:
-                    os.unlink(temp_file)
-                except:
-                    pass
-            return jsonify({
-                "success": False,
-                "error": result.get("error")
-            }), 500
-
-        # Format Gemini result for artifact creation (Gemini returns: suggested_title, description, brand, category, collectible, etc.)
-        analysis_data = result
-        
-        # Determine item type from Gemini's category
-        item_type = 'collectible'
-        category = analysis_data.get('category', '').lower()
-        if 'card' in category or 'trading card' in category:
-            item_type = 'card'
-        elif not analysis_data.get('collectible', False):
-            # If Gemini says it's not collectible, don't create artifact
-            # Cleanup temp files
-            for temp_file in temp_files:
-                try:
-                    os.unlink(temp_file)
-                except:
-                    pass
-            return jsonify({
-                'success': False,
-                'type': 'standard_item',
-                'message': 'Not a collectible. Use quick analysis for listing.',
-            })
-        
-        # Format result for artifact creation
-        result = {
-            'type': item_type,
-            'data': {
-                'item_name': analysis_data.get('suggested_title') or analysis_data.get('title', 'Unknown Item'),
-                'brand': analysis_data.get('brand', ''),
-                'franchise': analysis_data.get('franchise', ''),
-                'category': analysis_data.get('category', ''),
-                'release_year': analysis_data.get('year'),
-                'backstory': analysis_data.get('description', ''),
-                'significance': '',
-                'rarity_context': '',
-                'current_market_value_low': analysis_data.get('suggested_price'),
-                'current_market_value_high': analysis_data.get('suggested_price'),
-                'estimated_value': analysis_data.get('suggested_price'),
-                'market_trend': 'Stable',
-                'demand_level': 'Medium',
-                'value_factors': [],
-                'errors_variations': '',
-                'collector_notes': analysis_data.get('description', ''),
-                'fun_fact': ''
-            },
-            'ai_provider': 'gemini'
-        }
         
         logging.info(f"[ENHANCED SCAN] ✅ Analysis completed, result type: {result.get('type')}")
 
@@ -1317,35 +1335,71 @@ def api_enhanced_scan():
                 'type': result.get('type')
             }), 500
 
-        # Extract artifact-relevant data from Gemini analysis (data is already formatted in result['data'])
+        # Extract artifact-relevant data (handle both Claude's detailed structure and Gemini's basic structure)
         data = result.get('data', {})
+        ai_provider = result.get('ai_provider', 'gemini')
         
-        historical_context = {
-            'release_year': data.get('release_year'),
-            'backstory': data.get('backstory', ''),
-            'significance': data.get('significance', ''),
-            'rarity_context': data.get('rarity_context', '')
-        }
-        
-        value_context = {
-            'current_market_value_low': data.get('current_market_value_low'),
-            'current_market_value_high': data.get('current_market_value_high'),
-            'estimated_value': data.get('estimated_value'),
-            'market_trend': data.get('market_trend', ''),
-            'demand_level': data.get('demand_level', ''),
-            'value_factors': data.get('value_factors', [])
-        }
-        
-        known_errors = {
-            'present': bool(data.get('errors_variations')),
-            'error_type': '',
-            'error_description': str(data.get('errors_variations', '')),
-            'error_severity': '',
-            'value_impact': ''
-        }
-        
-        collector_notes = data.get('collector_notes', '')
-        fun_fact = data.get('fun_fact', '')
+        # Handle Claude's nested structure (detailed collectible attributes)
+        if ai_provider == 'claude':
+            # Claude returns nested structures
+            historical_context_dict = data.get('historical_context', {})
+            market_analysis_dict = data.get('market_analysis', {})
+            errors_dict = data.get('errors_variations', {})
+            
+            historical_context = {
+                'release_year': historical_context_dict.get('release_year'),
+                'backstory': historical_context_dict.get('backstory', ''),
+                'significance': historical_context_dict.get('significance', ''),
+                'rarity_context': historical_context_dict.get('rarity_context', '')
+            }
+            
+            value_context = {
+                'current_market_value_low': market_analysis_dict.get('current_market_value_low'),
+                'current_market_value_high': market_analysis_dict.get('current_market_value_high'),
+                'estimated_value': market_analysis_dict.get('estimated_value'),
+                'market_trend': market_analysis_dict.get('market_trend', ''),
+                'demand_level': market_analysis_dict.get('demand_level', ''),
+                'value_factors': market_analysis_dict.get('value_factors', [])
+            }
+            
+            known_errors = {
+                'present': errors_dict.get('present', False),
+                'error_type': errors_dict.get('error_type', ''),
+                'error_description': errors_dict.get('error_description', ''),
+                'error_severity': errors_dict.get('error_severity', ''),
+                'value_impact': errors_dict.get('value_impact', '')
+            }
+            
+            collector_notes = data.get('collector_notes', '')
+            fun_fact = ''  # Claude doesn't provide fun_fact
+        else:
+            # Gemini's flat structure (basic - missing detailed attributes)
+            historical_context = {
+                'release_year': data.get('release_year'),
+                'backstory': data.get('backstory', ''),
+                'significance': data.get('significance', ''),
+                'rarity_context': data.get('rarity_context', '')
+            }
+            
+            value_context = {
+                'current_market_value_low': data.get('current_market_value_low'),
+                'current_market_value_high': data.get('current_market_value_high'),
+                'estimated_value': data.get('estimated_value'),
+                'market_trend': data.get('market_trend', ''),
+                'demand_level': data.get('demand_level', ''),
+                'value_factors': data.get('value_factors', [])
+            }
+            
+            known_errors = {
+                'present': bool(data.get('errors_variations')),
+                'error_type': '',
+                'error_description': str(data.get('errors_variations', '')),
+                'error_severity': '',
+                'value_impact': ''
+            }
+            
+            collector_notes = data.get('collector_notes', '')
+            fun_fact = data.get('fun_fact', '')
 
         # Create artifact record (automatic, no user choice - GUARANTEED)
         artifact_id = db.create_or_update_artifact(

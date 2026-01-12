@@ -642,13 +642,43 @@ VALID_MARKETPLATFORMS = [
     "facebook", "tiktok_shop", "woocommerce", "nextdoor", "varagesale",
     "ruby_lane", "ecrater", "bonanza", "kijiji", "personal_website",
     "grailed", "vinted", "mercado_libre", "tradesy", "vestiaire",
-    "rebag", "thredup", "poshmark_ca", "other"
+    "rebag", "thredup", "poshmark_ca", "mercari", "ebay", "pinterest",
+    "square", "rubylane", "other"
 ]
+
+
+@main_bp.route("/api/settings/platform-credentials", methods=["POST"])
+@login_required
+def save_platform_credentials():
+    """Save platform credentials - supports API keys, OAuth tokens, and email/password"""
+    try:
+        data = request.json
+        platform = data.get("platform", "").lower()
+        cred_type = data.get("type", "email_password")
+        credentials = data.get("credentials", {})
+
+        if platform not in VALID_MARKETPLATFORMS:
+            return jsonify({"error": "Invalid platform"}), 400
+        if not credentials:
+            return jsonify({"error": "Credentials required"}), 400
+
+        # Store credentials as JSON
+        db.save_marketplace_credentials(
+            current_user.id,
+            platform,
+            cred_type,
+            json.dumps(credentials)
+        )
+        return jsonify({"success": True})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @main_bp.route("/api/settings/marketplace-credentials", methods=["POST"])
 @login_required
 def save_marketplace_credentials():
+    """Legacy endpoint for backward compatibility"""
     try:
         data = request.json
         platform = data.get("platform", "").lower()
@@ -665,6 +695,31 @@ def save_marketplace_credentials():
         )
         return jsonify({"success": True})
 
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/settings/platform-credentials", methods=["GET"])
+@login_required
+def get_all_platform_credentials():
+    """Retrieve all platform credentials for current user"""
+    try:
+        # Get all marketplace credentials
+        cursor = db._get_cursor()
+        cursor.execute("""
+            SELECT platform, username FROM marketplace_credentials
+            WHERE user_id = %s
+        """, (current_user.id,))
+
+        credentials = {}
+        for row in cursor.fetchall():
+            credentials[row['platform']] = {
+                'username': row['username'],
+                'configured': True
+            }
+
+        cursor.close()
+        return jsonify({"success": True, "credentials": credentials})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

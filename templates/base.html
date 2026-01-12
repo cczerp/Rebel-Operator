@@ -1383,6 +1383,42 @@
     </div>
 </div>
 
+<!-- Account Modal -->
+<div class="modal fade" id="accountModal" tabindex="-1" aria-labelledby="accountModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-bottom">
+        <div class="modal-content" style="background: var(--carbon-matte); border: 2px solid var(--alert-crimson); border-radius: 20px 20px 0 0;">
+            <div class="modal-header" style="border-bottom: 2px solid var(--cold-steel-dark);">
+                <h5 class="modal-title" id="accountModalLabel">
+                    <i class="fas fa-user-circle" style="color: var(--alert-crimson);"></i> Account
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <a href="{{ url_for('settings') }}" class="text-decoration-none">
+                            <div class="inventory-menu-item">
+                                <i class="fas fa-cog fa-3x mb-2" style="color: var(--cold-steel-light);"></i>
+                                <h6>Settings</h6>
+                                <small class="text-muted">Manage platforms<br>& credentials</small>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-12">
+                        <a href="{{ url_for('auth.logout') }}" class="text-decoration-none">
+                            <div class="inventory-menu-item" style="border-color: var(--alert-crimson);">
+                                <i class="fas fa-sign-out-alt fa-3x mb-2" style="color: var(--alert-crimson);"></i>
+                                <h6 style="color: var(--alert-crimson);">Logout</h6>
+                                <small class="text-muted">Sign out of<br>your account</small>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
 .modal-dialog-bottom {
     position: fixed;
@@ -1473,9 +1509,9 @@
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('auth.logout') }}" class="nav-link" style="color: #8B0000 !important;">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>Logout</span>
+            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#accountModal">
+                <i class="fas fa-user-circle"></i>
+                <span>Account</span>
             </a>
         </div>
     </div>

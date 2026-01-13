@@ -5,7 +5,7 @@ load_dotenv()
 
 class Config:
     """
-    Configuration for ResellGenie application.
+    Configuration for Rebel Operator application.
 
     NOTE: This file previously contained password-based credentials for
     browser automation, which has been removed for TOS compliance.

@@ -43,7 +43,7 @@
             /* Neutral Grays */
             --off-white: #F5F5F5;
             --off-white-text: #E0E0E0;
-            --text-muted: #9E9E9E;
+            --text-muted: #4A5568; /* Steel grey instead of generic grey */
 
             /* Mapped to standard Bootstrap names for compatibility */
             --primary: #8B0000;
@@ -303,33 +303,33 @@
         }
         
         .btn-success {
-            background: #4CAF50;
-            border-color: #4CAF50;
+            background: var(--alert-crimson); /* Red instead of green */
+            border-color: var(--alert-crimson);
             color: white;
             font-weight: 700;
-            box-shadow: 0 4px 8px rgba(76, 175, 80, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 8px rgba(139, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
         }
         
         .btn-success:hover:not(:disabled) {
-            background: #45a049;
-            border-color: #45a049;
+            background: var(--alert-crimson-dark); /* Darker red */
+            border-color: var(--alert-crimson-dark);
             color: white;
-            box-shadow: 0 6px 12px rgba(76, 175, 80, 0.5), 0 3px 6px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 6px 12px rgba(139, 0, 0, 0.5), 0 3px 6px rgba(0, 0, 0, 0.4);
         }
         
         .btn-warning {
-            background: #FF9800;
-            border-color: #FF9800;
+            background: var(--cold-steel); /* Steel grey instead of orange */
+            border-color: var(--cold-steel);
             color: white;
             font-weight: 700;
-            box-shadow: 0 4px 8px rgba(255, 152, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 8px rgba(74, 85, 104, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
         }
         
         .btn-warning:hover:not(:disabled) {
-            background: #F57C00;
-            border-color: #F57C00;
+            background: var(--cold-steel-dark); /* Darker steel grey */
+            border-color: var(--cold-steel-dark);
             color: white;
-            box-shadow: 0 6px 12px rgba(255, 152, 0, 0.5), 0 3px 6px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 6px 12px rgba(74, 85, 104, 0.5), 0 3px 6px rgba(0, 0, 0, 0.4);
         }
         
         .btn-outline-danger {
@@ -348,33 +348,33 @@
         }
         
         .btn-outline-success {
-            border: 2px solid #4CAF50;
-            color: #81C784;
-            background: rgba(76, 175, 80, 0.15);
+            border: 2px solid var(--alert-crimson); /* Red instead of green */
+            color: var(--alert-crimson-light); /* Light red */
+            background: rgba(139, 0, 0, 0.15);
             font-weight: 700;
-            box-shadow: 0 3px 6px rgba(76, 175, 80, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 3px 6px rgba(139, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
         }
         
         .btn-outline-success:hover:not(:disabled) {
-            background: #4CAF50;
-            border-color: #4CAF50;
+            background: var(--alert-crimson);
+            border-color: var(--alert-crimson);
             color: white;
-            box-shadow: 0 6px 12px rgba(76, 175, 80, 0.5), 0 3px 6px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 6px 12px rgba(139, 0, 0, 0.5), 0 3px 6px rgba(0, 0, 0, 0.4);
         }
         
         .btn-outline-warning {
-            border: 2px solid #FF9800;
-            color: #FFB74D;
-            background: rgba(255, 152, 0, 0.15);
+            border: 2px solid var(--cold-steel); /* Steel grey instead of orange */
+            color: var(--cold-steel-light); /* Light steel grey */
+            background: rgba(74, 85, 104, 0.15);
             font-weight: 700;
-            box-shadow: 0 3px 6px rgba(255, 152, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 3px 6px rgba(74, 85, 104, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
         }
         
         .btn-outline-warning:hover:not(:disabled) {
-            background: #FF9800;
-            border-color: #FF9800;
+            background: var(--cold-steel);
+            border-color: var(--cold-steel);
             color: white;
-            box-shadow: 0 6px 12px rgba(255, 152, 0, 0.5), 0 3px 6px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 6px 12px rgba(74, 85, 104, 0.5), 0 3px 6px rgba(0, 0, 0, 0.4);
         }
         
         .btn-outline-info {
@@ -527,6 +527,23 @@
             color: var(--text-muted) !important;
         }
         
+        /* Override Bootstrap text colors to match color scheme */
+        .text-info {
+            color: var(--cold-steel) !important; /* Steel grey instead of blue */
+        }
+        
+        .text-success {
+            color: var(--alert-crimson) !important; /* Red instead of green */
+        }
+        
+        .text-warning {
+            color: var(--cold-steel) !important; /* Steel grey instead of orange */
+        }
+        
+        .text-danger {
+            color: var(--alert-crimson) !important; /* Red (already correct, but ensuring consistency) */
+        }
+        
         /* Alerts - Industrial Theme */
         .alert {
             border: 1px solid var(--cold-steel-dark);
@@ -534,9 +551,9 @@
         }
         
         .alert-success {
-            background: rgba(76, 175, 80, 0.15);
-            border-color: #4CAF50;
-            color: #81C784;
+            background: rgba(139, 0, 0, 0.15); /* Red instead of green */
+            border-color: var(--alert-crimson);
+            color: var(--alert-crimson-light); /* Light red */
         }
         
         .alert-danger {
@@ -546,9 +563,9 @@
         }
         
         .alert-warning {
-            background: rgba(255, 152, 0, 0.15);
-            border-color: #FF9800;
-            color: #FFB74D;
+            background: rgba(74, 85, 104, 0.15); /* Steel grey instead of orange */
+            border-color: var(--cold-steel);
+            color: var(--cold-steel-light); /* Light steel grey */
         }
         
         .alert-info {
@@ -575,11 +592,11 @@
         }
         
         .badge.bg-success {
-            background: #4CAF50 !important;
+            background: var(--alert-crimson) !important; /* Red instead of green */
         }
         
         .badge.bg-warning {
-            background: #FF9800 !important;
+            background: var(--cold-steel) !important; /* Steel grey instead of orange */
         }
         
         .badge.bg-danger {
@@ -587,7 +604,24 @@
         }
         
         .badge.bg-info {
-            background: var(--cold-steel-accent) !important;
+            background: var(--cold-steel) !important; /* Steel grey */
+        }
+        
+        /* Override Bootstrap background colors */
+        .bg-info {
+            background-color: var(--cold-steel) !important; /* Steel grey instead of blue */
+        }
+        
+        .bg-success {
+            background-color: var(--alert-crimson) !important; /* Red instead of green */
+        }
+        
+        .bg-warning {
+            background-color: var(--cold-steel) !important; /* Steel grey instead of orange */
+        }
+        
+        .bg-warning.text-dark {
+            color: var(--off-white-text) !important; /* White text on steel grey background */
         }
 
         @media (max-width: 768px) {
@@ -826,7 +860,7 @@
         }
 
         .feature-icon.warning {
-            background: linear-gradient(135deg, #F59E0B 0%, #EF4444 100%);
+            background: linear-gradient(135deg, var(--alert-crimson) 0%, var(--cold-steel) 100%); /* Red to steel grey */
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -843,11 +877,11 @@
             font-size: 1.4rem;
             font-weight: 700;
             margin-bottom: 15px;
-            color: #1f2937;
+            color: var(--carbon-matte); /* Charcoal black instead of dark grey */
         }
 
         .feature-text {
-            color: #6b7280;
+            color: var(--cold-steel); /* Steel grey instead of generic grey */
             font-size: 1rem;
             line-height: 1.6;
         }
@@ -902,12 +936,12 @@
 
         .section-subtitle {
             font-size: 1.2rem;
-            color: #6b7280;
+            color: var(--cold-steel); /* Steel grey instead of generic grey */
             margin-bottom: 0;
         }
 
         .section-dark .section-subtitle {
-            color: #d1d5db;
+            color: var(--off-white-text); /* Off-white instead of light grey */
         }
 
         /* Step Cards - How It Works */
@@ -967,11 +1001,11 @@
             font-size: 1.3rem;
             font-weight: 700;
             margin-bottom: 12px;
-            color: #1f2937;
+            color: var(--carbon-matte); /* Charcoal black instead of dark grey */
         }
 
         .step-text {
-            color: #6b7280;
+            color: var(--cold-steel); /* Steel grey instead of generic grey */
             font-size: 1rem;
         }
 
@@ -1003,7 +1037,7 @@
         }
 
         .rating-stars {
-            color: #FFD700;
+            color: var(--alert-crimson); /* Red instead of gold */
             font-size: 2.5rem;
             margin-bottom: 15px;
             filter: drop-shadow(0 5px 15px rgba(255, 215, 0, 0.5));
@@ -1026,7 +1060,7 @@
 
         .rating-text {
             font-size: 1.1rem;
-            color: #6b7280;
+            color: var(--cold-steel); /* Steel grey instead of generic grey */
         }
 
         /* Storage Tips */
@@ -1053,11 +1087,11 @@
             font-size: 1.2rem;
             font-weight: 700;
             margin-bottom: 10px;
-            color: #1f2937;
+            color: var(--carbon-matte); /* Charcoal black instead of dark grey */
         }
 
         .tip-text {
-            color: #6b7280;
+            color: var(--cold-steel); /* Steel grey instead of generic grey */
             font-size: 0.95rem;
         }
 

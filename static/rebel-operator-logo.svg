@@ -1,125 +1,134 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
   <defs>
-    <!-- Crimson to Black gradient for brain outline -->
-    <linearGradient id="brainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#C41E3A;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#000000;stop-opacity:1" />
+    <!-- Black background -->
+    <rect id="bg" width="800" height="600" fill="#000000"/>
+    
+    <!-- Red color for skull and text -->
+    <linearGradient id="redGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#DC143C;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8B0000;stop-opacity:1" />
     </linearGradient>
-
-    <!-- Navy steel accent gradient -->
-    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#334E68;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#415A77;stop-opacity:1" />
-    </linearGradient>
-
-    <!-- Crimson glow filter for edgy effect -->
-    <filter id="redGlow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
-      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0.769  0 0 0 0 0.118  0 0 0 0 0.227  0 0 0 1 0" result="glow"/>
-      <feMerge>
-        <feMergeNode in="glow"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
+    
+    <!-- Distressed texture filter -->
+    <filter id="distress" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence baseFrequency="0.9" numOctaves="3" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="2"/>
     </filter>
   </defs>
-
-  <!-- Background circle (optional, subtle) -->
-  <circle cx="250" cy="250" r="220" fill="none" stroke="url(#accentGrad)" stroke-width="2" opacity="0.2"/>
-
-  <!-- Stylized Brain Shape -->
-  <g id="brain" transform="translate(250, 250)" filter="url(#redGlow)">
-    <!-- Left hemisphere -->
-    <path d="M -80,-60
-             Q -120,-50 -120,-10
-             Q -120,20 -100,45
-             Q -80,65 -50,70
-             Q -30,73 -10,70
-             L -10,50
-             Q -15,30 -25,15
-             Q -35,0 -40,-15
-             Q -43,-25 -42,-35
-             Q -40,-50 -50,-58
-             Q -60,-63 -80,-60 Z"
-          fill="#000000" stroke="#C41E3A" stroke-width="3"/>
-
-    <!-- Left hemisphere details (folds) -->
-    <path d="M -70,-40 Q -90,-35 -95,-15" fill="none" stroke="#C41E3A" stroke-width="2.5" stroke-linecap="round"/>
-    <path d="M -85,-20 Q -100,0 -95,20" fill="none" stroke="#C41E3A" stroke-width="2.5" stroke-linecap="round"/>
-    <path d="M -75,10 Q -85,25 -80,40" fill="none" stroke="#C41E3A" stroke-width="2.5" stroke-linecap="round"/>
-    <path d="M -55,25 Q -65,40 -60,55" fill="none" stroke="#334E68" stroke-width="2" stroke-linecap="round"/>
-    <path d="M -40,5 Q -50,20 -45,35" fill="none" stroke="#334E68" stroke-width="2" stroke-linecap="round"/>
-
-    <!-- Right hemisphere -->
-    <path d="M 80,-60
-             Q 120,-50 120,-10
-             Q 120,20 100,45
-             Q 80,65 50,70
-             Q 30,73 10,70
-             L 10,50
-             Q 15,30 25,15
-             Q 35,0 40,-15
-             Q 43,-25 42,-35
-             Q 40,-50 50,-58
-             Q 60,-63 80,-60 Z"
-          fill="#000000" stroke="#C41E3A" stroke-width="3"/>
-
-    <!-- Right hemisphere details (folds) -->
-    <path d="M 70,-40 Q 90,-35 95,-15" fill="none" stroke="#C41E3A" stroke-width="2.5" stroke-linecap="round"/>
-    <path d="M 85,-20 Q 100,0 95,20" fill="none" stroke="#C41E3A" stroke-width="2.5" stroke-linecap="round"/>
-    <path d="M 75,10 Q 85,25 80,40" fill="none" stroke="#C41E3A" stroke-width="2.5" stroke-linecap="round"/>
-    <path d="M 55,25 Q 65,40 60,55" fill="none" stroke="#334E68" stroke-width="2" stroke-linecap="round"/>
-    <path d="M 40,5 Q 50,20 45,35" fill="none" stroke="#334E68" stroke-width="2" stroke-linecap="round"/>
-
-    <!-- Corpus callosum (center connection) with navy steel accent -->
-    <ellipse cx="0" cy="20" rx="15" ry="45" fill="url(#accentGrad)" opacity="0.8"/>
-    <path d="M -8,0 Q 0,-5 8,0" fill="none" stroke="#334E68" stroke-width="2.5" stroke-linecap="round"/>
-    <path d="M -10,15 Q 0,10 10,15" fill="none" stroke="#334E68" stroke-width="2.5" stroke-linecap="round"/>
-    <path d="M -10,30 Q 0,25 10,30" fill="none" stroke="#334E68" stroke-width="2.5" stroke-linecap="round"/>
-
-    <!-- Brain stem -->
-    <path d="M -15,70 L -15,95 Q -15,105 0,105 Q 15,105 15,95 L 15,70"
-          fill="url(#brainGrad)" stroke="#000000" stroke-width="2"/>
-
-    <!-- Lightning bolt accent (rebellious element) -->
-    <path d="M 50,-70 L 30,-40 L 45,-40 L 25,-10"
-          fill="none" stroke="#C41E3A" stroke-width="4"
-          stroke-linecap="round" stroke-linejoin="round"
-          opacity="0.9"/>
-
-    <!-- Star burst accent (edgy detail) -->
-    <g transform="translate(-55, -70)" opacity="0.8">
-      <path d="M 0,-8 L 2,-2 L 8,0 L 2,2 L 0,8 L -2,2 L -8,0 L -2,-2 Z"
-            fill="#334E68"/>
-    </g>
+  
+  <!-- Black background -->
+  <use href="#bg"/>
+  
+  <!-- Red Skull in Profile (facing right) -->
+  <g id="skull" transform="translate(400, 200)" filter="url(#distress)">
+    <!-- Skull outline -->
+    <path d="M -80,-40
+             Q -100,-50 -110,-30
+             Q -115,-15 -110,0
+             Q -108,15 -100,30
+             Q -90,50 -75,65
+             Q -60,80 -40,90
+             Q -20,95 0,95
+             Q 20,95 40,90
+             Q 60,80 75,65
+             Q 90,50 100,30
+             Q 108,15 110,0
+             Q 115,-15 110,-30
+             Q 100,-50 80,-40
+             Z"
+          fill="url(#redGrad)" stroke="#000000" stroke-width="2"/>
+    
+    <!-- Eye socket (left) -->
+    <ellipse cx="-35" cy="5" rx="18" ry="25" fill="#000000"/>
+    <ellipse cx="-35" cy="5" rx="12" ry="18" fill="#1a0000"/>
+    
+    <!-- Eye socket (right) -->
+    <ellipse cx="35" cy="5" rx="18" ry="25" fill="#000000"/>
+    <ellipse cx="35" cy="5" rx="12" ry="18" fill="#1a0000"/>
+    
+    <!-- Nasal cavity -->
+    <path d="M -5,25
+             Q 0,35 5,25
+             Q 0,30 0,40
+             Q -2,45 -5,40
+             Q -2,35 -5,25 Z"
+          fill="#000000"/>
+    
+    <!-- Jaw with teeth -->
+    <path d="M -60,65
+             Q -40,75 -20,78
+             Q 0,80 20,78
+             Q 40,75 60,65
+             Q 65,70 60,75
+             Q 40,85 20,88
+             Q 0,90 -20,88
+             Q -40,85 -60,75
+             Q -65,70 -60,65 Z"
+          fill="url(#redGrad)" stroke="#000000" stroke-width="2"/>
+    
+    <!-- Teeth -->
+    <rect x="-50" y="68" width="8" height="12" fill="#000000" rx="2"/>
+    <rect x="-35" y="70" width="8" height="10" fill="#000000" rx="2"/>
+    <rect x="-20" y="72" width="8" height="8" fill="#000000" rx="2"/>
+    <rect x="-5" y="72" width="8" height="8" fill="#000000" rx="2"/>
+    <rect x="10" y="72" width="8" height="8" fill="#000000" rx="2"/>
+    <rect x="25" y="70" width="8" height="10" fill="#000000" rx="2"/>
+    <rect x="40" y="68" width="8" height="12" fill="#000000" rx="2"/>
+    
+    <!-- Skull details/cracks -->
+    <path d="M -50,-20 Q -45,-10 -40,-5" fill="none" stroke="#000000" stroke-width="1.5" opacity="0.6"/>
+    <path d="M 50,-20 Q 45,-10 40,-5" fill="none" stroke="#000000" stroke-width="1.5" opacity="0.6"/>
+    <path d="M -30,40 Q -20,50 -10,55" fill="none" stroke="#000000" stroke-width="1" opacity="0.5"/>
+    <path d="M 30,40 Q 20,50 10,55" fill="none" stroke="#000000" stroke-width="1" opacity="0.5"/>
   </g>
-
-  <!-- Text: REBEL OPERATOR -->
-  <g id="text" transform="translate(250, 420)">
+  
+  <!-- Punk Rock Mohawk -->
+  <g id="mohawk" transform="translate(400, 200)" filter="url(#distress)">
+    <!-- Mohawk spikes -->
+    <path d="M -20,-50
+             L -10,-80
+             L -5,-75
+             L 0,-85
+             L 5,-75
+             L 10,-80
+             L 20,-50 Z"
+          fill="url(#redGrad)" stroke="#000000" stroke-width="2"/>
+    
+    <path d="M -15,-50
+             L -8,-75
+             L -3,-70
+             L 2,-78
+             L 7,-70
+             L 12,-75
+             L 15,-50 Z"
+          fill="url(#redGrad)" stroke="#000000" stroke-width="2"/>
+    
+    <!-- Additional mohawk spikes -->
+    <path d="M -25,-45
+             L -18,-70
+             L -13,-65
+             L -8,-72
+             L -3,-65
+             L 2,-70
+             L 7,-65
+             L 12,-72
+             L 17,-65
+             L 22,-70
+             L 25,-45 Z"
+          fill="url(#redGrad)" stroke="#000000" stroke-width="2"/>
+  </g>
+  
+  <!-- Text: SELL SMARTER, NOT HARDER -->
+  <g id="text" transform="translate(400, 450)">
     <text x="0" y="0"
-          font-family="Arial Black, Arial, sans-serif"
-          font-size="52"
+          font-family="Arial Black, Impact, sans-serif"
+          font-size="48"
           font-weight="900"
           text-anchor="middle"
-          letter-spacing="2">
-      <tspan fill="#000000">REBEL</tspan>
-      <tspan fill="#C41E3A" dx="8">OPERATOR</tspan>
-    </text>
-
-    <!-- Tagline -->
-    <text x="0" y="25"
-          font-family="Arial, sans-serif"
-          font-size="14"
-          font-weight="600"
-          text-anchor="middle"
-          letter-spacing="3"
-          fill="#334E68">
-      SMART SELLING • BOLD MOVES
+          letter-spacing="4"
+          fill="url(#redGrad)"
+          filter="url(#distress)">
+      SELL SMARTER, NOT HARDER
     </text>
   </g>
-
-  <!-- Decorative elements (subtle rebel touches) -->
-  <circle cx="140" cy="180" r="3" fill="#C41E3A" opacity="0.6"/>
-  <circle cx="360" cy="170" r="3" fill="#334E68" opacity="0.6"/>
-  <circle cx="150" cy="340" r="2.5" fill="#C41E3A" opacity="0.5"/>
-  <circle cx="350" cy="335" r="2.5" fill="#334E68" opacity="0.5"/>
 </svg>

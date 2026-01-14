@@ -202,6 +202,9 @@ def listings():
         """, (current_user.id,))
         user_listings = [dict(row) for row in cursor.fetchall()]
         return render_template('listings.html', listings=user_listings)
+    except Exception as e:
+        flash(f'Error loading listings: {str(e)}', 'error')
+        return render_template('listings.html', listings=[])
     finally:
         if cursor:
             try:
@@ -219,34 +222,54 @@ def notifications():
 @login_required
 def storage():
     """Storage overview"""
-    storage_map = db.get_storage_map(current_user.id)
-    return render_template('storage.html', storage_map=storage_map)
+    try:
+        storage_map = db.get_storage_map(current_user.id)
+        return render_template('storage.html', storage_map=storage_map)
+    except Exception as e:
+        flash(f'Error loading storage overview: {str(e)}', 'error')
+        return render_template('storage.html', storage_map={})
 
 @app.route('/storage/clothing')
 @login_required
 def storage_clothing():
     """Clothing storage"""
-    bins = db.get_storage_bins(current_user.id, bin_type='clothing')
-    return render_template('storage_clothing.html', bins=bins)
+    try:
+        bins = db.get_storage_bins(current_user.id, bin_type='clothing')
+        return render_template('storage_clothing.html', bins=bins)
+    except Exception as e:
+        flash(f'Error loading clothing storage: {str(e)}', 'error')
+        return render_template('storage_clothing.html', bins=[])
 
 @app.route('/storage/cards')
 @login_required
 def storage_cards():
     """Card storage"""
-    bins = db.get_storage_bins(current_user.id, bin_type='cards')
-    return render_template('storage_cards.html', bins=bins)
+    try:
+        bins = db.get_storage_bins(current_user.id, bin_type='cards')
+        return render_template('storage_cards.html', bins=bins)
+    except Exception as e:
+        flash(f'Error loading card storage: {str(e)}', 'error')
+        return render_template('storage_cards.html', bins=[])
 
 @app.route('/storage/map')
 @login_required
 def storage_map():
     """Storage map"""
-    return render_template('storage_map.html')
+    try:
+        return render_template('storage_map.html')
+    except Exception as e:
+        flash(f'Error loading storage map: {str(e)}', 'error')
+        return render_template('storage_map.html')
 
 @app.route('/storage/instructions')
 @login_required
 def storage_instructions():
     """Storage organization instructions and guide"""
-    return render_template('storage_instructions.html')
+    try:
+        return render_template('storage_instructions.html')
+    except Exception as e:
+        flash(f'Error loading storage instructions: {str(e)}', 'error')
+        return render_template('storage_instructions.html')
 
 @app.route('/settings')
 @login_required
@@ -269,14 +292,32 @@ def vault():
 @app.route('/hall-of-records')
 def hall_of_records():
     """Hall of Records - Browse all public artifacts"""
-    artifacts = db.get_all_artifacts(limit=100)
-    return render_template('hall_of_records.html', artifacts=artifacts)
+    try:
+        artifacts = db.get_all_artifacts(limit=100)
+        return render_template('hall_of_records.html', artifacts=artifacts)
+    except Exception as e:
+        flash(f'Error loading hall of records: {str(e)}', 'error')
+        return render_template('hall_of_records.html', artifacts=[])
 
 @app.route('/post-listing')
 @login_required
 def post_listing_page():
     """Post Listing page"""
     return render_template('post-listing.html')
+
+# ============================================================================
+# ERROR HANDLERS
+# ============================================================================
+
+@app.errorhandler(404)
+def page_not_found(error):
+    """Handle 404 errors with custom page"""
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_server_error(error):
+    """Handle 500 errors with custom page"""
+    return render_template('500.html'), 500
 
 # ============================================================================
 # RUN SERVER

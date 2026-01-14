@@ -48,7 +48,7 @@ class Database:
                 except:
                     pass
 
-            print("🐘 Connecting to PostgreSQL database...")
+            print("[INFO] Connecting to PostgreSQL database...")
 
             # Check if using Supabase pooler (don't use keepalives with pooler)
             is_supabase_pooler = 'pooler.supabase.com' in self.database_url
@@ -82,7 +82,7 @@ class Database:
             self.conn.autocommit = False
 
         except Exception as e:
-            print(f"❌ Failed to connect to PostgreSQL: {e}")
+            print(f"[ERROR] Failed to connect to PostgreSQL: {e}")
             raise
 
     def _ensure_connection(self):
@@ -90,7 +90,7 @@ class Database:
         try:
             # Test if connection is alive
             if self.conn is None or self.conn.closed:
-                print("⚠️  Connection lost, reconnecting...")
+                print("[WARNING] Connection lost, reconnecting...")
                 self._connect()
                 return
 
@@ -107,7 +107,7 @@ class Database:
                         pass
 
         except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
-            print(f"⚠️  Connection error detected: {e}, reconnecting...")
+            print(f"[WARNING] Connection error detected: {e}, reconnecting...")
             self._connect()
 
     def _get_cursor(self):
@@ -345,7 +345,7 @@ class Database:
                 """)
                 self.conn.commit()
         except Exception as e:
-            print(f"⚠️  Tier column migration skipped: {e}")
+            print(f"[WARNING] Tier column migration skipped: {e}")
             self.conn.rollback()
 
         # Storage bins - for physical organization
@@ -710,7 +710,7 @@ class Database:
         """)
 
         self.conn.commit()
-        print("✅ PostgreSQL tables created successfully")
+        print("[SUCCESS] PostgreSQL tables created successfully")
 
     # ========================================================================
     # COLLECTIBLES METHODS
@@ -2797,7 +2797,7 @@ class Database:
                 True   # email_verified
             ))
             self.conn.commit()
-            print("✅ Admin user (lyakGodzilla) created")
+            print("[SUCCESS] Admin user (lyakGodzilla) created")
         
         # Tier 3 user (friend)
         cursor.execute("SELECT id FROM users WHERE username = %s", ("ResellRage",))
@@ -2818,7 +2818,7 @@ class Database:
                 True    # email_verified
             ))
             self.conn.commit()
-            print("✅ Tier 3 user (ResellRage) created")
+            print("[SUCCESS] Tier 3 user (ResellRage) created")
 
     def close(self):
         """Close database connection"""

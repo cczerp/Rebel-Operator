@@ -1294,9 +1294,59 @@
             transform: scale(1.1);
         }
 
+        /* Floating Theme Toggle Button */
+        .theme-toggle-floating {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 2px solid var(--border-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            z-index: 1050;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px var(--shadow-primary);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .theme-toggle-floating:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 8px 20px var(--shadow-secondary);
+            border-color: var(--alert-crimson);
+        }
+
+        .theme-toggle-floating:active {
+            transform: translateY(0) scale(0.98);
+        }
+
+        .theme-toggle-floating i {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            filter: drop-shadow(0 1px 2px var(--shadow-primary));
+        }
+
         /* Light theme indicator - change moon to sun */
+        [data-theme="light"] .theme-toggle-floating i.fas.fa-moon:before,
         [data-theme="light"] .theme-toggle-btn i.fas.fa-moon:before {
             content: "\f185"; /* sun icon */
+        }
+
+        /* Mobile adjustments */
+        @media (max-width: 576px) {
+            .theme-toggle-floating {
+                top: 15px;
+                right: 15px;
+                width: 45px;
+                height: 45px;
+                font-size: 16px;
+            }
         }
     </style>
 
@@ -1321,6 +1371,11 @@
         </small>
     </div>
     {% endif %}
+
+    <!-- Theme Toggle Floating Button -->
+    <button id="theme-toggle-floating" class="theme-toggle-floating" title="Toggle Dark/Light Mode" aria-label="Toggle theme">
+        <i class="fas fa-moon"></i>
+    </button>
 
     <!-- Main Content -->
     <div class="container py-3">
@@ -1512,20 +1567,34 @@
 
         // Theme Toggle Functionality
         function initThemeToggle() {
-            const themeToggle = document.getElementById('theme-toggle') || document.getElementById('theme-toggle-guest');
-            if (!themeToggle) return;
+            // Handle both floating button and navigation buttons
+            const themeToggleFloating = document.getElementById('theme-toggle-floating');
+            const themeToggleNav = document.getElementById('theme-toggle') || document.getElementById('theme-toggle-guest');
 
             // Get saved theme or default to dark
             const savedTheme = localStorage.getItem('theme') || 'dark';
             setTheme(savedTheme);
 
-            // Toggle theme on button click
-            themeToggle.addEventListener('click', () => {
-                const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-                setTheme(newTheme);
-                localStorage.setItem('theme', newTheme);
-            });
+            // Toggle theme on floating button click
+            if (themeToggleFloating) {
+                themeToggleFloating.addEventListener('click', () => {
+                    toggleTheme();
+                });
+            }
+
+            // Toggle theme on navigation button click
+            if (themeToggleNav) {
+                themeToggleNav.addEventListener('click', () => {
+                    toggleTheme();
+                });
+            }
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            setTheme(newTheme);
+            localStorage.setItem('theme', newTheme);
         }
 
         function setTheme(theme) {

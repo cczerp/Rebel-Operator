@@ -22,7 +22,7 @@ Visit: https://console.cloud.google.com/apis/credentials
 
 ### 1.2 Create or Select Project
 - Click "Select a project" → "New Project"
-- Name it: `ResellGenie` or similar
+- Name it: `Rebel Operator` or similar
 - Click "Create"
 
 ### 1.3 Enable Google Sign-In API
@@ -35,7 +35,7 @@ Visit: https://console.cloud.google.com/apis/credentials
 2. Click "Create Credentials" → "OAuth client ID"
 3. If prompted, configure the OAuth consent screen:
    - **User Type:** External (unless you have Google Workspace)
-   - **App name:** ResellGenie
+   - **App name:** Rebel Operator
    - **User support email:** Your email
    - **Developer contact email:** Your email
    - **Scopes:** Add `email` and `profile` (default)
@@ -43,18 +43,18 @@ Visit: https://console.cloud.google.com/apis/credentials
 
 4. Create OAuth Client ID:
    - **Application type:** Web application
-   - **Name:** ResellGenie Web App
+   - **Name:** Rebel Operator Web App
    - **Authorized JavaScript origins:**
      ```
      http://localhost:5000
      https://yourdomain.com
-     https://resellgenie.onrender.com
+     https://rebel-operator.onrender.com
      ```
    - **Authorized redirect URIs:**
      ```
      http://localhost:5000
      https://yourdomain.com
-     https://resellgenie.onrender.com
+     https://rebel-operator.onrender.com
      ```
    - Click "Create"
 

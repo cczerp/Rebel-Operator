@@ -1463,9 +1463,13 @@
             filter: drop-shadow(0 1px 2px var(--shadow-primary));
         }
 
-        /* Light theme indicator - change moon to sun */
-        [data-theme="light"] .theme-toggle-floating i.fas.fa-moon:before,
-        [data-theme="light"] .theme-toggle-btn i.fas.fa-moon:before {
+        /* Icon changes based on theme */
+        /* Default icon is moon (for light mode) */
+        /* In dark mode, show sun icon (to indicate switching to light) */
+        [data-theme="dark"] .theme-toggle-floating i.fas.fa-moon:before,
+        [data-theme="dark"] .theme-toggle-btn i.fas.fa-moon:before,
+        :root:not([data-theme]) .theme-toggle-floating i.fas.fa-moon:before,
+        :root:not([data-theme]) .theme-toggle-btn i.fas.fa-moon:before {
             content: "\f185"; /* sun icon */
         }
 

@@ -1707,9 +1707,9 @@
         </div>
 
         <div class="nav-item">
-            <a href="#" class="nav-link {% if request.endpoint in ['cards.cards_collection', 'drafts', 'listings', 'storage', 'storage_clothing', 'storage_map'] %}active{% endif %}" data-bs-toggle="modal" data-bs-target="#inventoryModal">
-                <i class="fas fa-boxes"></i>
-                <span>Inventory</span>
+            <a href="{{ url_for('cards.vault_overview') }}" class="nav-link {% if request.endpoint in ['cards.vault_overview', 'cards.vault_cards', 'cards.vault_coins'] %}active{% endif %}">
+                <i class="fas fa-shield-alt"></i>
+                <span>Vault</span>
             </a>
         </div>
 
@@ -1755,17 +1755,17 @@
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('auth.register') }}" class="nav-link">
-                <i class="fas fa-user-plus"></i>
-                <span>Sign Up</span>
-            </a>
-        </div>
-
-        <div class="nav-item">
             <button id="theme-toggle-guest" class="nav-link theme-toggle-btn" title="Toggle Dark/Light Mode">
                 <i class="fas fa-moon"></i>
                 <span>Theme</span>
             </button>
+        </div>
+
+        <div class="nav-item">
+            <a href="{{ url_for('auth.register') }}" class="nav-link">
+                <i class="fas fa-user-plus"></i>
+                <span>Sign Up</span>
+            </a>
         </div>
 
         <div class="nav-item">

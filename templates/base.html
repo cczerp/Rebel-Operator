@@ -1403,9 +1403,16 @@
         }
 
         /* Light theme indicator - change moon to sun */
-        [data-theme="light"] .theme-toggle-floating i.fas.fa-moon:before,
-        [data-theme="light"] .theme-toggle-btn i.fas.fa-moon:before {
-            content: "\f185"; /* sun icon */
+        /* Light theme shows moon icon (click to go dark) */
+        [data-theme="light"] .theme-toggle-floating i.fas,
+        [data-theme="light"] .theme-toggle-btn i.fas {
+            /* Keep moon as is for light theme */
+        }
+
+        /* Dark theme shows sun icon (click to go light) */
+        [data-theme="dark"] .theme-toggle-floating i.fas.fa-moon:before,
+        [data-theme="dark"] .theme-toggle-btn i.fas.fa-moon:before {
+            content: "\f185"; /* sun icon for dark theme */
         }
 
         /* Mobile adjustments */
@@ -1642,9 +1649,9 @@
         </div>
 
         <div class="nav-item">
-            <a href="#" class="nav-link {% if request.endpoint in ['cards.cards_collection', 'drafts', 'listings', 'storage', 'storage_clothing', 'storage_map'] %}active{% endif %}" data-bs-toggle="modal" data-bs-target="#inventoryModal">
-                <i class="fas fa-boxes"></i>
-                <span>Inventory</span>
+            <a href="{{ url_for('cards.vault_overview') }}" class="nav-link {% if request.endpoint in ['cards.vault_overview', 'cards.vault_cards', 'cards.vault_coins'] %}active{% endif %}">
+                <i class="fas fa-shield-alt"></i>
+                <span>Vault</span>
             </a>
         </div>
 
@@ -1690,17 +1697,17 @@
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('auth.register') }}" class="nav-link">
-                <i class="fas fa-user-plus"></i>
-                <span>Sign Up</span>
-            </a>
-        </div>
-
-        <div class="nav-item">
             <button id="theme-toggle-guest" class="nav-link theme-toggle-btn" title="Toggle Dark/Light Mode">
                 <i class="fas fa-moon"></i>
                 <span>Theme</span>
             </button>
+        </div>
+
+        <div class="nav-item">
+            <a href="{{ url_for('auth.register') }}" class="nav-link">
+                <i class="fas fa-user-plus"></i>
+                <span>Sign Up</span>
+            </a>
         </div>
 
         <div class="nav-item">

@@ -1,4 +1,4 @@
-# ResellGenie - Production Deployment Guide
+# Rebel Operator - Production Deployment Guide
 
 **IMPORTANT:** Render's free tier uses ephemeral storage. This guide shows how to set up **persistent storage** for photos and data.
 
@@ -25,8 +25,8 @@ Use **managed services** for persistence:
 ### In Render Dashboard:
 
 1. Click **"New +"** → **"PostgreSQL"**
-2. **Name:** `resellgenie-db`
-3. **Database:** `resellgenie` (or any name)
+2. **Name:** `rebel-operator-db`
+3. **Database:** `rebel-operator` (or any name)
 4. **User:** (auto-generated)
 5. **Region:** Same as your web service
 6. **Plan:** **Free** (good for development)

@@ -8,7 +8,7 @@ Environment Variables:
 - CLOUDINARY_CLOUD_NAME: Your Cloudinary cloud name
 - CLOUDINARY_API_KEY: Your Cloudinary API key
 - CLOUDINARY_API_SECRET: Your Cloudinary API secret
-- CLOUDINARY_FOLDER: Folder name in Cloudinary (default: resellgenie)
+- CLOUDINARY_FOLDER: Folder name in Cloudinary (default: rebel-operator)
 """
 
 import os
@@ -36,7 +36,7 @@ class CloudStorageManager:
                 )
 
                 self.cloudinary = cloudinary
-                self.cloudinary_folder = os.getenv('CLOUDINARY_FOLDER', 'resellgenie')
+                self.cloudinary_folder = os.getenv('CLOUDINARY_FOLDER', 'rebel-operator')
                 print("✅ Cloudinary configured for photo storage")
             except ImportError:
                 print("⚠️  Cloudinary not installed - falling back to local storage")

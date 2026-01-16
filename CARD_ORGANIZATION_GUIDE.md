@@ -2,7 +2,7 @@
 
 ## Overview
 
-ResellGenie provides flexible organization strategies for managing your trading card collection. This guide explains the different organization modes, storage map concepts, and best practices.
+Rebel Operator provides flexible organization strategies for managing your trading card collection. This guide explains the different organization modes, storage map concepts, and best practices.
 
 ---
 
@@ -336,7 +336,7 @@ This gives you room to add related cards later without having to reorganize the 
 
 ### Storage ID Format
 
-ResellGenie uses this format: `{CATEGORY}-{BIN}-{SECTION}-{NUMBER}`
+Rebel Operator uses this format: `{CATEGORY}-{BIN}-{SECTION}-{NUMBER}`
 
 Examples:
 - `FB-A1-12` = Football, Bin A, Section 1, Card #12
@@ -362,11 +362,11 @@ Examples:
 
 ---
 
-## Integration with ResellGenie
+## Integration with Rebel Operator
 
 ### Adding Cards to Collection
 
-When you scan a card in ResellGenie:
+When you scan a card in Rebel Operator:
 
 1. **AI Detection** - Card is automatically identified
 2. **Organization Suggestion** - System suggests storage region based on franchise
@@ -416,7 +416,7 @@ When ready to sell:
 
 ### Step 3: Initial Sort
 
-1. **Scan all cards** in ResellGenie
+1. **Scan all cards** in Rebel Operator
 2. **Let AI organize** by game/franchise
 3. **Review value estimates**
 4. **Sort $20+ cards** into binder
@@ -432,7 +432,7 @@ When ready to sell:
 ### Step 5: Create Sell Queue
 
 - High-demand cards → Box D (Sell-ready)
-- Mark as "Active Listing" in ResellGenie
+- Mark as "Active Listing" in Rebel Operator
 - Storage ID shown when sold
 
 ### Step 6: Maintain System
@@ -535,7 +535,7 @@ Bulk (<$20)
 
 ## Conclusion
 
-The best organization strategy is the one you'll actually maintain. Start simple, iterate as you grow, and use ResellGenie's tools to automate what you can.
+The best organization strategy is the one you'll actually maintain. Start simple, iterate as you grow, and use Rebel Operator's tools to automate what you can.
 
 **Quick Tips:**
 - ✅ Choose ONE primary strategy

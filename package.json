@@ -15,5 +15,24 @@
   },
   "engines": {
     "node": ">=14.0.0"
-  }
+  },
+  "devDependencies": {
+    "playwright": "^1.57.0"
+  },
+  "directories": {
+    "doc": "docs",
+    "example": "examples"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cczerp/Resell-Rebel.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/cczerp/Resell-Rebel/issues"
+  },
+  "homepage": "https://github.com/cczerp/Resell-Rebel#readme"
 }

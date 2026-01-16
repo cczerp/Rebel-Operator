@@ -4,414 +4,169 @@
 
 {% block extra_css %}
 <style>
-.dropdown-menu {
-    max-height: 400px;
-    overflow-y: auto;
-}
-
-.dropdown-item {
-    transition: all 0.2s ease;
-}
-
-.dropdown-item:hover {
-    background: var(--cold-steel) !important;
-    color: white !important;
-    transform: translateX(5px);
-}
-
-.dropdown-item i {
-    width: 20px;
-    margin-right: 8px;
-}
+    .table-responsive {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+    .table th, .table td {
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+    .photo-preview {
+        max-width: 50px;
+        max-height: 50px;
+        object-fit: cover;
+        border-radius: 4px;
+    }
+    .action-buttons .btn {
+        margin-right: 5px;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-folder"></i> Draft Listings</h2>
-    <div class="dropdown">
-        <button class="btn btn-success dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="fas fa-file-export"></i> Export CSV as
+    <div>
+        <button class="btn btn-success" onclick="exportSelectedToCSV()">
+            <i class="fas fa-file-export"></i> Export Selected
         </button>
-        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown" style="background: var(--carbon-matte); border: 2px solid var(--cold-steel-dark);">
-            <li><h6 class="dropdown-header" style="color: var(--off-white-text);">Select Platform</h6></li>
-            <li><hr class="dropdown-divider" style="border-color: var(--cold-steel-dark);"></li>
-            <li><a class="dropdown-item" href="#" onclick="exportToCSV('poshmark'); return false;" style="color: var(--off-white-text);">
-                <i class="fas fa-tag"></i> Poshmark
-            </a></li>
-            <li><a class="dropdown-item" href="#" onclick="exportToCSV('rubylane'); return false;" style="color: var(--off-white-text);">
-                <i class="fas fa-gem"></i> Ruby Lane
-            </a></li>
-            <li><a class="dropdown-item" href="#" onclick="exportToCSV('ecrater'); return false;" style="color: var(--off-white-text);">
-                <i class="fas fa-store"></i> Ecrater
-            </a></li>
-            <li><a class="dropdown-item" href="#" onclick="exportToCSV('bonanza'); return false;" style="color: var(--off-white-text);">
-                <i class="fas fa-shopping-cart"></i> Bonanza
-            </a></li>
-            <li><a class="dropdown-item" href="#" onclick="exportToCSV('google_shopping'); return false;" style="color: var(--off-white-text);">
-                <i class="fab fa-google"></i> Google Shopping
-            </a></li>
-        </ul>
+        <a href="{{ url_for('main.create_listing') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Create Listing
+        </a>
     </div>
 </div>
 
 <div class="alert alert-info mb-3">
     <i class="fas fa-info-circle"></i> <strong>How it works:</strong>
-    Click "Export CSV as" above and select your platform (e.g., Poshmark). Your drafts will be automatically formatted and downloaded as a CSV file ready to upload!
+    Select the drafts you want to export using the checkboxes, then click "Export Selected". A menu will appear to choose the platform, and a formatted CSV will be downloaded.
 </div>
 
 {% if drafts %}
-    {% for draft in drafts %}
-    <div class="card mb-3">
-        <div class="card-body">
-            <h5 class="card-title">{{ draft.title }}</h5>
-
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="text-success fw-bold">${{ "%.2f"|format(draft.price) }}</span>
-                {% if draft.storage_location %}
-                <span class="storage-badge">
-                    <i class="fas fa-map-marker-alt"></i> {{ draft.storage_location }}
-                </span>
-                {% endif %}
-            </div>
-
-            <p class="card-text text-muted small">
-                {% if draft.description %}
-                    {{ draft.description[:100] }}{% if draft.description|length > 100 %}...{% endif %}
-                {% endif %}
-            </p>
-
-            <div class="d-flex justify-content-between align-items-center">
-                <small class="text-muted">
-                    <i class="far fa-clock"></i> {{ draft.created_at }}
-                </small>
-                <div class="btn-group btn-group-sm">
-                    <button class="btn btn-success" onclick="postDraft({{ draft.id }})">
-                        <i class="fas fa-rocket"></i> Post
-                    </button>
-                    <a href="{{ url_for('create_listing', draft_id=draft.id) }}" class="btn btn-outline-primary">
-                        <i class="fas fa-edit"></i> Edit
-                    </a>
-                    <button class="btn btn-outline-danger" onclick="deleteDraft({{ draft.id }})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endfor %}
+<div class="table-responsive">
+    <table class="table table-dark table-hover">
+        <thead>
+            <tr>
+                <th><input class="form-check-input" type="checkbox" id="selectAllCheckbox"></th>
+                <th>Photo</th>
+                <th>Title</th>
+                <th>Price</th>
+                <th>Cost</th>
+                <th>Condition</th>
+                <th>Brand</th>
+                <th>Size</th>
+                <th>Color</th>
+                <th>Created At</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for draft in drafts %}
+            <tr>
+                <td><input class="form-check-input draft-checkbox" type="checkbox" value="{{ draft.id }}"></td>
+                <td>
+                    {% if draft.photos and draft.photos|fromjson|length > 0 %}
+                    <img src="{{ (draft.photos|fromjson)[0] }}" alt="Photo of {{ draft.title }}" class="photo-preview">
+                    {% endif %}
+                </td>
+                <td>{{ draft.title }}</td>
+                <td>${{ "%.2f"|format(draft.price) }}</td>
+                <td>${{ "%.2f"|format(draft.cost) if draft.cost else 'N/A' }}</td>
+                <td>{{ draft.condition }}</td>
+                <td>{{ (draft.attributes|fromjson).brand if draft.attributes else '' }}</td>
+                <td>{{ (draft.attributes|fromjson).size if draft.attributes else '' }}</td>
+                <td>{{ (draft.attributes|fromjson).color if draft.attributes else '' }}</td>
+                <td>{{ draft.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td class="action-buttons">
+                    <a href="{{ url_for('main.create_listing', draft_id=draft.id) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit"></i> Edit</a>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteDraft({{ draft.id }})"><i class="fas fa-trash"></i> Delete</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 {% else %}
-    <div class="text-center py-5">
-        <i class="fas fa-folder-open fa-4x text-muted mb-3"></i>
-        <h5>No Drafts Yet</h5>
-        <p class="text-muted">Create a listing and save it as a draft</p>
-        <a href="{{ url_for('create_listing') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Create Listing
-        </a>
-    </div>
+<div class="text-center py-5">
+    <i class="fas fa-table fa-4x text-muted mb-3"></i>
+    <h5>No Drafts Yet</h5>
+    <p class="text-muted">Your saved drafts will appear here in a spreadsheet format.</p>
+    <a href="{{ url_for('main.create_listing') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Create Listing
+    </a>
+</div>
 {% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function postDraft(id) {
-    // Show platform selection modal
-    let html = '<div class="modal fade" id="postDraftModal" tabindex="-1">';
-    html += '<div class="modal-dialog"><div class="modal-content">';
-    html += '<div class="modal-header bg-success text-white">';
-    html += '<h5 class="modal-title"><i class="fas fa-rocket"></i> Post Listing</h5>';
-    html += '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>';
-    html += '</div><div class="modal-body">';
-    html += '<p>Select platforms to post to:</p>';
-
-    // CSV Platforms
-    html += '<div class="mb-3">';
-    html += '<h6 class="text-muted">CSV Platforms (Manual Upload)</h6>';
-    html += '<div class="form-check">';
-    html += '<input class="form-check-input post-platform" type="checkbox" value="poshmark" id="post_poshmark">';
-    html += '<label class="form-check-label" for="post_poshmark"><i class="fas fa-shopping-bag"></i> Poshmark</label>';
-    html += '</div>';
-    html += '<div class="form-check">';
-    html += '<input class="form-check-input post-platform" type="checkbox" value="rubylane" id="post_rubylane">';
-    html += '<label class="form-check-label" for="post_rubylane"><i class="fas fa-gem"></i> Ruby Lane</label>';
-    html += '</div>';
-    html += '<div class="form-check">';
-    html += '<input class="form-check-input post-platform" type="checkbox" value="threadup" id="post_threadup">';
-    html += '<label class="form-check-label" for="post_threadup"><i class="fas fa-recycle"></i> ThredUp</label>';
-    html += '</div>';
-    html += '<div class="form-check">';
-    html += '<input class="form-check-input post-platform" type="checkbox" value="depop" id="post_depop">';
-    html += '<label class="form-check-label" for="post_depop"><i class="fas fa-tshirt"></i> Depop</label>';
-    html += '</div>';
-    html += '</div>';
-
-    // API Platforms
-    html += '<div class="mb-3">';
-    html += '<h6 class="text-muted">API Platforms (Automated)</h6>';
-    html += '<div class="form-check">';
-    html += '<input class="form-check-input post-platform" type="checkbox" value="etsy" id="post_etsy">';
-    html += '<label class="form-check-label" for="post_etsy"><i class="fas fa-store"></i> Etsy</label>';
-    html += '</div>';
-    html += '<div class="form-check">';
-    html += '<input class="form-check-input post-platform" type="checkbox" value="shopify" id="post_shopify">';
-    html += '<label class="form-check-label" for="post_shopify"><i class="fas fa-shopping-cart"></i> Shopify</label>';
-    html += '</div>';
-    html += '<div class="form-check">';
-    html += '<input class="form-check-input post-platform" type="checkbox" value="woocommerce" id="post_woocommerce">';
-    html += '<label class="form-check-label" for="post_woocommerce"><i class="fas fa-wordpress"></i> WooCommerce</label>';
-    html += '</div>';
-    html += '<div class="form-check">';
-    html += '<input class="form-check-input post-platform" type="checkbox" value="facebook" id="post_facebook">';
-    html += '<label class="form-check-label" for="post_facebook"><i class="fab fa-facebook"></i> Facebook</label>';
-    html += '</div>';
-    html += '</div>';
-
-    html += '<div class="form-check mb-3">';
-    html += '<input class="form-check-input" type="checkbox" id="justMakeActive">';
-    html += '<label class="form-check-label" for="justMakeActive">';
-    html += '<strong>Just make it Active</strong> (don\'t post to platforms yet)';
-    html += '</label>';
-    html += '</div>';
-
-    html += '</div><div class="modal-footer">';
-    html += '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>';
-    html += `<button type="button" class="btn btn-success" onclick="confirmPostDraft(${id})">`;
-    html += '<i class="fas fa-rocket"></i> Post</button>';
-    html += '</div></div></div></div>';
-
-    // Remove existing modal if any
-    const existingModal = document.getElementById('postDraftModal');
-    if (existingModal) existingModal.remove();
-
-    // Add and show modal
-    document.body.insertAdjacentHTML('beforeend', html);
-    const modal = new bootstrap.Modal(document.getElementById('postDraftModal'));
-    modal.show();
-}
-
-async function confirmPostDraft(id) {
-    const justMakeActive = document.getElementById('justMakeActive').checked;
-
-    if (justMakeActive) {
-        // Just change status to active
-        showLoading();
-        try {
-            const response = await fetch(`/api/post-draft/${id}`, {
-                method: 'POST'
-            });
-            const data = await response.json();
-
-            hideLoading();
-            bootstrap.Modal.getInstance(document.getElementById('postDraftModal')).hide();
-
-            if (data.success) {
-                showAlert('Listing is now active!', 'success');
-                setTimeout(() => location.reload(), 1500);
-            } else {
-                showAlert(data.error, 'danger');
-            }
-        } catch (error) {
-            hideLoading();
-            showAlert('Error: ' + error, 'danger');
-        }
-    } else {
-        // Post to selected platforms
-        const platforms = [];
-        document.querySelectorAll('.post-platform:checked').forEach(cb => {
-            platforms.push(cb.value);
-        });
-
-        if (platforms.length === 0) {
-            showAlert('Please select at least one platform or check "Just make it Active"', 'warning');
-            return;
-        }
-
-        showLoading();
-
-        try {
-            // First make it active
-            const response1 = await fetch(`/api/post-draft/${id}`, {
-                method: 'POST'
-            });
-            const data1 = await response1.json();
-
-            if (!data1.success) {
-                hideLoading();
-                showAlert(data1.error, 'danger');
-                return;
-            }
-
-            // Then post to platforms
-            const response2 = await fetch('/api/bulk-post', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    listing_ids: [id],
-                    platforms: platforms
-                })
-            });
-
-            const data2 = await response2.json();
-
-            hideLoading();
-            bootstrap.Modal.getInstance(document.getElementById('postDraftModal')).hide();
-
-            if (data2.success) {
-                // Handle CSV downloads
-                if (data2.csv_files && Object.keys(data2.csv_files).length > 0) {
-                    showCSVDownloads(data2.csv_files);
-                }
-
-                // Handle API results
-                if (data2.api_results && data2.api_results.length > 0) {
-                    showAPIResults(data2.api_results);
-                }
-
-                showAlert('Listing posted!', 'success');
-                setTimeout(() => window.location.href = '/listings', 2000);
-            } else {
-                showAlert(data2.error || 'Posting failed', 'danger');
-            }
-        } catch (error) {
-            hideLoading();
-            showAlert('Error: ' + error, 'danger');
-        }
-    }
-}
-
-// CSV Downloads Modal (copied from listings.html)
-function showCSVDownloads(csvFiles) {
-    let html = '<div class="modal fade" id="csvDownloadModal" tabindex="-1">';
-    html += '<div class="modal-dialog modal-lg"><div class="modal-content">';
-    html += '<div class="modal-header bg-success text-white">';
-    html += '<h5 class="modal-title"><i class="fas fa-file-csv"></i> CSV Files Ready</h5>';
-    html += '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>';
-    html += '</div><div class="modal-body">';
-
-    for (const [platform, fileInfo] of Object.entries(csvFiles)) {
-        if (fileInfo.error) {
-            html += `<div class="alert alert-danger">${fileInfo.platform_name}: ${fileInfo.error}</div>`;
-        } else {
-            html += `<div class="card mb-3">`;
-            html += `<div class="card-header bg-primary text-white"><h6 class="mb-0">${fileInfo.platform_name}</h6></div>`;
-            html += `<div class="card-body">`;
-            html += `<a href="${fileInfo.download_url}" class="btn btn-success mb-2" download>`;
-            html += `<i class="fas fa-download"></i> Download CSV</a>`;
-            if (fileInfo.instructions) {
-                html += `<div class="alert alert-info"><strong>Instructions:</strong><ol class="mb-0">`;
-                fileInfo.instructions.forEach(inst => { html += `<li>${inst}</li>`; });
-                html += `</ol></div>`;
-            }
-            html += `</div></div>`;
-        }
-    }
-
-    html += '</div></div></div></div>';
-
-    const existingModal = document.getElementById('csvDownloadModal');
-    if (existingModal) existingModal.remove();
-
-    document.body.insertAdjacentHTML('beforeend', html);
-    const modal = new bootstrap.Modal(document.getElementById('csvDownloadModal'));
-    modal.show();
-}
-
-function showAPIResults(apiResults) {
-    let html = '<div class="modal fade" id="apiResultsModal" tabindex="-1">';
-    html += '<div class="modal-dialog modal-lg"><div class="modal-content">';
-    html += '<div class="modal-header bg-info text-white">';
-    html += '<h5 class="modal-title"><i class="fas fa-robot"></i> API Results</h5>';
-    html += '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>';
-    html += '</div><div class="modal-body">';
-
-    apiResults.forEach(result => {
-        const alertType = result.status === 'posted' ? 'success' : 'warning';
-        html += `<div class="alert alert-${alertType}">`;
-        html += `<strong>${result.platform_name}:</strong> ${result.message}`;
-        html += `</div>`;
+document.getElementById('selectAllCheckbox').addEventListener('change', function(e) {
+    document.querySelectorAll('.draft-checkbox').forEach(checkbox => {
+        checkbox.checked = e.target.checked;
     });
+});
 
-    html += '</div></div></div></div>';
+function getSelectedDraftIds() {
+    const selectedIds = [];
+    document.querySelectorAll('.draft-checkbox:checked').forEach(checkbox => {
+        selectedIds.push(checkbox.value);
+    });
+    return selectedIds;
+}
 
-    const existingModal = document.getElementById('apiResultsModal');
+function exportSelectedToCSV() {
+    const selectedIds = getSelectedDraftIds();
+    if (selectedIds.length === 0) {
+        showAlert('Please select at least one draft to export.', 'warning');
+        return;
+    }
+
+    // Show platform selection modal
+    let html = `
+        <div class="modal fade" id="exportModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title"><i class="fas fa-file-export"></i> Select Export Platform</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Choose the platform to format the CSV for:</p>
+                        <div class="list-group">
+                            <a href="#" class="list-group-item list-group-item-action" onclick="confirmExport('poshmark')">Poshmark</a>
+                            <a href="#" class="list-group-item list-group-item-action" onclick="confirmExport('mercari')">Mercari</a>
+                            <a href="#" class="list-group-item list-group-item-action" onclick="confirmExport('ebay')">eBay</a>
+                            <a href="#" class="list-group-item list-group-item-action" onclick="confirmExport('grailed')">Grailed</a>
+                            <a href="#" class="list-group-item list-group-item-action" onclick="confirmExport('depop')">Depop</a>
+                            <a href="#" class="list-group-item list-group-item-action" onclick="confirmExport('generic')">Generic CSV</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const existingModal = document.getElementById('exportModal');
     if (existingModal) existingModal.remove();
 
     document.body.insertAdjacentHTML('beforeend', html);
-    const modal = new bootstrap.Modal(document.getElementById('apiResultsModal'));
+    const modal = new bootstrap.Modal(document.getElementById('exportModal'));
     modal.show();
 }
 
-async function deleteDraft(id) {
-    if (!confirm('Delete this listing?')) return;
-
+async function confirmExport(platform) {
+    const selectedIds = getSelectedDraftIds();
+    bootstrap.Modal.getInstance(document.getElementById('exportModal')).hide();
     showLoading();
 
     try {
-        const response = await fetch(`/api/delete-draft/${id}`, {
-            method: 'DELETE'
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showAlert('Listing deleted', 'success');
-            location.reload();
-        } else {
-            showAlert(data.error, 'danger');
-        }
-    } catch (error) {
-        showAlert('Delete failed: ' + error, 'danger');
-    } finally {
-        hideLoading();
-    }
-}
-
-async function importCSV(input) {
-    const file = input.files[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    showLoading();
-
-    try {
-        const response = await fetch('/api/import-csv', {
-            method: 'POST',
-            body: formData
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showAlert(`Updated ${data.updated} storage locations!`, 'success');
-            setTimeout(() => location.reload(), 1500);
-        } else {
-            showAlert(data.error, 'danger');
-        }
-    } catch (error) {
-        showAlert('Import failed: ' + error, 'danger');
-    } finally {
-        hideLoading();
-        input.value = ''; // Reset file input
-    }
-}
-
-// Export drafts to platform-specific CSV
-async function exportToCSV(platform) {
-    try {
-        showLoading();
-
         const response = await fetch(`/api/export/csv/${platform}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                include_drafts: true
-            })
+            body: JSON.stringify({ listing_ids: selectedIds })
         });
 
         if (response.ok) {
-            // Download the CSV file
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -421,9 +176,8 @@ async function exportToCSV(platform) {
             a.click();
             a.remove();
             window.URL.revokeObjectURL(url);
-
             hideLoading();
-            showAlert(`${platform.toUpperCase()} CSV exported successfully! Check your downloads folder.`, 'success');
+            showAlert('CSV exported successfully!', 'success');
         } else {
             const error = await response.json();
             hideLoading();
@@ -434,5 +188,41 @@ async function exportToCSV(platform) {
         showAlert('Error exporting CSV: ' + error.message, 'danger');
     }
 }
+
+async function deleteDraft(id) {
+    if (!confirm('Are you sure you want to delete this draft?')) return;
+
+    showLoading();
+    try {
+        const response = await fetch(`/api/delete-draft/${id}`, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('Draft deleted successfully.', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert(data.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('An error occurred: ' + error, 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Helper to parse JSON strings safely in templates
+// This needs to be registered in Flask, but for JS, we handle it in the template
+// Here is a Jinja2 filter that should be registered in python:
+// @app.template_filter('fromjson')
+// def fromjson_filter(json_string):
+//     if not json_string:
+//         return None
+//     try:
+//         return json.loads(json_string)
+//     except (json.JSONDecodeError, TypeError):
+//         return None
+
 </script>
 {% endblock %}

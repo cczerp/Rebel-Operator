@@ -27,19 +27,19 @@
             --alert-crimson: #DC143C;
             --alert-crimson-dark: #B22222;
             --alert-crimson-light: #FF1744;
-            
+
             /* Carbon Matte Surfaces */
             --carbon-matte: #2B2B2B;
             --carbon-matte-light: #3A3A3A;
             --carbon-matte-dark: #1A1A1A;
             --carbon-matte-surface: #333333;
-            
+
             /* Cold Steel Secondary Elements */
             --cold-steel: #708090;
             --cold-steel-light: #8B9DC3;
             --cold-steel-dark: #4A5568;
             --cold-steel-accent: #5F7A8A;
-            
+
             /* Neutral Grays */
             --off-white: #F5F5F5;
             --off-white-text: #E0E0E0;
@@ -54,7 +54,7 @@
             --danger: #DC143C;
             --warning: #FF9800;
             --gradient: linear-gradient(135deg, #DC143C 0%, #B22222 100%);
-            
+
             /* Legacy aliases for backward compatibility */
             --red-primary: #DC143C;
             --red-primary-dark: #B22222;
@@ -65,6 +65,68 @@
             --steel-blue-grey: #708090;
             --steel-blue-grey-light: #8B9DC3;
             --steel-blue-grey-dark: #4A5568;
+        }
+
+        /* Light Theme Variables */
+        [data-theme="light"] {
+            /* Light Theme Backgrounds */
+            --bg-primary: #FFFFFF;
+            --bg-secondary: #F8F9FA;
+            --bg-tertiary: #E9ECEF;
+            --bg-surface: #FFFFFF;
+            --bg-card: #FFFFFF;
+            --bg-nav: #FFFFFF;
+
+            /* Light Theme Text */
+            --text-primary: #212529;
+            --text-secondary: #6C757D;
+            --text-muted: #ADB5BD;
+            --text-accent: #DC143C;
+
+            /* Light Theme Borders */
+            --border-primary: #DEE2E6;
+            --border-secondary: #E9ECEF;
+            --border-accent: #DC143C;
+
+            /* Light Theme Shadows */
+            --shadow-primary: rgba(0, 0, 0, 0.1);
+            --shadow-secondary: rgba(0, 0, 0, 0.05);
+
+            /* Light Theme Specific Overrides */
+            --hero-bg: linear-gradient(135deg, #DC143C 0%, #B22222 50%, #FF1744 100%);
+            --section-alt-bg: #F8F9FA;
+            --section-dark-bg: linear-gradient(135deg, #DC143C 0%, #B22222 100%);
+        }
+
+        /* Dark Theme Variables (Default) */
+        [data-theme="dark"], :root:not([data-theme]) {
+            /* Dark Theme Backgrounds */
+            --bg-primary: #1A1A1A;
+            --bg-secondary: #2B2B2B;
+            --bg-tertiary: #3A3A3A;
+            --bg-surface: #333333;
+            --bg-card: #2B2B2B;
+            --bg-nav: #333333;
+
+            /* Dark Theme Text */
+            --text-primary: #F5F5F5;
+            --text-secondary: #E0E0E0;
+            --text-muted: #9E9E9E;
+            --text-accent: #DC143C;
+
+            /* Dark Theme Borders */
+            --border-primary: #4A5568;
+            --border-secondary: #5A6B7A;
+            --border-accent: #DC143C;
+
+            /* Dark Theme Shadows */
+            --shadow-primary: rgba(0, 0, 0, 0.3);
+            --shadow-secondary: rgba(0, 0, 0, 0.5);
+
+            /* Dark Theme Specific Overrides */
+            --hero-bg: linear-gradient(135deg, #DC143C 0%, #B22222 50%, #FF1744 100%);
+            --section-alt-bg: #2B2B2B;
+            --section-dark-bg: linear-gradient(135deg, #DC143C 0%, #B22222 100%);
         }
 
         .logo {
@@ -83,8 +145,9 @@
 
         body {
             padding-bottom: 80px; /* Space for bottom nav */
-            background: var(--carbon-matte-dark);
-            color: var(--off-white-text);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         .bottom-nav {
@@ -92,13 +155,14 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: var(--carbon-matte-surface);
+            background: var(--bg-nav);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border-top: 2px solid var(--cold-steel-dark);
+            border-top: 2px solid var(--border-primary);
             padding: 12px 8px 18px 8px;
             z-index: 1000;
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+            box-shadow: 0 -5px 20px var(--shadow-secondary);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
 
         .bottom-nav .nav-item {
@@ -363,22 +427,25 @@
         }
 
         .card {
-            border: 1px solid var(--cold-steel-dark);
-            background: var(--carbon-matte);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            border: 1px solid var(--border-primary);
+            background: var(--bg-card);
+            box-shadow: 0 2px 8px var(--shadow-primary);
             margin-bottom: 15px;
-            color: var(--off-white-text);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
         }
-        
+
         .card-header {
-            background: var(--carbon-matte-surface);
-            border-bottom: 2px solid var(--cold-steel-dark);
-            color: var(--off-white-text);
+            background: var(--bg-secondary);
+            border-bottom: 2px solid var(--border-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
         }
-        
+
         .card-body {
-            background: var(--carbon-matte);
-            color: var(--off-white-text);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         .photo-preview {
@@ -442,32 +509,35 @@
             justify-content: center;
         }
         
-        /* Form Controls - Industrial Theme */
+        /* Form Controls - Theme Aware */
         .form-control, .form-select {
-            background: var(--carbon-matte-surface);
-            border: 1px solid var(--cold-steel-dark);
-            color: var(--off-white-text);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
         }
-        
+
         .form-control:focus, .form-select:focus {
-            background: var(--carbon-matte-light);
+            background: var(--bg-tertiary);
             border-color: var(--alert-crimson);
-            color: var(--off-white-text);
+            color: var(--text-primary);
             box-shadow: 0 0 0 0.2rem rgba(220, 20, 60, 0.25);
         }
-        
+
         .form-label {
-            color: var(--off-white-text);
+            color: var(--text-primary);
+            transition: color 0.3s ease;
         }
         
         .text-muted {
             color: var(--text-muted) !important;
         }
         
-        /* Alerts - Industrial Theme */
+        /* Alerts - Theme Aware */
         .alert {
-            border: 1px solid var(--cold-steel-dark);
-            background: var(--carbon-matte-surface);
+            border: 1px solid var(--border-primary);
+            background: var(--bg-secondary);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
         
         .alert-success {
@@ -565,16 +635,17 @@
 
         /* Hero Section - Full Width Gradient */
         .hero-section {
-            background: linear-gradient(135deg, var(--red-primary) 0%, var(--red-primary-dark) 50%, var(--red-primary-light) 100%);
+            background: var(--hero-bg);
             color: white;
             border-radius: 0 0 30px 30px;
             margin-top: -24px;
             margin-left: calc(-50vw + 50%);
             margin-right: calc(-50vw + 50%);
             padding: 80px 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 40px var(--shadow-secondary);
             position: relative;
             overflow: hidden;
+            transition: box-shadow 0.3s ease;
         }
 
         .hero-section::before {
@@ -773,11 +844,11 @@
             font-size: 1.4rem;
             font-weight: 700;
             margin-bottom: 15px;
-            color: #1f2937;
+            color: var(--text-primary);
         }
 
         .feature-text {
-            color: #6b7280;
+            color: var(--text-secondary);
             font-size: 1rem;
             line-height: 1.6;
         }
@@ -795,15 +866,16 @@
 
         /* Section Backgrounds */
         .section-alt {
-            background: #f9fafb;
+            background: var(--section-alt-bg);
             margin-left: calc(-50vw + 50%);
             margin-right: calc(-50vw + 50%);
             padding-left: calc(50vw - 50%);
             padding-right: calc(50vw - 50%);
+            transition: background-color 0.3s ease;
         }
 
         .section-dark {
-            background: linear-gradient(135deg, var(--red-primary) 0%, var(--red-primary-dark) 50%, var(--red-primary-light) 100%);
+            background: var(--section-dark-bg);
             color: white;
             margin-left: calc(-50vw + 50%);
             margin-right: calc(-50vw + 50%);
@@ -832,12 +904,12 @@
 
         .section-subtitle {
             font-size: 1.2rem;
-            color: #6b7280;
+            color: var(--text-secondary);
             margin-bottom: 0;
         }
 
         .section-dark .section-subtitle {
-            color: #d1d5db;
+            color: var(--text-secondary);
         }
 
         /* Step Cards - How It Works */
@@ -1199,6 +1271,33 @@
                 font-size: 0.9rem;
             }
         }
+
+        /* Theme Toggle Styles */
+        .theme-toggle-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 10px 8px;
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle-btn:hover {
+            background: var(--carbon-matte-light);
+            transform: translateY(-2px);
+        }
+
+        .theme-toggle-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .theme-toggle-btn:hover i {
+            transform: scale(1.1);
+        }
+
+        /* Light theme indicator - change moon to sun */
+        [data-theme="light"] .theme-toggle-btn i.fas.fa-moon:before {
+            content: "\f185"; /* sun icon */
+        }
     </style>
 
     {% block extra_css %}{% endblock %}
@@ -1313,6 +1412,13 @@
         </div>
 
         <div class="nav-item">
+            <button id="theme-toggle" class="nav-link theme-toggle-btn" title="Toggle Dark/Light Mode">
+                <i class="fas fa-moon"></i>
+                <span>Theme</span>
+            </button>
+        </div>
+
+        <div class="nav-item">
             <a href="{{ url_for('auth.logout') }}" class="nav-link" style="color: #ef4444 !important;">
                 <i class="fas fa-sign-out-alt"></i>
                 <span>Logout</span>
@@ -1337,6 +1443,13 @@
                 <i class="fas fa-user-plus"></i>
                 <span>Sign Up</span>
             </a>
+        </div>
+
+        <div class="nav-item">
+            <button id="theme-toggle-guest" class="nav-link theme-toggle-btn" title="Toggle Dark/Light Mode">
+                <i class="fas fa-moon"></i>
+                <span>Theme</span>
+            </button>
         </div>
 
         <div class="nav-item">
@@ -1396,6 +1509,37 @@
             // Show install button (you can add a button to trigger this)
             console.log('PWA install prompt available');
         });
+
+        // Theme Toggle Functionality
+        function initThemeToggle() {
+            const themeToggle = document.getElementById('theme-toggle') || document.getElementById('theme-toggle-guest');
+            if (!themeToggle) return;
+
+            // Get saved theme or default to dark
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            setTheme(savedTheme);
+
+            // Toggle theme on button click
+            themeToggle.addEventListener('click', () => {
+                const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                setTheme(newTheme);
+                localStorage.setItem('theme', newTheme);
+            });
+        }
+
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+
+            // Update meta theme-color for mobile browsers
+            const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+            if (metaThemeColor) {
+                metaThemeColor.setAttribute('content', theme === 'light' ? '#FFFFFF' : '#DC143C');
+            }
+        }
+
+        // Initialize theme toggle when DOM is loaded
+        document.addEventListener('DOMContentLoaded', initThemeToggle);
     </script>
 
     <!-- Bootstrap JS Bundle (needed for modals, dropdowns, etc.) -->

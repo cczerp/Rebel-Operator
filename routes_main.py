@@ -436,6 +436,10 @@ def api_save_draft():
         upc = data.get('upc', '')
         status = data.get('status', 'draft')
 
+        # Check if we're updating an existing draft (need listing_uuid before photo moving)
+        draft_id = data.get('draft_id')
+        listing_uuid = data.get('listing_uuid') or uuid.uuid4().hex
+
         # Get photos array (should be Supabase Storage URLs from temp bucket)
         photos = data.get('photos', [])
         
@@ -453,7 +457,7 @@ def api_save_draft():
                     success, new_url = storage.move_photo(
                         source_url=photo_url,
                         destination_folder='drafts',
-                        new_filename=f"{listing_uuid or uuid.uuid4().hex}_{uuid.uuid4().hex}.jpg"
+                        new_filename=f"{listing_uuid}_{uuid.uuid4().hex}.jpg"
                     )
                     if success:
                         moved_photos.append(new_url)
@@ -478,10 +482,6 @@ def api_save_draft():
             'color': data.get('color', ''),
             'shipping_cost': data.get('shipping_cost', 0)
         }
-
-        # Check if we're updating an existing draft
-        draft_id = data.get('draft_id')
-        listing_uuid = data.get('listing_uuid')
 
         if draft_id:
             # Update existing draft
@@ -508,8 +508,7 @@ def api_save_draft():
                 "message": "Draft updated successfully"
             })
         else:
-            # Create new draft
-            listing_uuid = uuid.uuid4().hex
+            # Create new draft (listing_uuid already set above)
             listing_id = db.create_listing(
                 listing_uuid=listing_uuid,
                 user_id=current_user.id,
@@ -643,13 +642,43 @@ VALID_MARKETPLATFORMS = [
     "facebook", "tiktok_shop", "woocommerce", "nextdoor", "varagesale",
     "ruby_lane", "ecrater", "bonanza", "kijiji", "personal_website",
     "grailed", "vinted", "mercado_libre", "tradesy", "vestiaire",
-    "rebag", "thredup", "poshmark_ca", "other"
+    "rebag", "thredup", "poshmark_ca", "mercari", "ebay", "pinterest",
+    "square", "rubylane", "other"
 ]
+
+
+@main_bp.route("/api/settings/platform-credentials", methods=["POST"])
+@login_required
+def save_platform_credentials():
+    """Save platform credentials - supports API keys, OAuth tokens, and email/password"""
+    try:
+        data = request.json
+        platform = data.get("platform", "").lower()
+        cred_type = data.get("type", "email_password")
+        credentials = data.get("credentials", {})
+
+        if platform not in VALID_MARKETPLATFORMS:
+            return jsonify({"error": "Invalid platform"}), 400
+        if not credentials:
+            return jsonify({"error": "Credentials required"}), 400
+
+        # Store credentials as JSON
+        db.save_marketplace_credentials(
+            current_user.id,
+            platform,
+            cred_type,
+            json.dumps(credentials)
+        )
+        return jsonify({"success": True})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @main_bp.route("/api/settings/marketplace-credentials", methods=["POST"])
 @login_required
 def save_marketplace_credentials():
+    """Legacy endpoint for backward compatibility"""
     try:
         data = request.json
         platform = data.get("platform", "").lower()
@@ -666,6 +695,31 @@ def save_marketplace_credentials():
         )
         return jsonify({"success": True})
 
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/settings/platform-credentials", methods=["GET"])
+@login_required
+def get_all_platform_credentials():
+    """Retrieve all platform credentials for current user"""
+    try:
+        # Get all marketplace credentials
+        cursor = db._get_cursor()
+        cursor.execute("""
+            SELECT platform, username FROM marketplace_credentials
+            WHERE user_id = %s
+        """, (current_user.id,))
+
+        credentials = {}
+        for row in cursor.fetchall():
+            credentials[row['platform']] = {
+                'username': row['username'],
+                'configured': True
+            }
+
+        cursor.close()
+        return jsonify({"success": True, "credentials": credentials})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -740,9 +794,25 @@ def get_api_credentials(platform):
 # -------------------------------------------------------------------------
 
 @main_bp.route("/api/analyze", methods=["POST"])
-@login_required
 def api_analyze():
-    """Analyze general items with Gemini (fast, cheap)"""
+    """Analyze general items with Gemini (fast, cheap) - allows guest access with 8 free uses"""
+    from flask import session
+    from flask_login import current_user
+    
+    # Check guest usage limit if not authenticated
+    if not current_user.is_authenticated:
+        guest_uses = session.get('guest_ai_uses', 0)
+        if guest_uses >= 8:
+            return jsonify({
+                "success": False,
+                "error": "You've used all 8 free AI analyses. Please sign up to continue using AI features!",
+                "requires_signup": True
+            }), 403
+        
+        # Increment guest usage counter
+        session['guest_ai_uses'] = guest_uses + 1
+        session.permanent = True  # Make session persist
+    
     try:
         from src.ai.gemini_classifier import GeminiClassifier
         from src.schema.unified_listing import Photo
@@ -827,7 +897,26 @@ def api_analyze():
                 else:
                     logging.error(f"❌ Failed to download image {i+1} from Supabase: {path}")
                     logging.error(f"[ANALYZE DEBUG] file_data is None or empty: {file_data}")
-                    return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage. URL may be invalid or file may not exist."}), 404
+                    # Try one more time with direct HTTP request as last resort
+                    try:
+                        import requests
+                        logging.info(f"Last resort: attempting direct HTTP download for image {i+1}...")
+                        http_response = requests.get(path, timeout=30, allow_redirects=True)
+                        if http_response.status_code == 200 and http_response.content and len(http_response.content) > 0:
+                            # Create temp file from HTTP response
+                            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+                            temp_file.write(http_response.content)
+                            temp_file.flush()
+                            os.fsync(temp_file.fileno())
+                            temp_file.close()
+                            local_path = temp_file.name
+                            temp_files.append(local_path)
+                            logging.info(f"✅ Last resort HTTP download successful: {len(http_response.content)} bytes to {local_path}")
+                        else:
+                            return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage. URL may be invalid or file may not exist. Status: {http_response.status_code if hasattr(http_response, 'status_code') else 'unknown'}"}), 404
+                    except Exception as http_error:
+                        logging.error(f"Last resort HTTP download also failed: {http_error}")
+                        return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage. All download methods failed. Error: {str(http_error)}"}), 404
             else:
                 # Assume local path (legacy support)
                 if path.startswith('/'):
@@ -923,7 +1012,6 @@ def api_enhanced_scan():
     temp_files = []  # Initialize temp_files at the top for cleanup
 
     try:
-        from src.collectibles.enhanced_scanner import EnhancedScanner
         from src.schema.unified_listing import Photo
 
         data = request.json
@@ -933,9 +1021,18 @@ def api_enhanced_scan():
             logging.error("[ENHANCED SCAN ERROR] No photos provided in request")
             return jsonify({'error': 'No photos provided'}), 400
 
+        # Validate photo paths are not empty
+        photo_paths = [p for p in photo_paths if p and isinstance(p, str) and len(p.strip()) > 0]
+        if not photo_paths:
+            logging.error("[ENHANCED SCAN ERROR] All photo paths are empty or invalid")
+            return jsonify({'error': 'No valid photo URLs provided'}), 400
+
         # Log which URLs we received (important for debugging bucket issues)
         logging.info(f"[ENHANCED SCAN DEBUG] Received {len(photo_paths)} photo URL(s) for enhanced scan")
         for i, path in enumerate(photo_paths):
+            if not path or not isinstance(path, str):
+                logging.error(f"[ENHANCED SCAN DEBUG] Photo {i+1}: ❌ Invalid path type: {type(path)}")
+                continue
             if 'temp-photos' in path:
                 logging.info(f"[ENHANCED SCAN DEBUG] Photo {i+1}: ✅ URL from temp-photos bucket: {path[:100]}...")
             elif 'listing-images' in path:
@@ -943,7 +1040,9 @@ def api_enhanced_scan():
             elif 'draft-images' in path:
                 logging.info(f"[ENHANCED SCAN DEBUG] Photo {i+1}: ℹ️ URL from draft-images bucket: {path[:100]}...")
             elif 'supabase.co' in path:
-                logging.warning(f"[ENHANCED SCAN DEBUG] Photo {i+1}: ⚠️ URL from Supabase but bucket unclear: {path[:100]}...")
+                logging.info(f"[ENHANCED SCAN DEBUG] Photo {i+1}: ✅ Supabase URL detected: {path[:100]}...")
+            elif path.startswith('http://') or path.startswith('https://'):
+                logging.warning(f"[ENHANCED SCAN DEBUG] Photo {i+1}: ⚠️ HTTP/HTTPS URL but not Supabase: {path[:100]}...")
             else:
                 logging.info(f"[ENHANCED SCAN DEBUG] Photo {i+1}: Local path or non-Supabase URL: {path[:100]}...")
 
@@ -964,57 +1063,106 @@ def api_enhanced_scan():
             local_path = None
 
             # Check if it's a Supabase Storage URL
-            if use_supabase and storage and 'supabase.co' in path:
-                logging.info(f"[ENHANCED SCAN DEBUG] Downloading image {i+1}/{len(photo_paths)} from Supabase: {path[:100]}...")
+            if use_supabase and storage:
+                # Validate URL format first
+                is_supabase_url = 'supabase.co' in path or path.startswith('http') and 'supabase' in path.lower()
+                
+                if is_supabase_url:
+                    logging.info(f"[ENHANCED SCAN DEBUG] Downloading image {i+1}/{len(photo_paths)} from Supabase: {path[:100]}...")
 
-                # Download from Supabase Storage to temp file
-                file_data = storage.download_photo(path)
+                    # Download from Supabase Storage to temp file
+                    try:
+                        file_data = storage.download_photo(path)
+                    except ValueError as value_error:
+                        # URL validation error
+                        logging.error(f"[ENHANCED SCAN ERROR] Invalid URL format for photo {i+1}: {value_error}")
+                        logging.error(f"[ENHANCED SCAN ERROR] URL: {path[:200]}")
+                        file_data = None
+                    except Exception as download_exception:
+                        # Other download errors
+                        logging.error(f"[ENHANCED SCAN ERROR] Exception downloading photo {i+1}: {download_exception}")
+                        logging.error(f"[ENHANCED SCAN ERROR] Exception type: {type(download_exception).__name__}")
+                        logging.error(f"[ENHANCED SCAN ERROR] URL: {path[:200]}")
+                        import traceback
+                        logging.error(f"[ENHANCED SCAN ERROR] Traceback: {traceback.format_exc()}")
+                        file_data = None
 
-                # Debug logging
-                debug_info = {
-                    'hasFile': bool(file_data),
-                    'filePath': path,
-                    'dataLength': len(file_data) if file_data else 0,
-                    'isBytes': isinstance(file_data, bytes) if file_data else False
-                }
-                logging.info(f"[ENHANCED SCAN DEBUG] Image {i+1}: {debug_info}")
+                    # Debug logging
+                    debug_info = {
+                        'hasFile': bool(file_data),
+                        'filePath': path[:100] if path else 'None',
+                        'dataLength': len(file_data) if file_data else 0,
+                        'isBytes': isinstance(file_data, bytes) if file_data else False
+                    }
+                    logging.info(f"[ENHANCED SCAN DEBUG] Image {i+1}: {debug_info}")
 
-                if file_data and len(file_data) > 0:
-                    # Create temp file
-                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
-                    temp_file.write(file_data)
-                    temp_file.flush()  # Ensure data is written to buffer
-                    os.fsync(temp_file.fileno())  # Force write to disk
-                    temp_file.close()
-                    local_path = temp_file.name
-                    temp_files.append(local_path)
+                    if file_data and len(file_data) > 0:
+                        # Create temp file
+                        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+                        temp_file.write(file_data)
+                        temp_file.flush()  # Ensure data is written to buffer
+                        os.fsync(temp_file.fileno())  # Force write to disk
+                        temp_file.close()
+                        local_path = temp_file.name
+                        temp_files.append(local_path)
 
-                    # Verify file was written and exists
-                    file_exists = Path(local_path).exists()
-                    file_size = Path(local_path).stat().st_size if file_exists else 0
+                        # Verify file was written and exists
+                        file_exists = Path(local_path).exists()
+                        file_size = Path(local_path).stat().st_size if file_exists else 0
 
-                    logging.info(f"✅ Downloaded image {i+1} ({len(file_data)} bytes) to {local_path}")
-                    logging.info(f"[ENHANCED SCAN DEBUG] Temp file exists: {file_exists}, size: {file_size} bytes")
+                        logging.info(f"✅ Downloaded image {i+1} ({len(file_data)} bytes) to {local_path}")
+                        logging.info(f"[ENHANCED SCAN DEBUG] Temp file exists: {file_exists}, size: {file_size} bytes")
 
-                    if not file_exists or file_size == 0:
-                        logging.error(f"❌ Temp file was not created properly: {local_path}")
+                        if not file_exists or file_size == 0:
+                            logging.error(f"❌ Temp file was not created properly: {local_path}")
+                            # Cleanup temp files
+                            for temp_file in temp_files:
+                                try:
+                                    os.unlink(temp_file)
+                                except:
+                                    pass
+                            return jsonify({"error": f"Failed to create temp file for image {i+1}"}), 500
+                        
+                        # Successfully downloaded - append photo object
+                        photo_objects.append(Photo(url=path, local_path=local_path))
+                        continue  # Continue to next photo
+                    else:
+                        logging.error(f"❌ Failed to download image {i+1} from Supabase: {path}")
+                        logging.error(f"[ENHANCED SCAN DEBUG] file_data is None or empty: {file_data}")
+                        logging.error(f"[ENHANCED SCAN DEBUG] URL format may be invalid. Expected: https://{{project}}.supabase.co/storage/v1/object/public/{{bucket}}/{{path}}")
+                        
+                        # Try last resort: direct HTTP download
+                        try:
+                            import requests
+                            logging.info(f"[ENHANCED SCAN] Last resort: attempting direct HTTP download for image {i+1}...")
+                            http_response = requests.get(path, timeout=30, allow_redirects=True)
+                            if http_response.status_code == 200 and http_response.content and len(http_response.content) > 0:
+                                # Create temp file from HTTP response
+                                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+                                temp_file.write(http_response.content)
+                                temp_file.flush()
+                                os.fsync(temp_file.fileno())
+                                temp_file.close()
+                                local_path = temp_file.name
+                                temp_files.append(local_path)
+                                logging.info(f"✅ Last resort HTTP download successful: {len(http_response.content)} bytes to {local_path}")
+                                photo_objects.append(Photo(url=path, local_path=local_path))
+                                continue  # Continue to next photo
+                        except Exception as http_error:
+                            logging.error(f"[ENHANCED SCAN] Last resort HTTP download also failed: {http_error}")
+                        
+                        # If all download methods failed, return error
                         # Cleanup temp files
                         for temp_file in temp_files:
                             try:
                                 os.unlink(temp_file)
                             except:
                                 pass
-                        return jsonify({"error": f"Failed to create temp file for image {i+1}"}), 500
-                else:
-                    logging.error(f"❌ Failed to download image {i+1} from Supabase: {path}")
-                    logging.error(f"[ENHANCED SCAN DEBUG] file_data is None or empty: {file_data}")
-                    # Cleanup temp files
-                    for temp_file in temp_files:
-                        try:
-                            os.unlink(temp_file)
-                        except:
-                            pass
-                    return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage. URL may be invalid or file may not exist."}), 404
+                        return jsonify({
+                            "error": f"Failed to download photo {i+1} from Supabase Storage. URL may be invalid or file may not exist.",
+                            "url_preview": path[:100] if path else "No URL provided",
+                            "hint": "Check that the photo URL is a valid Supabase Storage URL"
+                        }), 404
             else:
                 # Assume local path (legacy support)
                 if path.startswith('/'):
@@ -1032,8 +1180,8 @@ def api_enhanced_scan():
                         except:
                             pass
                     return jsonify({"error": f"Photo file not found: {local_path}"}), 404
-
-            photo_objects.append(Photo(url=path, local_path=local_path))
+                
+                photo_objects.append(Photo(url=path, local_path=local_path))
 
         if not photo_objects:
             # Cleanup temp files
@@ -1045,19 +1193,122 @@ def api_enhanced_scan():
             logging.error("[ENHANCED SCAN ERROR] No valid photo objects created")
             return jsonify({"error": "No valid photos found"}), 400
 
-        logging.info(f"[ENHANCED SCAN DEBUG] Created {len(photo_objects)} photo objects, initializing scanner...")
+        logging.info(f"[ENHANCED SCAN] Created {len(photo_objects)} photo objects. Using Gemini with detailed collectible analysis prompt...")
 
-        # Run enhanced scanner
+        # Use Gemini with detailed prompt (same prompt that was designed for Claude)
         try:
-            scanner = EnhancedScanner.from_env()
-            logging.info("[ENHANCED SCAN DEBUG] Scanner initialized successfully, starting scan...")
-        except Exception as scanner_init_error:
-            logging.error(f"[ENHANCED SCAN ERROR] Failed to initialize scanner: {scanner_init_error}")
-            logging.error(f"[ENHANCED SCAN ERROR] Scanner init traceback:\n{traceback.format_exc()}")
-            raise
-
-        result = scanner.scan(photo_objects)
-        logging.info(f"[ENHANCED SCAN DEBUG] Scan completed, result type: {result.get('type')}")
+            from src.ai.gemini_classifier import GeminiClassifier
+            classifier = GeminiClassifier.from_env()
+            logging.info("[ENHANCED SCAN] Analyzing with Gemini using detailed collectible prompt (mint marks, serial numbers, signatures, errors, historical context, etc.)...")
+            detailed_analysis = classifier.analyze_collectible_detailed(photo_objects)
+            logging.info(f"[ENHANCED SCAN] ✅ Gemini detailed analysis completed: {list(detailed_analysis.keys()) if detailed_analysis else 'empty'}")
+            
+            if detailed_analysis.get("error"):
+                # Cleanup temp files
+                for temp_file in temp_files:
+                    try:
+                        os.unlink(temp_file)
+                    except:
+                        pass
+                return jsonify({
+                    "success": False,
+                    "error": f"Detailed analysis failed: {detailed_analysis.get('error')}"
+                }), 500
+            
+            # Format Gemini's detailed analysis (same structure as Claude's EnhancedScanner returns)
+            # Determine item type
+            item_type = 'collectible'
+            category = detailed_analysis.get('category', '').lower()
+            if 'card' in category or 'trading card' in category or detailed_analysis.get('card_type'):
+                item_type = 'card'
+            
+            # Extract market analysis
+            market_analysis = detailed_analysis.get('market_analysis', {})
+            
+            # Format as collectible or card response (similar to EnhancedScanner)
+            if item_type == 'card':
+                # Format as card
+                result = {
+                    'type': 'card',
+                    'data': {
+                        'card_name': detailed_analysis.get('item_name', 'Unknown Card'),
+                        'player_name': detailed_analysis.get('player_name', ''),
+                        'set_name': detailed_analysis.get('set_name', ''),
+                        'card_number': detailed_analysis.get('card_number', ''),
+                        'card_type': detailed_analysis.get('card_type', 'unknown'),
+                        'game_name': detailed_analysis.get('game_name', ''),
+                        'franchise': detailed_analysis.get('franchise', ''),
+                        'rarity': detailed_analysis.get('rarity', ''),
+                        'brand': detailed_analysis.get('brand', ''),
+                        'sport': detailed_analysis.get('sport', ''),
+                        'serial_number': detailed_analysis.get('serial_number', {}),
+                        'signature': detailed_analysis.get('signature', {}),
+                        'errors_variations': detailed_analysis.get('errors_variations', {}),
+                        'historical_context': detailed_analysis.get('historical_context', {}),
+                        'condition': detailed_analysis.get('condition', {}),
+                        'authentication': detailed_analysis.get('authentication', {}),
+                        'estimated_value_low': market_analysis.get('current_market_value_low', 0),
+                        'estimated_value_high': market_analysis.get('current_market_value_high', 0),
+                        'collector_notes': detailed_analysis.get('collector_notes', ''),
+                        'is_card': True
+                    },
+                    'market_prices': {
+                        'tcgplayer': {'market': market_analysis.get('estimated_value')},
+                        'ebay': {'avg': market_analysis.get('estimated_value')},
+                        'actual_selling': market_analysis.get('estimated_value'),
+                        'quick_sale': market_analysis.get('current_market_value_low')
+                    },
+                    'ai_provider': 'gemini'
+                }
+            else:
+                # Format as collectible
+                result = {
+                    'type': 'collectible',
+                    'data': {
+                        'item_name': detailed_analysis.get('item_name', 'Unknown Collectible'),
+                        'franchise': detailed_analysis.get('franchise', ''),
+                        'brand': detailed_analysis.get('brand', ''),
+                        'category': detailed_analysis.get('category', ''),
+                        'mint_mark': detailed_analysis.get('mint_mark', {}),
+                        'serial_number': detailed_analysis.get('serial_number', {}),
+                        'signature': detailed_analysis.get('signature', {}),
+                        'errors_variations': detailed_analysis.get('errors_variations', {}),
+                        'historical_context': detailed_analysis.get('historical_context', {}),
+                        'condition': detailed_analysis.get('condition', {}),
+                        'authentication': detailed_analysis.get('authentication', {}),
+                        'item_significance': detailed_analysis.get('historical_context', {}).get('backstory', ''),
+                        'rarity_info': detailed_analysis.get('collector_notes', ''),
+                        'authentication_markers': detailed_analysis.get('authentication', {}).get('authentication_markers', []),
+                        'market_analysis': market_analysis,
+                        'collector_notes': detailed_analysis.get('collector_notes', '')
+                    },
+                    'market_prices': {
+                        'retail': market_analysis.get('estimated_value') or market_analysis.get('current_market_value_high'),
+                        'actual_selling': market_analysis.get('estimated_value'),
+                        'quick_sale': market_analysis.get('current_market_value_low'),
+                        'value_range': {
+                            'low': market_analysis.get('current_market_value_low', 0),
+                            'high': market_analysis.get('current_market_value_high', 0)
+                        }
+                    },
+                    'ai_provider': 'gemini'
+                }
+        except Exception as analyze_error:
+            logging.error(f"[ENHANCED SCAN] Gemini detailed analysis error: {analyze_error}")
+            import traceback
+            logging.error(f"[ENHANCED SCAN] Traceback: {traceback.format_exc()}")
+            # Cleanup temp files
+            for temp_file in temp_files:
+                try:
+                    os.unlink(temp_file)
+                except:
+                    pass
+            return jsonify({
+                "success": False,
+                "error": f"Analysis failed: {str(analyze_error)}"
+            }), 500
+        
+        logging.info(f"[ENHANCED SCAN] ✅ Analysis completed, result type: {result.get('type')}")
 
         # Cleanup temp files
         for temp_file in temp_files:
@@ -1084,26 +1335,75 @@ def api_enhanced_scan():
                 'type': result.get('type')
             }), 500
 
-        # Create/update artifact in Hall of Records (public, no user association)
+        # Extract artifact-relevant data (handle both Claude's detailed structure and Gemini's basic structure)
         data = result.get('data', {})
+        ai_provider = result.get('ai_provider', 'gemini')
         
-        # Extract artifact-relevant data
-        historical_context = data.get('historical_context', {})
-        value_context = data.get('market_analysis', {}) or result.get('market_prices', {})
-        known_errors = data.get('errors_variations', {})
-        collector_notes = data.get('collector_notes', '')
-        
-        # Extract fun fact from backstory or historical context
-        fun_fact = None
-        if historical_context.get('backstory'):
-            fun_fact = historical_context['backstory']
-        elif historical_context.get('significance'):
-            fun_fact = historical_context['significance']
-        
-        # Create artifact record
-        # Photos stored as PENDING (private) - user will select which to make public
+        # Handle Claude's nested structure (detailed collectible attributes)
+        if ai_provider == 'claude':
+            # Claude returns nested structures
+            historical_context_dict = data.get('historical_context', {})
+            market_analysis_dict = data.get('market_analysis', {})
+            errors_dict = data.get('errors_variations', {})
+            
+            historical_context = {
+                'release_year': historical_context_dict.get('release_year'),
+                'backstory': historical_context_dict.get('backstory', ''),
+                'significance': historical_context_dict.get('significance', ''),
+                'rarity_context': historical_context_dict.get('rarity_context', '')
+            }
+            
+            value_context = {
+                'current_market_value_low': market_analysis_dict.get('current_market_value_low'),
+                'current_market_value_high': market_analysis_dict.get('current_market_value_high'),
+                'estimated_value': market_analysis_dict.get('estimated_value'),
+                'market_trend': market_analysis_dict.get('market_trend', ''),
+                'demand_level': market_analysis_dict.get('demand_level', ''),
+                'value_factors': market_analysis_dict.get('value_factors', [])
+            }
+            
+            known_errors = {
+                'present': errors_dict.get('present', False),
+                'error_type': errors_dict.get('error_type', ''),
+                'error_description': errors_dict.get('error_description', ''),
+                'error_severity': errors_dict.get('error_severity', ''),
+                'value_impact': errors_dict.get('value_impact', '')
+            }
+            
+            collector_notes = data.get('collector_notes', '')
+            fun_fact = ''  # Claude doesn't provide fun_fact
+        else:
+            # Gemini's flat structure (basic - missing detailed attributes)
+            historical_context = {
+                'release_year': data.get('release_year'),
+                'backstory': data.get('backstory', ''),
+                'significance': data.get('significance', ''),
+                'rarity_context': data.get('rarity_context', '')
+            }
+            
+            value_context = {
+                'current_market_value_low': data.get('current_market_value_low'),
+                'current_market_value_high': data.get('current_market_value_high'),
+                'estimated_value': data.get('estimated_value'),
+                'market_trend': data.get('market_trend', ''),
+                'demand_level': data.get('demand_level', ''),
+                'value_factors': data.get('value_factors', [])
+            }
+            
+            known_errors = {
+                'present': bool(data.get('errors_variations')),
+                'error_type': '',
+                'error_description': str(data.get('errors_variations', '')),
+                'error_severity': '',
+                'value_impact': ''
+            }
+            
+            collector_notes = data.get('collector_notes', '')
+            fun_fact = data.get('fun_fact', '')
+
+        # Create artifact record (automatic, no user choice - GUARANTEED)
         artifact_id = db.create_or_update_artifact(
-            item_name=data.get('item_name') or data.get('card_name', 'Unknown Item'),
+            item_name=data.get('item_name', 'Unknown Item'),
             brand=data.get('brand', ''),
             franchise=data.get('franchise', ''),
             category=data.get('category', ''),
@@ -1113,8 +1413,9 @@ def api_enhanced_scan():
             known_errors=known_errors,
             collector_notes=collector_notes,
             fun_fact=fun_fact,
-            photos=photo_paths,  # Stored as PENDING - user selects which to make public
-            user_id=current_user.id  # Track who uploaded photos
+            photos=photo_paths,  # Stored as PENDING - admin selects which to make public
+            user_id=current_user.id,  # Track who uploaded photos
+            coin_info=data.get('coin_info', {})  # Coin-specific metadata
         )
         
         logging.info(f"[ENHANCED SCAN] Automatically created/updated artifact {artifact_id} in public Hall of Records (no user approval required)")
@@ -1180,10 +1481,14 @@ def artifact_detail(artifact_id):
         """, (artifact_id,))
         pending_photos = [dict(row) for row in cursor.fetchall()]
     
+    # Check if artifact is in user's personal collection
+    in_collection = db.is_artifact_in_user_collection(current_user.id, artifact_id)
+    
     return render_template('artifact_detail.html', 
                          artifact=artifact, 
                          pending_photos=pending_photos,
-                         is_admin=current_user.is_admin)
+                         is_admin=current_user.is_admin,
+                         in_collection=in_collection)
 
 @main_bp.route("/api/artifacts/<int:artifact_id>")
 @login_required
@@ -1449,9 +1754,6 @@ def api_delete_card(card_id):
 def api_get_storage_bins():
     """Get all storage bins for the current user"""
     try:
-        from src.database.db import get_db_instance
-        db = get_db_instance()
-
         bin_type = request.args.get('type')  # 'clothing' or 'cards'
         bins = db.get_storage_bins(current_user.id, bin_type)
 
@@ -1474,9 +1776,6 @@ def api_get_storage_bins():
 def api_create_storage_bin():
     """Create a new storage bin"""
     try:
-        from src.database.db import get_db_instance
-        db = get_db_instance()
-
         data = request.get_json()
         bin_name = data.get('bin_name')
         bin_type = data.get('bin_type')  # 'clothing' or 'cards'
@@ -1505,9 +1804,6 @@ def api_create_storage_bin():
 def api_create_storage_section():
     """Create a new section within a bin"""
     try:
-        from src.database.db import get_db_instance
-        db = get_db_instance()
-
         data = request.get_json()
         bin_id = data.get('bin_id')
         section_name = data.get('section_name')
@@ -1540,9 +1836,6 @@ def api_create_storage_section():
 def api_get_storage_items():
     """Get storage items, optionally filtered by bin"""
     try:
-        from src.database.db import get_db_instance
-        db = get_db_instance()
-
         bin_id = request.args.get('bin_id', type=int)
 
         if bin_id:
@@ -1568,9 +1861,6 @@ def api_get_storage_items():
 def api_add_storage_item():
     """Add a new item to storage"""
     try:
-        from src.database.db import get_db_instance
-        db = get_db_instance()
-
         data = request.get_json()
         bin_id = data.get('bin_id')
         section_id = data.get('section_id')
@@ -1636,9 +1926,6 @@ def api_add_storage_item():
 def api_find_storage_item():
     """Find an item by storage ID"""
     try:
-        from src.database.db import get_db_instance
-        db = get_db_instance()
-
         storage_id = request.args.get('storage_id')
 
         if not storage_id:
@@ -3364,4 +3651,381 @@ def cancel_subscription():
         return jsonify({"success": True})
 
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/save-vault", methods=["POST"])
+@login_required
+def api_save_vault():
+    """Save card/item to user's card_collections database"""
+    try:
+        from src.cards import CardCollectionManager, UnifiedCard
+        from src.cards.storage_maps import suggest_storage_region
+        import uuid as uuid_module
+        
+        data = request.json
+        
+        # Check if user wants storage map guidance
+        use_storage_map = data.get('use_storage_map', False)
+        
+        # Extract card data from form or AI analysis
+        # Check if we have card data from AI analysis
+        card_data = data.get('card_data') or data.get('ai_result') or {}
+        
+        # Extract form fields
+        title = data.get('title', card_data.get('card_name') or card_data.get('player_name') or 'Unknown Card')
+        brand = data.get('brand', card_data.get('brand', ''))
+        year = data.get('year', card_data.get('year'))
+        if year:
+            try:
+                year = int(year) if isinstance(year, (int, str)) and str(year).isdigit() else None
+            except:
+                year = None
+        
+        # Determine card type - prioritize TCG detection
+        item_type = data.get('item_type', '').lower()
+        category = card_data.get('category', '').lower() if isinstance(card_data.get('category'), str) else ''
+        game_name = card_data.get('game_name', '').lower() if isinstance(card_data.get('game_name'), str) else ''
+        
+        card_type = 'unknown'
+        
+        # Check for TCG cards first (Pokemon, MTG, Yu-Gi-Oh, etc.)
+        if 'pokemon' in game_name or 'pokemon' in category or 'pokemon' in item_type:
+            card_type = 'pokemon'
+        elif 'magic' in game_name or 'mtg' in game_name or 'magic' in category:
+            card_type = 'mtg'
+        elif 'yugioh' in game_name or 'yu-gi-oh' in game_name or 'yugioh' in category:
+            card_type = 'yugioh'
+        elif card_data.get('game_name'):
+            # Generic TCG - use game name to determine type
+            game = card_data.get('game_name').lower()
+            if 'pokemon' in game:
+                card_type = 'pokemon'
+            elif 'magic' in game or 'mtg' in game:
+                card_type = 'mtg'
+            elif 'yugioh' in game or 'yu-gi-oh' in game:
+                card_type = 'yugioh'
+            else:
+                card_type = 'tcg'  # Generic TCG
+        # Check for sports cards
+        elif card_data.get('sport'):
+            sport = card_data.get('sport').lower()
+            if 'football' in sport or 'nfl' in sport:
+                card_type = 'sports_nfl'
+            elif 'basketball' in sport or 'nba' in sport:
+                card_type = 'sports_nba'
+            elif 'baseball' in sport or 'mlb' in sport:
+                card_type = 'sports_mlb'
+            elif 'hockey' in sport or 'nhl' in sport:
+                card_type = 'sports_nhl'
+            else:
+                card_type = f'sports_{sport.replace(" ", "_")}'
+        elif 'sports card' in item_type or 'sports' in category:
+            card_type = 'sports'
+        elif 'trading card' in item_type or card_data.get('card_type'):
+            # Use provided card_type or default to generic
+            card_type = card_data.get('card_type', 'trading_card')
+        
+        # Determine if this is a TCG or Sports card
+        is_tcg = card_type in ['pokemon', 'mtg', 'yugioh', 'tcg', 'trading_card'] or card_type.startswith('tcg_')
+        is_sports = card_type.startswith('sports') or card_type == 'sports'
+        
+        # Extract game_name for TCG cards
+        tcg_game_name = None
+        if is_tcg:
+            if card_type == 'pokemon':
+                tcg_game_name = 'Pokemon'
+            elif card_type == 'mtg':
+                tcg_game_name = 'Magic: The Gathering'
+            elif card_type == 'yugioh':
+                tcg_game_name = 'Yu-Gi-Oh!'
+            else:
+                tcg_game_name = card_data.get('game_name') or 'Trading Card Game'
+        
+        # Create UnifiedCard - only set sport-related fields for sports cards
+        manager = CardCollectionManager()
+        
+        # Get storage region guidance if enabled
+        storage_region = None
+        if use_storage_map:
+            # Determine franchise from card data (try multiple sources)
+            franchise = (
+                card_data.get('franchise') or 
+                card_data.get('game_name') or 
+                data.get('franchise') or
+                data.get('game_name')
+            )
+            
+            if not franchise and is_tcg:
+                # Try to get franchise from game_name
+                franchise = tcg_game_name or card_data.get('game_name')
+            elif not franchise and is_sports:
+                # Try to get franchise from sport
+                sport = card_data.get('sport') or data.get('sport')
+                if sport:
+                    franchise = sport.upper()
+            elif not franchise:
+                # Try to infer from card_type
+                if card_type == 'pokemon':
+                    franchise = 'Pokemon'
+                elif card_type == 'mtg':
+                    franchise = 'Magic: The Gathering'
+                elif card_type == 'yugioh':
+                    franchise = 'Yu-Gi-Oh!'
+                elif card_type.startswith('sports_'):
+                    franchise = card_type.replace('sports_', '').upper()
+            
+            # Get recommended region
+            region, guidance = suggest_storage_region(
+                franchise=franchise,
+                card_type=card_type,
+                rarity=card_data.get('rarity'),
+                is_rookie=card_data.get('is_rookie_card', False),
+                grading_score=card_data.get('grading_score')
+            )
+            
+            if region:
+                storage_region = region.value
+        
+        # Build card with conditional fields
+        card_kwargs = {
+            'card_type': card_type,
+            'title': title,
+            'user_id': current_user.id,
+            'card_number': card_data.get('card_number') or data.get('card_number'),
+            'quantity': int(data.get('quantity', 1)),
+            'organization_mode': 'by_set' if is_tcg else 'by_year' if is_sports else 'by_set',
+            
+            # Grading (universal)
+            'grading_company': card_data.get('grading_company'),
+            'grading_score': card_data.get('grading_score'),
+            'grading_serial': card_data.get('grading_serial'),
+            
+            # Value & storage (universal)
+            'estimated_value': card_data.get('estimated_value') or card_data.get('estimated_value_avg'),
+            'storage_location': data.get('storage_location', ''),
+            'storage_region': storage_region,  # Recommended region from storage map
+            'photos': data.get('photos', []),
+            'notes': data.get('description', ''),
+            'ai_identified': bool(card_data),
+            'ai_confidence': card_data.get('confidence_score', 0.0)
+        }
+        
+        # Add TCG-specific fields
+        if is_tcg:
+            card_kwargs.update({
+                'game_name': tcg_game_name,
+                'set_name': card_data.get('set_name') or card_data.get('set'),
+                'set_code': card_data.get('set_code'),
+                'rarity': card_data.get('rarity'),
+            })
+        
+        # Add Sports-specific fields (only for sports cards)
+        if is_sports:
+            card_kwargs.update({
+                'sport': card_data.get('sport'),
+                'year': year,
+                'brand': brand or card_data.get('brand'),
+                'series': card_data.get('series'),
+                'player_name': card_data.get('player_name'),
+                'is_rookie_card': card_data.get('is_rookie_card', False),
+            })
+        elif is_tcg:
+            # For TCG cards, year and brand might still be useful
+            if year:
+                card_kwargs['year'] = year
+            if brand:
+                card_kwargs['brand'] = brand
+        
+        card = UnifiedCard(**card_kwargs)
+        card_id = manager.add_card(card)
+        
+        # Prepare response with storage guidance if used
+        response_data = {
+            "success": True,
+            "card_id": card_id,
+            "message": "Card saved to your collection vault successfully"
+        }
+        
+        if use_storage_map and storage_region:
+            # Get guidance text for the region
+            from src.cards.storage_maps import get_storage_map_for_franchise, StorageRegion
+            franchise = card_data.get('franchise') or card_data.get('game_name') or card_data.get('sport')
+            if franchise:
+                storage_map = get_storage_map_for_franchise(franchise)
+                if storage_map:
+                    region_enum = StorageRegion(storage_region)
+                    guidance = storage_map.get_guidance_text(region_enum)
+                    response_data['storage_guidance'] = guidance
+                    response_data['storage_region'] = storage_region
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        import traceback
+        logging.error(f"Save vault error: {e}\n{traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+
+# -------------------------------------------------------------------------
+# CSV EXPORT ENDPOINTS
+# -------------------------------------------------------------------------
+
+@main_bp.route("/api/export/csv/<platform>", methods=["POST"])
+@login_required
+def export_csv_for_platform(platform):
+    """
+    Export listings to platform-specific CSV format
+    
+    POST body:
+    {
+        "listing_ids": [1, 2, 3],  // Optional, if not provided exports all drafts
+        "include_drafts": true      // Optional, default true
+    }
+    """
+    try:
+        from src.csv_exporters import get_exporter
+        from flask import make_response
+        
+        # Get request data
+        data = request.json or {}
+        listing_ids = data.get('listing_ids', [])
+        include_drafts = data.get('include_drafts', True)
+        
+        # Get listings
+        cursor = db._get_cursor()
+        
+        if listing_ids:
+            # Export specific listings
+            placeholders = ','.join(['%s'] * len(listing_ids))
+            query = f"""
+                SELECT * FROM listings
+                WHERE id IN ({placeholders}) AND user_id = %s
+                ORDER BY created_at DESC
+            """
+            cursor.execute(query, (*listing_ids, current_user.id))
+        else:
+            # Export all drafts by default
+            if include_drafts:
+                cursor.execute("""
+                    SELECT * FROM listings
+                    WHERE user_id = %s AND status = 'draft'
+                    ORDER BY created_at DESC
+                """, (current_user.id,))
+            else:
+                cursor.execute("""
+                    SELECT * FROM listings
+                    WHERE user_id = %s AND status != 'draft'
+                    ORDER BY created_at DESC
+                """, (current_user.id,))
+        
+        listings = [dict(row) for row in cursor.fetchall()]
+        cursor.close()
+        
+        if not listings:
+            return jsonify({"error": "No listings found to export"}), 404
+        
+        # Get the appropriate exporter
+        try:
+            exporter = get_exporter(platform)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        
+        # Generate CSV
+        csv_content = exporter.export_to_csv(listings)
+        
+        # Create response with CSV file
+        response = make_response(csv_content)
+        response.headers['Content-Type'] = 'text/csv'
+        response.headers['Content-Disposition'] = f'attachment; filename={platform}_export.csv'
+        
+        return response
+        
+    except Exception as e:
+        import traceback
+        logging.error(f"CSV export error: {e}\n{traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/export/platforms", methods=["GET"])
+@login_required
+def get_export_platforms():
+    """Get list of available CSV export platforms"""
+    try:
+        from src.csv_exporters import EXPORTERS
+        
+        platforms = []
+        for platform_key, exporter_class in EXPORTERS.items():
+            exporter = exporter_class()
+            platforms.append({
+                'key': platform_key,
+                'name': exporter.platform_name,
+                'description': f'Export to {exporter.platform_name} CSV format'
+            })
+        
+        return jsonify({
+            "success": True,
+            "platforms": platforms
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/export/preview/<platform>", methods=["POST"])
+@login_required
+def preview_csv_export(platform):
+    """
+    Preview how listings will be mapped to platform format
+    Returns first 3 transformed listings for preview
+    """
+    try:
+        from src.csv_exporters import get_exporter
+        
+        data = request.json or {}
+        listing_ids = data.get('listing_ids', [])
+        
+        # Get first few listings
+        cursor = db._get_cursor()
+        
+        if listing_ids:
+            query = """
+                SELECT * FROM listings
+                WHERE id IN (%s, %s, %s) AND user_id = %s
+                LIMIT 3
+            """
+            cursor.execute(query, (*listing_ids[:3], current_user.id))
+        else:
+            cursor.execute("""
+                SELECT * FROM listings
+                WHERE user_id = %s AND status = 'draft'
+                ORDER BY created_at DESC
+                LIMIT 3
+            """, (current_user.id,))
+        
+        listings = [dict(row) for row in cursor.fetchall()]
+        cursor.close()
+        
+        if not listings:
+            return jsonify({"error": "No listings found"}), 404
+        
+        # Get exporter and transform
+        try:
+            exporter = get_exporter(platform)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        
+        # Transform listings for preview
+        transformed = [exporter.transform_listing(listing) for listing in listings]
+        
+        return jsonify({
+            "success": True,
+            "platform": exporter.platform_name,
+            "preview": transformed,
+            "field_mapping": exporter.get_field_mapping()
+        })
+        
+    except Exception as e:
+        import traceback
+        logging.error(f"CSV preview error: {e}\n{traceback.format_exc()}")
         return jsonify({"error": str(e)}), 500

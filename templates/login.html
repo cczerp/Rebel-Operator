@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Login - ResellGenie</title>
+    <title>Login - Rebel Operator</title>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -13,12 +13,15 @@
 
     <style>
         :root {
-            --primary: #4CAF50;
-            --secondary: #2196F3;
+            --primary: #8B0000;
+            --primary-dark: #660000;
+            --secondary: #4A5568;
+            --charcoal: #1A1A1A;
+            --charcoal-light: #2B2B2B;
         }
 
         body {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 50%, var(--secondary) 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -26,17 +29,25 @@
         }
 
         .login-card {
-            background: white;
+            background: var(--charcoal);
             border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
             padding: 40px;
             max-width: 400px;
             width: 90%;
+            border: 1px solid var(--secondary);
         }
 
         .login-header {
             text-align: center;
             margin-bottom: 30px;
+        }
+
+        .login-header img {
+            max-width: 200px;
+            height: auto;
+            margin-bottom: 15px;
+            filter: drop-shadow(0 4px 8px rgba(139, 0, 0, 0.3));
         }
 
         .login-header i {
@@ -49,10 +60,11 @@
             font-size: 28px;
             font-weight: bold;
             margin-bottom: 5px;
+            color: white;
         }
 
         .login-header p {
-            color: #666;
+            color: #E0E0E0;
             font-size: 14px;
         }
 
@@ -66,24 +78,39 @@
         }
 
         .btn-primary:hover {
-            background: #45a049;
-            border-color: #45a049;
+            background: var(--primary-dark);
+            border-color: var(--primary-dark);
         }
 
         .form-control {
             padding: 12px;
             border-radius: 10px;
+            background: var(--charcoal-light);
+            border-color: var(--secondary);
+            color: white;
         }
 
         .form-control:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 0 0.2rem rgba(76, 175, 80, 0.25);
+            box-shadow: 0 0 0 0.2rem rgba(139, 0, 0, 0.25);
+            background: var(--charcoal-light);
+            color: white;
+        }
+
+        .form-label {
+            color: #E0E0E0;
+        }
+
+        .input-group-text {
+            background: var(--charcoal-light);
+            border-color: var(--secondary);
+            color: var(--primary);
         }
 
         .register-link {
             text-align: center;
             margin-top: 20px;
-            color: #666;
+            color: #E0E0E0;
         }
 
         .register-link a {
@@ -93,14 +120,26 @@
         }
 
         .register-link a:hover {
+            color: var(--primary-light);
             text-decoration: underline;
+        }
+
+        .alert {
+            background: var(--charcoal-light);
+            border-color: var(--secondary);
+            color: white;
+        }
+
+        .alert-danger {
+            border-color: var(--primary);
+            color: #ffcccc;
         }
     </style>
 </head>
 <body>
     <div class="login-card">
         <div class="login-header">
-            <i class="fas fa-user-circle"></i>
+            <img src="{{ url_for('static', filename='icon-192.png') }}" alt="Rebel Operator Logo">
             <h1>Welcome Back</h1>
             <p>Sign in to access your inventory</p>
         </div>
@@ -133,10 +172,29 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-primary">
+            <button type="submit" class="btn btn-primary w-100 mb-3">
                 <i class="fas fa-sign-in-alt"></i> Login
             </button>
         </form>
+
+        <!-- Google Sign-In -->
+        <div id="googleSignInSection" class="text-center mb-3">
+            <div class="mb-2" style="color: #E0E0E0; font-size: 14px;">or</div>
+            <div id="g_id_onload"
+                 data-client_id=""
+                 data-callback="handleGoogleSignIn"
+                 data-auto_prompt="false">
+            </div>
+            <div class="g_id_signin"
+                 data-type="standard"
+                 data-size="large"
+                 data-theme="filled_blue"
+                 data-text="signin_with"
+                 data-shape="rectangular"
+                 data-logo_alignment="left"
+                 style="width: 100%;">
+            </div>
+        </div>
 
         <div class="text-center mt-3">
             <a href="{{ url_for('auth.forgot_password') }}" style="color: #666; text-decoration: none; font-size: 14px;">
@@ -151,5 +209,100 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Google Sign-In -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+        // Initialize Google Sign-In - button always shows
+        function initializeGoogleSignIn() {
+            // Get Google Client ID from server
+            fetch('/api/auth/google-client-id')
+                .then(res => res.json())
+                .then(data => {
+                    const clientId = data.client_id && data.client_id.trim() !== '' ? data.client_id : null;
+                    
+                    if (!clientId) {
+                        console.warn('Google Client ID not configured');
+                        return;
+                    }
+                    
+                    // Wait for Google library to be available
+                    function tryInitialize() {
+                        if (window.google && window.google.accounts && window.google.accounts.id) {
+                            // Initialize Google Sign-In
+                            window.google.accounts.id.initialize({
+                                client_id: clientId,
+                                callback: handleGoogleSignIn
+                            });
+                            
+                            // Render the button if not already rendered
+                            const buttonContainer = document.querySelector('.g_id_signin');
+                            if (buttonContainer && !buttonContainer.querySelector('iframe') && !buttonContainer.querySelector('button')) {
+                                window.google.accounts.id.renderButton(buttonContainer, {
+                                    theme: 'filled_blue',
+                                    size: 'large',
+                                    text: 'signin_with',
+                                    shape: 'rectangular',
+                                    logo_alignment: 'left',
+                                    width: '100%'
+                                });
+                            }
+                        } else {
+                            // Retry after a short delay if Google library not loaded yet
+                            setTimeout(tryInitialize, 100);
+                        }
+                    }
+                    
+                    tryInitialize();
+                })
+                .catch(err => {
+                    console.error('Failed to load Google Client ID:', err);
+                });
+        }
+        
+        // Start initialization when Google library loads
+        function waitForGoogle() {
+            if (window.google && window.google.accounts && window.google.accounts.id) {
+                initializeGoogleSignIn();
+            } else {
+                setTimeout(waitForGoogle, 100);
+            }
+        }
+        
+        // Try to initialize when page loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', waitForGoogle);
+        } else {
+            waitForGoogle();
+        }
+        
+        // Also try when window loads
+        window.addEventListener('load', waitForGoogle);
+        
+        async function handleGoogleSignIn(response) {
+            // Send the credential to the server for verification
+            try {
+                const result = await fetch('/api/auth/google', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ credential: response.credential })
+                });
+                
+                const data = await result.json();
+                
+                if (data.success) {
+                    // Redirect to create listing page
+                    window.location.href = data.redirect || '/create';
+                } else {
+                    alert('Google sign-in failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Google sign-in error:', error);
+                alert('Failed to sign in with Google. Please try again.');
+            }
+        }
+    </script>
 </body>
 </html>

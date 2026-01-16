@@ -4,9 +4,17 @@
 
 {% block content %}
 {% if is_guest %}
-<div class="alert alert-success mb-4">
-    <h5 class="alert-heading"><i class="fas fa-magic"></i> Try ResellGenie AI FREE!</h5>
-    <p class="mb-0">Upload a photo and watch AI create your listing instantly. No sign-up required to test!</p>
+<div class="alert alert-info mb-4">
+    <h5 class="alert-heading"><i class="fas fa-magic"></i> Try AI Analyzer FREE!</h5>
+    <p class="mb-2">Upload photos and watch AI create your listing instantly. No sign-up required!</p>
+    {% if guest_uses_remaining is not none %}
+    <p class="mb-0">
+        <strong>Free uses remaining: {{ guest_uses_remaining }} / 8</strong>
+        {% if guest_uses_remaining == 0 %}
+        <br><a href="{{ url_for('auth.register') }}" class="alert-link">Sign up now</a> to continue using AI features!
+        {% endif %}
+    </p>
+    {% endif %}
 </div>
 {% endif %}
 
@@ -35,12 +43,14 @@
             </div>
             <div id="photoPreview" class="mt-3 d-flex flex-wrap"></div>
             <div class="mt-3 d-flex gap-2">
-                <button type="button" class="btn btn-primary" id="analyzeBtn" style="display:none;">
+                <button type="button" class="btn btn-primary" id="analyzeBtn" disabled title="Upload photos first to enable AI analysis">
                     <i class="fas fa-magic"></i> Analyze with AI
                 </button>
-                <button type="button" class="btn btn-outline-primary" id="enhancedScanBtn" disabled title="Run quick AI scan first to enable Enhanced Scan">
+                {% if not is_guest %}
+                <button type="button" class="btn btn-outline-primary" id="enhancedScanBtn" disabled title="Run quick AI scan first to enable Enhanced Scan" onclick="runEnhancedScan()">
                     <i class="fas fa-microscope"></i> Enhanced Scan
                 </button>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -138,15 +148,29 @@
             You can test the AI photo analysis above without signing up!
         </small>
         {% else %}
+        <div class="alert alert-info mb-3">
+            <i class="fas fa-lightbulb"></i> <strong>Choose how to save:</strong>
+            <ul class="mb-0 mt-2">
+                <li><strong>Post as Listing:</strong> Ready to sell now? Post to marketplaces immediately</li>
+                <li><strong>Save as Draft:</strong> Not ready yet? Save for later to finish and post</li>
+                <li><strong>Save to My Vault:</strong> Just collecting? Store in your personal collection vault</li>
+            </ul>
+        </div>
         <button type="button" class="btn btn-primary btn-lg" id="postListingBtn">
-            <i class="fas fa-rocket"></i> Post Listing
+            <i class="fas fa-rocket"></i> Post as Listing
         </button>
         <button type="button" class="btn btn-secondary btn-lg" id="saveDraftBtn">
-            <i class="fas fa-save"></i> Save Listing Draft
+            <i class="fas fa-save"></i> Save as Draft
         </button>
         <button type="button" class="btn btn-outline-success btn-lg" id="saveToVaultBtn">
-            <i class="fas fa-archive"></i> Save to Collection Vault
+            <i class="fas fa-vault"></i> Save to My Vault
         </button>
+        <div class="form-check mt-2" id="storageMapOption" style="display: none;">
+            <input class="form-check-input" type="checkbox" id="useStorageMap" checked>
+            <label class="form-check-label" for="useStorageMap">
+                <i class="fas fa-map-marked-alt"></i> Use storage map guidance (suggests where to place card)
+            </label>
+        </div>
         {% endif %}
     </div>
 </form>
@@ -445,7 +469,8 @@ async function handlePhotoSelect(e) {
                 previewDiv.appendChild(container);
             }
 
-            document.getElementById('analyzeBtn').style.display = 'block';
+            // Enable Analyze button when photos are uploaded
+            document.getElementById('analyzeBtn').disabled = false;
             showAlert(`${data.count} photo(s) added! Total: ${uploadedPhotos.length}`, 'success');
         } else {
             showAlert(data.error, 'danger');
@@ -758,9 +783,9 @@ function removePhoto(index) {
 
         showAlert('Photo removed', 'info');
 
-        // Hide analyze button if no photos left
+        // Disable analyze button if no photos left
         if (uploadedPhotos.length === 0) {
-            document.getElementById('analyzeBtn').style.display = 'none';
+            document.getElementById('analyzeBtn').disabled = true;
             
             // Also disable Enhanced Scan button when no photos
             const enhancedScanBtn = document.getElementById('enhancedScanBtn');
@@ -833,6 +858,12 @@ let enhancedScanData = null;
 
 // TIER 1: Quick Analysis (Gemini - Fast & Cheap)
 document.getElementById('analyzeBtn').addEventListener('click', async function() {
+    // Check if photos are uploaded (non-negotiable requirement)
+    if (!uploadedPhotos || uploadedPhotos.length === 0) {
+        showAlert('Please upload photos first before running AI analysis.', 'warning');
+        return;
+    }
+    
     showLoading('Running quick analysis...');
 
     try {
@@ -847,10 +878,44 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
         const data = await response.json();
 
         if (!data.success) {
-            showAlert(data.error || 'Analysis failed', 'danger');
+            // Check if user needs to sign up
+            if (data.requires_signup) {
+                showAlert(data.error || 'You\'ve used all free analyses. Please sign up to continue!', 'warning');
+                // Show signup prompt
+                if (confirm(data.error + '\n\nWould you like to sign up now?')) {
+                    window.location.href = '{{ url_for("auth.register") }}';
+                }
+            } else {
+                showAlert(data.error || 'Analysis failed', 'danger');
+            }
             hideLoading();
             return;
         }
+        
+        // Update guest usage counter if shown (will be updated on next page load)
+        {% if is_guest and guest_uses_remaining is not none %}
+        // Note: Counter will be updated on next page load since session is server-side
+        // For immediate feedback, we can show a message
+        const guestAlert = document.querySelector('.alert-info');
+        if (guestAlert) {
+            const newRemaining = Math.max(0, {{ guest_uses_remaining }} - 1);
+            const usesText = guestAlert.querySelector('strong');
+            if (usesText) {
+                usesText.textContent = `Free uses remaining: ${newRemaining} / 8`;
+                if (newRemaining === 0) {
+                    const lastP = guestAlert.querySelector('p:last-child');
+                    if (lastP && !lastP.querySelector('a')) {
+                        const signupLink = document.createElement('a');
+                        signupLink.href = '{{ url_for("auth.register") }}';
+                        signupLink.className = 'alert-link';
+                        signupLink.textContent = 'Sign up now to continue using AI features!';
+                        lastP.appendChild(document.createElement('br'));
+                        lastP.appendChild(signupLink);
+                    }
+                }
+            }
+        }
+        {% endif %}
 
         const analysis = data.analysis;
 
@@ -895,6 +960,9 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
         if (analysis.market_analysis) {
             showMarketAnalysis(analysis.market_analysis);
         }
+
+        // Store analysis data for vault button
+        window.lastQuickAnalysis = analysis;
 
         showAlert('Quick analysis complete!', 'success');
 
@@ -980,10 +1048,16 @@ function getDemandEmoji(demand) {
 
 // TIER 2: Enhanced Scanner (Claude - Deep Dive)
 // Creates artifact in Hall of Records and redirects to artifact detail page
-// Attach click handler to Enhanced Scan button
-document.getElementById('enhancedScanBtn')?.addEventListener('click', runEnhancedScan);
-
 async function runEnhancedScan() {
+    {% if is_guest %}
+    // Enhanced Scan requires authentication
+    showAlert('Enhanced Scan is only available for registered users. Please sign up to access this feature!', 'warning');
+    if (confirm('Would you like to sign up now?')) {
+        window.location.href = '{{ url_for("auth.register") }}';
+    }
+    return;
+    {% endif %}
+    
     // Check if button is enabled (collectible detected)
     const btn = document.getElementById('enhancedScanBtn');
     if (btn && btn.disabled) {
@@ -1011,6 +1085,16 @@ async function runEnhancedScan() {
         const data = await response.json();
 
         if (!data.success) {
+            // Check if authentication is required
+            if (response.status === 401 || response.status === 403) {
+                showAlert('Enhanced Scan requires authentication. Please sign up to access this feature!', 'warning');
+                if (confirm('Would you like to sign up now?')) {
+                    window.location.href = '{{ url_for("auth.register") }}';
+                }
+                hideLoading();
+                return;
+            }
+            
             if (data.type === 'standard_item') {
                 showAlert('Not a collectible. Quick analysis is sufficient for this item.', 'info');
             } else {
@@ -1062,11 +1146,15 @@ function showCardResults(data) {
                 <div class="row">
                     <div class="col-md-8">
                         <h5>${cardData.card_name || cardData.player_name || 'Unknown Card'}</h5>
+                        ${cardData.franchise ? `<p class="mb-1"><strong><i class="fas fa-tag"></i> Franchise:</strong> ${cardData.franchise}</p>` : ''}
+                        ${cardData.game_name ? `<p class="mb-1"><strong><i class="fas fa-gamepad"></i> Game:</strong> ${cardData.game_name}</p>` : ''}
+                        ${cardData.card_type && cardData.card_type !== 'unknown' ? `<p class="mb-1"><strong><i class="fas fa-id-card"></i> Type:</strong> ${cardData.card_type.replace('_', ' ').toUpperCase()}</p>` : ''}
                         ${cardData.set_name ? `<p class="mb-1"><strong>Set:</strong> ${cardData.set_name}</p>` : ''}
                         ${cardData.card_number ? `<p class="mb-1"><strong>Number:</strong> #${cardData.card_number}</p>` : ''}
                         ${cardData.rarity ? `<p class="mb-1"><strong>Rarity:</strong> ${cardData.rarity}</p>` : ''}
                         ${cardData.year ? `<p class="mb-1"><strong>Year:</strong> ${cardData.year}</p>` : ''}
                         ${cardData.brand ? `<p class="mb-1"><strong>Brand:</strong> ${cardData.brand}</p>` : ''}
+                        ${cardData.sport ? `<p class="mb-1"><strong>Sport:</strong> ${cardData.sport}</p>` : ''}
                         ${cardData.is_rookie_card ? `<p class="mb-1"><span class="badge" style="background: #FF9800; color: white;">ROOKIE CARD</span></p>` : ''}
                         ${cardData.is_graded ? `<p class="mb-1"><strong>Graded:</strong> ${cardData.grading_company} ${cardData.grading_score}</p>` : ''}
                         
@@ -1156,16 +1244,34 @@ function showCardResults(data) {
                 
                 <hr>
                 
-                <div class="d-flex gap-2">
-                    <button class="btn btn-success" onclick="storeCardOnly()">
+                <!-- Storage Map Option -->
+                <div class="mb-3" id="cardStorageMapOption">
+                    <div class="alert alert-info" style="background: rgba(76, 175, 80, 0.1); border-color: #4CAF50;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="cardUseStorageMap" checked>
+                            <label class="form-check-label" for="cardUseStorageMap">
+                                <i class="fas fa-map-marked-alt"></i> <strong>Use storage map guidance</strong>
+                            </label>
+                            <small class="text-muted d-block mt-1">
+                                Suggests where to place this card in your collection (front/middle/back) based on franchise and type.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-success btn-lg" onclick="saveCardToVault()" style="flex: 1; min-width: 200px;">
+                        <i class="fas fa-archive"></i> Save to Vault
+                    </button>
+                    <button class="btn btn-outline-success" onclick="storeCardOnly()">
                         <i class="fas fa-box"></i> Store in Collection
                     </button>
-                    <button class="btn btn-outline-success" onclick="storeAndList()">
-                        <i class="fas fa-plus-circle"></i> Store + Create Listing
+                    <button class="btn btn-outline-primary" onclick="storeAndList()">
+                        <i class="fas fa-plus-circle"></i> Store + List
                     </button>
                     ${data.public_db_id ? `
                         <button class="btn btn-outline-info" onclick="window.open('/collectibles-database/${data.public_db_id}', '_blank')">
-                            <i class="fas fa-database"></i> View in Database
+                            <i class="fas fa-database"></i> View in DB
                         </button>
                     ` : ''}
                 </div>
@@ -1180,8 +1286,84 @@ function showCardResults(data) {
     const insertAfter = document.getElementById('marketAnalysisCard') || document.querySelector('.card');
     insertAfter.insertAdjacentHTML('afterend', statsCard);
 
+    // Show storage map option for cards
+    const storageMapOption = document.getElementById('cardStorageMapOption');
+    if (storageMapOption) {
+        storageMapOption.style.display = 'block';
+    }
+
+    // Also show the main storage map option
+    const mainStorageMapOption = document.getElementById('storageMapOption');
+    if (mainStorageMapOption) {
+        mainStorageMapOption.style.display = 'block';
+    }
+
+    // Store card data globally for vault saving
+    window.lastCardData = cardData;
+    window.lastCardPrices = prices;
+    window.lastEnhancedScanData = { data: cardData, prices: prices };
+
     // Fill form with detailed card info
     fillFormFromCardData(cardData, prices);
+}
+
+// Save card to vault (from card results)
+async function saveCardToVault() {
+    if (!window.lastCardData) {
+        showAlert('No card data available. Please scan a card first.', 'warning');
+        return;
+    }
+    
+    const formData = collectFormData();
+    
+    // Include card data from enhanced scan
+    formData.card_data = window.lastCardData;
+    
+    // Check if storage map guidance is enabled
+    const storageMapCheckbox = document.getElementById('cardUseStorageMap');
+    if (storageMapCheckbox) {
+        formData.use_storage_map = storageMapCheckbox.checked;
+    } else {
+        // Fallback to main checkbox
+        const mainCheckbox = document.getElementById('useStorageMap');
+        if (mainCheckbox) {
+            formData.use_storage_map = mainCheckbox.checked;
+        }
+    }
+    
+    showLoading();
+
+    try {
+        const response = await fetch('/api/save-vault', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            let message = 'Card saved to your collection vault!';
+            
+            // Show storage guidance if provided
+            if (data.storage_guidance) {
+                message += `<br><br><strong><i class="fas fa-map-marked-alt"></i> Storage Guidance:</strong><br>${data.storage_guidance}`;
+            }
+            
+            showAlert(message, 'success');
+            // Clear form and stay on page
+            clearForm();
+            setTimeout(() => {
+                hideLoading();
+            }, 1000);
+        } else {
+            showAlert(data.error || 'Failed to save to vault', 'danger');
+            hideLoading();
+        }
+    } catch (error) {
+        showAlert('Save failed: ' + error, 'danger');
+        hideLoading();
+    }
 }
 
 // Display Collectible Results
@@ -1458,20 +1640,29 @@ async function storeCardOnly() {
     showLoading();
 
     try {
+        // Check if storage map guidance is enabled (check both checkboxes)
+        const storageMapCheckbox = document.getElementById('cardUseStorageMap') || document.getElementById('useStorageMap');
+        const useStorageMap = storageMapCheckbox ? storageMapCheckbox.checked : false;
+        
         const response = await fetch('/api/cards/add', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 ai_result: detectedCardData,
-                photos: uploadedPhotos
+                photos: uploadedPhotos,
+                use_storage_map: useStorageMap
             })
         });
 
         const data = await response.json();
 
         if (data.success) {
-            showAlert('Card stored in your collection! Redirecting...', 'success');
-            setTimeout(() => window.location.href = '/cards', 1500);
+            let message = 'Card stored in your collection!';
+            if (data.storage_guidance) {
+                message += `<br><br><strong><i class="fas fa-map-marked-alt"></i> Storage Guidance:</strong><br>${data.storage_guidance}`;
+            }
+            showAlert(message, 'success');
+            setTimeout(() => window.location.href = '/cards', 2000);
         } else {
             showAlert(data.error || 'Failed to add card', 'danger');
             hideLoading();
@@ -1492,12 +1683,17 @@ async function storeAndList() {
     showLoading();
 
     try {
+        // Check if storage map guidance is enabled (check both checkboxes)
+        const storageMapCheckbox = document.getElementById('cardUseStorageMap') || document.getElementById('useStorageMap');
+        const useStorageMap = storageMapCheckbox ? storageMapCheckbox.checked : false;
+        
         const response = await fetch('/api/cards/add', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 ai_result: detectedCardData,
-                photos: uploadedPhotos
+                photos: uploadedPhotos,
+                use_storage_map: useStorageMap
             })
         });
 
@@ -1603,13 +1799,17 @@ async function storeCollectibleAndList() {
         hideLoading();
     }
 }
-// Save Listing Draft - Serialize to CSV and append to drafts.csv
+// Save Listing Draft - Save to user's database (listings table with status='draft')
 async function saveDraft() {
     const formData = collectFormData();
+    
+    // Ensure status is set to 'draft'
+    formData.status = 'draft';
+    
     showLoading();
 
     try {
-        const response = await fetch('/api/save-draft-csv', {
+        const response = await fetch('/api/save-draft', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(formData)
@@ -1618,7 +1818,7 @@ async function saveDraft() {
         const data = await response.json();
 
         if (data.success) {
-            showAlert('Draft saved to CSV successfully!', 'success');
+            showAlert('Draft saved to your database successfully!', 'success');
             // Clear form and stay on page
             clearForm();
             setTimeout(() => {
@@ -1634,13 +1834,31 @@ async function saveDraft() {
     }
 }
 
-// Save to Collection Vault - Serialize to CSV and append to vault.csv
+// Save to Collection Vault - Save card to user's card_collections database
 async function saveToVault() {
     const formData = collectFormData();
+    
+    // Include card data from AI analysis if available
+    const enhancedResultsCard = document.getElementById('enhancedResultsCard');
+    if (enhancedResultsCard && window.lastEnhancedScanData) {
+        formData.card_data = window.lastEnhancedScanData.data;
+    }
+    
+    // Also check for quick AI scan card data
+    if (window.lastQuickAnalysis && (window.lastQuickAnalysis.category === 'Trading Cards' || window.lastQuickAnalysis.category === 'Sports Cards')) {
+        formData.card_data = formData.card_data || window.lastQuickAnalysis;
+    }
+    
+    // Check if storage map guidance is enabled
+    const storageMapCheckbox = document.getElementById('useStorageMap');
+    if (storageMapCheckbox) {
+        formData.use_storage_map = storageMapCheckbox.checked;
+    }
+    
     showLoading();
 
     try {
-        const response = await fetch('/api/save-vault-csv', {
+        const response = await fetch('/api/save-vault', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(formData)
@@ -1649,7 +1867,14 @@ async function saveToVault() {
         const data = await response.json();
 
         if (data.success) {
-            showAlert('Item saved to Collection Vault!', 'success');
+            let message = 'Card saved to your collection vault!';
+            
+            // Show storage guidance if provided
+            if (data.storage_guidance) {
+                message += `<br><br><strong><i class="fas fa-map-marked-alt"></i> Storage Guidance:</strong><br>${data.storage_guidance}`;
+            }
+            
+            showAlert(message, 'success');
             // Clear form and stay on page
             clearForm();
             setTimeout(() => {
@@ -1755,7 +1980,9 @@ function clearForm() {
     document.getElementById('listingForm').reset();
     uploadedPhotos = [];
     document.getElementById('photoPreview').innerHTML = '';
-    document.getElementById('analyzeBtn').style.display = 'none';
+    
+    // Disable both AI buttons when form is cleared
+    document.getElementById('analyzeBtn').disabled = true;
     
     // Reset Enhanced Scan button to disabled state
     const enhancedScanBtn = document.getElementById('enhancedScanBtn');
@@ -1921,7 +2148,7 @@ async function loadDraftData() {
                     previewDiv.appendChild(container);
                 }
 
-                document.getElementById('analyzeBtn').style.display = 'block';
+                document.getElementById('analyzeBtn').disabled = false;
             }
 
             showAlert('Draft loaded for editing', 'info');

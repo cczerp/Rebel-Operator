@@ -1,0 +1,422 @@
+{% extends "base.html" %}
+
+{% block title %}Storage Instructions{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-info-circle"></i> Storage Organization Instructions</h2>
+        <a href="{{ url_for('storage') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Storage
+        </a>
+    </div>
+
+    <!-- Quick Start Guide -->
+    <div class="card mb-4 border-primary">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0"><i class="fas fa-rocket"></i> Quick Start Guide</h4>
+        </div>
+        <div class="card-body">
+            <h5>Get organized in 5 minutes:</h5>
+            <ol class="lead">
+                <li class="mb-2">Choose your storage type (Clothing or Cards)</li>
+                <li class="mb-2">Create bins (A, B, C, etc.)</li>
+                <li class="mb-2">Add sections to each bin (1, 2, 3, etc.)</li>
+                <li class="mb-2">Add items and get Storage IDs automatically</li>
+                <li class="mb-2">Use Storage Map to find items instantly!</li>
+            </ol>
+            <div class="alert alert-info">
+                <strong>Pro Tip:</strong> Start with ONE bin to test the system before creating your full setup.
+            </div>
+        </div>
+    </div>
+
+    <!-- Storage Types -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-tshirt"></i> Clothing Storage</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Best For:</h6>
+                    <ul>
+                        <li>Apparel resellers</li>
+                        <li>Thrift flippers</li>
+                        <li>Fashion inventory</li>
+                    </ul>
+                    <h6>How It Works:</h6>
+                    <p>Items organized by bins and compartments with size/brand/condition tracking.</p>
+                    <p><strong>Example ID:</strong> <code>BIN-A-COMP-3-012</code></p>
+                    <a href="{{ url_for('storage_clothing') }}" class="btn btn-info">
+                        <i class="fas fa-arrow-right"></i> Set Up Clothing Storage
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-id-card"></i> Card Storage</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Best For:</h6>
+                    <ul>
+                        <li>Trading card collectors</li>
+                        <li>Sports card sellers</li>
+                        <li>TCG (Pokémon, MTG, etc.)</li>
+                    </ul>
+                    <h6>How It Works:</h6>
+                    <p>Cards organized by category, bin, and section with franchise tracking.</p>
+                    <p><strong>Example ID:</strong> <code>PKMN-A1-045</code></p>
+                    <a href="{{ url_for('storage_cards') }}" class="btn btn-success">
+                        <i class="fas fa-arrow-right"></i> Set Up Card Storage
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card Categories Reference -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-tags"></i> Card Category Codes</h5>
+        </div>
+        <div class="card-body">
+            <p>When adding cards, use these category codes for your Storage IDs:</p>
+            <div class="row">
+                <div class="col-md-3">
+                    <h6>Sports Cards:</h6>
+                    <ul class="list-unstyled">
+                        <li><code>FB</code> - Football (NFL)</li>
+                        <li><code>BB</code> - Basketball (NBA)</li>
+                        <li><code>BSB</code> - Baseball (MLB)</li>
+                        <li><code>NHL</code> - Hockey</li>
+                        <li><code>SOC</code> - Soccer</li>
+                    </ul>
+                </div>
+                <div class="col-md-3">
+                    <h6>Trading Card Games:</h6>
+                    <ul class="list-unstyled">
+                        <li><code>PKMN</code> - Pokémon</li>
+                        <li><code>MTG</code> - Magic: The Gathering</li>
+                        <li><code>YGO</code> - Yu-Gi-Oh!</li>
+                    </ul>
+                </div>
+                <div class="col-md-3">
+                    <h6>Entertainment:</h6>
+                    <ul class="list-unstyled">
+                        <li><code>WWE</code> - Wrestling</li>
+                        <li><code>MRV</code> - Marvel</li>
+                        <li><code>SW</code> - Star Wars</li>
+                    </ul>
+                </div>
+                <div class="col-md-3">
+                    <h6>Other:</h6>
+                    <ul class="list-unstyled">
+                        <li><code>OTH</code> - Other/Misc</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Storage Region Principle -->
+    <div class="card mb-4 border-info">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-info-circle"></i> Storage Region Principle</h5>
+        </div>
+        <div class="card-body">
+            <h6>Key Concept: Frequency vs. Protection</h6>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="bg-light p-3 rounded mb-2">
+                        <strong>FRONT Region:</strong> High-frequency cards
+                        <ul class="mb-0 mt-2">
+                            <li>Commons and bulk cards</li>
+                            <li>Cards you trade/sell often</li>
+                            <li>Easy access for quick grabs</li>
+                        </ul>
+                    </div>
+                    <div class="bg-light p-3 rounded">
+                        <strong>MIDDLE Region:</strong> Moderate access
+                        <ul class="mb-0 mt-2">
+                            <li>Uncommons and mid-tier cards</li>
+                            <li>Star players (not rookies)</li>
+                            <li>Regular rotation</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="bg-light p-3 rounded mb-2">
+                        <strong>BACK Region:</strong> Protected storage
+                        <ul class="mb-0 mt-2">
+                            <li>Rare cards</li>
+                            <li>Autographed/memorabilia</li>
+                            <li>Needs protection, moderate value</li>
+                        </ul>
+                    </div>
+                    <div class="bg-light p-3 rounded">
+                        <strong>BOTTOM Region:</strong> Maximum protection
+                        <ul class="mb-0 mt-2">
+                            <li>Ultra rares and graded cards</li>
+                            <li>Rookie cards</li>
+                            <li>Highest value, safest storage</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="alert alert-warning mt-3 mb-0">
+                <strong>Remember:</strong> These are conceptual guidance regions, not physical containers. Apply this principle to how you organize your actual bins, boxes, and binders!
+            </div>
+        </div>
+    </div>
+
+    <!-- Organization Strategies -->
+    <div class="card mb-4">
+        <div class="card-header bg-warning">
+            <h5 class="mb-0"><i class="fas fa-lightbulb"></i> Organization Strategies</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <div class="border p-3 rounded h-100">
+                        <h6><i class="fas fa-layer-group"></i> By Rarity/Value</h6>
+                        <p class="small">Organize high-value cards separately for security and quick access.</p>
+                        <div class="bg-light p-2 rounded">
+                            <small>
+                                <strong>Example:</strong><br>
+                                Bin A: $100+ cards<br>
+                                Bin B: $20-$99 cards<br>
+                                Bin C: Bulk cards
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="border p-3 rounded h-100">
+                        <h6><i class="fas fa-gamepad"></i> By Franchise/Sport</h6>
+                        <p class="small">Keep each game or sport in separate bins.</p>
+                        <div class="bg-light p-2 rounded">
+                            <small>
+                                <strong>Example:</strong><br>
+                                Bin A: Pokémon<br>
+                                Bin B: Magic: The Gathering<br>
+                                Bin C: Sports cards
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="border p-3 rounded h-100">
+                        <h6><i class="fas fa-list-ol"></i> By Set/Year</h6>
+                        <p class="small">Organize by release set or year for completionists.</p>
+                        <div class="bg-light p-2 rounded">
+                            <small>
+                                <strong>Example:</strong><br>
+                                Bin A: 2024 releases<br>
+                                Bin B: 2023 releases<br>
+                                Bin C: Vintage
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="alert alert-success mt-3">
+                <strong>Recommended:</strong> Start with "By Franchise/Sport" for most flexibility. You can always reorganize later!
+            </div>
+        </div>
+    </div>
+
+    <!-- Physical Storage Tips -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-box"></i> Physical Storage Tips</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>For Trading Cards:</h6>
+                    <ul>
+                        <li><strong>Binders:</strong> Best for display cards ($5-$50)
+                            <ul>
+                                <li><strong>Spacing Rule:</strong> Insert every 4th card, skip 2 slots for 2-3 pages. Fill gaps later as you find pairs/groupings. Reduces reshuffling!</li>
+                            </ul>
+                        </li>
+                        <li><strong>Storage Boxes:</strong> Best for commons/bulk (FRONT region)
+                            <ul>
+                                <li>100-count: Small sets, quick access</li>
+                                <li>660-count: Medium collections</li>
+                                <li>3200-count: Bulk storage</li>
+                            </ul>
+                        </li>
+                        <li><strong>Top Loaders & Slabs:</strong> PROTECTION methods, not destinations
+                            <ul>
+                                <li>Protect valuable cards ($50+), then group protected cards in boxes</li>
+                                <li>Store these boxes in BACK/BOTTOM region</li>
+                                <li>Don't leave slabs free-floating!</li>
+                            </ul>
+                        </li>
+                        <li><strong>Deck Boxes:</strong> Complete decks, playsets</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>For Clothing:</h6>
+                    <ul>
+                        <li><strong>Plastic Bins:</strong> Stackable, labeled, transparent lids</li>
+                        <li><strong>Hanging Racks:</strong> Quick access for frequently listed items</li>
+                        <li><strong>Shelving Units:</strong> Organize by size or brand</li>
+                        <li><strong>Vacuum Bags:</strong> Seasonal items, long-term storage</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Labeling Best Practices -->
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0"><i class="fas fa-tag"></i> Labeling Best Practices</h5>
+        </div>
+        <div class="card-body">
+            <h6>Label Everything!</h6>
+            <ol>
+                <li><strong>Bins:</strong> Large labels on front and top (A, B, C, etc.)</li>
+                <li><strong>Sections/Compartments:</strong> Number or letter each section (1, 2, 3, etc.)</li>
+                <li><strong>Individual Items:</strong> Use Storage IDs from Rebel Operator</li>
+            </ol>
+
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <div class="border p-3 bg-light">
+                        <h6>Cards Example:</h6>
+                        <code>PKMN-A1-045</code> means:
+                        <ul class="small mt-2">
+                            <li><code>PKMN</code> = Pokémon card</li>
+                            <li><code>A1</code> = Bin A, Section 1</li>
+                            <li><code>045</code> = Card #45 in that section</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="border p-3 bg-light">
+                        <h6>Clothing Example:</h6>
+                        <code>BIN-A-COMP-2-007</code> means:
+                        <ul class="small mt-2">
+                            <li><code>BIN-A</code> = Bin A</li>
+                            <li><code>COMP-2</code> = Compartment 2</li>
+                            <li><code>007</code> = Item #7</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-warning mt-3">
+                <strong>Pro Tip:</strong> Use a label maker for professional-looking labels. Write Storage IDs on inventory tags attached to items!
+            </div>
+        </div>
+    </div>
+
+    <!-- Workflow Example -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-workflow"></i> Complete Workflow Example</h5>
+        </div>
+        <div class="card-body">
+            <h6>Scan → Organize → Sell → Ship</h6>
+            <ol class="lead">
+                <li><strong>Scan Item:</strong> Use "Scan & Add" to take photos and analyze with AI</li>
+                <li><strong>Add to Vault:</strong> Item saved with details and value estimate</li>
+                <li><strong>Assign Storage:</strong> Place item in physical bin, assign Storage ID</li>
+                <li><strong>Create Listing:</strong> When ready to sell, click "Create Listing"</li>
+                <li><strong>Item Sells:</strong> Storage ID shown in notification</li>
+                <li><strong>Find & Ship:</strong> Use Storage Map to locate item instantly!</li>
+            </ol>
+
+            <div class="bg-light p-3 rounded">
+                <h6>Real Example:</h6>
+                <p class="mb-2"><strong>Day 1:</strong> Scan Charizard Pokémon card → AI detects it's worth $120 → Save to vault → Put in Bin A, Section 1 → Assign <code>PKMN-A1-012</code></p>
+                <p class="mb-2"><strong>Day 5:</strong> Ready to sell → Open vault → Click "Create Listing" → Post to eBay</p>
+                <p class="mb-0"><strong>Day 7:</strong> Card sells! → Notification shows <code>PKMN-A1-012</code> → Use Storage Map to find → Go to Bin A, Section 1, Card #12 → Ship within minutes!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAQ -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-question-circle"></i> Frequently Asked Questions</h5>
+        </div>
+        <div class="card-body">
+            <div class="accordion" id="faqAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                            Do I need to use the Storage System?
+                        </button>
+                    </h2>
+                    <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            <strong>No, it's optional!</strong> You can use Rebel Operator just for listing creation and skip the storage features. However, if you have more than 20-30 items, organization becomes critical for finding items when they sell.
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                            Can I reorganize later?
+                        </button>
+                    </h2>
+                    <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            <strong>Yes!</strong> You can switch organization modes anytime in the Collection Vault. Storage IDs can be updated if you physically move items.
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                            What if I lose track of an item?
+                        </button>
+                    </h2>
+                    <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            Use the <strong>Quick Find</strong> feature on the Storage Map page. Enter the Storage ID and it shows exactly where to look!
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">
+                            Do Storage IDs change?
+                        </button>
+                    </h2>
+                    <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            <strong>Only if you move the item!</strong> If you reorganize and move an item to a new bin or section, update its Storage ID in the system to match the new location.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="text-center my-5">
+        <h4 class="mb-4">Ready to Get Started?</h4>
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{{ url_for('storage_clothing') }}" class="btn btn-lg btn-info">
+                <i class="fas fa-tshirt"></i> Set Up Clothing Storage
+            </a>
+            <a href="{{ url_for('storage_cards') }}" class="btn btn-lg btn-success">
+                <i class="fas fa-id-card"></i> Set Up Card Storage
+            </a>
+        </div>
+        <div class="mt-3">
+            <a href="{{ url_for('storage_map') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-map"></i> View Storage Map
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

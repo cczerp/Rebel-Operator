@@ -51,6 +51,7 @@ class UnifiedCard:
     # ==========================================
     storage_location: Optional[str] = None  # 'Binder A Page 1', 'Box 3 Row 2', etc.
     storage_item_id: Optional[int] = None  # Link to storage_items table
+    storage_region: Optional[str] = None  # Recommended region from storage map (front/middle/back/etc.)
 
     # ==========================================
     # TCG FIELDS (Pokémon, MTG, Yu-Gi-Oh, etc.)

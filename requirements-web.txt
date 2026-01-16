@@ -22,6 +22,11 @@ rich>=13.0.0
 # Optional: Image processing
 Pillow>=10.0.0
 
+# Auth / OAuth / Security
+google-auth>=2.23.0         # Google OAuth ID token verification (REQUIRED for Google Sign In)
+pyjwt>=2.8.0                 # JWT parsing (used by google-auth)
+flask-login>=0.6.3           # User session management
+
 # GUI
 customtkinter>=5.2.0
 

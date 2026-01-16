@@ -1,28 +1,119 @@
 {% extends "base.html" %}
-
-{% block title %}Collection Vault{% endblock %}
-
 {% block content %}
-<h2 class="mb-4"><i class="fas fa-archive"></i> Collection Vault</h2>
-
-<div class="alert alert-info mb-4">
-    <h5 class="alert-heading"><i class="fas fa-info-circle"></i> Collection Vault</h5>
-    <p class="mb-0">
-        The Vault is where your personal collection lives. Items here are not listings - they're part of your owned collection.
-        You can organize and store items here, and later convert them to listings if you decide to sell.
-    </p>
-</div>
-
-<div class="card mb-3">
-    <div class="card-body">
-        <h5 class="card-title">Coming Soon</h5>
-        <p class="card-text text-muted">
-            The Collection Vault page is under development. Items saved to the Vault are stored in <code>vault.csv</code> and will be displayed here soon.
-        </p>
-        <a href="{{ url_for('create_listing') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Add Item to Vault
-        </a>
+    <!-- Inventory Organizer Button -->
+    <div class="d-flex justify-content-end">
+        <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#inventoryOrganizerModal">
+            Inventory Organizer
+        </button>
     </div>
-</div>
-{% endblock %}
 
+    <!-- Modal -->
+    <div class="modal fade" id="inventoryOrganizerModal" tabindex="-1" aria-labelledby="inventoryOrganizerLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="inventoryOrganizerLabel">Inventory Organizer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <a href="#" class="text-decoration-none">
+                                <div class="inventory-category-item">
+                                    <i class="fas fa-pokemon fa-2x mb-2" style="color: #FFA07A;"></i>
+                                    <h6>Pokémon</h6>
+                                    <small class="text-muted">Organize Pokémon cards</small>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="#" class="text-decoration-none">
+                                <div class="inventory-category-item">
+                                    <i class="fas fa-yugioh fa-2x mb-2" style="color: #D3A804;"></i>
+                                    <h6>Yu-Gi-Oh!</h6>
+                                    <small class="text-muted">Organize Yu-Gi-Oh! cards</small>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="#" class="text-decoration-none">
+                                <div class="inventory-category-item">
+                                    <i class="fas fa-magic fa-2x mb-2" style="color: #FFDAB9;"></i>
+                                    <h6>Magic: The Gathering (MTG)</h6>
+                                    <small class="text-muted">Organize MTG cards</small>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="#" class="text-decoration-none">
+                                <div class="inventory-category-item">
+                                    <i class="fas fa-baseball-ball fa-2x mb-2" style="color: #FFD700;"></i>
+                                    <h6>Baseball</h6>
+                                    <small class="text-muted">Organize Baseball cards</small>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="#" class="text-decoration-none">
+                                <div class="inventory-category-item">
+                                    <i class="fas fa-football-ball fa-2x mb-2" style="color: #FFD700;"></i>
+                                    <h6>Football</h6>
+                                    <small class="text-muted">Organize Football cards</small>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="#" class="text-decoration-none">
+                                <div class="inventory-category-item">
+                                    <i class="fas fa-basketball-ball fa-2x mb-2" style="color: #FFD700;"></i>
+                                    <h6>Basketball</h6>
+                                    <small class="text-muted">Organize Basketball cards</small>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Style for Modal -->
+    <style>
+        .inventory-category-item {
+            background: var(--carbon-matte-surface);
+            border: 2px solid var(--cold-steel-dark);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .inventory-category-item:hover {
+            background: var(--carbon-matte-light);
+            border-color: var(--alert-crimson);
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(139, 0, 0, 0.3);
+        }
+
+        .inventory-category-item h6 {
+            color: var(--off-white-text);
+            font-weight: 700;
+            margin-bottom: 5px;
+            font-size: 0.95rem;
+        }
+
+        .inventory-category-item small {
+            font-size: 0.75rem;
+            line-height: 1.3;
+        }
+    </style>
+{% endblock %}

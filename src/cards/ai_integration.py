@@ -14,7 +14,8 @@ def create_card_from_ai_analysis(
     ai_result: Dict[str, Any],
     user_id: int,
     photos: Optional[list] = None,
-    storage_location: Optional[str] = None
+    storage_location: Optional[str] = None,
+    storage_region: Optional[str] = None
 ) -> Optional[UnifiedCard]:
     """
     Convert Gemini AI card analysis result into a UnifiedCard object.
@@ -87,6 +88,7 @@ def create_card_from_ai_analysis(
 
         # Location
         storage_location=storage_location,
+        storage_region=storage_region,
         photos=photos or [],
 
         # AI metadata

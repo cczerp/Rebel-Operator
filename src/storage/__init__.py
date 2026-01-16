@@ -1,4 +1,4 @@
-"""Storage management for ResellGenie"""
+"""Storage management for Rebel Operator"""
 
 from .cloud_storage import CloudStorageManager, get_storage
 

@@ -6,8 +6,8 @@ import Anthropic from "@anthropic-ai/sdk";
 
 dotenv.config();
 
-const REPO_PATH = "C:\\Users\\Dragon\\Desktop\\projettccs\\resell-rebel";
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const REPO_PATH = "/mnt/c/Users/Dragon/Desktop/projettccs/resell-rebel";
+const GITHUB_TOKEN = process.env.GITHUB_API_ACCESS;
 const ANTHROPIC_API_KEY = process.env.CLAUDE_AUTH_API;
 const REPO_OWNER = "cczerp";
 const REPO_NAME = "Resell-Rebel";
@@ -23,7 +23,12 @@ const anthropic = new Anthropic({
 });
 
 const run = (cmd, opts = {}) => {
-  return execSync(cmd, { cwd: REPO_PATH, encoding: "utf8", ...opts });
+  return execSync(cmd, { 
+    cwd: REPO_PATH, 
+    encoding: "utf8", 
+    shell: true,  // Use native shell (cmd.exe on Windows)
+    ...opts 
+  });
 };
 
 const prompt = (question) => {
@@ -114,10 +119,46 @@ const createFailBranch = (taskId, taskTitle, commitSha) => {
 };
 
 const runClaudeTask = async (taskInstruction, commitMessage, isRetry = false, feedback = "") => {
-  let prompt = taskInstruction;
+  let taskPrompt = taskInstruction;
   
+  const systemContext = `═══════════════════════════════════════════════════════════
+🐧 LINUX ENVIRONMENT (WSL)
+═══════════════════════════════════════════════════════════
+
+You are working in a Linux/WSL environment.
+
+STANDARD LINUX COMMANDS:
+• List directory: ls -la
+• View file: cat filename
+• Current path: pwd
+• Create directory: mkdir dirname
+• Copy file: cp source dest
+• Delete file: rm filename
+• Find text: grep "text" file
+• Check file exists: [ -f filename ] && echo yes
+
+PATH FORMAT: Use forward slashes /path/to/file
+
+REPOSITORY INFO:
+• Location: /mnt/c/Users/Dragon/Desktop/projettccs/resell-rebel
+• Current branch: n8n-run-test01
+• You have bash tool to execute commands
+
+YOUR JOB:
+1. Actually DO the task (create/modify files as instructed)
+2. Use standard Linux/bash commands
+3. Verify changes with git status
+4. Stage with: git add -A
+5. Commit with the provided message
+6. Do NOT just describe what you would do - DO IT
+
+═══════════════════════════════════════════════════════════
+`;
+
   if (isRetry) {
-    prompt = `RETRY ATTEMPT - Previous attempt failed.
+    taskPrompt = `${systemContext}
+
+🔄 RETRY ATTEMPT - Previous attempt failed.
 
 FEEDBACK FROM HUMAN REVIEWER:
 ${feedback}
@@ -136,7 +177,10 @@ After making changes:
 
 Do NOT ask for confirmation. Execute the task and commit.`;
   } else {
-    prompt = `${taskInstruction}
+    taskPrompt = `${systemContext}
+
+TASK:
+${taskInstruction}
 
 After making changes:
 1. Stage all changes with: git add -A
@@ -148,7 +192,7 @@ Do NOT ask for confirmation. Execute the task and commit.`;
   console.log("\n📝 Task prompt prepared");
   console.log("\n⏳ Claude is working via API…\n");
 
-  // Use Anthropic API directly instead of CLI
+  // Use Anthropic API directly with bash tool for agentic capabilities
   const maxRetries = 3;
   let attempt = 0;
   let lastError = null;
@@ -156,21 +200,107 @@ Do NOT ask for confirmation. Execute the task and commit.`;
 
   while (attempt < maxRetries) {
     try {
-      const message = await anthropic.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 8192,
-        messages: [
-          {
-            role: "user",
-            content: prompt
-          }
-        ]
-      });
+      let messages = [
+        {
+          role: "user",
+          content: taskPrompt
+        }
+      ];
 
-      claudeResponse = message.content.map(block => block.text || "").join("\n");
-      console.log("\n🤖 Claude completed task via API");
-      console.log("─".repeat(60));
-      console.log(claudeResponse.slice(0, 500) + (claudeResponse.length > 500 ? "..." : ""));
+      // Conversation loop for tool use
+      let continueLoop = true;
+      let iterationCount = 0;
+      const maxIterations = 20; // Prevent infinite loops
+
+      while (continueLoop && iterationCount < maxIterations) {
+        iterationCount++;
+        
+        const message = await anthropic.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 8192,
+          messages: messages,
+          tools: [
+            {
+              name: "bash",
+              description: "Run bash commands in the repository directory. Use this to modify files, run git commands, etc.",
+              input_schema: {
+                type: "object",
+                properties: {
+                  command: {
+                    type: "string",
+                    description: "The bash command to execute"
+                  }
+                },
+                required: ["command"]
+              }
+            }
+          ]
+        });
+
+        // Check if Claude used tools
+        const toolUses = message.content.filter(block => block.type === "tool_use");
+        const textBlocks = message.content.filter(block => block.type === "text");
+
+        // Log any text responses
+        if (textBlocks.length > 0) {
+          const text = textBlocks.map(b => b.text).join("\n");
+          console.log("\n🤖 Claude:", text.slice(0, 300) + (text.length > 300 ? "..." : ""));
+        }
+
+        if (toolUses.length === 0) {
+          // No more tool uses, we're done
+          continueLoop = false;
+          claudeResponse = textBlocks.map(b => b.text).join("\n");
+        } else {
+          // Execute tool uses and continue conversation
+          const toolResults = [];
+
+          for (const toolUse of toolUses) {
+            if (toolUse.name === "bash") {
+              const command = toolUse.input.command;
+              console.log(`\n🔧 Executing: ${command}`);
+
+              try {
+                const output = run(command, { stdio: "pipe" });
+                console.log(`   ✅ Output: ${output.slice(0, 200)}${output.length > 200 ? "..." : ""}`);
+                
+                toolResults.push({
+                  type: "tool_result",
+                  tool_use_id: toolUse.id,
+                  content: output || "Command executed successfully (no output)"
+                });
+              } catch (err) {
+                console.log(`   ❌ Error: ${err.message}`);
+                toolResults.push({
+                  type: "tool_result",
+                  tool_use_id: toolUse.id,
+                  content: `Error: ${err.message}`,
+                  is_error: true
+                });
+              }
+            }
+          }
+
+          // Add assistant message and tool results to conversation
+          messages.push({
+            role: "assistant",
+            content: message.content
+          });
+
+          messages.push({
+            role: "user",
+            content: toolResults
+          });
+        }
+
+        // Safety check
+        if (iterationCount >= maxIterations) {
+          console.log("\n⚠️  Max iterations reached, stopping conversation loop");
+          break;
+        }
+      }
+
+      console.log("\n✅ Claude completed task via API");
       console.log("─".repeat(60));
       break; // Success, exit retry loop
       
@@ -200,13 +330,20 @@ Do NOT ask for confirmation. Execute the task and commit.`;
 
   // Check if there are uncommitted changes and commit them
   const postStatus = run("git status --porcelain").trim();
-  if (postStatus) {
-    console.log("\n📦 Committing changes…");
-    run("git add -A", { stdio: "inherit" });
-    run(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
-  } else {
+  if (!postStatus) {
     console.log("\n⚠️  No changes detected after Claude's work");
+    console.log("   Skipping commit, PR, and grading - moving to next task");
+    
+    return {
+      skipped: true,
+      reason: "No changes made",
+      commitSha: null
+    };
   }
+
+  console.log("\n📦 Committing changes…");
+  run("git add -A", { stdio: "inherit" });
+  run(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
 
   // Push with conflict handling
   console.log("\n🚀 Pushing to origin…");
@@ -527,12 +664,12 @@ const app = express();
 app.use(express.json());
 
 app.post("/run-task", async (req, res) => {
-  const { task_id, task_instruction, commit_message } = req.body;
-  const taskTitle = task_instruction.split(" - ")[0] || `Task ${task_id}`;
+  const { task_id, task_instruction, commit_message, async_mode = false } = req.body;
+  const taskTitle = task_instruction.split(" — ")[0] || `Task ${task_id}`;
 
   console.log("═".repeat(60));
   console.log("📥 TASK RECEIVED:");
-  console.log({ task_id, task_instruction, commit_message });
+  console.log({ task_id, task_instruction, commit_message, async_mode });
   console.log("═".repeat(60));
 
   let stashed = false;
@@ -632,7 +769,27 @@ Choice [1-4]: `);
 
     // 7. Run Claude Code
     console.log("\n🤖 Running Claude Code…");
-    let commitSha = await runClaudeTask(task_instruction, commit_message || `Automated task: ${task_id}`);
+    let taskResult = await runClaudeTask(task_instruction, commit_message || `Automated task: ${task_id}`);
+    
+    // Check if task was skipped due to no changes
+    if (taskResult.skipped) {
+      console.log("\n" + "═".repeat(60));
+      console.log("⏭️  TASK SKIPPED - No changes made");
+      console.log("═".repeat(60));
+      console.log(`   Reason: ${taskResult.reason}`);
+      console.log("   Moving to next task...");
+      console.log("═".repeat(60));
+      
+      return res.json({
+        success: true,
+        skipped: true,
+        reason: taskResult.reason,
+        task_id: task_id,
+        message: "Task skipped - no changes detected"
+      });
+    }
+    
+    let commitSha = taskResult;
 
     // 8. Create PR for Render preview
     console.log("\n🔗 Creating PR for preview…");
@@ -647,7 +804,7 @@ Choice [1-4]: `);
     const previewUrl = `https://resell-rebel-pr-${prNumber}.onrender.com`;
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 🛡️ NEW: RUN VALIDATION BEFORE HUMAN GRADING
+    // 🛡️ RUN VALIDATION
     // ═══════════════════════════════════════════════════════════════════════
     
     const validation = await runFullValidation(task_instruction, commitSha);
@@ -666,8 +823,46 @@ Choice [1-4]: `);
       console.log(`   Confidence: ${validation.validatorResults.confidence}%`);
     }
     console.log("─".repeat(60));
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ASYNC MODE: Return immediately, grade later
+    // ═══════════════════════════════════════════════════════════════════════
     
-    // 9. Wait for human grade (or auto-pass if validation says so)
+    if (async_mode) {
+      console.log("\n🔄 ASYNC MODE: Returning to n8n immediately");
+      console.log("   Grade this task via: POST /grade-task");
+      
+      // Store task state for later grading
+      global.pendingTask = {
+        task_id,
+        task_instruction,
+        taskTitle,
+        commitSha,
+        prUrl,
+        prNumber,
+        previewUrl,
+        validation,
+        stashed
+      };
+
+      return res.json({
+        success: true,
+        async: true,
+        task_id,
+        commit_sha: commitSha,
+        pr_url: prUrl,
+        pr_number: prNumber,
+        preview_url: previewUrl,
+        validation: validation,
+        message: "Task completed. Grade via POST /grade-task with {task_id, grade: 'pass'/'fail', feedback: '...'}"
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // SYNC MODE: Wait for human grade (original behavior)
+    // ═══════════════════════════════════════════════════════════════════════
+    
+    // 9. Wait for human grade
     let attempt = 1;
     let passed = false;
     let feedback = "";
@@ -845,7 +1040,8 @@ Choice [1-4]: `);
               console.log("\n🔀 Keeping your changes…");
               run("git checkout --theirs .", { stdio: "inherit" });
               run("git add -A", { stdio: "inherit" });
-              console.log("✅ Your changes kept");
+              run("git stash drop", { stdio: "inherit" });
+              console.log("✅ Your changes kept, stash dropped");
               break;
 
             case "3":
@@ -904,4 +1100,90 @@ app.listen(4000, "127.0.0.1", () => {
   console.log("   Pass branch:", PASS_BRANCH);
   console.log("   Confidence threshold:", CONFIDENCE_THRESHOLD + "%");
   console.log("═".repeat(60));
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🎯 ASYNC GRADING ENDPOINT
+// ═══════════════════════════════════════════════════════════════════════════
+
+app.post("/grade-task", async (req, res) => {
+  const { task_id, grade, feedback = "" } = req.body;
+
+  if (!global.pendingTask || global.pendingTask.task_id !== task_id) {
+    return res.status(404).json({
+      success: false,
+      error: `No pending task with id ${task_id}. Current pending: ${global.pendingTask?.task_id || 'none'}`
+    });
+  }
+
+  const { taskTitle, commitSha, stashed } = global.pendingTask;
+
+  console.log("\n" + "═".repeat(60));
+  console.log("📝 GRADE RECEIVED");
+  console.log("═".repeat(60));
+  console.log(`Task: ${taskTitle}`);
+  console.log(`Grade: ${grade}`);
+  if (feedback) console.log(`Feedback: ${feedback}`);
+  console.log("═".repeat(60));
+
+  try {
+    if (grade.toLowerCase() === "pass") {
+      console.log("\n✅ PASSED!");
+      mergeToBranch(PASS_BRANCH, commitSha, taskTitle);
+
+      // Clear pending task
+      global.pendingTask = null;
+
+      res.json({
+        success: true,
+        passed: true,
+        message: "Task passed and merged to pass branch"
+      });
+
+    } else if (grade.toLowerCase() === "fail") {
+      console.log("\n❌ FAILED");
+      const failBranch = createFailBranch(task_id, taskTitle, commitSha);
+      
+      console.log(`\n🔴 Task isolated to: ${failBranch}`);
+
+      // Clear pending task
+      global.pendingTask = null;
+
+      res.json({
+        success: true,
+        passed: false,
+        fail_branch: failBranch,
+        message: "Task failed and isolated to fail branch"
+      });
+
+    } else {
+      res.status(400).json({
+        success: false,
+        error: 'Grade must be "pass" or "fail"'
+      });
+    }
+
+  } catch (err) {
+    console.error("\n❌ ERROR during grading:", err.message);
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  } finally {
+    if (stashed) {
+      console.log("\n♻️  Restoring stashed changes…");
+      try {
+        const stashList = run("git stash list", { stdio: "pipe" }).trim();
+        if (!stashList) {
+          console.log("   ⚠️  No stash found to restore (already applied?)");
+        } else {
+          run("git stash pop", { stdio: "inherit" });
+          console.log("   ✅ Stash restored successfully");
+        }
+      } catch (stashPopErr) {
+        console.error("\n⚠️  Stash restore issue:", stashPopErr.message);
+        console.log("   Run manually: git stash apply");
+      }
+    }
+  }
 });

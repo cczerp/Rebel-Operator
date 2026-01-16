@@ -1,10 +1,10 @@
 services:
   - type: web
-    name: resellgenie
+    name: rebel-operator
     env: python
     region: oregon
     plan: free
-    branch: claude/image-editing-features-01RTbm8aoseqYfX1i9aR91vb
+    branch: claude/update-brand-name-2QXFp
     buildCommand: pip install --upgrade pip && pip install gunicorn && pip install -r requirements.txt
     startCommand: gunicorn web_app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --threads 4
     maxUploadSizeMB: 50
@@ -15,6 +15,8 @@ services:
     envVars:
       - key: FLASK_SECRET_KEY
         generateValue: true
+      - key: GOOGLE_CLIENT_ID
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: SMTP_HOST

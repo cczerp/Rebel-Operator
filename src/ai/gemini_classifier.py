@@ -992,6 +992,296 @@ Analyze the image(s) now and respond with ONLY the JSON."""
                 "is_card": False
             }
 
+    def analyze_collectible_detailed(self, photos: List[Photo], basic_analysis: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Detailed collectible analysis using Gemini with the comprehensive prompt.
+        
+        Extracts detailed collector attributes:
+        - Mint marks (coin mint locations, production facility marks)
+        - Serial numbers (production numbers, limited edition numbers)
+        - Signatures (autographs with authenticity assessment)
+        - Errors/variations (error coins, misprints, factory defects)
+        - Historical context (backstory, significance, rarity context)
+        - Authentication markers
+        - Condition grading
+        - Market analysis
+        
+        Args:
+            photos: List of Photo objects to analyze
+            basic_analysis: Optional basic analysis from quick scan (item_name, brand, franchise, category)
+        
+        Returns:
+            Detailed collectible analysis with all collector attributes
+        """
+        if not photos:
+            return {"error": "No photos provided"}
+        
+        # Get basic info from provided analysis or set defaults
+        if basic_analysis:
+            item_name = basic_analysis.get('suggested_title') or basic_analysis.get('item_name', 'collectible item')
+            brand = basic_analysis.get('brand', '')
+            franchise = basic_analysis.get('franchise', '')
+            category = basic_analysis.get('category', '')
+        else:
+            item_name = 'collectible item'
+            brand = ''
+            franchise = ''
+            category = ''
+        
+        # Prepare images for Gemini (same as analyze_item)
+        image_parts = []
+        for i, photo in enumerate(photos[:4]):
+            if photo.local_path:
+                try:
+                    file_path = photo.local_path
+                    file_exists = Path(file_path).exists()
+                    file_size = Path(file_path).stat().st_size if file_exists else 0
+                    
+                    if not file_exists or file_size == 0:
+                        continue
+                    
+                    image_b64 = self._encode_image_to_base64(file_path)
+                    mime_type = 'image/jpeg'  # Always JPEG after conversion
+                    
+                    if image_b64.startswith('data:image'):
+                        image_b64 = image_b64.split(',')[1] if ',' in image_b64 else image_b64
+                    
+                    image_parts.append({
+                        "inline_data": {
+                            "mime_type": mime_type,
+                            "data": image_b64
+                        }
+                    })
+                except Exception as e:
+                    logger.error(f"Failed to prepare image {i+1}: {e}")
+                    continue
+        
+        if not image_parts:
+            return {"error": "No valid images could be prepared for analysis"}
+        
+        # Build detailed prompt (adapted from EnhancedScanner)
+        prompt = f"""You are an expert collectibles appraiser specializing in authentication, valuation, and historical research.
+
+I need you to perform a COMPREHENSIVE DEEP ANALYSIS of this collectible item, with particular attention to collector value indicators.
+
+**BASIC INFORMATION:**
+- Item: {item_name}
+- Brand/Manufacturer: {brand}
+- Franchise/Series: {franchise}
+- Category: {category}
+
+**YOUR CRITICAL TASK - Focus on Collector Value Indicators:**
+
+1. **MINT MARKS & PRODUCTION MARKINGS**
+   - For coins: Identify mint mark location and letter (P, D, S, W, etc.)
+   - For collectibles: Identify production facility marks, factory codes, or manufacturing location indicators
+   - Note any special mint marks or rare production locations
+   - Explain the significance of the mint mark for value
+
+2. **SERIAL NUMBERS & LIMITED EDITION MARKINGS**
+   - Extract any serial numbers, production numbers, or limited edition numbers
+   - Note if it's a numbered edition (e.g., "123/500", "Limited Edition #45")
+   - Identify certificate numbers, authentication numbers, or tracking numbers
+   - Explain how the serial number affects value (lower numbers often more valuable)
+
+3. **SIGNATURES & AUTOGRAPHS**
+   - Check for any signatures, autographs, or artist signatures
+   - Identify the signer if possible
+   - Assess signature authenticity markers
+   - Note signature placement and condition
+   - Explain the value impact of signatures
+
+4. **ERRORS, VARIATIONS & MANUFACTURING DEFECTS**
+   - Look for error coins (misprints, double strikes, off-center strikes, etc.)
+   - Check for printing errors (misprints, color errors, cut errors)
+   - Identify factory defects or variations
+   - Note any unique manufacturing anomalies
+   - Explain how errors/variations affect value (errors can be valuable!)
+
+5. **HISTORICAL CONTEXT & BACKSTORY**
+   - Research and provide a compelling short history/backstory of this SPECIFIC item
+   - When was it produced/released? What was happening at that time?
+   - Why is this item significant to collectors?
+   - What makes it rare or desirable?
+   - Include interesting facts or context that give the item character
+   - Explain its place in collecting history
+
+6. **AUTHENTICATION & CONDITION**
+   - Verify authenticity markers
+   - Assess condition and grading
+   - Note any concerns or red flags
+   - Identify authentication markers visible in photos
+
+7. **MARKET VALUE ANALYSIS**
+   - Current market value range
+   - Recent sales data (if known)
+   - Market trend
+   - How do the above factors (mint marks, serial numbers, signatures, errors) affect value?
+
+**OUTPUT FORMAT:**
+
+You MUST respond with ONLY valid JSON (no markdown, no explanations). Use this exact structure:
+
+{{
+  "item_name": "{item_name}",
+  "category": "{category}",
+  "brand": "{brand}",
+  "franchise": "{franchise}",
+  
+  "card_type": "pokemon / mtg / yugioh / sports_nfl / sports_nba / sports_mlb / sports_nhl / tcg / unknown (ONLY if this is a card)",
+  "game_name": "Pokemon / Magic: The Gathering / Yu-Gi-Oh! / etc. (ONLY for TCG cards)",
+  "sport": "NFL / NBA / MLB / NHL / etc. (ONLY for sports cards)",
+  "set_name": "set or series name (if this is a card)",
+  "card_number": "card number (if visible on card)",
+  "rarity": "rarity level (if this is a card)",
+  "player_name": "player name (ONLY for sports cards)",
+  "is_rookie_card": true/false,
+  "is_graded": true/false,
+  "grading_company": "PSA / BGS / CGC / etc. (if graded)",
+  "grading_score": 9.5,
+  
+  "mint_mark": {{
+    "present": true/false,
+    "location": "description of where mint mark appears",
+    "mark": "letter or symbol (e.g., 'D', 'P', 'S', 'W')",
+    "significance": "why this mint mark matters for value",
+    "rarity_notes": "is this a common or rare mint mark?"
+  }},
+  
+  "serial_number": {{
+    "present": true/false,
+    "number": "the actual serial number if visible",
+    "type": "serial number / limited edition / certificate number / etc.",
+    "format": "description (e.g., 'Limited Edition 45/500', 'Serial #12345')",
+    "significance": "how this affects value (lower numbers, numbered editions, etc.)"
+  }},
+  
+  "signature": {{
+    "present": true/false,
+    "signer": "name of signer if identifiable",
+    "location": "where signature appears",
+    "authenticity_confidence": 0.0-1.0,
+    "condition": "description of signature condition",
+    "value_impact": "how signature affects value"
+  }},
+  
+  "errors_variations": {{
+    "present": true/false,
+    "error_type": "description (e.g., 'misprint', 'double strike', 'off-center', 'color error')",
+    "error_description": "detailed description of the error",
+    "error_severity": "minor / moderate / significant",
+    "value_impact": "how this error affects value (errors can increase value significantly!)",
+    "known_error_types": ["list any known error variations for this item type"]
+  }},
+  
+  "historical_context": {{
+    "release_year": 0,
+    "manufacturer": "manufacturer name",
+    "series": "series or set name",
+    "backstory": "compelling short history giving this item character - make it interesting! What makes this item special? What was happening when it was made? Why do collectors care?",
+    "significance": "why this item is significant to collectors",
+    "rarity_context": "context about why this item is rare or desirable"
+  }},
+  
+  "authentication": {{
+    "is_authentic": true/false,
+    "confidence": 0.0-1.0,
+    "authentication_markers": ["list of visible authentication markers"],
+    "red_flags": ["any concerns about authenticity"],
+    "verification_notes": "authentication assessment"
+  }},
+  
+  "condition": {{
+    "overall_grade": "condition grade (e.g., 'Mint', 'Near Mint', 'Excellent', 'Very Good')",
+    "grading_scale": "PSA / CGC / raw / other",
+    "condition_details": "detailed condition assessment",
+    "wear_and_tear": "description of any wear",
+    "damage": ["list any damage items"],
+    "preservation_notes": "how well preserved it is"
+  }},
+  
+  "market_analysis": {{
+    "current_market_value_low": 0.0,
+    "current_market_value_high": 0.0,
+    "estimated_value": 0.0,
+    "market_trend": "Rising / Stable / Declining",
+    "demand_level": "High / Medium / Low",
+    "value_factors": ["list of factors affecting value including mint marks, serial numbers, signatures, errors"],
+    "market_notes": "market analysis notes"
+  }},
+  
+  "collector_notes": "summary of what makes this item special for collectors, highlighting mint marks, serial numbers, signatures, errors, and historical significance"
+}}
+
+**IMPORTANT GUIDELINES:**
+- Be thorough in examining images for mint marks, serial numbers, signatures, and errors
+- Provide a compelling, interesting backstory that gives the item character
+- Be specific about what you see - exact numbers, letters, locations
+- If you cannot determine something, set present: false and explain why in significance/notes
+- Errors and variations can SIGNIFICANTLY increase value - don't miss them!
+- Make the backstory engaging - collectors love knowing the history behind their items
+- Be honest about confidence levels - if uncertain, indicate that
+- Respond with ONLY JSON, no other text"""
+        
+        # Build request payload (same structure as analyze_item)
+        payload = {
+            "contents": [{
+                "role": "user",
+                "parts": [
+                    {"text": prompt},
+                    *image_parts
+                ]
+            }],
+            "generationConfig": {
+                "temperature": 0.4,
+                "topK": 40,
+                "topP": 0.95,
+                "maxOutputTokens": 4096,  # Higher for detailed analysis
+            }
+        }
+        
+        # Make API request (same as analyze_item)
+        api_url_with_key = f"{self.api_url}?key={self.api_key}"
+        headers = {"Content-Type": "application/json"}
+        
+        try:
+            response = requests.post(
+                api_url_with_key,
+                headers=headers,
+                json=payload,
+                timeout=60  # Longer timeout for detailed analysis
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                content_text = result['candidates'][0]['content']['parts'][0]['text']
+                
+                # Parse JSON response
+                content_text = content_text.strip()
+                if content_text.startswith('```json'):
+                    content_text = content_text[7:-3].strip()
+                elif content_text.startswith('```'):
+                    content_text = content_text[3:-3].strip()
+                
+                analysis = json.loads(content_text)
+                return analysis
+            else:
+                return {
+                    "error": f"Gemini API error: {response.status_code}",
+                    "error_type": "api_error"
+                }
+        
+        except json.JSONDecodeError as e:
+            return {
+                "error": f"Failed to parse JSON response: {str(e)}",
+                "error_type": "json_parse_error"
+            }
+        except Exception as e:
+            return {
+                "error": f"Detailed analysis failed: {str(e)}",
+                "error_type": "exception"
+            }
+
     @classmethod
     def from_env(cls) -> "GeminiClassifier":
         """Create classifier from environment variables"""

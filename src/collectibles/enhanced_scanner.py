@@ -176,8 +176,19 @@ I need you to perform a COMPREHENSIVE DEEP ANALYSIS of this collectible item, wi
 
 **YOUR CRITICAL TASK - Focus on Collector Value Indicators:**
 
-1. **MINT MARKS & PRODUCTION MARKINGS**
-   - For coins: Identify mint mark location and letter (P, D, S, W, etc.)
+1. **COIN IDENTIFICATION** (CRITICAL FOR COINS - Skip if not a coin)
+   - **Denomination**: Identify the exact coin type (Penny/Cent, Nickel, Dime, Quarter, Half Dollar, Dollar Coin, Other)
+   - **Year**: Extract the year minted (visible on the coin)
+   - **Mint Mark**: Location and letter (P=Philadelphia, D=Denver, S=San Francisco, W=West Point, CC=Carson City, O=New Orleans, etc.)
+   - **Coin Type/Series**: (Lincoln Penny, Jefferson Nickel, Roosevelt Dime, Washington Quarter, Kennedy Half Dollar, Eisenhower Dollar, Sacagawea Dollar, etc.)
+   - **Composition**: Material (Copper, Nickel, Silver, etc.) - identify by year and appearance
+   - **Mintage**: If known, provide the mintage number (how many were produced)
+   - **Diameter/Weight**: Standard measurements if known
+   - **Special Designations**: (Proof, Commemorative, Error, Variety, etc.)
+
+2. **MINT MARKS & PRODUCTION MARKINGS**
+   - For coins: Identify mint mark location and letter (P, D, S, W, CC, O, etc.)
+   - Location matters: Penny mint mark is below date, Quarter is behind neck/head, etc.
    - For collectibles: Identify production facility marks, factory codes, or manufacturing location indicators
    - Note any special mint marks or rare production locations
    - Explain the significance of the mint mark for value
@@ -231,6 +242,31 @@ You MUST respond with ONLY valid JSON (no markdown, no explanations). Use this e
   "category": "{category}",
   "brand": "{brand}",
   "franchise": "{franchise}",
+
+  "coin_info": {{
+    "is_coin": true/false,
+    "denomination": "Penny / Nickel / Dime / Quarter / Half Dollar / Dollar Coin / Other",
+    "year": 0,
+    "coin_type": "Lincoln Penny / Jefferson Nickel / Roosevelt Dime / Washington Quarter / Kennedy Half Dollar / Eisenhower Dollar / Sacagawea Dollar / etc.",
+    "composition": "Copper / Nickel / Silver / etc.",
+    "mintage": 0,
+    "diameter_mm": 0.0,
+    "weight_grams": 0.0,
+    "special_designation": "Proof / Commemorative / Error / Variety / Standard",
+    "series_info": "description of the series or variety"
+  }},
+
+  "card_type": "pokemon / mtg / yugioh / sports_nfl / sports_nba / sports_mlb / sports_nhl / tcg / unknown (ONLY if this is a card)",
+  "game_name": "Pokemon / Magic: The Gathering / Yu-Gi-Oh! / etc. (ONLY for TCG cards)",
+  "sport": "NFL / NBA / MLB / NHL / etc. (ONLY for sports cards)",
+  "set_name": "set or series name (if this is a card)",
+  "card_number": "card number (if visible on card)",
+  "rarity": "rarity level (if this is a card)",
+  "player_name": "player name (ONLY for sports cards)",
+  "is_rookie_card": true/false,
+  "is_graded": true/false,
+  "grading_company": "PSA / BGS / CGC / PCGS / NGC / ANACS / etc. (if graded)",
+  "grading_score": 9.5,
   
   "mint_mark": {{
     "present": true/false,
@@ -394,23 +430,27 @@ You MUST respond with ONLY valid JSON (no markdown, no explanations). Use this e
             'franchise': deep_analysis.get('franchise') or basic_analysis.get('franchise', ''),
             'brand': deep_analysis.get('brand') or basic_analysis.get('brand', ''),
             'category': deep_analysis.get('category') or basic_analysis.get('category', ''),
-            
+
+            # Coin-specific information
+            'coin_info': deep_analysis.get('coin_info', {}),
+            'is_coin': deep_analysis.get('coin_info', {}).get('is_coin', False),
+
             # Key collector attributes
             'mint_mark': deep_analysis.get('mint_mark', {}),
             'serial_number': deep_analysis.get('serial_number', {}),
             'signature': deep_analysis.get('signature', {}),
             'errors_variations': deep_analysis.get('errors_variations', {}),
             'historical_context': deep_analysis.get('historical_context', {}),
-            
+
             # Condition and authentication
             'condition': deep_analysis.get('condition', {}),
             'authentication': deep_analysis.get('authentication', {}),
-            
+
             # Display-friendly fields
             'item_significance': deep_analysis.get('historical_context', {}).get('backstory', ''),
             'rarity_info': deep_analysis.get('collector_notes', ''),
             'authentication_markers': deep_analysis.get('authentication', {}).get('authentication_markers', []),
-            
+
             # Market info
             'market_analysis': market_analysis,
             'collector_notes': deep_analysis.get('collector_notes', '')
@@ -439,14 +479,75 @@ You MUST respond with ONLY valid JSON (no markdown, no explanations). Use this e
             'quick_sale': market_analysis.get('current_market_value_low')
         }
 
-        # Build card data object
+        # Determine card type and franchise from analysis
+        franchise = deep_analysis.get('franchise') or basic_analysis.get('franchise', '')
+        category = basic_analysis.get('category', '').lower()
+        
+        # Determine card type from franchise/category
+        card_type = 'unknown'
+        game_name = None
+        sport = None
+        
+        if 'pokemon' in franchise.lower() or 'pokemon' in category:
+            card_type = 'pokemon'
+            game_name = 'Pokemon'
+        elif 'magic' in franchise.lower() or 'mtg' in franchise.lower() or 'magic' in category:
+            card_type = 'mtg'
+            game_name = 'Magic: The Gathering'
+        elif 'yugioh' in franchise.lower() or 'yu-gi-oh' in franchise.lower() or 'yugioh' in category:
+            card_type = 'yugioh'
+            game_name = 'Yu-Gi-Oh!'
+        elif 'football' in franchise.lower() or 'nfl' in franchise.lower() or 'football' in category:
+            card_type = 'sports_nfl'
+            sport = 'NFL'
+        elif 'basketball' in franchise.lower() or 'nba' in franchise.lower() or 'basketball' in category:
+            card_type = 'sports_nba'
+            sport = 'NBA'
+        elif 'baseball' in franchise.lower() or 'mlb' in franchise.lower() or 'baseball' in category:
+            card_type = 'sports_mlb'
+            sport = 'MLB'
+        elif 'hockey' in franchise.lower() or 'nhl' in franchise.lower() or 'hockey' in category:
+            card_type = 'sports_nhl'
+            sport = 'NHL'
+        elif basic_analysis.get('is_sports_card'):
+            card_type = 'sports'
+        elif 'trading card' in category or 'tcg' in category:
+            card_type = 'tcg'
+        
+        # Get card-specific fields from Claude's deep analysis (he may have extracted these)
+        claude_card_type = deep_analysis.get('card_type', '').lower() if deep_analysis.get('card_type') else ''
+        claude_game_name = deep_analysis.get('game_name', '')
+        claude_sport = deep_analysis.get('sport', '')
+        claude_set_name = deep_analysis.get('set_name', '') or deep_analysis.get('historical_context', {}).get('series', '')
+        claude_card_number = deep_analysis.get('card_number', '')
+        claude_rarity = deep_analysis.get('rarity', '')
+        claude_player_name = deep_analysis.get('player_name', '')
+        claude_franchise = deep_analysis.get('franchise', '')
+        
+        # Use Claude's analysis if available, otherwise fall back to our detection
+        if claude_card_type and claude_card_type != 'unknown':
+            card_type = claude_card_type
+        if claude_game_name:
+            game_name = claude_game_name
+        if claude_sport:
+            sport = claude_sport
+        if claude_franchise:
+            franchise = claude_franchise
+        
+        # Build card data object with all required fields for storage maps
         card_data = {
             'card_name': deep_analysis.get('item_name') or basic_analysis.get('suggested_title', 'Unknown Card'),
-            'set_name': basic_analysis.get('set_name', ''),
-            'card_number': basic_analysis.get('card_number', ''),
-            'rarity': basic_analysis.get('rarity', ''),
-            'year': deep_analysis.get('historical_context', {}).get('release_year'),
+            'player_name': claude_player_name or basic_analysis.get('player_name', ''),
+            'set_name': claude_set_name or basic_analysis.get('set_name', '') or deep_analysis.get('historical_context', {}).get('series', ''),
+            'set_code': basic_analysis.get('set_code', ''),
+            'card_number': claude_card_number or basic_analysis.get('card_number', ''),
+            'card_type': card_type,
+            'game_name': claude_game_name or game_name,
+            'franchise': franchise,
+            'rarity': claude_rarity or basic_analysis.get('rarity', ''),
+            'year': deep_analysis.get('historical_context', {}).get('release_year') or basic_analysis.get('year'),
             'brand': deep_analysis.get('brand') or basic_analysis.get('brand', ''),
+            'sport': claude_sport or basic_analysis.get('sport', ''),
             
             # Key collector attributes
             'serial_number': deep_analysis.get('serial_number', {}),
@@ -457,12 +558,15 @@ You MUST respond with ONLY valid JSON (no markdown, no explanations). Use this e
             # Condition and authentication
             'condition': deep_analysis.get('condition', {}),
             'authentication': deep_analysis.get('authentication', {}),
-            'is_graded': False,
+            'is_graded': basic_analysis.get('is_graded', False),
+            'grading_company': basic_analysis.get('grading_company', ''),
+            'grading_score': basic_analysis.get('grading_score'),
             'is_rookie_card': basic_analysis.get('is_rookie_card', False),
             
             'estimated_value_low': market_analysis.get('current_market_value_low', 0),
             'estimated_value_high': market_analysis.get('current_market_value_high', 0),
-            'collector_notes': deep_analysis.get('collector_notes', '')
+            'collector_notes': deep_analysis.get('collector_notes', ''),
+            'is_card': True  # Mark as card for vault saving
         }
 
         return {

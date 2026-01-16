@@ -232,11 +232,32 @@ class SupabaseStorageManager:
             Image bytes or None if download fails
         """
         try:
+            # Validate URL is a string and not empty
+            if not public_url or not isinstance(public_url, str) or not public_url.strip():
+                logger.error(f"Invalid URL provided: {type(public_url)} - {public_url}")
+                return None
+            
             # Extract bucket and path from URL
             # URL format: https://{project}.supabase.co/storage/v1/object/public/{bucket}/{path}
             # Or: https://{project}.supabase.co/storage/v1/object/sign/{bucket}/{path}?token=...
             
             logger.info(f"Downloading from URL: {public_url[:100]}...")  # Log first 100 chars
+            
+            # Check if URL is properly formatted
+            if not public_url.startswith('http://') and not public_url.startswith('https://'):
+                logger.error(f"URL does not start with http:// or https://: {public_url[:100]}")
+                # Try direct HTTP anyway if it looks like a valid path
+                if '/' in public_url:
+                    logger.info("URL appears to be a path, attempting direct HTTP download...")
+                    try:
+                        import requests
+                        # Try with https first
+                        https_url = f"https://{public_url}" if not public_url.startswith('http') else public_url
+                        http_response = requests.get(https_url, timeout=30, allow_redirects=True)
+                        if http_response.status_code == 200 and http_response.content:
+                            return http_response.content
+                    except:
+                        pass
             
             parts = public_url.split('/')
             
@@ -258,6 +279,19 @@ class SupabaseStorageManager:
             if not bucket or path_start_idx is None:
                 logger.error(f"Could not parse Supabase Storage URL: {public_url}")
                 logger.error(f"URL parts: {parts}")
+                logger.error(f"Expected format: https://{{project}}.supabase.co/storage/v1/object/public/{{bucket}}/{{path}}")
+                
+                # If URL doesn't match expected format, try direct HTTP download anyway
+                logger.info("Attempting direct HTTP download despite non-standard URL format...")
+                try:
+                    import requests
+                    http_response = requests.get(public_url, timeout=30, allow_redirects=True)
+                    if http_response.status_code == 200 and http_response.content:
+                        logger.info(f"✅ Direct HTTP download successful (non-standard URL): {len(http_response.content)} bytes")
+                        return http_response.content
+                except Exception as direct_error:
+                    logger.error(f"Direct HTTP download also failed: {direct_error}")
+                
                 return None
             
             # Extract path (everything after bucket, but remove query params if present)
@@ -294,22 +328,44 @@ class SupabaseStorageManager:
                 # Try alternative: use requests to download from public URL directly
                 try:
                     import requests
-                    logger.info("Attempting direct HTTP download from public URL...")
-                    http_response = requests.get(public_url, timeout=30)
+                    logger.info(f"Attempting direct HTTP download from public URL: {public_url[:100]}...")
+                    http_response = requests.get(public_url, timeout=30, allow_redirects=True)
                     if http_response.status_code == 200:
-                        logger.info(f"✅ Direct HTTP download successful: {len(http_response.content)} bytes")
-                        return http_response.content
+                        content = http_response.content
+                        if content and len(content) > 0:
+                            logger.info(f"✅ Direct HTTP download successful: {len(content)} bytes")
+                            return content
+                        else:
+                            logger.error(f"Direct HTTP download returned empty content")
+                            return None
                     else:
-                        logger.error(f"Direct HTTP download failed: {http_response.status_code}")
+                        logger.error(f"Direct HTTP download failed with status: {http_response.status_code}")
+                        logger.error(f"Response preview: {http_response.text[:200] if hasattr(http_response, 'text') else 'N/A'}")
                         return None
                 except Exception as http_error:
                     logger.error(f"Direct HTTP download also failed: {http_error}")
+                    import traceback
+                    logger.error(f"HTTP error traceback: {traceback.format_exc()}")
                     return None
                 
         except Exception as e:
             logger.error(f"❌ Download failed for {public_url}: {e}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
+            
+            # Last resort: try direct HTTP download from the original URL
+            try:
+                import requests
+                logger.info("Last resort: attempting direct HTTP download from original URL...")
+                http_response = requests.get(public_url, timeout=30, allow_redirects=True)
+                if http_response.status_code == 200 and http_response.content and len(http_response.content) > 0:
+                    logger.info(f"✅ Last resort HTTP download successful: {len(http_response.content)} bytes")
+                    return http_response.content
+                else:
+                    logger.error(f"Last resort HTTP download failed: status={http_response.status_code if hasattr(http_response, 'status_code') else 'unknown'}, content_len={len(http_response.content) if hasattr(http_response, 'content') else 0}")
+            except Exception as last_error:
+                logger.error(f"Last resort HTTP download error: {last_error}")
+            
             return None
 
     def move_photo(

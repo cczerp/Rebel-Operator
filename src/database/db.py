@@ -48,7 +48,7 @@ class Database:
                 except:
                     pass
 
-            print("🐘 Connecting to PostgreSQL database...")
+            print("[INFO] Connecting to PostgreSQL database...")
 
             # Check if using Supabase pooler (don't use keepalives with pooler)
             is_supabase_pooler = 'pooler.supabase.com' in self.database_url
@@ -82,7 +82,7 @@ class Database:
             self.conn.autocommit = False
 
         except Exception as e:
-            print(f"❌ Failed to connect to PostgreSQL: {e}")
+            print(f"[ERROR] Failed to connect to PostgreSQL: {e}")
             raise
 
     def _ensure_connection(self):
@@ -90,7 +90,7 @@ class Database:
         try:
             # Test if connection is alive
             if self.conn is None or self.conn.closed:
-                print("⚠️  Connection lost, reconnecting...")
+                print("[WARNING] Connection lost, reconnecting...")
                 self._connect()
                 return
 
@@ -107,7 +107,7 @@ class Database:
                         pass
 
         except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
-            print(f"⚠️  Connection error detected: {e}, reconnecting...")
+            print(f"[WARNING] Connection error detected: {e}, reconnecting...")
             self._connect()
 
     def _get_cursor(self):
@@ -345,7 +345,7 @@ class Database:
                 """)
                 self.conn.commit()
         except Exception as e:
-            print(f"⚠️  Tier column migration skipped: {e}")
+            print(f"[WARNING] Tier column migration skipped: {e}")
             self.conn.rollback()
 
         # Storage bins - for physical organization
@@ -432,6 +432,7 @@ class Database:
                 custom_categories TEXT,
                 storage_location TEXT,
                 storage_item_id INTEGER,
+                storage_region TEXT,
                 game_name TEXT,
                 set_name TEXT,
                 set_code TEXT,
@@ -464,6 +465,17 @@ class Database:
                 FOREIGN KEY (storage_item_id) REFERENCES storage_items(id)
             )
         """)
+        
+        # Add storage_region column if it doesn't exist (for existing databases)
+        try:
+            cursor.execute("""
+                ALTER TABLE card_collections 
+                ADD COLUMN IF NOT EXISTS storage_region TEXT
+            """)
+            self.conn.commit()
+        except Exception:
+            # Column might already exist, ignore
+            pass
 
         # Organization presets
         cursor.execute("""
@@ -663,6 +675,19 @@ class Database:
             )
         """)
 
+        # Add coin_info column if it doesn't exist (migration)
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name='public_artifacts' AND column_name='coin_info'
+                ) THEN
+                    ALTER TABLE public_artifacts ADD COLUMN coin_info TEXT;
+                END IF;
+            END $$;
+        """)
+
         # Create indexes for artifacts
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_public_artifacts_name_brand
@@ -685,7 +710,7 @@ class Database:
         """)
 
         self.conn.commit()
-        print("✅ PostgreSQL tables created successfully")
+        print("[SUCCESS] PostgreSQL tables created successfully")
 
     # ========================================================================
     # COLLECTIBLES METHODS
@@ -1059,15 +1084,67 @@ class Database:
         """Get all draft listings"""
         cursor = self._get_cursor()
         if user_id is not None:
+            # Explicitly cast user_id to INTEGER to avoid UUID comparison issues
+            # Also cast listing_uuid to TEXT in case it's stored as UUID type
             cursor.execute("""
-                SELECT * FROM listings
-                WHERE status = 'draft' AND user_id = %s
+                SELECT 
+                    id,
+                    listing_uuid::TEXT as listing_uuid,
+                    user_id,
+                    collectible_id,
+                    title,
+                    description,
+                    price,
+                    cost,
+                    condition,
+                    category,
+                    item_type,
+                    attributes,
+                    photos,
+                    quantity,
+                    storage_location,
+                    sku,
+                    upc,
+                    status,
+                    sold_platform,
+                    sold_date,
+                    sold_price,
+                    platform_statuses,
+                    created_at,
+                    updated_at
+                FROM listings
+                WHERE status = 'draft' AND user_id = %s::INTEGER
                 ORDER BY created_at DESC
                 LIMIT %s
             """, (user_id, limit))
         else:
             cursor.execute("""
-                SELECT * FROM listings
+                SELECT 
+                    id,
+                    listing_uuid::TEXT as listing_uuid,
+                    user_id,
+                    collectible_id,
+                    title,
+                    description,
+                    price,
+                    cost,
+                    condition,
+                    category,
+                    item_type,
+                    attributes,
+                    photos,
+                    quantity,
+                    storage_location,
+                    sku,
+                    upc,
+                    status,
+                    sold_platform,
+                    sold_date,
+                    sold_price,
+                    platform_statuses,
+                    created_at,
+                    updated_at
+                FROM listings
                 WHERE status = 'draft'
                 ORDER BY created_at DESC
                 LIMIT %s
@@ -1390,7 +1467,8 @@ class Database:
         collector_notes: Optional[str] = None,
         fun_fact: Optional[str] = None,
         photos: Optional[List[str]] = None,
-        user_id: Optional[int] = None
+        user_id: Optional[int] = None,
+        coin_info: Optional[Dict] = None
     ) -> int:
         """
         Create or update a public artifact in the Hall of Records.
@@ -1407,7 +1485,7 @@ class Database:
         
         # Check if artifact already exists (same item)
         cursor.execute("""
-            SELECT id, historical_context, value_context, known_errors, collector_notes, fun_fact, photos
+            SELECT id, historical_context, value_context, known_errors, collector_notes, fun_fact, photos, coin_info
             FROM public_artifacts
             WHERE item_name = %s
             AND (brand IS NULL AND %s IS NULL OR brand = %s)
@@ -1425,31 +1503,39 @@ class Database:
             existing_historical = json.loads(existing['historical_context']) if existing['historical_context'] else {}
             existing_value = json.loads(existing['value_context']) if existing['value_context'] else {}
             existing_errors = json.loads(existing['known_errors']) if existing['known_errors'] else {}
+            existing_coin_info = json.loads(existing['coin_info']) if existing.get('coin_info') else {}
             existing_notes = existing['collector_notes'] or ''
             existing_fun_fact = existing['fun_fact'] or ''
             existing_photos = json.loads(existing['photos']) if existing['photos'] else []
-            
+
             # Merge historical_context: only add NEW keys, don't overwrite
             merged_historical = existing_historical.copy()
             if historical_context:
                 for key, value in historical_context.items():
                     if key not in merged_historical or not merged_historical[key]:
                         merged_historical[key] = value
-            
+
             # Merge value_context: only add NEW keys
             merged_value = existing_value.copy()
             if value_context:
                 for key, value in value_context.items():
                     if key not in merged_value or not merged_value[key]:
                         merged_value[key] = value
-            
+
             # Merge known_errors: only add NEW keys
             merged_errors = existing_errors.copy()
             if known_errors:
                 for key, value in known_errors.items():
                     if key not in merged_errors or not merged_errors[key]:
                         merged_errors[key] = value
-            
+
+            # Merge coin_info: only add NEW keys
+            merged_coin_info = existing_coin_info.copy()
+            if coin_info:
+                for key, value in coin_info.items():
+                    if key not in merged_coin_info or not merged_coin_info[key]:
+                        merged_coin_info[key] = value
+
             # Only update notes/fun_fact if they're empty
             final_notes = existing_notes if existing_notes else (collector_notes or '')
             final_fun_fact = existing_fun_fact if existing_fun_fact else (fun_fact or '')
@@ -1460,6 +1546,7 @@ class Database:
                 SET historical_context = %s,
                     value_context = %s,
                     known_errors = %s,
+                    coin_info = %s,
                     collector_notes = %s,
                     fun_fact = %s,
                     updated_at = CURRENT_TIMESTAMP,
@@ -1469,6 +1556,7 @@ class Database:
                 json.dumps(merged_historical) if merged_historical else None,
                 json.dumps(merged_value) if merged_value else None,
                 json.dumps(merged_errors) if merged_errors else None,
+                json.dumps(merged_coin_info) if merged_coin_info else None,
                 final_notes,
                 final_fun_fact,
                 artifact_id
@@ -1478,9 +1566,9 @@ class Database:
             cursor.execute("""
                 INSERT INTO public_artifacts (
                     item_name, brand, franchise, category, item_type,
-                    historical_context, value_context, known_errors,
+                    historical_context, value_context, known_errors, coin_info,
                     collector_notes, fun_fact, photos
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 item_name,
@@ -1491,6 +1579,7 @@ class Database:
                 json.dumps(historical_context) if historical_context else None,
                 json.dumps(value_context) if value_context else None,
                 json.dumps(known_errors) if known_errors else None,
+                json.dumps(coin_info) if coin_info else None,
                 collector_notes,
                 fun_fact,
                 json.dumps([])  # Start with empty photos - user will select which to make public
@@ -1547,13 +1636,38 @@ class Database:
                 artifact['known_errors'] = json.loads(artifact['known_errors'])
             except:
                 pass
+        if artifact.get('coin_info'):
+            try:
+                artifact['coin_info'] = json.loads(artifact['coin_info'])
+            except:
+                pass
         if artifact.get('photos'):
             try:
                 artifact['photos'] = json.loads(artifact['photos'])
             except:
                 pass
-        
+
         return artifact
+
+    def get_all_artifacts(self, limit: int = 100, offset: int = 0) -> List[Dict]:
+        """Get all artifacts in the public Hall of Records"""
+        import json
+        cursor = self._get_cursor()
+        cursor.execute("""
+            SELECT id, item_name, brand, franchise, category, item_type,
+                   created_at, updated_at, times_contributed
+            FROM public_artifacts
+            ORDER BY updated_at DESC
+            LIMIT %s OFFSET %s
+        """, (limit, offset))
+
+        results = cursor.fetchall()
+        artifacts = []
+        for row in results:
+            artifact = dict(row)
+            artifacts.append(artifact)
+
+        return artifacts
 
     def save_artifact_to_user_collection(self, user_id: int, artifact_id: int) -> bool:
         """Save artifact to user's personal collection"""
@@ -1587,14 +1701,14 @@ class Database:
         for row in cursor.fetchall():
             artifact = dict(row)
             # Parse JSON fields
-            for field in ['historical_context', 'value_context', 'known_errors', 'photos']:
+            for field in ['historical_context', 'value_context', 'known_errors', 'coin_info', 'photos']:
                 if artifact.get(field):
                     try:
                         artifact[field] = json.loads(artifact[field])
                     except:
                         pass
             artifacts.append(artifact)
-        
+
         return artifacts
 
     def is_artifact_in_user_collection(self, user_id: int, artifact_id: int) -> bool:
@@ -1605,6 +1719,92 @@ class Database:
             WHERE user_id = %s AND artifact_id = %s
         """, (user_id, artifact_id))
         return cursor.fetchone() is not None
+
+    def get_artifacts_with_pending_photos(self) -> List[Dict]:
+        """Get all artifacts that have pending photos for admin curation"""
+        import json
+        cursor = self._get_cursor()
+
+        # Get artifacts with their pending photos
+        cursor.execute("""
+            SELECT DISTINCT a.id, a.item_name, a.brand, a.franchise, a.category, a.item_type,
+                   a.created_at, a.updated_at, a.photos
+            FROM public_artifacts a
+            INNER JOIN pending_artifact_photos p ON a.id = p.artifact_id
+            ORDER BY p.created_at DESC
+        """)
+
+        artifacts = cursor.fetchall()
+        result = []
+
+        for artifact in artifacts:
+            artifact_dict = dict(artifact)
+
+            # Parse photos JSON
+            if artifact_dict.get('photos'):
+                try:
+                    artifact_dict['photos'] = json.loads(artifact_dict['photos'])
+                except:
+                    artifact_dict['photos'] = []
+            else:
+                artifact_dict['photos'] = []
+
+            # Get pending photos for this artifact
+            cursor.execute("""
+                SELECT id, photo_url, is_selected, created_at, user_id
+                FROM pending_artifact_photos
+                WHERE artifact_id = %s
+                ORDER BY created_at ASC
+            """, (artifact_dict['id'],))
+
+            pending_photos = [dict(row) for row in cursor.fetchall()]
+
+            # Count published vs pending
+            published_count = len([p for p in pending_photos if p['is_selected']])
+            pending_count = len([p for p in pending_photos if not p['is_selected']])
+
+            result.append({
+                'artifact': artifact_dict,
+                'pending_photos': pending_photos,
+                'pending_count': pending_count,
+                'published_count': published_count
+            })
+
+        return result
+
+    def get_photo_curation_stats(self) -> Dict:
+        """Get statistics for photo curation dashboard"""
+        cursor = self._get_cursor()
+
+        # Total pending photos
+        cursor.execute("""
+            SELECT COUNT(*) as count
+            FROM pending_artifact_photos
+            WHERE is_selected = FALSE
+        """)
+        pending_count = cursor.fetchone()['count']
+
+        # Total published photos
+        cursor.execute("""
+            SELECT COUNT(*) as count
+            FROM pending_artifact_photos
+            WHERE is_selected = TRUE
+        """)
+        published_count = cursor.fetchone()['count']
+
+        # Artifacts with pending photos
+        cursor.execute("""
+            SELECT COUNT(DISTINCT artifact_id) as count
+            FROM pending_artifact_photos
+            WHERE is_selected = FALSE
+        """)
+        artifacts_count = cursor.fetchone()['count']
+
+        return {
+            'pending_count': pending_count,
+            'published_count': published_count,
+            'artifacts_count': artifacts_count
+        }
 
     def get_pending_artifact_photos(self, artifact_id: int, user_id: int) -> List[Dict]:
         """Get pending photos for artifact that user can select to make public"""
@@ -2597,7 +2797,7 @@ class Database:
                 True   # email_verified
             ))
             self.conn.commit()
-            print("✅ Admin user (lyakGodzilla) created")
+            print("[SUCCESS] Admin user (lyakGodzilla) created")
         
         # Tier 3 user (friend)
         cursor.execute("SELECT id FROM users WHERE username = %s", ("ResellRage",))
@@ -2618,7 +2818,7 @@ class Database:
                 True    # email_verified
             ))
             self.conn.commit()
-            print("✅ Tier 3 user (ResellRage) created")
+            print("[SUCCESS] Tier 3 user (ResellRage) created")
 
     def close(self):
         """Close database connection"""

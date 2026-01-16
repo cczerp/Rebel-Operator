@@ -1,13 +1,66 @@
 {% extends "base.html" %}
 
-{% block title %}My Card Collection{% endblock %}
+{% block title %}Collection Vault{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-box-open"></i> My Card Collection</h2>
-    <button class="btn btn-primary" onclick="showAddCardModal()">
-        <i class="fas fa-plus"></i> Add Cards
-    </button>
+    <h2><i class="fas fa-vault"></i> Collection Vault</h2>
+    <div>
+        <a href="{{ url_for('create_listing') }}" class="btn btn-primary me-2">
+            <i class="fas fa-camera"></i> Scan & Add Cards
+        </a>
+        <button class="btn btn-outline-primary" onclick="showAddCardModal()">
+            <i class="fas fa-keyboard"></i> Manual Entry
+        </button>
+    </div>
+</div>
+
+<!-- Info Banner -->
+<div class="alert alert-success mb-4">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-tag fa-2x me-3"></i>
+        <div>
+            <strong>Ready to sell?</strong> Cards saved in your vault can be converted to listings anytime. Just open any card and click "Create Listing" to post it for sale!
+        </div>
+    </div>
+</div>
+
+<!-- Organization Helper (Subtle, Non-Blocking) -->
+<div class="alert alert-info alert-dismissible fade show mb-4" id="organizationHelper" style="display:none;">
+    <button type="button" class="btn-close" onclick="dismissOrganizationHelper()"></button>
+    <div id="organizationHelperContent">
+        <h5 class="alert-heading"><i class="fas fa-boxes"></i> Want help organizing your cards?</h5>
+        <p class="mb-3">Get storage recommendations based on card type and rarity.</p>
+        <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-primary btn-sm" onclick="showStorageDeviceQuestion()">
+                <i class="fas fa-check-circle"></i> Yes, help me
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="dismissOrganizationHelper()">
+                <i class="fas fa-times"></i> No thanks
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="dismissOrganizationHelper(true)">
+                <i class="fas fa-bell-slash"></i> Don't ask again while scanning
+            </button>
+        </div>
+    </div>
+    <div id="storageDeviceQuestion" style="display:none;">
+        <h5 class="alert-heading"><i class="fas fa-box"></i> What are you storing these cards in?</h5>
+        <p class="mb-3">Choose your storage method to get personalized guidance.</p>
+        <div class="d-flex gap-2">
+            <button class="btn btn-info" onclick="selectStorageDevice('binder')">
+                <i class="fas fa-book"></i> Binder
+            </button>
+            <button class="btn btn-info" onclick="selectStorageDevice('box')">
+                <i class="fas fa-box"></i> Box (shoebox, card box, etc.)
+            </button>
+        </div>
+        <button class="btn btn-link btn-sm mt-2" onclick="backToHelperQuestion()">
+            <i class="fas fa-arrow-left"></i> Back
+        </button>
+    </div>
+    <div id="storageGuidance" style="display:none;" class="mt-3">
+        <!-- Guidance will be inserted here -->
+    </div>
 </div>
 
 <!-- Stats Section -->
@@ -106,14 +159,13 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <i class="fas fa-info-circle"></i> <strong>Tip:</strong> To scan cards with your camera, use the <a href="{{ url_for('create_listing') }}" class="alert-link">Create page</a>.
+                </div>
+
                 <ul class="nav nav-tabs mb-3" role="tablist">
                     <li class="nav-item">
-                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#scanTab">
-                            <i class="fas fa-camera"></i> Scan Card
-                        </button>
-                    </li>
-                    <li class="nav-item">
-                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#manualTab">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#manualTab">
                             <i class="fas fa-keyboard"></i> Manual Entry
                         </button>
                     </li>
@@ -125,20 +177,8 @@
                 </ul>
 
                 <div class="tab-content">
-                    <!-- Scan Tab -->
-                    <div class="tab-pane fade show active" id="scanTab">
-                        <div class="text-center mb-3">
-                            <button class="btn btn-primary btn-lg" onclick="document.getElementById('cardScanInput').click()">
-                                <i class="fas fa-camera"></i> Scan Card with Camera
-                            </button>
-                            <input type="file" id="cardScanInput" accept="image/*" capture="environment" class="d-none" onchange="scanCard(event)">
-                        </div>
-                        <div id="scanPreview" class="text-center"></div>
-                        <div id="scanResult"></div>
-                    </div>
-
                     <!-- Manual Tab -->
-                    <div class="tab-pane fade" id="manualTab">
+                    <div class="tab-pane fade show active" id="manualTab">
                         <form id="manualCardForm">
                             <div class="row">
                                 <div class="col-md-6">
@@ -255,6 +295,9 @@ async function loadCards() {
         if (data.success) {
             allCards = data.cards;
             displayCards(allCards);
+
+            // Check if organization helper should be shown
+            checkOrganizationHelper();
         }
     } catch (error) {
         console.error('Failed to load cards:', error);
@@ -309,12 +352,15 @@ function displayCards(cards) {
                             <h6 class="card-title">${card.title}</h6>
                             <p class="card-text">
                                 <small class="text-muted">
-                                    ${card.set_name || card.brand || ''}<br>
-                                    ${card.card_number ? '#' + card.card_number : ''}<br>
+                                    ${card.franchise || card.game_name || card.sport || card.set_name || card.brand || ''}<br>
+                                    ${card.set_name ? 'Set: ' + card.set_name + '<br>' : ''}
+                                    ${card.card_number ? '#' + card.card_number + '<br>' : ''}
+                                    ${card.rarity ? 'Rarity: ' + card.rarity + '<br>' : ''}
                                     ${card.estimated_value ? '$' + card.estimated_value.toFixed(2) : ''}
                                 </small>
                             </p>
-                            ${card.storage_location ? `<span class="badge bg-warning">${card.storage_location}</span>` : ''}
+                            ${card.storage_location ? `<span class="badge bg-warning me-1">${card.storage_location}</span>` : ''}
+                            ${card.storage_region ? `<span class="badge bg-success me-1"><i class="fas fa-map-marked-alt"></i> ${card.storage_region}</span>` : ''}
                             ${card.quantity > 1 ? `<span class="badge bg-info">x${card.quantity}</span>` : ''}
                         </div>
                     </div>
@@ -340,13 +386,16 @@ function displayCards(cards) {
                         <div class="flex-grow-1">
                             <h6 class="mb-1">${card.title}</h6>
                             <small class="text-muted">
-                                ${card.set_name || card.brand || ''}
-                                ${card.card_number ? '#' + card.card_number : ''}
+                                ${card.franchise || card.game_name || card.sport || ''}
+                                ${card.set_name ? ' | Set: ' + card.set_name : ''}
+                                ${card.card_number ? ' #' + card.card_number : ''}
+                                ${card.rarity ? ' | ' + card.rarity : ''}
                             </small>
                         </div>
                         <div>
                             ${card.estimated_value ? `<strong>$${card.estimated_value.toFixed(2)}</strong><br>` : ''}
-                            ${card.storage_location ? `<span class="badge bg-warning">${card.storage_location}</span>` : ''}
+                            ${card.storage_location ? `<span class="badge bg-warning me-1">${card.storage_location}</span>` : ''}
+                            ${card.storage_region ? `<span class="badge bg-success me-1"><i class="fas fa-map-marked-alt"></i> ${card.storage_region}</span>` : ''}
                             ${card.quantity > 1 ? `<span class="badge bg-info">x${card.quantity}</span>` : ''}
                         </div>
                     </div>
@@ -539,7 +588,9 @@ async function importCSV() {
 
 async function changeOrganization() {
     const newMode = document.getElementById('organizationMode').value;
+    
     if (newMode === 'none') {
+        // Just reload cards without organization
         loadCards();
         return;
     }
@@ -547,23 +598,228 @@ async function changeOrganization() {
     showLoading();
 
     try {
-        const response = await fetch('/api/cards/switch-organization', {
+        // First switch organization mode for all cards
+        const switchResponse = await fetch('/api/cards/switch-organization', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ new_mode: newMode })
         });
 
-        const data = await response.json();
+        const switchData = await switchResponse.json();
 
-        if (data.success) {
-            showAlert('Organization updated!', 'success');
+        if (switchData.success) {
+            showAlert('Organization updated! Reloading cards...', 'success');
+            // Reload cards with new organization
             loadCards();
+        } else {
+            showAlert(switchData.error || 'Failed to update organization', 'danger');
+            hideLoading();
         }
     } catch (error) {
         showAlert('Failed to change organization: ' + error, 'danger');
-    } finally {
         hideLoading();
     }
+}
+
+// ============================================================================
+// Organization Helper Functions
+// ============================================================================
+
+function checkOrganizationHelper() {
+    // Check if user has dismissed the helper or has cards
+    const dismissed = localStorage.getItem('organizationHelperDismissed');
+    const dontAskAgain = localStorage.getItem('dontAskOrganization');
+
+    // Don't show if permanently dismissed
+    if (dontAskAgain === 'true') {
+        return;
+    }
+
+    // Don't show if dismissed this session
+    if (dismissed === 'true') {
+        return;
+    }
+
+    // Show if user has cards (they just added some)
+    if (allCards && allCards.length > 0) {
+        const helper = document.getElementById('organizationHelper');
+        if (helper) {
+            helper.style.display = 'block';
+        }
+    }
+}
+
+function showStorageDeviceQuestion() {
+    // Hide initial question, show device selection
+    document.getElementById('organizationHelperContent').style.display = 'none';
+    document.getElementById('storageDeviceQuestion').style.display = 'block';
+}
+
+function backToHelperQuestion() {
+    // Go back to initial question
+    document.getElementById('storageDeviceQuestion').style.display = 'none';
+    document.getElementById('organizationHelperContent').style.display = 'block';
+}
+
+function dismissOrganizationHelper(dontAskAgain = false) {
+    const helper = document.getElementById('organizationHelper');
+    if (helper) {
+        helper.style.display = 'none';
+    }
+
+    // Store preference
+    localStorage.setItem('organizationHelperDismissed', 'true');
+
+    if (dontAskAgain) {
+        localStorage.setItem('dontAskOrganization', 'true');
+    }
+}
+
+async function selectStorageDevice(device) {
+    // Show loading
+    document.getElementById('storageDeviceQuestion').innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border text-info" role="status"></div>
+            <p class="mt-2">Generating storage guidance...</p>
+        </div>
+    `;
+
+    try {
+        // Get the most common franchise from user's cards
+        const franchises = {};
+        allCards.forEach(card => {
+            const franchise = card.franchise || card.card_type || 'Unknown';
+            franchises[franchise] = (franchises[franchise] || 0) + 1;
+        });
+
+        // Find most common franchise
+        let topFranchise = 'Pokemon'; // default
+        let maxCount = 0;
+        for (const [franchise, count] of Object.entries(franchises)) {
+            if (count > maxCount) {
+                topFranchise = franchise;
+                maxCount = count;
+            }
+        }
+
+        // Generate guidance based on franchise and device
+        let guidance = generateStorageGuidance(topFranchise, device, allCards);
+
+        // Show guidance
+        document.getElementById('storageDeviceQuestion').style.display = 'none';
+        document.getElementById('storageGuidance').innerHTML = guidance;
+        document.getElementById('storageGuidance').style.display = 'block';
+
+        // Dismiss helper after showing guidance (user can still see it)
+        localStorage.setItem('organizationHelperDismissed', 'true');
+
+    } catch (error) {
+        console.error('Failed to generate guidance:', error);
+        showAlert('Failed to generate guidance', 'warning');
+        dismissOrganizationHelper();
+    }
+}
+
+function generateStorageGuidance(franchise, device, cards) {
+    // Storage maps logic (inverted: common→FRONT, rare→BACK/BOTTOM)
+    const franchiseLower = franchise.toLowerCase();
+
+    let regionGuidance = '';
+    let deviceTips = '';
+
+    // Determine primary storage regions based on franchise
+    if (franchiseLower.includes('pokemon') || franchiseLower.includes('pokémon')) {
+        regionGuidance = `
+            <strong>Pokémon Cards:</strong>
+            <ul>
+                <li><strong>FRONT:</strong> Common/Bulk cards (high-frequency trading)</li>
+                <li><strong>MIDDLE:</strong> Uncommon cards</li>
+                <li><strong>BACK:</strong> Rare/Holo cards (protection)</li>
+                <li><strong>BOTTOM:</strong> Ultra Rare/Secret Rare (maximum protection)</li>
+            </ul>
+        `;
+    } else if (franchiseLower.includes('magic') || franchiseLower.includes('mtg')) {
+        regionGuidance = `
+            <strong>Magic: The Gathering:</strong>
+            <ul>
+                <li><strong>FRONT:</strong> Common cards (frequently played)</li>
+                <li><strong>MIDDLE:</strong> Uncommon cards</li>
+                <li><strong>BACK:</strong> Rare cards (protection)</li>
+                <li><strong>BOTTOM:</strong> Mythic Rare (maximum protection)</li>
+            </ul>
+        `;
+    } else if (franchiseLower.includes('nfl') || franchiseLower.includes('football') ||
+               franchiseLower.includes('nba') || franchiseLower.includes('basketball') ||
+               franchiseLower.includes('mlb') || franchiseLower.includes('baseball') ||
+               franchiseLower.includes('nhl') || franchiseLower.includes('hockey')) {
+        regionGuidance = `
+            <strong>Sports Cards:</strong>
+            <ul>
+                <li><strong>FRONT:</strong> Base/Common cards (high-frequency trading)</li>
+                <li><strong>MIDDLE:</strong> Star players</li>
+                <li><strong>BACK:</strong> Autographed/Memorabilia (protection)</li>
+                <li><strong>BOTTOM:</strong> Rookie/Graded cards (maximum protection)</li>
+            </ul>
+        `;
+    } else {
+        regionGuidance = `
+            <strong>General Cards:</strong>
+            <ul>
+                <li><strong>FRONT:</strong> Common/frequently traded cards</li>
+                <li><strong>MIDDLE:</strong> Mid-tier cards</li>
+                <li><strong>BACK:</strong> Rare cards (protection)</li>
+                <li><strong>BOTTOM:</strong> High-value cards (maximum protection)</li>
+            </ul>
+        `;
+    }
+
+    // Device-specific tips
+    if (device === 'binder') {
+        deviceTips = `
+            <div class="alert alert-success mb-0">
+                <strong><i class="fas fa-book"></i> Binder Tips:</strong>
+                <ul class="mb-0 mt-2">
+                    <li><strong>Spacing Rule:</strong> Insert every 4th card initially, skip 2 slots for 2-3 pages. Fill gaps later as you find pairs/groupings.</li>
+                    <li>This reduces future reshuffling and gives you room to organize!</li>
+                    <li><strong>Best for:</strong> Display cards ($5-$50) you want to show off</li>
+                </ul>
+            </div>
+        `;
+    } else {
+        deviceTips = `
+            <div class="alert alert-success mb-0">
+                <strong><i class="fas fa-box"></i> Box Storage Tips:</strong>
+                <ul class="mb-0 mt-2">
+                    <li><strong>Common cards:</strong> Store in FRONT of box (easy access for trading)</li>
+                    <li><strong>Valuable cards:</strong> Store in BACK/BOTTOM (protection)</li>
+                    <li><strong>Protected cards:</strong> If using top loaders/slabs, group them together in a dedicated box</li>
+                    <li><strong>Best for:</strong> Bulk storage, sorted inventory</li>
+                </ul>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="card border-success">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-check-circle"></i> Storage Guidance</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Based on your ${franchise} cards and ${device} storage:</strong></p>
+                ${regionGuidance}
+                <hr>
+                ${deviceTips}
+                <div class="mt-3 text-center">
+                    <a href="{{ url_for('storage_instructions') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-book-open"></i> View Full Storage Guide
+                    </a>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="dismissOrganizationHelper()">
+                        <i class="fas fa-times"></i> Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
 }
 </script>
 

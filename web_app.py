@@ -132,6 +132,7 @@ from routes_admin import admin_bp, init_routes as init_admin
 from routes_cards import cards_bp, init_routes as init_cards
 from routes_main import main_bp, init_routes as init_main
 from routes_csv import csv_bp
+from monitoring.health import health_bp
 
 # Initialize blueprints with database and User class
 init_auth(db, User)
@@ -145,6 +146,7 @@ app.register_blueprint(admin_bp)
 app.register_blueprint(cards_bp)
 app.register_blueprint(main_bp)
 app.register_blueprint(csv_bp)
+app.register_blueprint(health_bp)
 
 # ============================================================================
 # MAIN ROUTES (not in blueprints)
@@ -152,26 +154,39 @@ app.register_blueprint(csv_bp)
 
 @app.route('/')
 def index():
-    """Landing page / dashboard"""
-    if current_user.is_authenticated:
-        return render_template('index.html')
-    else:
-        return render_template('index.html')
+    """Landing page / dashboard - allows guest access"""
+    return render_template('index.html', is_guest=not current_user.is_authenticated)
 
 @app.route('/create')
-@login_required
 def create_listing():
-    """Create new listing page"""
+    """Create new listing page - allows guest access with 8 free AI uses"""
+    from flask import session
     draft_id = request.args.get('draft_id', type=int)
-    return render_template('create.html', draft_id=draft_id)
+    
+    # Initialize guest usage tracking if not authenticated
+    if not current_user.is_authenticated:
+        if 'guest_ai_uses' not in session:
+            session['guest_ai_uses'] = 0
+        guest_uses_remaining = 8 - session.get('guest_ai_uses', 0)
+    else:
+        guest_uses_remaining = None
+    
+    return render_template('create.html', 
+                         draft_id=draft_id,
+                         is_guest=not current_user.is_authenticated,
+                         guest_uses_remaining=guest_uses_remaining)
 
 @app.route('/drafts')
 @login_required
 def drafts():
     """Drafts page"""
-    # Fetch all drafts for current user
-    drafts_list = db.get_drafts(user_id=current_user.id, limit=100)
-    return render_template('drafts.html', drafts=drafts_list)
+    try:
+        # Fetch all drafts for current user
+        drafts_list = db.get_drafts(user_id=current_user.id, limit=100)
+        return render_template('drafts.html', drafts=drafts_list or [])
+    except Exception as e:
+        flash(f'Error loading drafts: {str(e)}', 'error')
+        return render_template('drafts.html', drafts=[])
 
 @app.route('/listings')
 @login_required
@@ -211,13 +226,15 @@ def storage():
 @login_required
 def storage_clothing():
     """Clothing storage"""
-    return render_template('storage_clothing.html')
+    bins = db.get_storage_bins(current_user.id, bin_type='clothing')
+    return render_template('storage_clothing.html', bins=bins)
 
 @app.route('/storage/cards')
 @login_required
 def storage_cards():
     """Card storage"""
-    return redirect(url_for('cards.cards_collection'))
+    bins = db.get_storage_bins(current_user.id, bin_type='cards')
+    return render_template('storage_cards.html', bins=bins)
 
 @app.route('/storage/map')
 @login_required
@@ -225,17 +242,35 @@ def storage_map():
     """Storage map"""
     return render_template('storage_map.html')
 
+@app.route('/storage/instructions')
+@login_required
+def storage_instructions():
+    """Storage organization instructions and guide"""
+    return render_template('storage_instructions.html')
+
 @app.route('/settings')
 @login_required
 def settings():
     """User settings"""
     return render_template('settings.html')
 
+@app.route('/export')
+@login_required
+def export_page():
+    """CSV export page"""
+    return render_template('export.html')
+
 @app.route('/vault')
 @login_required
 def vault():
     """Collection Vault page"""
     return render_template('vault.html')
+
+@app.route('/hall-of-records')
+def hall_of_records():
+    """Hall of Records - Browse all public artifacts"""
+    artifacts = db.get_all_artifacts(limit=100)
+    return render_template('hall_of_records.html', artifacts=artifacts)
 
 @app.route('/post-listing')
 @login_required

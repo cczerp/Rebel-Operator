@@ -1,5 +1,5 @@
 #!/bin/bash
-# Render startup script for ResellGenie
+# Render startup script for Rebel Operator
 
 # Ensure we're in the project directory
 cd /opt/render/project/src || exit 1

@@ -357,3 +357,180 @@ def reset_password(token):
     # In full version, validate token and reset password
     flash("Password reset successful. Please login.", "success")
     return redirect(url_for('auth.login'))
+
+
+# =============================================================================
+# GOOGLE SIGN-IN
+# =============================================================================
+
+@auth_bp.route('/api/auth/google-client-id', methods=['GET'])
+def api_google_client_id():
+    """Return Google Client ID for frontend"""
+    import os
+    client_id = os.getenv('GOOGLE_CLIENT_ID', '')
+    return jsonify({"client_id": client_id})
+
+
+@auth_bp.route('/api/auth/google', methods=['POST'])
+def api_google_signin():
+    """Handle Google OAuth sign-in"""
+    try:
+        import os
+        import jwt
+        import requests as http_requests
+        
+        data = request.get_json()
+        credential = data.get('credential')
+        
+        if not credential:
+            return jsonify({"error": "No credential provided"}), 400
+        
+        # Verify Google ID token with proper signature verification
+        GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+
+        if not GOOGLE_CLIENT_ID:
+            return jsonify({"error": "Google Sign-In not configured on server"}), 500
+
+        try:
+            # Use google-auth library for proper JWT verification
+            from google.oauth2 import id_token
+            from google.auth.transport import requests as google_requests
+
+            # Verify the token with Google's public keys
+            # This validates: signature, issuer, audience, and expiration
+            decoded = id_token.verify_oauth2_token(
+                credential,
+                google_requests.Request(),
+                GOOGLE_CLIENT_ID,
+                clock_skew_in_seconds=10
+            )
+
+            # Verify issuer (must be Google)
+            if decoded.get('iss') not in ['accounts.google.com', 'https://accounts.google.com']:
+                return jsonify({"error": "Invalid token issuer"}), 400
+
+            # Extract user info from verified token
+            email = decoded.get('email')
+            name = decoded.get('name', '')
+            given_name = decoded.get('given_name', '')
+            family_name = decoded.get('family_name', '')
+            email_verified = decoded.get('email_verified', False)
+
+            # Require verified email
+            if not email_verified:
+                return jsonify({"error": "Email not verified with Google"}), 400
+
+        except ValueError as e:
+            # Invalid token (expired, wrong audience, bad signature, etc.)
+            return jsonify({"error": f"Invalid Google token: {str(e)}"}), 401
+        except Exception as e:
+            import logging
+            logging.error(f"Google token verification error: {e}")
+            return jsonify({"error": "Token verification failed"}), 500
+        
+        if not email:
+            return jsonify({"error": "Email not found in Google account"}), 400
+        
+        # Check if user exists by email
+        user_data = db.get_user_by_email(email)
+        
+        if user_data:
+            # User exists - log them in
+            user = User(
+                user_data['id'],
+                user_data['username'],
+                user_data['email'],
+                user_data.get('is_admin', False),
+                user_data.get('is_active', True),
+                user_data.get('tier', 'FREE')
+            )
+            
+            if not user.is_active:
+                return jsonify({"error": "Account is inactive"}), 403
+            
+            login_user(user, remember=True)
+            
+            try:
+                db.log_activity(
+                    action="google_login",
+                    user_id=user.id,
+                    resource_type="user",
+                    resource_id=user.id,
+                    ip_address=request.remote_addr,
+                    user_agent=request.headers.get("User-Agent")
+                )
+            except Exception:
+                pass  # Non-critical
+            
+            return jsonify({
+                "success": True,
+                "redirect": url_for('create_listing')
+            })
+        else:
+            # User doesn't exist - create account
+            # Generate username from email or name
+            username = email.split('@')[0]
+            if name:
+                username = name.lower().replace(' ', '_')
+            
+            # Ensure username is unique
+            base_username = username
+            counter = 1
+            while db.get_user_by_username(username):
+                username = f"{base_username}{counter}"
+                counter += 1
+            
+            # Create user with random password (they'll use Google to sign in)
+            from werkzeug.security import generate_password_hash
+            import secrets
+            password_hash = generate_password_hash(secrets.token_urlsafe(32))
+            
+            user_id = db.create_user(username, email, password_hash)
+            
+            # Update user with Google name if available
+            if name:
+                try:
+                    cursor = db._get_cursor()
+                    cursor.execute("""
+                        UPDATE users 
+                        SET username = %s 
+                        WHERE id = %s
+                    """, (username, user_id))
+                    db.conn.commit()
+                except Exception:
+                    pass  # Non-critical
+            
+            user_data = db.get_user_by_id(user_id)
+            user = User(
+                user_data['id'],
+                user_data['username'],
+                user_data['email'],
+                user_data.get('is_admin', False),
+                user_data.get('is_active', True),
+                user_data.get('tier', 'FREE')
+            )
+            
+            login_user(user, remember=True)
+            
+            try:
+                db.log_activity(
+                    action="google_register",
+                    user_id=user.id,
+                    resource_type="user",
+                    resource_id=user.id,
+                    ip_address=request.remote_addr,
+                    user_agent=request.headers.get("User-Agent")
+                )
+            except Exception:
+                pass  # Non-critical
+            
+            return jsonify({
+                "success": True,
+                "redirect": url_for('create_listing')
+            })
+            
+    except Exception as e:
+        import logging
+        import traceback
+        logging.error(f"Google sign-in error: {e}\n{traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500

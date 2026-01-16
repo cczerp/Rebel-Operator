@@ -613,6 +613,82 @@ def delete_draft(listing_id):
         return jsonify({"error": str(e)}), 500
 
 
+@main_bp.route("/api/update-drafts", methods=["PATCH"])
+@login_required
+def update_drafts():
+    """Update multiple draft fields (Excel-style bulk editor)"""
+    try:
+        data = request.json
+        changes = data.get("changes", {})
+        
+        if not changes:
+            return jsonify({"error": "No changes provided"}), 400
+        
+        # Process each draft and its field changes
+        for draft_id_str, fields in changes.items():
+            draft_id = int(draft_id_str)
+            listing = db.get_listing(draft_id)
+            
+            if not listing:
+                continue
+            if listing["user_id"] != current_user.id:
+                return jsonify({"error": "Unauthorized"}), 403
+            
+            # Build update dictionary with only editable fields
+            update_data = {}
+            
+            if "title" in fields:
+                update_data["title"] = fields["title"]
+            
+            if "price" in fields:
+                try:
+                    update_data["price"] = float(fields["price"])
+                except (ValueError, TypeError):
+                    update_data["price"] = listing.get("price", 0)
+            
+            if "cost" in fields:
+                try:
+                    update_data["cost"] = float(fields["cost"])
+                except (ValueError, TypeError):
+                    update_data["cost"] = listing.get("cost", 0)
+            
+            if "condition" in fields:
+                update_data["condition"] = fields["condition"]
+            
+            # Handle attributes (brand, size, color)
+            attributes = listing.get("attributes")
+            if attributes:
+                try:
+                    attrs = json.loads(attributes) if isinstance(attributes, str) else attributes
+                except (json.JSONDecodeError, TypeError):
+                    attrs = {}
+            else:
+                attrs = {}
+            
+            if "brand" in fields:
+                attrs["brand"] = fields["brand"]
+            if "size" in fields:
+                attrs["size"] = fields["size"]
+            if "color" in fields:
+                attrs["color"] = fields["color"]
+            
+            if attrs:
+                update_data["attributes"] = json.dumps(attrs)
+            
+            # Update in database
+            db.update_listing(draft_id, **update_data)
+        
+        return jsonify({
+            "success": True,
+            "message": f"Updated {len(changes)} draft(s)",
+            "updated_count": len(changes)
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Error updating drafts: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
 # -------------------------------------------------------------------------
 # USER SETTINGS — NOTIFICATION EMAIL
 # -------------------------------------------------------------------------

@@ -1728,13 +1728,6 @@
         </div>
 
         <div class="nav-item">
-            <button id="theme-toggle" class="nav-link theme-toggle-btn" title="Toggle Dark/Light Mode">
-                <i class="fas fa-moon"></i>
-                <span>Theme</span>
-            </button>
-        </div>
-
-        <div class="nav-item">
             <a href="{{ url_for('auth.logout') }}" class="nav-link" style="color: #ef4444 !important;">
                 <i class="fas fa-sign-out-alt"></i>
                 <span>Logout</span>
@@ -1752,13 +1745,6 @@
                 <i class="fas fa-home"></i>
                 <span>Home</span>
             </a>
-        </div>
-
-        <div class="nav-item">
-            <button id="theme-toggle-guest" class="nav-link theme-toggle-btn" title="Toggle Dark/Light Mode">
-                <i class="fas fa-moon"></i>
-                <span>Theme</span>
-            </button>
         </div>
 
         <div class="nav-item">
@@ -1828,9 +1814,8 @@
 
         // Theme Toggle Functionality
         function initThemeToggle() {
-            // Handle both floating button and navigation buttons
+            // Handle floating button only
             const themeToggleFloating = document.getElementById('theme-toggle-floating');
-            const themeToggleNav = document.getElementById('theme-toggle') || document.getElementById('theme-toggle-guest');
 
             // Get saved theme or default to dark
             const savedTheme = localStorage.getItem('theme') || 'dark';
@@ -1839,13 +1824,6 @@
             // Toggle theme on floating button click
             if (themeToggleFloating) {
                 themeToggleFloating.addEventListener('click', () => {
-                    toggleTheme();
-                });
-            }
-
-            // Toggle theme on navigation button click
-            if (themeToggleNav) {
-                themeToggleNav.addEventListener('click', () => {
                     toggleTheme();
                 });
             }

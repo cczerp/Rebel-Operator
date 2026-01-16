@@ -28,6 +28,16 @@ load_dotenv()
 # ============================================================================
 
 app = Flask(__name__)
+import json
+
+@app.template_filter('fromjson')
+def fromjson_filter(json_string):
+    if not json_string:
+        return None
+    try:
+        return json.loads(json_string)
+    except (json.JSONDecodeError, TypeError):
+        return None
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max upload
 app.config['UPLOAD_FOLDER'] = './data/uploads'

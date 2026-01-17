@@ -231,9 +231,98 @@ let currentEditingCell = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
+    loadDrafts();
     setupSelectAll();
     setupCheckboxListeners();
 });
+
+// ===== LOAD DRAFTS =====
+async function loadDrafts() {
+    try {
+        const response = await fetch('/api/drafts');
+        if (!response.ok) {
+            throw new Error('Failed to load drafts');
+        }
+
+        const data = await response.json();
+        const drafts = data.drafts || [];
+
+        const container = document.getElementById('draftsContainer');
+
+        if (drafts.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No drafts found. Create a listing and save it as a draft to see it here.</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Build table
+        let html = `
+            <div class="table-responsive">
+                <table class="drafts-table">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="selectAllCheckbox"></th>
+                            <th>Photo</th>
+                            <th>Title</th>
+                            <th>Price</th>
+                            <th>Cost</th>
+                            <th>Condition</th>
+                            <th>Brand</th>
+                            <th>Size</th>
+                            <th>Color</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        drafts.forEach(draft => {
+            const attrs = draft.attributes ? (typeof draft.attributes === 'string' ? JSON.parse(draft.attributes) : draft.attributes) : {};
+            const photoUrl = draft.photo_url || '/static/placeholder.png';
+
+            html += `
+                <tr class="draft-row" data-draft-id="${draft.id}">
+                    <td><input type="checkbox" class="draft-checkbox" value="${draft.id}"></td>
+                    <td><img src="${photoUrl}" class="photo-preview" onclick="showPhotoModal('${photoUrl}')"></td>
+                    <td class="editable-cell" data-row-id="${draft.id}" data-field="title" onclick="editCell(this)">${draft.title || ''}</td>
+                    <td class="editable-cell" data-row-id="${draft.id}" data-field="price" onclick="editCell(this)">$${(draft.price || 0).toFixed(2)}</td>
+                    <td class="editable-cell" data-row-id="${draft.id}" data-field="cost" onclick="editCell(this)">$${(draft.cost || 0).toFixed(2)}</td>
+                    <td class="editable-cell" data-row-id="${draft.id}" data-field="condition" onclick="editCell(this)">${draft.condition || ''}</td>
+                    <td class="editable-cell" data-row-id="${draft.id}" data-field="brand" onclick="editCell(this)">${attrs.brand || ''}</td>
+                    <td class="editable-cell" data-row-id="${draft.id}" data-field="size" onclick="editCell(this)">${attrs.size || ''}</td>
+                    <td class="editable-cell" data-row-id="${draft.id}" data-field="color" onclick="editCell(this)">${attrs.color || ''}</td>
+                    <td class="action-buttons">
+                        <button class="btn btn-sm btn-danger" onclick="deleteDraft(${draft.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        container.innerHTML = html;
+        setupSelectAll();
+        setupCheckboxListeners();
+
+    } catch (error) {
+        console.error('Error loading drafts:', error);
+        document.getElementById('draftsContainer').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle"></i> Error loading drafts: ${error.message}
+            </div>
+        `;
+    }
+}
 
 // ===== SELECTION & CHECKBOX LOGIC =====
 function setupSelectAll() {
@@ -425,7 +514,7 @@ async function saveAllChanges() {
     
     showLoading();
     try {
-        const response = await fetch('/api/drafts-csv/update', {
+        const response = await fetch('/api/update-drafts', {
             method: 'PATCH',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ changes: draftChanges })
@@ -470,7 +559,7 @@ async function deleteSelectedDrafts() {
     
     showLoading();
     try {
-        const response = await fetch('/api/drafts-csv/delete', {
+        const response = await fetch('/api/drafts/bulk-delete', {
             method: 'DELETE',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ row_ids: selectedIds })
@@ -571,7 +660,7 @@ async function deleteDraft(rowId) {
 
     showLoading();
     try {
-        const response = await fetch('/api/drafts-csv/delete', {
+        const response = await fetch('/api/drafts/bulk-delete', {
             method: 'DELETE',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ row_ids: [rowId] })

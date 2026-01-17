@@ -41,9 +41,45 @@ def fromjson_filter(json_string):
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max upload
 app.config['UPLOAD_FOLDER'] = './data/uploads'
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+# ============================================================================
+# SESSION & SECURITY CONFIGURATION
+# ============================================================================
+
+# Session security settings
+app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS-only cookies in production
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent XSS access to cookies
+app.config['SESSION_COOKIE_SAMESITE'] = 'Strict'  # Prevent CSRF attacks
+app.config['PERMANENT_SESSION_LIFETIME'] = 604800  # 7 days in seconds
+
+# Configure Flask-Session for server-side sessions (prevents session hijacking)
+try:
+    from flask_session import Session
+    import redis
+
+    # Check if Redis is available (for production)
+    redis_url = os.getenv('REDIS_URL')
+    if redis_url:
+        # Use Redis for server-side sessions in production
+        app.config['SESSION_TYPE'] = 'redis'
+        app.config['SESSION_REDIS'] = redis.from_url(redis_url)
+        app.config['SESSION_PERMANENT'] = True
+        app.config['SESSION_USE_SIGNER'] = True
+        Session(app)
+        print("[SESSION] Using Redis for server-side sessions")
+    else:
+        # Fall back to filesystem sessions for development
+        app.config['SESSION_TYPE'] = 'filesystem'
+        app.config['SESSION_FILE_DIR'] = './data/flask_session'
+        app.config['SESSION_PERMANENT'] = True
+        app.config['SESSION_USE_SIGNER'] = True
+        Session(app)
+        print("[SESSION] Using filesystem for server-side sessions (development mode)")
+        Path('./data/flask_session').mkdir(parents=True, exist_ok=True)
+except ImportError:
+    # Flask-Session not installed, use default client-side sessions
+    print("[SESSION WARNING] Flask-Session not installed, using client-side sessions")
+    pass
 
 # Ensure upload folder exists
 Path(app.config['UPLOAD_FOLDER']).mkdir(parents=True, exist_ok=True)
@@ -113,6 +149,31 @@ login_manager.login_message = 'Please log in to access this page.'
 def load_user(user_id):
     """Load user for Flask-Login"""
     return User.get(int(user_id))
+
+# ============================================================================
+# SECURITY HEADERS & CACHE CONTROL
+# ============================================================================
+
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to prevent caching and session hijacking"""
+
+    # CRITICAL: Prevent caching of authenticated content
+    # This prevents CDNs/proxies from serving one user's content to another
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+
+    # Security headers
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+
+    # Remove server header to reduce information disclosure
+    response.headers.pop('Server', None)
+
+    return response
 
 # ============================================================================
 # ADMIN DECORATOR

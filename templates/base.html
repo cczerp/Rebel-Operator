@@ -1623,6 +1623,17 @@
                             </div>
                         </a>
                     </div>
+                    {% if current_user.is_admin %}
+                    <div class="col-12">
+                        <a href="{{ url_for('admin.hall_photos') }}" class="text-decoration-none">
+                            <div class="inventory-menu-item" style="border-color: #FF9800;">
+                                <i class="fas fa-images fa-3x mb-2" style="color: #FF9800;"></i>
+                                <h6 style="color: #FF9800;">Hall Photos</h6>
+                                <small class="text-muted">Review pending<br>artifact photos</small>
+                            </div>
+                        </a>
+                    </div>
+                    {% endif %}
                     <div class="col-12">
                         <a href="{{ url_for('auth.logout') }}" class="text-decoration-none">
                             <div class="inventory-menu-item" style="border-color: var(--alert-crimson);">
@@ -1707,14 +1718,14 @@
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('cards.vault_overview') }}" class="nav-link {% if request.endpoint in ['cards.vault_overview', 'cards.vault_cards', 'cards.vault_coins'] %}active{% endif %}">
-                <i class="fas fa-shield-alt"></i>
-                <span>Vault</span>
+            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#inventoryModal">
+                <i class="fas fa-boxes"></i>
+                <span>Inventory</span>
             </a>
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('main.my_artifacts') }}" class="nav-link {% if request.endpoint == 'main.my_artifacts' %}active{% endif %}" title="Public Card Knowledge Base">
+            <a href="{{ url_for('hall_of_records') }}" class="nav-link {% if request.endpoint == 'hall_of_records' %}active{% endif %}" title="Public Card Knowledge Base">
                 <i class="fas fa-landmark"></i>
                 <span>Hall of Records</span>
             </a>
@@ -1728,9 +1739,9 @@
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('auth.logout') }}" class="nav-link" style="color: #ef4444 !important;">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>Logout</span>
+            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#accountModal">
+                <i class="fas fa-user-circle"></i>
+                <span>Account</span>
             </a>
         </div>
     </div>

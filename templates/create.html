@@ -413,7 +413,7 @@ async function handlePhotoSelect(e) {
 
             // Show previews (append to existing)
             const previewDiv = document.getElementById('photoPreview');
-            for (let i = 0; i < files.length; i++) {
+            for (let i = 0; i < data.paths.length; i++) {
                 const photoIndex = uploadedPhotos.length - data.paths.length + i;
 
                 // Create container for photo + delete button

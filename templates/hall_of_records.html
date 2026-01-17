@@ -49,7 +49,12 @@
                 <hr>
 
                 <small class="text-muted">
-                    <i class="fas fa-clock"></i> Last updated: {{ artifact.updated_at.strftime('%Y-%m-%d %H:%M') if artifact.updated_at else 'N/A' }}
+                    <i class="fas fa-clock"></i> Last updated:
+                    {% if artifact.updated_at %}
+                        {{ artifact.updated_at|string|truncate(19, True, '') }}
+                    {% else %}
+                        N/A
+                    {% endif %}
                     <br>
                     <i class="fas fa-microscope"></i> Source: Enhanced Scan
                     <br>

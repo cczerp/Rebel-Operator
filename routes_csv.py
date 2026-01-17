@@ -60,8 +60,9 @@ def read_csv(filepath, headers):
         with open(filepath, 'r', newline='', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for idx, row in enumerate(reader):
-                # Add row index as id for reference
-                row['_id'] = idx
+                # Add row index as id for reference (use row_id for frontend compatibility)
+                row['row_id'] = idx
+                row['_id'] = idx  # Keep for backward compatibility
                 rows.append(row)
     return rows
 

@@ -249,7 +249,7 @@ def inventory():
 @app.route('/listings')
 @login_required
 def listings():
-    """Listings page"""
+    """Listings page - shows user's active (non-draft) listings"""
     cursor = None
     try:
         cursor = db._get_cursor()
@@ -260,6 +260,11 @@ def listings():
         """, (current_user.id,))
         user_listings = [dict(row) for row in cursor.fetchall()]
         return render_template('listings.html', listings=user_listings)
+    except Exception as e:
+        import logging
+        logging.error(f"Listings page error: {e}")
+        # Return empty list on error so page still renders
+        return render_template('listings.html', listings=[])
     finally:
         if cursor:
             try:
@@ -327,7 +332,12 @@ def vault():
 @app.route('/hall-of-records')
 def hall_of_records():
     """Hall of Records - Browse all public artifacts"""
-    artifacts = db.get_all_artifacts(limit=100)
+    try:
+        artifacts = db.get_all_artifacts(limit=100)
+    except Exception as e:
+        import logging
+        logging.error(f"Hall of Records error: {e}")
+        artifacts = []
     return render_template('hall_of_records.html', artifacts=artifacts)
 
 @app.route('/post-listing')

@@ -1743,14 +1743,14 @@
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('hall_of_records') }}" class="nav-link {% if request.endpoint == 'hall_of_records' %}active{% endif %}" title="Public Card Knowledge Base">
-                <i class="fas fa-landmark"></i>
-                <span>Hall of Records</span>
+            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#inventoryModal">
+                <i class="fas fa-boxes"></i>
+                <span>Inventory</span>
             </a>
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('main.my_artifacts') }}" class="nav-link {% if request.endpoint == 'main.my_artifacts' %}active{% endif %}" title="Public Card Knowledge Base">
+            <a href="{{ url_for('hall_of_records') }}" class="nav-link {% if request.endpoint == 'hall_of_records' %}active{% endif %}" title="Public Card Knowledge Base">
                 <i class="fas fa-landmark"></i>
                 <span>Hall of Records</span>
             </a>

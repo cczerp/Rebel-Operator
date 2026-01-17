@@ -5,14 +5,19 @@ Scaffold implementation - minimal wiring
 """
 
 from flask import Blueprint, jsonify, request
-from flask_login import login_required
+from flask_login import login_required, current_user
 from datetime import datetime
 import csv
 import os
 import json
+import uuid
+from src.database import get_db
 
 # Create blueprint
 csv_bp = Blueprint("csv", __name__)
+
+# Get database instance
+db = get_db()
 
 # Base directory for CSV files
 CSV_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
@@ -128,20 +133,20 @@ INVENTORY_HEADERS = UNIVERSAL_HEADERS  # Same as universal headers
 @csv_bp.route('/api/save-draft-csv', methods=['POST'])
 @login_required
 def save_draft_csv():
-    """Save listing form data to drafts.csv"""
+    """Save listing form data to BOTH drafts.csv AND database"""
     try:
         data = request.get_json()
-        
+
         if not data:
             return jsonify({
                 'success': False,
                 'error': 'No data provided'
             }), 400
-        
-        # Convert photos array to comma-separated string
+
+        # Convert photos array to comma-separated string for CSV
         photos = data.get('photos', [])
         photos_str = ','.join(photos) if isinstance(photos, list) else str(photos) if photos else ''
-        
+
         # Prepare CSV row with all required fields
         csv_row = {
             'title': str(data.get('title', '')),
@@ -158,15 +163,69 @@ def save_draft_csv():
             'created_at': datetime.now().isoformat(),
             'updated_at': datetime.now().isoformat()
         }
-        
-        # Append to CSV
+
+        # 1. Save to CSV
         append_to_csv(DRAFTS_CSV, UNIVERSAL_HEADERS, csv_row)
-        
-        return jsonify({
-            'success': True,
-            'message': 'Draft saved to CSV successfully'
-        })
-        
+
+        # 2. ALSO save to database
+        try:
+            listing_uuid = uuid.uuid4().hex
+
+            # Build attributes for database
+            attributes = {
+                'brand': data.get('brand', ''),
+                'size': data.get('size', ''),
+                'color': data.get('color', ''),
+                'shipping_cost': data.get('shipping_cost', 0)
+            }
+
+            # Safe conversions for database
+            try:
+                price = float(data.get('price', '0')) if data.get('price') not in [None, ''] else 0.0
+            except (ValueError, TypeError):
+                price = 0.0
+
+            try:
+                cost = float(data.get('cost', '')) if data.get('cost') not in [None, ''] else None
+            except (ValueError, TypeError):
+                cost = None
+
+            # Create database listing
+            listing_id = db.create_listing(
+                listing_uuid=listing_uuid,
+                user_id=current_user.id,
+                title=data.get('title', 'Untitled'),
+                description=data.get('description', ''),
+                price=price,
+                cost=cost,
+                condition=data.get('condition', 'good'),
+                item_type=data.get('item_type', 'general'),
+                attributes=attributes,
+                photos=photos if isinstance(photos, list) else [],
+                quantity=1,
+                storage_location='',
+                sku='',
+                upc='',
+                status='draft'
+            )
+
+            return jsonify({
+                'success': True,
+                'message': 'Draft saved to CSV and database successfully',
+                'listing_id': listing_id,
+                'listing_uuid': listing_uuid
+            })
+
+        except Exception as db_error:
+            # CSV save succeeded, database failed - still return success
+            import logging
+            logging.warning(f"Database save failed, but CSV saved: {db_error}")
+            return jsonify({
+                'success': True,
+                'message': 'Draft saved to CSV (database save failed)',
+                'warning': str(db_error)
+            })
+
     except Exception as e:
         import logging
         import traceback

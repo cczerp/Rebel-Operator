@@ -549,15 +549,15 @@ async function saveAllChanges() {
         showAlert('No changes to save.', 'info');
         return;
     }
-    
+
     showLoading();
     try {
-        const response = await fetch('/api/update-drafts', {
+        const response = await fetch('/api/drafts-csv/update', {
             method: 'PATCH',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ changes: draftChanges })
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             draftChanges = {};
@@ -590,19 +590,19 @@ async function deleteSelectedDrafts() {
         showAlert('Please select at least one draft to delete.', 'warning');
         return;
     }
-    
+
     if (!confirm(`Delete ${selectedIds.length} draft(s)? This cannot be undone.`)) {
         return;
     }
-    
+
     showLoading();
     try {
-        const response = await fetch('/api/drafts/bulk-delete', {
+        const response = await fetch('/api/drafts-csv/delete', {
             method: 'DELETE',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ row_ids: selectedIds })
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             hideLoading();
@@ -698,12 +698,12 @@ async function deleteDraft(rowId) {
 
     showLoading();
     try {
-        const response = await fetch('/api/drafts/bulk-delete', {
+        const response = await fetch('/api/drafts-csv/delete', {
             method: 'DELETE',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ row_ids: [rowId] })
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             showAlert('Draft deleted successfully.', 'success');

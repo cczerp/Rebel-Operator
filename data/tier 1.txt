@@ -1,0 +1,46 @@
+🟡 Paid — Platform Mode
+This is where your CSV genius lives.
+For sellers who list on multiple sites and want things to “just work.”
+Everything in Foundation, plus
+Platform-specific CSV exports
+Automatic field mapping per site
+Site-aware required-field checks
+Drafts tailored to each platform
+Bulk draft generation
+
+Per-site listing presets
+Multi-site inventory coordination
+Sold-item detection & conflict alerts
+Revenue tracking from connection onward
+What this really means
+You pick a platform.
+We shape the file to match it.
+You upload once. No rework.
+Higher scan limits
+Batch scanning
+Deeper attribute extraction
+
+Choose export target (site A, site B, site C)
+Automatic field delegation per site
+Validation before export
+Draft + inventory alignment
+Overbooking detection
+Revenue tracking
+Per-platform draft schemas
+Bulk draft generation
+Auto-fill from inventory
+Site-specific optimizations
+Draft hygiene checks (missing fields, title limits, image counts)
+
+🟡 Paid Tier 1 — “Expansion & Precision”
+This is where you put platforms that:
+punish bad CSVs
+have strict schemas
+take higher fees
+are ignored by casual sellers
+reward people who know what they’re doing
+
+fashion-focused resale
+high-fee but high-exposure marketplaces
+collector-grade platforms
+specialty verticals

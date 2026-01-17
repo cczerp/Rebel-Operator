@@ -1707,13 +1707,6 @@
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('cards.vault_overview') }}" class="nav-link {% if request.endpoint in ['cards.vault_overview', 'cards.vault_cards', 'cards.vault_coins'] %}active{% endif %}">
-                <i class="fas fa-shield-alt"></i>
-                <span>Vault</span>
-            </a>
-        </div>
-
-        <div class="nav-item">
             <a href="{{ url_for('main.my_artifacts') }}" class="nav-link {% if request.endpoint == 'main.my_artifacts' %}active{% endif %}" title="Public Card Knowledge Base">
                 <i class="fas fa-landmark"></i>
                 <span>Hall of Records</span>
@@ -1721,16 +1714,16 @@
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('notifications') }}" class="nav-link {% if request.endpoint == 'notifications' %}active{% endif %}">
-                <i class="fas fa-bell"></i>
-                <span>Alerts</span>
+            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#inventoryModal">
+                <i class="fas fa-boxes"></i>
+                <span>Inventory</span>
             </a>
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('auth.logout') }}" class="nav-link" style="color: #ef4444 !important;">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>Logout</span>
+            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#accountModal">
+                <i class="fas fa-user-circle"></i>
+                <span>Accounts</span>
             </a>
         </div>
     </div>

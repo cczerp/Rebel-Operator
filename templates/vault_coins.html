@@ -4,126 +4,263 @@
 
 {% block content %}
 
-<!-- Vault Header -->
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h2><i class="fas fa-coins"></i> Coins Vault</h2>
-        <p class="text-muted mb-0">Your private coin collection</p>
+<!-- Vault Header - Compact -->
+<div class="vault-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="vault-title"><i class="fas fa-coins"></i> Coins Vault</h1>
+            <div class="vault-subtitle">Inventory Management System</div>
+        </div>
+        <div class="vault-stats-compact">
+            <span class="stat-chip" id="totalCoins">0 coins</span>
+            <span class="stat-chip" id="totalValue">$0</span>
+            <span class="stat-chip" id="gradedCoins">0 graded</span>
+        </div>
     </div>
-    <div>
-        <a href="{{ url_for('vault_overview') }}" class="btn btn-outline-secondary me-2">
-            <i class="fas fa-arrow-left"></i> Back to Vault
-        </a>
-        <button class="btn btn-success" disabled>
-            <i class="fas fa-plus"></i> Add Coins
+</div>
+
+<!-- Global Vault Controls -->
+<div class="vault-controls-bar">
+    <div class="row g-2 align-items-center">
+        <!-- Search -->
+        <div class="col-md-4">
+            <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                <input type="text" class="form-control" id="globalSearch" placeholder="Search all coins...">
+            </div>
+        </div>
+
+        <!-- Filter -->
+        <div class="col-md-2">
+            <select class="form-select" id="globalFilter">
+                <option value="">All Status</option>
+                <option value="stored">Stored</option>
+                <option value="draft">Draft</option>
+                <option value="listed">Listed</option>
+                <option value="sold">Sold</option>
+                <option value="archived">Archived</option>
+            </select>
+        </div>
+
+        <!-- Bulk Actions -->
+        <div class="col-md-3">
+            <div class="btn-group" role="group">
+                <button class="btn btn-outline-secondary btn-sm" id="bulkMove" disabled>
+                    <i class="fas fa-arrows-alt"></i> Move
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" id="bulkStatus" disabled>
+                    <i class="fas fa-tag"></i> Status
+                </button>
+                <button class="btn btn-outline-danger btn-sm" id="bulkDelete" disabled>
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="col-md-3">
+            <div class="btn-group" role="group">
+                <button class="btn btn-success btn-sm" onclick="showAddCoinModal()">
+                    <i class="fas fa-plus"></i> Add
+                </button>
+                <button class="btn btn-outline-success btn-sm" onclick="showImportModal()">
+                    <i class="fas fa-upload"></i> Import
+                </button>
+                <button class="btn btn-outline-success btn-sm" onclick="exportCoins()">
+                    <i class="fas fa-download"></i> Export
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status Legend -->
+<div class="status-legend">
+    <span class="status-chip status-stored">Stored</span>
+    <span class="status-chip status-draft">Draft</span>
+    <span class="status-chip status-listed">Listed</span>
+    <span class="status-chip status-sold">Sold</span>
+    <span class="status-chip status-archived">Archived</span>
+</div>
+
+<!-- Primary View Navigation -->
+<div class="primary-view-nav">
+    <div class="view-tabs">
+        <button class="view-tab active" data-view="type">
+            <i class="fas fa-coins"></i>
+            <span>By Type</span>
+        </button>
+        <button class="view-tab" data-view="year">
+            <i class="fas fa-calendar"></i>
+            <span>By Year</span>
+        </button>
+        <button class="view-tab" data-view="mint">
+            <i class="fas fa-industry"></i>
+            <span>By Mint</span>
+        </button>
+        <button class="view-tab" data-view="grade">
+            <i class="fas fa-star"></i>
+            <span>By Grade</span>
+        </button>
+        <button class="view-tab" data-view="storage">
+            <i class="fas fa-warehouse"></i>
+            <span>By Storage</span>
         </button>
     </div>
-</div>
-
-<!-- Coming Soon Notice -->
-<div class="alert alert-warning mb-4">
-    <div class="d-flex align-items-center">
-        <i class="fas fa-tools fa-2x me-3"></i>
-        <div>
-            <strong>Coin Vault Coming Soon</strong>
-            <p class="mb-0">We're working on advanced coin collection management features. For now, you can view sample data and organization structure.</p>
-        </div>
+    <div class="view-actions">
+        <a href="{{ url_for('vault_overview') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Back to Vault
+        </a>
     </div>
 </div>
 
-<!-- Stats Row -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3 id="totalCoins">0</h3>
-                <small class="text-muted">Total Coins</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3 id="totalValue">$0</h3>
-                <small class="text-muted">Est. Value</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3 id="gradedCoins">0</h3>
-                <small class="text-muted">Graded</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <select class="form-select" id="organizationMode" onchange="changeOrganization()">
-                    <option value="by_year">By Year</option>
-                    <option value="by_type">By Type</option>
-                    <option value="by_mint">By Mint</option>
-                    <option value="by_grade">By Grade</option>
-                    <option value="by_value">By Value</option>
-                    <option value="none">No Organization</option>
-                </select>
-                <small class="text-muted">Organization</small>
-            </div>
-        </div>
+<!-- Coins Table Container -->
+<div id="coinsContainer" class="coins-table-container">
+    <!-- Coins will be loaded here -->
+    <div class="loading-state">
+        <i class="fas fa-spinner fa-spin"></i>
+        <span>Loading coins...</span>
     </div>
 </div>
 
-<!-- Search & Filters -->
-<div class="card mb-4">
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-6">
-                <input type="text" class="form-control" id="searchCoins" placeholder="Search coins..." oninput="searchCoins()">
-            </div>
-            <div class="col-md-3">
-                <select class="form-select" id="filterType" onchange="filterCoins()">
-                    <option value="">All Types</option>
-                    <option value="quarter">Quarters</option>
-                    <option value="dime">Dimes</option>
-                    <option value="nickel">Nickels</option>
-                    <option value="penny">Pennies</option>
-                    <option value="dollar">Dollar Coins</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <div class="btn-group w-100">
-                    <button class="btn btn-outline-secondary" onclick="viewMode='grid'; loadCoins()">
-                        <i class="fas fa-th"></i>
-                    </button>
-                    <button class="btn btn-outline-secondary" onclick="viewMode='list'; loadCoins()">
-                        <i class="fas fa-list"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Coins Display -->
-<div id="coinsContainer">
-    <div class="text-center py-5">
-        <i class="fas fa-coins fa-3x text-muted mb-3"></i>
-        <h4>Coin Vault Preview</h4>
-        <p class="text-muted">Sample coin collection data</p>
-    </div>
-</div>
-
-<!-- Coin Detail Modal -->
-<div class="modal fade" id="coinDetailModal" tabindex="-1">
+<!-- Add Coin Modal -->
+<div class="modal fade" id="addCoinModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="coinDetailTitle">Coin Details</h5>
+                <h5 class="modal-title">Add Coins to Vault</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" id="coinDetailContent">
-                <!-- Coin details will be loaded here -->
+            <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <i class="fas fa-info-circle"></i> <strong>Note:</strong> Coin management features are coming soon. For now, you can add basic coin entries.
+                </div>
+
+                <form id="addCoinForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Coin Type *</label>
+                                <select class="form-select" id="coinType" required>
+                                    <option value="">Select type...</option>
+                                    <option value="Penny">Penny (1¢)</option>
+                                    <option value="Nickel">Nickel (5¢)</option>
+                                    <option value="Dime">Dime (10¢)</option>
+                                    <option value="Quarter">Quarter (25¢)</option>
+                                    <option value="Half Dollar">Half Dollar (50¢)</option>
+                                    <option value="Dollar">Dollar Coin</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Year *</label>
+                                <input type="number" class="form-control" id="coinYear" required min="1793" max="2099">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Mint Mark</label>
+                                <select class="form-select" id="coinMint">
+                                    <option value="">No mint mark</option>
+                                    <option value="P">Philadelphia (P)</option>
+                                    <option value="D">Denver (D)</option>
+                                    <option value="S">San Francisco (S)</option>
+                                    <option value="W">West Point (W)</option>
+                                    <option value="CC">Carson City (CC)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Quantity</label>
+                                <input type="number" class="form-control" id="coinQuantity" value="1" min="1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Grade</label>
+                                <select class="form-select" id="coinGrade">
+                                    <option value="">Ungraded</option>
+                                    <option value="PO-1">Poor-1</option>
+                                    <option value="FR-2">Fair-2</option>
+                                    <option value="AG-3">About Good-3</option>
+                                    <option value="G-4">Good-4</option>
+                                    <option value="G-6">Good-6</option>
+                                    <option value="VG-8">Very Good-8</option>
+                                    <option value="VG-10">Very Good-10</option>
+                                    <option value="F-12">Fine-12</option>
+                                    <option value="F-15">Fine-15</option>
+                                    <option value="VF-20">Very Fine-20</option>
+                                    <option value="VF-25">Very Fine-25</option>
+                                    <option value="VF-30">Very Fine-30</option>
+                                    <option value="VF-35">Very Fine-35</option>
+                                    <option value="EF-40">Extremely Fine-40</option>
+                                    <option value="EF-45">Extremely Fine-45</option>
+                                    <option value="AU-50">About Uncirculated-50</option>
+                                    <option value="AU-53">About Uncirculated-53</option>
+                                    <option value="AU-55">About Uncirculated-55</option>
+                                    <option value="AU-58">About Uncirculated-58</option>
+                                    <option value="MS-60">Mint State-60</option>
+                                    <option value="MS-61">Mint State-61</option>
+                                    <option value="MS-62">Mint State-62</option>
+                                    <option value="MS-63">Mint State-63</option>
+                                    <option value="MS-64">Mint State-64</option>
+                                    <option value="MS-65">Mint State-65</option>
+                                    <option value="MS-66">Mint State-66</option>
+                                    <option value="MS-67">Mint State-67</option>
+                                    <option value="MS-68">Mint State-68</option>
+                                    <option value="MS-69">Mint State-69</option>
+                                    <option value="MS-70">Perfect Mint State-70</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Storage Location</label>
+                                <input type="text" class="form-control" id="coinStorage" placeholder="Box A-1, Safe Drawer 2, etc.">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="fas fa-plus"></i> Add to Vault
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Import Coins</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Select CSV File</label>
+                    <input type="file" class="form-control" id="importFile" accept=".csv">
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="overwriteExisting">
+                    <label class="form-check-label">
+                        Overwrite existing coins
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="processImport()">Import</button>
             </div>
         </div>
     </div>

@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Hall Photos - Admin{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2><i class="fas fa-images" style="color: var(--alert-crimson);"></i> Hall Photos</h2>
+    <p class="text-muted">Review pending photos for Hall of Records - organized by franchise</p>
+</div>
+
+<div class="alert alert-info mb-4">
+    <i class="fas fa-info-circle"></i>
+    <strong>Grouped by Franchise:</strong> Photos from scanned items organized by their franchise.
+    Select the best quality photos to publish to the Hall of Records.
+</div>
+
+{% if sorted_franchises %}
+    {% for franchise in sorted_franchises %}
+    <div class="card mb-4" style="background: var(--carbon-matte); border: 2px solid var(--cold-steel-accent);">
+        <div class="card-header" style="background: linear-gradient(135deg, var(--alert-crimson) 0%, var(--alert-crimson-dark) 100%); border-bottom: 2px solid var(--alert-crimson);">
+            <h4 class="mb-0 text-white">
+                <i class="fas fa-film"></i> {{ franchise }}
+                <small class="float-end badge bg-dark">{{ franchise_groups[franchise]|length }} artifact(s)</small>
+            </h4>
+        </div>
+        <div class="card-body">
+            <!-- Row of artifacts for this franchise -->
+            <div class="row g-4">
+                {% for item in franchise_groups[franchise] %}
+                <div class="col-12">
+                    <div class="card" style="background: var(--carbon-matte-surface); border: 1px solid var(--cold-steel-dark);">
+                        <div class="card-header" style="background: var(--carbon-matte-light); border-bottom: 1px solid var(--cold-steel-dark);">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0" style="color: var(--off-white-text);">
+                                    <i class="fas fa-star" style="color: var(--alert-crimson);"></i> {{ item.artifact.item_name }}
+                                </h6>
+                                <a href="/artifact/{{ item.artifact.id }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                    <i class="fas fa-external-link-alt"></i> View
+                                </a>
+                            </div>
+                            <small class="text-muted">
+                                {% if item.artifact.brand %}<i class="fas fa-tag"></i> {{ item.artifact.brand }}{% endif %}
+                                {% if item.artifact.category %} | {{ item.artifact.category }}{% endif %}
+                            </small>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-3">
+                                <strong>{{ item.pending_count }} pending</strong>
+                                {% if item.published_count > 0 %}
+                                | <span class="text-success">{{ item.published_count }} published</span>
+                                {% endif %}
+                            </p>
+
+                            <!-- Pending Photos Row -->
+                            <div class="row g-3">
+                                {% for photo in item.pending_photos %}
+                                <div class="col-md-2 col-sm-3 col-4">
+                                    <div class="photo-card" data-photo-id="{{ photo.id }}" data-artifact-id="{{ item.artifact.id }}">
+                                        <div class="position-relative">
+                                            <img src="{{ photo.photo_url }}"
+                                                 class="img-thumbnail {% if photo.is_selected %}border-success{% else %}border-secondary{% endif %}"
+                                                 style="width: 100%; height: 150px; object-fit: cover; cursor: pointer;"
+                                                 onclick="togglePhotoSelection({{ photo.id }}, {{ item.artifact.id }})">
+
+                                            {% if photo.is_selected %}
+                                            <div class="badge bg-success position-absolute" style="top: 5px; right: 5px;">
+                                                <i class="fas fa-check"></i>
+                                            </div>
+                                            {% else %}
+                                            <div class="badge bg-secondary position-absolute" style="top: 5px; right: 5px;">
+                                                <i class="fas fa-clock"></i>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="alert alert-success">
+        <i class="fas fa-check-circle"></i>
+        <strong>All caught up!</strong> No pending photos to review.
+    </div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function togglePhotoSelection(photoId, artifactId) {
+    // Toggle photo selection
+    fetch('/api/admin/toggle-photo-selection', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            photo_id: photoId,
+            artifact_id: artifactId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Reload to see changes
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to toggle photo'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to update photo selection');
+    });
+}
+</script>
+{% endblock %}

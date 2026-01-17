@@ -41,9 +41,22 @@ def fromjson_filter(json_string):
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max upload
 app.config['UPLOAD_FOLDER'] = './data/uploads'
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+# ============================================================================
+# SESSION & SECURITY CONFIGURATION
+# ============================================================================
+
+# Detect if we're in production with HTTPS
+is_production = os.getenv('RENDER') or os.getenv('RAILWAY_ENVIRONMENT')
+use_https = is_production or os.getenv('FORCE_HTTPS', 'False').lower() == 'true'
+
+# Session security settings - using standard Flask sessions (client-side, signed cookies)
+app.config['SESSION_COOKIE_SECURE'] = use_https  # HTTPS-only cookies (only in production)
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent XSS access to cookies
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Prevent CSRF while allowing OAuth flows
+app.config['PERMANENT_SESSION_LIFETIME'] = 604800  # 7 days in seconds
+
+print(f"[SESSION] Production: {is_production}, HTTPS: {use_https}, Secure cookies: {use_https}")
 
 # Ensure upload folder exists
 Path(app.config['UPLOAD_FOLDER']).mkdir(parents=True, exist_ok=True)
@@ -113,6 +126,39 @@ login_manager.login_message = 'Please log in to access this page.'
 def load_user(user_id):
     """Load user for Flask-Login"""
     return User.get(int(user_id))
+
+# ============================================================================
+# SECURITY HEADERS & CACHE CONTROL
+# ============================================================================
+
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to prevent caching and session hijacking"""
+
+    # Prevent caching of dynamic content (pages, API responses)
+    # Allow static assets (JS, CSS, images) to be cached
+    if request.path.startswith('/static/') or request.path.endswith(('.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico')):
+        # Allow caching for static assets
+        response.headers['Cache-Control'] = 'public, max-age=3600'
+    else:
+        # Prevent caching for dynamic content
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+
+    # Security headers
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+
+    # Only add HSTS in production with HTTPS
+    if use_https:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+
+    # Remove server header to reduce information disclosure
+    response.headers.pop('Server', None)
+
+    return response
 
 # ============================================================================
 # ADMIN DECORATOR

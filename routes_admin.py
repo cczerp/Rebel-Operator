@@ -251,3 +251,109 @@ def photo_curation():
     except Exception as e:
         flash(f'Error loading photo curation dashboard: {str(e)}', 'error')
         return redirect(url_for('admin.admin_dashboard'))
+
+
+# -------------------------------------------------------------------------
+# HALL PHOTOS - Grouped by Franchise
+# -------------------------------------------------------------------------
+
+@admin_bp.route("/admin/hall-photos")
+@admin_required
+def hall_photos():
+    """Admin page for reviewing Hall of Records pending photos - grouped by franchise"""
+    try:
+        # Get all artifacts with pending photos
+        artifacts_with_photos = db.get_artifacts_with_pending_photos()
+
+        # Group by franchise
+        franchise_groups = {}
+        for item in artifacts_with_photos:
+            artifact = item['artifact']
+            franchise = artifact.get('franchise') or 'Unknown'
+
+            if franchise not in franchise_groups:
+                franchise_groups[franchise] = []
+
+            franchise_groups[franchise].append(item)
+
+        # Sort franchises alphabetically
+        sorted_franchises = sorted(franchise_groups.keys())
+
+        return render_template('admin/hall_photos.html',
+                             franchise_groups=franchise_groups,
+                             sorted_franchises=sorted_franchises)
+    except Exception as e:
+        flash(f'Error loading Hall Photos: {str(e)}', 'error')
+        return redirect(url_for('admin.admin_dashboard'))
+
+
+# -------------------------------------------------------------------------
+# Toggle Photo Selection (Admin)
+# -------------------------------------------------------------------------
+
+@admin_bp.route("/api/admin/toggle-photo-selection", methods=["POST"])
+@admin_required
+def api_toggle_photo_selection():
+    """Toggle a photo's selection status for Hall of Records"""
+    try:
+        data = request.get_json()
+        photo_id = data.get('photo_id')
+        artifact_id = data.get('artifact_id')
+
+        if not photo_id or not artifact_id:
+            return jsonify({'error': 'Missing photo_id or artifact_id'}), 400
+
+        cursor = db._get_cursor()
+
+        # Get current selection status
+        cursor.execute("""
+            SELECT is_selected FROM pending_artifact_photos
+            WHERE id = %s AND artifact_id = %s
+        """, (photo_id, artifact_id))
+
+        result = cursor.fetchone()
+        if not result:
+            return jsonify({'error': 'Photo not found'}), 404
+
+        current_status = result['is_selected']
+        new_status = not current_status
+
+        # Update selection status
+        cursor.execute("""
+            UPDATE pending_artifact_photos
+            SET is_selected = %s
+            WHERE id = %s AND artifact_id = %s
+        """, (new_status, photo_id, artifact_id))
+
+        db.conn.commit()
+
+        # If selected, add to public photos; if deselected, remove from public photos
+        if new_status:
+            # Get photo URL
+            cursor.execute("""
+                SELECT photo_url FROM pending_artifact_photos
+                WHERE id = %s
+            """, (photo_id,))
+            photo = cursor.fetchone()
+
+            if photo:
+                db.select_artifact_photos(artifact_id, None, [photo_id])
+
+        db.log_activity(
+            action="toggle_photo_selection",
+            user_id=current_user.id,
+            resource_type="artifact_photo",
+            resource_id=photo_id,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get("User-Agent")
+        )
+
+        return jsonify({
+            'success': True,
+            'new_status': new_status,
+            'message': 'Published to Hall of Records' if new_status else 'Removed from Hall of Records'
+        })
+
+    except Exception as e:
+        db.conn.rollback()
+        return jsonify({'error': str(e)}), 500

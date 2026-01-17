@@ -613,6 +613,53 @@ def delete_draft(listing_id):
         return jsonify({"error": str(e)}), 500
 
 
+@main_bp.route("/api/drafts/bulk-delete", methods=["DELETE"])
+@login_required
+def bulk_delete_drafts():
+    """Bulk delete multiple drafts"""
+    try:
+        data = request.json
+        row_ids = data.get("row_ids", [])
+
+        if not row_ids:
+            return jsonify({"error": "No draft IDs provided"}), 400
+
+        deleted_count = 0
+        for listing_id in row_ids:
+            try:
+                listing = db.get_listing(listing_id)
+                if not listing:
+                    continue
+                if listing["user_id"] != current_user.id:
+                    continue
+
+                # Remove photos directory
+                try:
+                    import shutil
+                    if listing.get("listing_uuid"):
+                        photo_dir = Path("data/draft_photos") / listing["listing_uuid"]
+                        if photo_dir.exists():
+                            shutil.rmtree(photo_dir)
+                except Exception:
+                    pass
+
+                db.delete_listing(listing_id)
+                deleted_count += 1
+            except Exception as e:
+                logger.error(f"Error deleting draft {listing_id}: {str(e)}")
+                continue
+
+        return jsonify({
+            "success": True,
+            "deleted_count": deleted_count,
+            "message": f"Deleted {deleted_count} draft(s)"
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error in bulk delete: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
 @main_bp.route("/api/update-drafts", methods=["PATCH"])
 @login_required
 def update_drafts():
@@ -686,6 +733,18 @@ def update_drafts():
     
     except Exception as e:
         logger.error(f"Error updating drafts: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/drafts", methods=["GET"])
+@login_required
+def get_user_drafts():
+    """Get all drafts for current user"""
+    try:
+        drafts = db.get_drafts(user_id=current_user.id)
+        return jsonify({"success": True, "drafts": drafts}), 200
+    except Exception as e:
+        logger.error(f"Error fetching drafts: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -3738,8 +3797,12 @@ def api_save_vault():
         from src.cards import CardCollectionManager, UnifiedCard
         from src.cards.storage_maps import suggest_storage_region
         import uuid as uuid_module
-        
+
         data = request.json
+
+        # Validation logging
+        logging.info(f"[VAULT SAVE] User {current_user.id} saving item")
+        logging.info(f"[VAULT SAVE] Data keys: {list(data.keys()) if data else 'None'}")
         
         # Check if user wants storage map guidance
         use_storage_map = data.get('use_storage_map', False)
@@ -3914,8 +3977,11 @@ def api_save_vault():
                 card_kwargs['brand'] = brand
         
         card = UnifiedCard(**card_kwargs)
+        logging.info(f"[VAULT SAVE] Created UnifiedCard: type={card.card_type}, title={card.title}")
+
         card_id = manager.add_card(card)
-        
+        logging.info(f"[VAULT SAVE] Successfully saved card with ID: {card_id}")
+
         # Prepare response with storage guidance if used
         response_data = {
             "success": True,
@@ -3936,11 +4002,20 @@ def api_save_vault():
                     response_data['storage_region'] = storage_region
         
         return jsonify(response_data)
-        
+
+    except ImportError as e:
+        import traceback
+        logging.error(f"[VAULT SAVE] Import error: {e}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "error": f"Module import failed: {str(e)}"}), 500
+    except ValueError as e:
+        import traceback
+        logging.error(f"[VAULT SAVE] Validation error: {e}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "error": f"Invalid data: {str(e)}"}), 400
     except Exception as e:
         import traceback
-        logging.error(f"Save vault error: {e}\n{traceback.format_exc()}")
-        return jsonify({"error": str(e)}), 500
+        error_trace = traceback.format_exc()
+        logging.error(f"[VAULT SAVE] Unexpected error: {e}\n{error_trace}")
+        return jsonify({"success": False, "error": f"Failed to save: {str(e)}"}), 500
 
 
 # -------------------------------------------------------------------------

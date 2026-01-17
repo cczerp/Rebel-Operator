@@ -408,3 +408,87 @@ def add_inventory_csv():
             'error': str(e)
         }), 500
 
+
+# ============================================================================
+# DRAFTS CSV ENDPOINTS
+# ============================================================================
+
+@csv_bp.route('/api/drafts-csv', methods=['GET'])
+@login_required
+def get_drafts_csv():
+    """Get all drafts from CSV"""
+    try:
+        drafts_items = read_csv(DRAFTS_CSV, UNIVERSAL_HEADERS)
+        return jsonify({
+            'success': True,
+            'items': drafts_items
+        })
+    except Exception as e:
+        import logging
+        import traceback
+        logging.error(f"Get drafts CSV error: {e}\n{traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@csv_bp.route('/api/drafts-csv/update', methods=['PATCH'])
+@login_required
+def update_drafts_csv():
+    """Update drafts in CSV (bulk update)"""
+    try:
+        data = request.get_json()
+        changes = data.get('changes', {})
+        
+        if not changes:
+            return jsonify({'error': 'No changes provided'}), 400
+        
+        updated_count = 0
+        for row_id_str, fields in changes.items():
+            row_id = int(row_id_str)
+            if update_csv_row(DRAFTS_CSV, UNIVERSAL_HEADERS, row_id, fields):
+                updated_count += 1
+        
+        return jsonify({
+            'success': True,
+            'message': f'Updated {updated_count} draft(s)',
+            'updated_count': updated_count
+        })
+    except Exception as e:
+        import logging
+        import traceback
+        logging.error(f"Update drafts CSV error: {e}\n{traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@csv_bp.route('/api/drafts-csv/delete', methods=['DELETE'])
+@login_required
+def delete_drafts_csv():
+    """Delete drafts from CSV"""
+    try:
+        data = request.get_json()
+        row_ids = data.get('row_ids', [])
+        
+        if not row_ids:
+            return jsonify({'error': 'No row IDs provided'}), 400
+        
+        deleted_count = delete_csv_rows(DRAFTS_CSV, UNIVERSAL_HEADERS, row_ids)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Deleted {deleted_count} draft(s)',
+            'deleted_count': deleted_count
+        })
+    except Exception as e:
+        import logging
+        import traceback
+        logging.error(f"Delete drafts CSV error: {e}\n{traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+

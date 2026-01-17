@@ -535,34 +535,13 @@ def api_delete_card(card_id):
 def api_list_coins():
     """Return user coins with optional filters."""
     try:
-        # For now, return mock data since coin management isn't implemented yet
-        mock_coins = [
-            {
-                'id': 1,
-                'coin_type': 'Quarter',
-                'year': 1950,
-                'mint': 'D',
-                'grade': 'MS-65',
-                'quantity': 1,
-                'storage_location': 'Box A-1',
-                'status': 'collected'
-            },
-            {
-                'id': 2,
-                'coin_type': 'Penny',
-                'year': 1943,
-                'mint': 'S',
-                'grade': 'AU-58',
-                'quantity': 2,
-                'storage_location': 'Box B-2',
-                'status': 'for_sale'
-            }
-        ]
-
+        # Return empty list - coin management not yet implemented
+        # TODO: Implement coin storage and retrieval when coin system is built
         return jsonify({
             'success': True,
-            'coins': mock_coins,
-            'count': len(mock_coins)
+            'coins': [],
+            'count': 0,
+            'message': 'Coin management coming soon'
         })
 
     except Exception as e:
@@ -575,12 +554,12 @@ def api_list_coins():
 def api_coin_stats():
     """Get coin collection statistics."""
     try:
-        # Mock stats for now
+        # Return zeros - coin management not yet implemented
         stats = {
-            'total_coins': 47,
-            'total_value': 1250.75,
-            'unique_types': 12,
-            'graded_coins': 23
+            'total_coins': 0,
+            'total_value': 0,
+            'unique_types': 0,
+            'graded_coins': 0
         }
 
         return jsonify({'success': True, 'stats': stats})
@@ -595,24 +574,40 @@ def api_coin_stats():
 def api_vault_stats():
     """Get combined vault statistics for cards and coins."""
     try:
-        # Get card stats
-        card_stats = {'total_cards': 0, 'total_value': 0, 'unique_sets': 0}
+        # Get card stats with proper defaults
+        card_stats = {'total_cards': 0, 'total_value': 0, 'unique_sets': 0, 'graded_cards': 0}
         try:
             from src.cards import CardCollectionManager
             manager = CardCollectionManager()
-            card_stats = manager.get_collection_stats(current_user.id)
-        except:
-            pass
+            raw_stats = manager.get_collection_stats(current_user.id)
+            if raw_stats:
+                # Ensure all values have defaults (handle None from DB)
+                card_stats = {
+                    'total_cards': raw_stats.get('total_cards') or 0,
+                    'total_value': float(raw_stats.get('total_value') or 0),
+                    'total_quantity': raw_stats.get('total_quantity') or 0,
+                    'card_types': raw_stats.get('card_types') or 0,
+                    'graded_cards': raw_stats.get('graded_cards') or 0
+                }
+        except Exception as e:
+            print(f"Card stats error: {e}")
 
-        # Mock coin stats for now
+        # Mock coin stats for now (will be replaced when coin system is implemented)
         coin_stats = {
-            'total_coins': 47,
-            'coin_value': 1250.75
+            'total_coins': 0,
+            'coin_value': 0,
+            'graded_coins': 0
         }
 
+        # Calculate totals with proper null handling
+        total_cards = card_stats.get('total_cards') or 0
+        total_coins = coin_stats.get('total_coins') or 0
+        card_value = card_stats.get('total_value') or 0
+        coin_value = coin_stats.get('coin_value') or 0
+
         combined_stats = {
-            'total_items': card_stats.get('total_cards', 0) + coin_stats.get('total_coins', 0),
-            'total_value': card_stats.get('total_value', 0) + coin_stats.get('coin_value', 0),
+            'total_items': total_cards + total_coins,
+            'total_value': card_value + coin_value,
             'cards': card_stats,
             'coins': coin_stats
         }

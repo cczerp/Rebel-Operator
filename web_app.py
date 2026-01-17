@@ -50,42 +50,13 @@ app.config['UPLOAD_FOLDER'] = './data/uploads'
 is_production = os.getenv('RENDER') or os.getenv('RAILWAY_ENVIRONMENT')
 use_https = is_production or os.getenv('FORCE_HTTPS', 'False').lower() == 'true'
 
-# Session security settings
+# Session security settings - using standard Flask sessions (client-side, signed cookies)
 app.config['SESSION_COOKIE_SECURE'] = use_https  # HTTPS-only cookies (only in production)
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent XSS access to cookies
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Prevent CSRF while allowing OAuth flows
 app.config['PERMANENT_SESSION_LIFETIME'] = 604800  # 7 days in seconds
 
-print(f"[SESSION] Production mode: {is_production}, HTTPS: {use_https}, Secure cookies: {use_https}")
-
-# Configure Flask-Session for server-side sessions (prevents session hijacking)
-try:
-    from flask_session import Session
-    import redis
-
-    # Check if Redis is available (for production)
-    redis_url = os.getenv('REDIS_URL')
-    if redis_url:
-        # Use Redis for server-side sessions in production
-        app.config['SESSION_TYPE'] = 'redis'
-        app.config['SESSION_REDIS'] = redis.from_url(redis_url)
-        app.config['SESSION_PERMANENT'] = True
-        app.config['SESSION_USE_SIGNER'] = True
-        Session(app)
-        print("[SESSION] Using Redis for server-side sessions")
-    else:
-        # Fall back to filesystem sessions for development
-        app.config['SESSION_TYPE'] = 'filesystem'
-        app.config['SESSION_FILE_DIR'] = './data/flask_session'
-        app.config['SESSION_PERMANENT'] = True
-        app.config['SESSION_USE_SIGNER'] = True
-        Session(app)
-        print("[SESSION] Using filesystem for server-side sessions (development mode)")
-        Path('./data/flask_session').mkdir(parents=True, exist_ok=True)
-except ImportError:
-    # Flask-Session not installed, use default client-side sessions
-    print("[SESSION WARNING] Flask-Session not installed, using client-side sessions")
-    pass
+print(f"[SESSION] Production: {is_production}, HTTPS: {use_https}, Secure cookies: {use_https}")
 
 # Ensure upload folder exists
 Path(app.config['UPLOAD_FOLDER']).mkdir(parents=True, exist_ok=True)

@@ -1729,21 +1729,28 @@
         </div>
 
         <div class="nav-item">
-            <a href="#" class="nav-link" onclick="alert('Search feature coming soon!'); return false;">
+            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#searchModal">
                 <i class="fas fa-search"></i>
                 <span>Search</span>
             </a>
         </div>
 
         <div class="nav-item">
-            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#inventoryModal">
-                <i class="fas fa-boxes"></i>
-                <span>Inventory</span>
+            <a href="{{ url_for('create_listing') }}" class="nav-link {% if request.endpoint == 'create_listing' %}active{% endif %}">
+                <i class="fas fa-plus-circle"></i>
+                <span>Create</span>
             </a>
         </div>
 
         <div class="nav-item">
             <a href="{{ url_for('hall_of_records') }}" class="nav-link {% if request.endpoint == 'hall_of_records' %}active{% endif %}" title="Public Card Knowledge Base">
+                <i class="fas fa-landmark"></i>
+                <span>Hall of Records</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a href="{{ url_for('main.my_artifacts') }}" class="nav-link {% if request.endpoint == 'main.my_artifacts' %}active{% endif %}" title="Public Card Knowledge Base">
                 <i class="fas fa-landmark"></i>
                 <span>Hall of Records</span>
             </a>

@@ -193,8 +193,8 @@ response = requests.post(
 **Location**: `src/ai/gemini_classifier.py:60-62`
 
 ```python
-self.model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-self.api_url = f"https://generativelanguage.googleapis.com/v1/models/{self.model}:generateContent"
+self.model = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
+self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
 ```
 
 **Problem**:

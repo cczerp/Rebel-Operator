@@ -92,13 +92,14 @@ class GeminiClassifier:
                 logger.info(f"[GEMINI DEBUG] {var_name} exists: length={len(var_value)}, repr={repr(var_value[:30])}...")
 
         # Use Gemini 1.5 Flash for speed and cost-efficiency
-        # Current image-capable models (v1 API endpoint):
-        # - gemini-1.5-flash (DEFAULT - stable, fastest, cheapest, great for classification)
-        # - gemini-1.5-pro (better quality, more expensive)
-        # - gemini-2.0-flash-exp (experimental, may be unstable)
-        self.model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
-        # Use v1 endpoint for Gemini models
-        self.api_url = f"https://generativelanguage.googleapis.com/v1/models/{self.model}:generateContent"
+        # Current image-capable models (v1beta API endpoint):
+        # - gemini-1.5-pro (DEFAULT - reliable, supports images, better quality)
+        # - gemini-pro-vision (fallback if 1.5 models don't work)
+        # - gemini-1.5-flash (faster but may not be available)
+        # - gemini-1.0-pro (older but still supported)
+        self.model = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
+        # Use v1beta endpoint for Gemini models
+        self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
 
     def _prepare_image_for_gemini(self, image_path: str) -> tuple[bytes, str]:
         """
@@ -682,7 +683,7 @@ IMPORTANT:
                             }
                     else:
                         return {
-                            "error": f"Gemini API error ({response.status_code}): {error_msg}",
+                            "error": f"Gemini API error ({response.status_code}): {error_msg_short}",
                             "error_type": "unknown"
                         }
 

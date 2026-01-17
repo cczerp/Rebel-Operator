@@ -470,8 +470,8 @@ def __init__(self, api_key: Optional[str] = None):
         logger.warning(f"[GEMINI DEBUG] ⚠️ Key doesn't start with 'AIza'")
     
     # Model and API URL
-    self.model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-    self.api_url = f"https://generativelanguage.googleapis.com/v1/models/{self.model}:generateContent"
+    self.model = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
+    self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
 ```
 
 **⚠️ NON-NEGOTIABLE REQUIREMENTS:**

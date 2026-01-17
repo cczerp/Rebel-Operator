@@ -613,6 +613,53 @@ def delete_draft(listing_id):
         return jsonify({"error": str(e)}), 500
 
 
+@main_bp.route("/api/drafts/bulk-delete", methods=["DELETE"])
+@login_required
+def bulk_delete_drafts():
+    """Bulk delete multiple drafts"""
+    try:
+        data = request.json
+        row_ids = data.get("row_ids", [])
+
+        if not row_ids:
+            return jsonify({"error": "No draft IDs provided"}), 400
+
+        deleted_count = 0
+        for listing_id in row_ids:
+            try:
+                listing = db.get_listing(listing_id)
+                if not listing:
+                    continue
+                if listing["user_id"] != current_user.id:
+                    continue
+
+                # Remove photos directory
+                try:
+                    import shutil
+                    if listing.get("listing_uuid"):
+                        photo_dir = Path("data/draft_photos") / listing["listing_uuid"]
+                        if photo_dir.exists():
+                            shutil.rmtree(photo_dir)
+                except Exception:
+                    pass
+
+                db.delete_listing(listing_id)
+                deleted_count += 1
+            except Exception as e:
+                logger.error(f"Error deleting draft {listing_id}: {str(e)}")
+                continue
+
+        return jsonify({
+            "success": True,
+            "deleted_count": deleted_count,
+            "message": f"Deleted {deleted_count} draft(s)"
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error in bulk delete: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
 @main_bp.route("/api/update-drafts", methods=["PATCH"])
 @login_required
 def update_drafts():
@@ -686,6 +733,18 @@ def update_drafts():
     
     except Exception as e:
         logger.error(f"Error updating drafts: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/api/drafts", methods=["GET"])
+@login_required
+def get_user_drafts():
+    """Get all drafts for current user"""
+    try:
+        drafts = db.get_drafts(user_id=current_user.id)
+        return jsonify({"success": True, "drafts": drafts}), 200
+    except Exception as e:
+        logger.error(f"Error fetching drafts: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 

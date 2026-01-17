@@ -110,6 +110,33 @@
     </div>
 </div>
 
+<!-- Franchise Filter Button (Shows when "By Franchise" view is active) -->
+<div id="franchiseFilterContainer" class="franchise-filter-bar mt-3 mb-3">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span class="text-muted"><strong>Filter by Franchise:</strong></span>
+        <div class="btn-group" role="group">
+            <button class="btn btn-outline-primary btn-sm franchise-filter-btn active" data-franchise="all">
+                <i class="fas fa-th"></i> All
+            </button>
+            <button class="btn btn-outline-primary btn-sm franchise-filter-btn" data-franchise="pokemon">
+                <i class="fas fa-fire"></i> Pokémon
+            </button>
+            <button class="btn btn-outline-primary btn-sm franchise-filter-btn" data-franchise="mtg">
+                <i class="fas fa-hat-wizard"></i> MTG
+            </button>
+            <button class="btn btn-outline-primary btn-sm franchise-filter-btn" data-franchise="yugioh">
+                <i class="fas fa-crown"></i> Yu-Gi-Oh!
+            </button>
+            <button class="btn btn-outline-primary btn-sm franchise-filter-btn" data-franchise="sports">
+                <i class="fas fa-football-ball"></i> Sports
+            </button>
+            <button class="btn btn-outline-primary btn-sm franchise-filter-btn" data-franchise="other">
+                <i class="fas fa-ellipsis-h"></i> Other
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Cards Grid Container -->
 <div id="cardsContainer" class="cards-grid-container">
     <!-- Cards will be loaded here -->
@@ -268,6 +295,7 @@
 {% block extra_js %}
 <script>
 let currentView = 'franchise';
+let currentFranchiseFilter = 'all';
 let allCards = [];
 let selectedCards = new Set();
 let addCardModal, importModal;
@@ -279,6 +307,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize view tabs
     document.querySelectorAll('.view-tab').forEach(tab => {
         tab.addEventListener('click', () => switchView(tab.dataset.view));
+    });
+
+    // Initialize franchise filter buttons
+    document.querySelectorAll('.franchise-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => filterByFranchise(btn.dataset.franchise));
     });
 
     loadCards();
@@ -331,6 +364,21 @@ function switchView(view) {
     });
     document.querySelector(`[data-view="${view}"]`).classList.add('active');
 
+    // Show/hide franchise filter based on current view
+    const franchiseFilterContainer = document.getElementById('franchiseFilterContainer');
+    if (view === 'franchise') {
+        franchiseFilterContainer.style.display = 'block';
+    } else {
+        franchiseFilterContainer.style.display = 'none';
+    }
+
+    // Reset franchise filter when switching views
+    currentFranchiseFilter = 'all';
+    document.querySelectorAll('.franchise-filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector('[data-franchise="all"]').classList.add('active');
+
     displayCardsByView(allCards);
 }
 
@@ -356,6 +404,36 @@ function displayCardsByView(cards) {
             displayByStorage(cards);
             break;
     }
+}
+
+function filterByFranchise(franchise) {
+    currentFranchiseFilter = franchise;
+
+    // Update active button
+    document.querySelectorAll('.franchise-filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-franchise="${franchise}"]`).classList.add('active');
+
+    // Filter cards based on franchise
+    let filteredCards = allCards;
+    if (franchise !== 'all') {
+        filteredCards = allCards.filter(card => {
+            const cardFranchise = (card.franchise || card.game_name || card.sport || 'Other').toLowerCase();
+            const franchiseKey = franchise.toLowerCase();
+            
+            // Handle sports franchise grouping
+            if (franchise === 'sports') {
+                return cardFranchise.includes('nfl') || cardFranchise.includes('nba') || 
+                       cardFranchise.includes('mlb') || cardFranchise.includes('nhl');
+            }
+            
+            return cardFranchise.includes(franchiseKey);
+        });
+    }
+
+    // Re-display cards with the filter applied
+    displayCardsByView(filteredCards);
 }
 
 function displayByFranchise(cards) {

@@ -1700,16 +1700,16 @@
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('create_listing') }}" class="nav-link {% if request.endpoint == 'create_listing' %}active{% endif %}">
-                <i class="fas fa-plus-circle"></i>
-                <span>Create</span>
+            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#searchModal">
+                <i class="fas fa-search"></i>
+                <span>Search</span>
             </a>
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('main.my_artifacts') }}" class="nav-link {% if request.endpoint == 'main.my_artifacts' %}active{% endif %}" title="Public Card Knowledge Base">
-                <i class="fas fa-landmark"></i>
-                <span>Hall of Records</span>
+            <a href="{{ url_for('create_listing') }}" class="nav-link {% if request.endpoint == 'create_listing' %}active{% endif %}">
+                <i class="fas fa-plus-circle"></i>
+                <span>Create</span>
             </a>
         </div>
 
@@ -1721,9 +1721,16 @@
         </div>
 
         <div class="nav-item">
+            <a href="{{ url_for('main.my_artifacts') }}" class="nav-link {% if request.endpoint == 'main.my_artifacts' %}active{% endif %}" title="Public Card Knowledge Base">
+                <i class="fas fa-landmark"></i>
+                <span>Hall of Records</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
             <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#accountModal">
                 <i class="fas fa-user-circle"></i>
-                <span>Accounts</span>
+                <span>Account</span>
             </a>
         </div>
     </div>

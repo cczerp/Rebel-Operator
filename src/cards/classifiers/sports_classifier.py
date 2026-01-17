@@ -32,8 +32,8 @@ class SportsCardClassifier(BaseCardClassifier):
         Args:
             sport: Default sport ('nfl', 'nba', 'mlb', 'nhl', 'soccer')
         """
-        super().__init__()
         self.sport = sport
+        super().__init__()
 
     def get_card_type(self) -> str:
         return f'sports_{self.sport}'

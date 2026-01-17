@@ -403,6 +403,39 @@ def api_card_stats():
 
 
 # =============================================================================
+# VAULT OVERVIEW PAGE
+# =============================================================================
+
+@cards_bp.route('/vault')
+@login_required
+def vault_overview():
+    """Render vault overview page showing both cards and coins."""
+    return render_template('vault.html')
+
+
+# =============================================================================
+# CARDS VAULT PAGE
+# =============================================================================
+
+@cards_bp.route('/vault/cards')
+@login_required
+def vault_cards():
+    """Render cards vault page."""
+    return render_template('vault_cards.html')
+
+
+# =============================================================================
+# COINS VAULT PAGE
+# =============================================================================
+
+@cards_bp.route('/vault/coins')
+@login_required
+def vault_coins():
+    """Render coins vault page."""
+    return render_template('vault_coins.html')
+
+
+# =============================================================================
 # GET CARD
 # =============================================================================
 
@@ -490,4 +523,102 @@ def api_delete_card(card_id):
 
     except Exception as e:
         print("Delete card error:", str(e))
+        return jsonify({'error': str(e)}), 500
+
+
+# =============================================================================
+# COIN VAULT API ENDPOINTS
+# =============================================================================
+
+@cards_bp.route('/api/coins/list', methods=['GET'])
+@login_required
+def api_list_coins():
+    """Return user coins with optional filters."""
+    try:
+        # For now, return mock data since coin management isn't implemented yet
+        mock_coins = [
+            {
+                'id': 1,
+                'coin_type': 'Quarter',
+                'year': 1950,
+                'mint': 'D',
+                'grade': 'MS-65',
+                'quantity': 1,
+                'storage_location': 'Box A-1',
+                'status': 'collected'
+            },
+            {
+                'id': 2,
+                'coin_type': 'Penny',
+                'year': 1943,
+                'mint': 'S',
+                'grade': 'AU-58',
+                'quantity': 2,
+                'storage_location': 'Box B-2',
+                'status': 'for_sale'
+            }
+        ]
+
+        return jsonify({
+            'success': True,
+            'coins': mock_coins,
+            'count': len(mock_coins)
+        })
+
+    except Exception as e:
+        print("List coins error:", str(e))
+        return jsonify({'error': str(e)}), 500
+
+
+@cards_bp.route('/api/coins/stats', methods=['GET'])
+@login_required
+def api_coin_stats():
+    """Get coin collection statistics."""
+    try:
+        # Mock stats for now
+        stats = {
+            'total_coins': 47,
+            'total_value': 1250.75,
+            'unique_types': 12,
+            'graded_coins': 23
+        }
+
+        return jsonify({'success': True, 'stats': stats})
+
+    except Exception as e:
+        print("Stats error:", str(e))
+        return jsonify({'error': str(e)}), 500
+
+
+@cards_bp.route('/api/vault/stats', methods=['GET'])
+@login_required
+def api_vault_stats():
+    """Get combined vault statistics for cards and coins."""
+    try:
+        # Get card stats
+        card_stats = {'total_cards': 0, 'total_value': 0, 'unique_sets': 0}
+        try:
+            from src.cards import CardCollectionManager
+            manager = CardCollectionManager()
+            card_stats = manager.get_collection_stats(current_user.id)
+        except:
+            pass
+
+        # Mock coin stats for now
+        coin_stats = {
+            'total_coins': 47,
+            'coin_value': 1250.75
+        }
+
+        combined_stats = {
+            'total_items': card_stats.get('total_cards', 0) + coin_stats.get('total_coins', 0),
+            'total_value': card_stats.get('total_value', 0) + coin_stats.get('coin_value', 0),
+            'cards': card_stats,
+            'coins': coin_stats
+        }
+
+        return jsonify({'success': True, 'stats': combined_stats})
+
+    except Exception as e:
+        print("Vault stats error:", str(e))
         return jsonify({'error': str(e)}), 500

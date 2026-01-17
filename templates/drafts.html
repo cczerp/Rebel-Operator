@@ -4,414 +4,587 @@
 
 {% block extra_css %}
 <style>
-.dropdown-menu {
-    max-height: 400px;
-    overflow-y: auto;
-}
-
-.dropdown-item {
-    transition: all 0.2s ease;
-}
-
-.dropdown-item:hover {
-    background: var(--cold-steel) !important;
-    color: white !important;
-    transform: translateX(5px);
-}
-
-.dropdown-item i {
-    width: 20px;
-    margin-right: 8px;
-}
+    .table-responsive {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+    
+    .drafts-table {
+        border-collapse: collapse;
+        width: 100%;
+        background-color: #1e1e1e;
+        color: #e0e0e0;
+    }
+    
+    .drafts-table th {
+        background-color: #2d2d2d;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        border: 1px solid #3d3d3d;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .drafts-table td {
+        padding: 10px 12px;
+        border: 1px solid #3d3d3d;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+    
+    .drafts-table tbody tr:hover {
+        background-color: #252525;
+    }
+    
+    .editable-cell {
+        cursor: text;
+        position: relative;
+        background-color: rgba(255, 255, 255, 0.02);
+        transition: background-color 0.2s;
+        padding: 8px;
+        border-radius: 3px;
+    }
+    
+    .editable-cell:hover {
+        background-color: rgba(100, 200, 255, 0.1);
+    }
+    
+    .editable-cell.editing input,
+    .editable-cell.editing select {
+        width: 100%;
+        padding: 6px;
+        border: 2px solid #64c8ff;
+        border-radius: 3px;
+        background-color: #2d2d2d;
+        color: #e0e0e0;
+        font-size: 14px;
+    }
+    
+    .editable-cell.editing input:focus,
+    .editable-cell.editing select:focus {
+        outline: none;
+        box-shadow: 0 0 5px rgba(100, 200, 255, 0.5);
+    }
+    
+    .cell-modified {
+        background-color: rgba(255, 193, 7, 0.15) !important;
+        border-left: 3px solid #ffc107;
+    }
+    
+    .photo-preview {
+        max-width: 50px;
+        max-height: 50px;
+        object-fit: cover;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    .action-buttons {
+        white-space: normal;
+        padding: 10px !important;
+    }
+    
+    .action-buttons .btn {
+        margin-right: 5px;
+        margin-bottom: 5px;
+        font-size: 12px;
+        padding: 5px 10px;
+    }
+    
+    .bulk-actions-bar {
+        background-color: #2d2d2d;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        display: none;
+        gap: 10px;
+    }
+    
+    .bulk-actions-bar.active {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .bulk-actions-bar > span {
+        color: #aaa;
+        font-size: 14px;
+    }
+    
+    .changes-indicator {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background-color: #28a745;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 5px;
+        display: none;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+    }
+    
+    .changes-indicator.active {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+    }
+    
+    .changes-indicator button {
+        padding: 5px 15px;
+        background-color: rgba(255, 255, 255, 0.2);
+        border: none;
+        border-radius: 3px;
+        color: white;
+        cursor: pointer;
+        font-weight: 600;
+    }
+    
+    .changes-indicator button:hover {
+        background-color: rgba(255, 255, 255, 0.3);
+    }
+    
+    .draft-row.deleted {
+        opacity: 0.5;
+        background-color: rgba(255, 0, 0, 0.1);
+    }
+    
+    .condition-select, .edit-input {
+        width: 100%;
+        padding: 6px;
+        border: 1px solid #444;
+        border-radius: 3px;
+        background-color: #2d2d2d;
+        color: #e0e0e0;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-folder"></i> Draft Listings</h2>
-    <div class="dropdown">
-        <button class="btn btn-success dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="fas fa-file-export"></i> Export CSV as
+    <h2><i class="fas fa-folder"></i> Draft Listings (Excel-Style Editor)</h2>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button class="btn btn-success" onclick="exportSelectedToCSV()" title="Export selected drafts as CSV">
+            <i class="fas fa-file-export"></i> Export Selected
         </button>
-        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown" style="background: var(--carbon-matte); border: 2px solid var(--cold-steel-dark);">
-            <li><h6 class="dropdown-header" style="color: var(--off-white-text);">Select Platform</h6></li>
-            <li><hr class="dropdown-divider" style="border-color: var(--cold-steel-dark);"></li>
-            <li><a class="dropdown-item" href="#" onclick="exportToCSV('poshmark'); return false;" style="color: var(--off-white-text);">
-                <i class="fas fa-tag"></i> Poshmark
-            </a></li>
-            <li><a class="dropdown-item" href="#" onclick="exportToCSV('rubylane'); return false;" style="color: var(--off-white-text);">
-                <i class="fas fa-gem"></i> Ruby Lane
-            </a></li>
-            <li><a class="dropdown-item" href="#" onclick="exportToCSV('ecrater'); return false;" style="color: var(--off-white-text);">
-                <i class="fas fa-store"></i> Ecrater
-            </a></li>
-            <li><a class="dropdown-item" href="#" onclick="exportToCSV('bonanza'); return false;" style="color: var(--off-white-text);">
-                <i class="fas fa-shopping-cart"></i> Bonanza
-            </a></li>
-            <li><a class="dropdown-item" href="#" onclick="exportToCSV('google_shopping'); return false;" style="color: var(--off-white-text);">
-                <i class="fab fa-google"></i> Google Shopping
-            </a></li>
-        </ul>
+        <a href="{{ url_for('main.create_listing') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Create Listing
+        </a>
     </div>
 </div>
 
 <div class="alert alert-info mb-3">
     <i class="fas fa-info-circle"></i> <strong>How it works:</strong>
-    Click "Export CSV as" above and select your platform (e.g., Poshmark). Your drafts will be automatically formatted and downloaded as a CSV file ready to upload!
+    Click on any cell to edit it directly (like Excel). Your changes are highlighted in yellow. Use Tab to move to the next cell. Save all changes at once using the button below.
+</div>
+
+<div class="bulk-actions-bar" id="bulkActionsBar">
+    <span id="selectedCount">0 selected</span>
+    <button class="btn btn-sm btn-danger" onclick="deleteSelectedDrafts()">
+        <i class="fas fa-trash"></i> Delete Selected
+    </button>
+    <button class="btn btn-sm btn-secondary" onclick="clearSelection()">Clear Selection</button>
 </div>
 
 {% if drafts %}
-    {% for draft in drafts %}
-    <div class="card mb-3">
-        <div class="card-body">
-            <h5 class="card-title">{{ draft.title }}</h5>
+<div class="table-responsive">
+    <table class="drafts-table" id="draftsTable">
+        <thead>
+            <tr>
+                <th style="width: 40px;"><input class="form-check-input" type="checkbox" id="selectAllCheckbox" title="Select all"></th>
+                <th style="width: 60px;">Photo</th>
+                <th style="min-width: 150px;">Title</th>
+                <th style="min-width: 80px;">Price</th>
+                <th style="min-width: 80px;">Cost</th>
+                <th style="min-width: 100px;">Condition</th>
+                <th style="min-width: 100px;">Brand</th>
+                <th style="min-width: 80px;">Size</th>
+                <th style="min-width: 80px;">Color</th>
+                <th style="min-width: 120px;">Created At</th>
+                <th style="min-width: 150px;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for draft in drafts %}
+            <tr class="draft-row" data-draft-id="{{ draft.id }}">
+                <td><input class="form-check-input draft-checkbox" type="checkbox" value="{{ draft.id }}"></td>
+                <td>
+                    {% if draft.photos and draft.photos|fromjson|length > 0 %}
+                    <img src="{{ (draft.photos|fromjson)[0] }}" alt="Photo" class="photo-preview" onclick="showPhotoModal('{{ (draft.photos|fromjson)[0] }}')">
+                    {% endif %}
+                </td>
+                <td class="editable-cell" data-field="title" data-draft-id="{{ draft.id }}" onclick="editCell(this)">{{ draft.title }}</td>
+                <td class="editable-cell" data-field="price" data-draft-id="{{ draft.id }}" onclick="editCell(this)">${{ "%.2f"|format(draft.price) }}</td>
+                <td class="editable-cell" data-field="cost" data-draft-id="{{ draft.id }}" onclick="editCell(this)">${{ "%.2f"|format(draft.cost) if draft.cost else '0.00' }}</td>
+                <td class="editable-cell" data-field="condition" data-draft-id="{{ draft.id }}" onclick="editCell(this)">{{ draft.condition }}</td>
+                <td class="editable-cell" data-field="brand" data-draft-id="{{ draft.id }}" onclick="editCell(this)">{{ (draft.attributes|fromjson).brand if draft.attributes else '' }}</td>
+                <td class="editable-cell" data-field="size" data-draft-id="{{ draft.id }}" onclick="editCell(this)">{{ (draft.attributes|fromjson).size if draft.attributes else '' }}</td>
+                <td class="editable-cell" data-field="color" data-draft-id="{{ draft.id }}" onclick="editCell(this)">{{ (draft.attributes|fromjson).color if draft.attributes else '' }}</td>
+                <td>{{ draft.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td class="action-buttons">
+                    <a href="{{ url_for('main.create_listing', draft_id=draft.id) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-external-link-alt"></i> Full Editor</a>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteDraft({{ draft.id }})"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="text-success fw-bold">${{ "%.2f"|format(draft.price) }}</span>
-                {% if draft.storage_location %}
-                <span class="storage-badge">
-                    <i class="fas fa-map-marker-alt"></i> {{ draft.storage_location }}
-                </span>
-                {% endif %}
+<div style="margin-top: 20px; text-align: right;">
+    <button class="btn btn-primary btn-lg" onclick="saveAllChanges()" id="saveBtn" style="display: none;">
+        <i class="fas fa-save"></i> Save All Changes
+    </button>
+</div>
+
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-table fa-4x text-muted mb-3"></i>
+    <h5>No Drafts Yet</h5>
+    <p class="text-muted">Your saved drafts will appear here in an editable spreadsheet format.</p>
+    <a href="{{ url_for('main.create_listing') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Create Listing
+    </a>
+</div>
+{% endif %}
+
+<!-- Photo Modal -->
+<div class="modal fade" id="photoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title">Photo Preview</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-
-            <p class="card-text text-muted small">
-                {% if draft.description %}
-                    {{ draft.description[:100] }}{% if draft.description|length > 100 %}...{% endif %}
-                {% endif %}
-            </p>
-
-            <div class="d-flex justify-content-between align-items-center">
-                <small class="text-muted">
-                    <i class="far fa-clock"></i> {{ draft.created_at }}
-                </small>
-                <div class="btn-group btn-group-sm">
-                    <button class="btn btn-success" onclick="postDraft({{ draft.id }})">
-                        <i class="fas fa-rocket"></i> Post
-                    </button>
-                    <a href="{{ url_for('create_listing', draft_id=draft.id) }}" class="btn btn-outline-primary">
-                        <i class="fas fa-edit"></i> Edit
-                    </a>
-                    <button class="btn btn-outline-danger" onclick="deleteDraft({{ draft.id }})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
+            <div class="modal-body text-center">
+                <img id="photoDisplay" src="" style="max-width: 100%; max-height: 500px;">
             </div>
         </div>
     </div>
-    {% endfor %}
-{% else %}
-    <div class="text-center py-5">
-        <i class="fas fa-folder-open fa-4x text-muted mb-3"></i>
-        <h5>No Drafts Yet</h5>
-        <p class="text-muted">Create a listing and save it as a draft</p>
-        <a href="{{ url_for('create_listing') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Create Listing
-        </a>
-    </div>
-{% endif %}
+</div>
+
+<div class="changes-indicator" id="changesIndicator">
+    <span><i class="fas fa-exclamation-circle"></i> You have unsaved changes</span>
+    <button onclick="saveAllChanges()">Save Now</button>
+    <button onclick="discardChanges()">Discard</button>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function postDraft(id) {
-    // Show platform selection modal
-    let html = '<div class="modal fade" id="postDraftModal" tabindex="-1">';
-    html += '<div class="modal-dialog"><div class="modal-content">';
-    html += '<div class="modal-header bg-success text-white">';
-    html += '<h5 class="modal-title"><i class="fas fa-rocket"></i> Post Listing</h5>';
-    html += '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>';
-    html += '</div><div class="modal-body">';
-    html += '<p>Select platforms to post to:</p>';
+// Store for tracking changes
+let draftChanges = {};
+let currentEditingCell = null;
 
-    // CSV Platforms
-    html += '<div class="mb-3">';
-    html += '<h6 class="text-muted">CSV Platforms (Manual Upload)</h6>';
-    html += '<div class="form-check">';
-    html += '<input class="form-check-input post-platform" type="checkbox" value="poshmark" id="post_poshmark">';
-    html += '<label class="form-check-label" for="post_poshmark"><i class="fas fa-shopping-bag"></i> Poshmark</label>';
-    html += '</div>';
-    html += '<div class="form-check">';
-    html += '<input class="form-check-input post-platform" type="checkbox" value="rubylane" id="post_rubylane">';
-    html += '<label class="form-check-label" for="post_rubylane"><i class="fas fa-gem"></i> Ruby Lane</label>';
-    html += '</div>';
-    html += '<div class="form-check">';
-    html += '<input class="form-check-input post-platform" type="checkbox" value="threadup" id="post_threadup">';
-    html += '<label class="form-check-label" for="post_threadup"><i class="fas fa-recycle"></i> ThredUp</label>';
-    html += '</div>';
-    html += '<div class="form-check">';
-    html += '<input class="form-check-input post-platform" type="checkbox" value="depop" id="post_depop">';
-    html += '<label class="form-check-label" for="post_depop"><i class="fas fa-tshirt"></i> Depop</label>';
-    html += '</div>';
-    html += '</div>';
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    setupSelectAll();
+    setupCheckboxListeners();
+});
 
-    // API Platforms
-    html += '<div class="mb-3">';
-    html += '<h6 class="text-muted">API Platforms (Automated)</h6>';
-    html += '<div class="form-check">';
-    html += '<input class="form-check-input post-platform" type="checkbox" value="etsy" id="post_etsy">';
-    html += '<label class="form-check-label" for="post_etsy"><i class="fas fa-store"></i> Etsy</label>';
-    html += '</div>';
-    html += '<div class="form-check">';
-    html += '<input class="form-check-input post-platform" type="checkbox" value="shopify" id="post_shopify">';
-    html += '<label class="form-check-label" for="post_shopify"><i class="fas fa-shopping-cart"></i> Shopify</label>';
-    html += '</div>';
-    html += '<div class="form-check">';
-    html += '<input class="form-check-input post-platform" type="checkbox" value="woocommerce" id="post_woocommerce">';
-    html += '<label class="form-check-label" for="post_woocommerce"><i class="fas fa-wordpress"></i> WooCommerce</label>';
-    html += '</div>';
-    html += '<div class="form-check">';
-    html += '<input class="form-check-input post-platform" type="checkbox" value="facebook" id="post_facebook">';
-    html += '<label class="form-check-label" for="post_facebook"><i class="fab fa-facebook"></i> Facebook</label>';
-    html += '</div>';
-    html += '</div>';
-
-    html += '<div class="form-check mb-3">';
-    html += '<input class="form-check-input" type="checkbox" id="justMakeActive">';
-    html += '<label class="form-check-label" for="justMakeActive">';
-    html += '<strong>Just make it Active</strong> (don\'t post to platforms yet)';
-    html += '</label>';
-    html += '</div>';
-
-    html += '</div><div class="modal-footer">';
-    html += '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>';
-    html += `<button type="button" class="btn btn-success" onclick="confirmPostDraft(${id})">`;
-    html += '<i class="fas fa-rocket"></i> Post</button>';
-    html += '</div></div></div></div>';
-
-    // Remove existing modal if any
-    const existingModal = document.getElementById('postDraftModal');
-    if (existingModal) existingModal.remove();
-
-    // Add and show modal
-    document.body.insertAdjacentHTML('beforeend', html);
-    const modal = new bootstrap.Modal(document.getElementById('postDraftModal'));
-    modal.show();
-}
-
-async function confirmPostDraft(id) {
-    const justMakeActive = document.getElementById('justMakeActive').checked;
-
-    if (justMakeActive) {
-        // Just change status to active
-        showLoading();
-        try {
-            const response = await fetch(`/api/post-draft/${id}`, {
-                method: 'POST'
+// ===== SELECTION & CHECKBOX LOGIC =====
+function setupSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function(e) {
+            document.querySelectorAll('.draft-checkbox').forEach(checkbox => {
+                checkbox.checked = e.target.checked;
             });
-            const data = await response.json();
-
-            hideLoading();
-            bootstrap.Modal.getInstance(document.getElementById('postDraftModal')).hide();
-
-            if (data.success) {
-                showAlert('Listing is now active!', 'success');
-                setTimeout(() => location.reload(), 1500);
-            } else {
-                showAlert(data.error, 'danger');
-            }
-        } catch (error) {
-            hideLoading();
-            showAlert('Error: ' + error, 'danger');
-        }
-    } else {
-        // Post to selected platforms
-        const platforms = [];
-        document.querySelectorAll('.post-platform:checked').forEach(cb => {
-            platforms.push(cb.value);
+            updateBulkActionBar();
         });
-
-        if (platforms.length === 0) {
-            showAlert('Please select at least one platform or check "Just make it Active"', 'warning');
-            return;
-        }
-
-        showLoading();
-
-        try {
-            // First make it active
-            const response1 = await fetch(`/api/post-draft/${id}`, {
-                method: 'POST'
-            });
-            const data1 = await response1.json();
-
-            if (!data1.success) {
-                hideLoading();
-                showAlert(data1.error, 'danger');
-                return;
-            }
-
-            // Then post to platforms
-            const response2 = await fetch('/api/bulk-post', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    listing_ids: [id],
-                    platforms: platforms
-                })
-            });
-
-            const data2 = await response2.json();
-
-            hideLoading();
-            bootstrap.Modal.getInstance(document.getElementById('postDraftModal')).hide();
-
-            if (data2.success) {
-                // Handle CSV downloads
-                if (data2.csv_files && Object.keys(data2.csv_files).length > 0) {
-                    showCSVDownloads(data2.csv_files);
-                }
-
-                // Handle API results
-                if (data2.api_results && data2.api_results.length > 0) {
-                    showAPIResults(data2.api_results);
-                }
-
-                showAlert('Listing posted!', 'success');
-                setTimeout(() => window.location.href = '/listings', 2000);
-            } else {
-                showAlert(data2.error || 'Posting failed', 'danger');
-            }
-        } catch (error) {
-            hideLoading();
-            showAlert('Error: ' + error, 'danger');
-        }
     }
 }
 
-// CSV Downloads Modal (copied from listings.html)
-function showCSVDownloads(csvFiles) {
-    let html = '<div class="modal fade" id="csvDownloadModal" tabindex="-1">';
-    html += '<div class="modal-dialog modal-lg"><div class="modal-content">';
-    html += '<div class="modal-header bg-success text-white">';
-    html += '<h5 class="modal-title"><i class="fas fa-file-csv"></i> CSV Files Ready</h5>';
-    html += '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>';
-    html += '</div><div class="modal-body">';
-
-    for (const [platform, fileInfo] of Object.entries(csvFiles)) {
-        if (fileInfo.error) {
-            html += `<div class="alert alert-danger">${fileInfo.platform_name}: ${fileInfo.error}</div>`;
-        } else {
-            html += `<div class="card mb-3">`;
-            html += `<div class="card-header bg-primary text-white"><h6 class="mb-0">${fileInfo.platform_name}</h6></div>`;
-            html += `<div class="card-body">`;
-            html += `<a href="${fileInfo.download_url}" class="btn btn-success mb-2" download>`;
-            html += `<i class="fas fa-download"></i> Download CSV</a>`;
-            if (fileInfo.instructions) {
-                html += `<div class="alert alert-info"><strong>Instructions:</strong><ol class="mb-0">`;
-                fileInfo.instructions.forEach(inst => { html += `<li>${inst}</li>`; });
-                html += `</ol></div>`;
-            }
-            html += `</div></div>`;
-        }
-    }
-
-    html += '</div></div></div></div>';
-
-    const existingModal = document.getElementById('csvDownloadModal');
-    if (existingModal) existingModal.remove();
-
-    document.body.insertAdjacentHTML('beforeend', html);
-    const modal = new bootstrap.Modal(document.getElementById('csvDownloadModal'));
-    modal.show();
-}
-
-function showAPIResults(apiResults) {
-    let html = '<div class="modal fade" id="apiResultsModal" tabindex="-1">';
-    html += '<div class="modal-dialog modal-lg"><div class="modal-content">';
-    html += '<div class="modal-header bg-info text-white">';
-    html += '<h5 class="modal-title"><i class="fas fa-robot"></i> API Results</h5>';
-    html += '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>';
-    html += '</div><div class="modal-body">';
-
-    apiResults.forEach(result => {
-        const alertType = result.status === 'posted' ? 'success' : 'warning';
-        html += `<div class="alert alert-${alertType}">`;
-        html += `<strong>${result.platform_name}:</strong> ${result.message}`;
-        html += `</div>`;
+function setupCheckboxListeners() {
+    document.querySelectorAll('.draft-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateBulkActionBar);
     });
-
-    html += '</div></div></div></div>';
-
-    const existingModal = document.getElementById('apiResultsModal');
-    if (existingModal) existingModal.remove();
-
-    document.body.insertAdjacentHTML('beforeend', html);
-    const modal = new bootstrap.Modal(document.getElementById('apiResultsModal'));
-    modal.show();
 }
 
-async function deleteDraft(id) {
-    if (!confirm('Delete this listing?')) return;
-
-    showLoading();
-
-    try {
-        const response = await fetch(`/api/delete-draft/${id}`, {
-            method: 'DELETE'
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showAlert('Listing deleted', 'success');
-            location.reload();
-        } else {
-            showAlert(data.error, 'danger');
-        }
-    } catch (error) {
-        showAlert('Delete failed: ' + error, 'danger');
-    } finally {
-        hideLoading();
+function updateBulkActionBar() {
+    const checked = document.querySelectorAll('.draft-checkbox:checked').length;
+    const bar = document.getElementById('bulkActionsBar');
+    const countSpan = document.getElementById('selectedCount');
+    
+    countSpan.textContent = `${checked} selected`;
+    
+    if (checked > 0) {
+        bar.classList.add('active');
+    } else {
+        bar.classList.remove('active');
     }
 }
 
-async function importCSV(input) {
-    const file = input.files[0];
-    if (!file) return;
+function clearSelection() {
+    document.getElementById('selectAllCheckbox').checked = false;
+    document.querySelectorAll('.draft-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateBulkActionBar();
+}
 
-    const formData = new FormData();
-    formData.append('file', file);
+function getSelectedDraftIds() {
+    const selectedIds = [];
+    document.querySelectorAll('.draft-checkbox:checked').forEach(checkbox => {
+        selectedIds.push(checkbox.value);
+    });
+    return selectedIds;
+}
 
-    showLoading();
-
-    try {
-        const response = await fetch('/api/import-csv', {
-            method: 'POST',
-            body: formData
+// ===== INLINE EDITING LOGIC =====
+function editCell(cell) {
+    // Don't edit if already editing
+    if (currentEditingCell) return;
+    
+    const draftId = cell.dataset.draftId;
+    const field = cell.dataset.field;
+    const currentValue = cell.innerText.replace('$', '');
+    
+    cell.classList.add('editing');
+    currentEditingCell = cell;
+    
+    let input;
+    
+    if (field === 'condition') {
+        // Condition is a select dropdown
+        input = document.createElement('select');
+        input.className = 'condition-select';
+        const conditions = ['New', 'Like New', 'Good', 'Fair', 'Poor'];
+        conditions.forEach(cond => {
+            const option = document.createElement('option');
+            option.value = cond;
+            option.textContent = cond;
+            if (cond === currentValue) option.selected = true;
+            input.appendChild(option);
         });
+    } else {
+        // Regular text input
+        input = document.createElement('input');
+        input.type = field === 'price' || field === 'cost' ? 'number' : 'text';
+        input.value = currentValue;
+        input.className = 'edit-input';
+        if (field === 'price' || field === 'cost') {
+            input.step = '0.01';
+            input.min = '0';
+        }
+    }
+    
+    input.style.width = '100%';
+    
+    cell.innerText = '';
+    cell.appendChild(input);
+    input.focus();
+    if (input.type === 'text') input.select();
+    
+    // Save on blur or Enter
+    function saveEdit() {
+        const newValue = input.value || currentValue;
+        recordChange(draftId, field, newValue);
+        finishEdit(cell, field, newValue);
+    }
+    
+    input.addEventListener('blur', saveEdit);
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            saveEdit();
+        } else if (e.key === 'Escape') {
+            cancelEdit(cell, currentValue, field);
+        } else if (e.key === 'Tab') {
+            e.preventDefault();
+            saveEdit();
+            // Move to next editable cell
+            const nextCell = getNextEditableCell(cell);
+            if (nextCell) {
+                setTimeout(() => editCell(nextCell), 100);
+            }
+        }
+    });
+}
 
-        const data = await response.json();
+function recordChange(draftId, field, newValue) {
+    if (!draftChanges[draftId]) {
+        draftChanges[draftId] = {};
+    }
+    draftChanges[draftId][field] = newValue;
+    showChangesIndicator();
+}
 
-        if (data.success) {
-            showAlert(`Updated ${data.updated} storage locations!`, 'success');
+function finishEdit(cell, field, newValue) {
+    cell.classList.remove('editing');
+    cell.classList.add('cell-modified');
+    
+    // Format display value
+    let displayValue = newValue;
+    if (field === 'price' || field === 'cost') {
+        displayValue = '$' + parseFloat(newValue || 0).toFixed(2);
+    }
+    
+    cell.innerText = displayValue;
+    currentEditingCell = null;
+}
+
+function cancelEdit(cell, originalValue, field) {
+    let displayValue = originalValue;
+    if (field === 'price' || field === 'cost') {
+        displayValue = '$' + parseFloat(originalValue || 0).toFixed(2);
+    }
+    
+    cell.classList.remove('editing');
+    cell.innerText = displayValue;
+    currentEditingCell = null;
+}
+
+function getNextEditableCell(currentCell) {
+    const row = currentCell.closest('tr');
+    const editableCells = Array.from(row.querySelectorAll('.editable-cell'));
+    const currentIndex = editableCells.indexOf(currentCell);
+    
+    if (currentIndex < editableCells.length - 1) {
+        return editableCells[currentIndex + 1];
+    }
+    return null;
+}
+
+// ===== SAVE & DISCARD =====
+function showChangesIndicator() {
+    const indicator = document.getElementById('changesIndicator');
+    const saveBtn = document.getElementById('saveBtn');
+    indicator.classList.add('active');
+    saveBtn.style.display = 'block';
+}
+
+function hideChangesIndicator() {
+    const indicator = document.getElementById('changesIndicator');
+    const saveBtn = document.getElementById('saveBtn');
+    indicator.classList.remove('active');
+    saveBtn.style.display = 'none';
+    // Remove highlight from modified cells
+    document.querySelectorAll('.cell-modified').forEach(cell => {
+        cell.classList.remove('cell-modified');
+    });
+}
+
+async function saveAllChanges() {
+    if (Object.keys(draftChanges).length === 0) {
+        showAlert('No changes to save.', 'info');
+        return;
+    }
+    
+    showLoading();
+    try {
+        const response = await fetch('/api/update-drafts', {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ changes: draftChanges })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            draftChanges = {};
+            hideChangesIndicator();
+            showAlert('All changes saved successfully!', 'success');
             setTimeout(() => location.reload(), 1500);
         } else {
-            showAlert(data.error, 'danger');
+            const error = await response.json();
+            showAlert('Save failed: ' + (error.error || 'Unknown error'), 'danger');
         }
     } catch (error) {
-        showAlert('Import failed: ' + error, 'danger');
+        showAlert('Error saving changes: ' + error.message, 'danger');
     } finally {
         hideLoading();
-        input.value = ''; // Reset file input
     }
 }
 
-// Export drafts to platform-specific CSV
-async function exportToCSV(platform) {
-    try {
-        showLoading();
+function discardChanges() {
+    if (confirm('Discard all unsaved changes?')) {
+        draftChanges = {};
+        hideChangesIndicator();
+        location.reload();
+    }
+}
 
+// ===== EXPORT & DELETE =====
+async function deleteSelectedDrafts() {
+    const selectedIds = getSelectedDraftIds();
+    if (selectedIds.length === 0) {
+        showAlert('Please select at least one draft to delete.', 'warning');
+        return;
+    }
+    
+    if (!confirm(`Delete ${selectedIds.length} draft(s)? This cannot be undone.`)) {
+        return;
+    }
+    
+    showLoading();
+    try {
+        for (let id of selectedIds) {
+            await fetch(`/api/delete-draft/${id}`, { method: 'DELETE' });
+            const row = document.querySelector(`tr[data-draft-id="${id}"]`);
+            if (row) row.classList.add('deleted');
+        }
+        hideLoading();
+        showAlert('Drafts deleted successfully!', 'success');
+        setTimeout(() => location.reload(), 1500);
+    } catch (error) {
+        hideLoading();
+        showAlert('Error deleting drafts: ' + error.message, 'danger');
+    }
+}
+
+function exportSelectedToCSV() {
+    const selectedIds = getSelectedDraftIds();
+    if (selectedIds.length === 0) {
+        showAlert('Please select at least one draft to export.', 'warning');
+        return;
+    }
+
+    let html = `
+        <div class="modal fade" id="exportModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content bg-dark">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title"><i class="fas fa-file-export"></i> Select Export Platform</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Choose the platform to format the CSV for:</p>
+                        <div class="list-group">
+                            <a href="#" class="list-group-item list-group-item-action list-group-item-dark" onclick="confirmExport('poshmark'); return false;">Poshmark</a>
+                            <a href="#" class="list-group-item list-group-item-action list-group-item-dark" onclick="confirmExport('mercari'); return false;">Mercari</a>
+                            <a href="#" class="list-group-item list-group-item-action list-group-item-dark" onclick="confirmExport('ebay'); return false;">eBay</a>
+                            <a href="#" class="list-group-item list-group-item-action list-group-item-dark" onclick="confirmExport('grailed'); return false;">Grailed</a>
+                            <a href="#" class="list-group-item list-group-item-action list-group-item-dark" onclick="confirmExport('depop'); return false;">Depop</a>
+                            <a href="#" class="list-group-item list-group-item-action list-group-item-dark" onclick="confirmExport('generic'); return false;">Generic CSV</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const existingModal = document.getElementById('exportModal');
+    if (existingModal) existingModal.remove();
+
+    document.body.insertAdjacentHTML('beforeend', html);
+    const modal = new bootstrap.Modal(document.getElementById('exportModal'));
+    modal.show();
+}
+
+async function confirmExport(platform) {
+    const selectedIds = getSelectedDraftIds();
+    bootstrap.Modal.getInstance(document.getElementById('exportModal')).hide();
+    showLoading();
+
+    try {
         const response = await fetch(`/api/export/csv/${platform}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                include_drafts: true
-            })
+            body: JSON.stringify({ listing_ids: selectedIds })
         });
 
         if (response.ok) {
-            // Download the CSV file
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -421,9 +594,8 @@ async function exportToCSV(platform) {
             a.click();
             a.remove();
             window.URL.revokeObjectURL(url);
-
             hideLoading();
-            showAlert(`${platform.toUpperCase()} CSV exported successfully! Check your downloads folder.`, 'success');
+            showAlert('CSV exported successfully!', 'success');
         } else {
             const error = await response.json();
             hideLoading();
@@ -433,6 +605,34 @@ async function exportToCSV(platform) {
         hideLoading();
         showAlert('Error exporting CSV: ' + error.message, 'danger');
     }
+}
+
+async function deleteDraft(id) {
+    if (!confirm('Are you sure you want to delete this draft?')) return;
+
+    showLoading();
+    try {
+        const response = await fetch(`/api/delete-draft/${id}`, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('Draft deleted successfully.', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert(data.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('An error occurred: ' + error, 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+function showPhotoModal(photoUrl) {
+    document.getElementById('photoDisplay').src = photoUrl;
+    new bootstrap.Modal(document.getElementById('photoModal')).show();
 }
 </script>
 {% endblock %}

@@ -172,6 +172,7 @@ def create_listing():
     """Create new listing page - allows guest access with 8 free AI uses"""
     from flask import session
     draft_id = request.args.get('draft_id', type=int)
+    scan_draft = request.args.get('scan_draft', type=int)
     
     # Initialize guest usage tracking if not authenticated
     if not current_user.is_authenticated:
@@ -183,6 +184,7 @@ def create_listing():
     
     return render_template('create.html', 
                          draft_id=draft_id,
+                         scan_draft=scan_draft,
                          is_guest=not current_user.is_authenticated,
                          guest_uses_remaining=guest_uses_remaining)
 

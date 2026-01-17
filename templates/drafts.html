@@ -233,7 +233,133 @@ let currentEditingCell = null;
 document.addEventListener('DOMContentLoaded', function() {
     setupSelectAll();
     setupCheckboxListeners();
+    loadDrafts();  // Load drafts on page load
 });
+
+// ===== LOADING DRAFTS =====
+async function loadDrafts() {
+    try {
+        showLoading();
+        const response = await fetch('/api/drafts-csv');
+        const data = await response.json();
+        
+        if (data.success) {
+            renderDraftsTable(data.items);
+        } else {
+            showAlert('Failed to load drafts: ' + (data.error || 'Unknown error'), 'danger');
+        }
+    } catch (error) {
+        showAlert('Error loading drafts: ' + error.message, 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+function renderDraftsTable(drafts) {
+    const container = document.getElementById('draftsContainer');
+    
+    if (drafts.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">No drafts found</h4>
+                <p class="text-muted">Create your first listing to get started.</p>
+                <a href="{{ url_for('main.create_listing') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Create Listing
+                </a>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <table class="drafts-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;"><input type="checkbox" id="selectAllCheckbox"></th>
+                    <th style="width: 60px;">Photo</th>
+                    <th>Title</th>
+                    <th>Description</th>
+                    <th style="width: 100px;">Price</th>
+                    <th style="width: 100px;">Cost</th>
+                    <th style="width: 120px;">Condition</th>
+                    <th style="width: 100px;">Type</th>
+                    <th>Brand</th>
+                    <th>Size</th>
+                    <th>Color</th>
+                    <th style="width: 120px;">Shipping</th>
+                    <th style="width: 150px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    drafts.forEach((draft, index) => {
+        const rowId = draft.row_id || index;
+        const photoUrls = draft.photos ? draft.photos.split(',').filter(url => url.trim()) : [];
+        const firstPhoto = photoUrls.length > 0 ? photoUrls[0] : null;
+        
+        html += `
+            <tr class="draft-row" data-row-id="${rowId}">
+                <td><input type="checkbox" class="draft-checkbox" value="${rowId}"></td>
+                <td>
+                    ${firstPhoto ? 
+                        `<img src="${firstPhoto}" class="photo-preview" onclick="showPhotoModal('${firstPhoto}')" title="Click to view full size">
+                         <br><button class="btn btn-sm btn-outline-primary mt-1" onclick="scanPhoto(${rowId})" title="Use enhanced scanner">
+                             <i class="fas fa-search-plus"></i> Scan
+                         </button>` : 
+                        '<span class="text-muted">No photo</span>'
+                    }
+                </td>
+                <td><div class="editable-cell" data-row-id="${rowId}" data-field="title" onclick="editCell(this)">${draft.title || ''}</div></td>
+                <td><div class="editable-cell" data-row-id="${rowId}" data-field="description" onclick="editCell(this)">${draft.description || ''}</div></td>
+                <td><div class="editable-cell" data-row-id="${rowId}" data-field="price" onclick="editCell(this)">$${parseFloat(draft.price || 0).toFixed(2)}</div></td>
+                <td><div class="editable-cell" data-row-id="${rowId}" data-field="cost" onclick="editCell(this)">$${parseFloat(draft.cost || 0).toFixed(2)}</div></td>
+                <td><div class="editable-cell" data-row-id="${rowId}" data-field="condition" onclick="editCell(this)">${draft.condition || ''}</div></td>
+                <td><div class="editable-cell" data-row-id="${rowId}" data-field="item_type" onclick="editCell(this)">${draft.item_type || ''}</div></td>
+                <td><div class="editable-cell" data-row-id="${rowId}" data-field="brand" onclick="editCell(this)">${draft.brand || ''}</div></td>
+                <td><div class="editable-cell" data-row-id="${rowId}" data-field="size" onclick="editCell(this)">${draft.size || ''}</div></td>
+                <td><div class="editable-cell" data-row-id="${rowId}" data-field="color" onclick="editCell(this)">${draft.color || ''}</div></td>
+                <td><div class="editable-cell" data-row-id="${rowId}" data-field="shipping_cost" onclick="editCell(this)">$${parseFloat(draft.shipping_cost || 0).toFixed(2)}</div></td>
+                <td class="action-buttons">
+                    <button class="btn btn-sm btn-danger" onclick="deleteDraft(${rowId})" title="Delete draft">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Re-setup listeners after rendering
+    setupSelectAll();
+    setupCheckboxListeners();
+}
+
+function showLoading() {
+    const container = document.getElementById('draftsContainer');
+    container.innerHTML = `
+        <div class="text-center py-5">
+            <i class="fas fa-spinner fa-spin fa-3x text-muted mb-3"></i>
+            <p class="text-muted">Loading drafts...</p>
+        </div>
+    `;
+}
+
+function hideLoading() {
+    // Loading is hidden when content is replaced
+}
+
+function showAlert(message, type = 'info') {
+    // Simple alert implementation
+    alert(message);
+}
 
 // ===== SELECTION & CHECKBOX LOGIC =====
 function setupSelectAll() {
@@ -595,6 +721,11 @@ async function deleteDraft(rowId) {
 function showPhotoModal(photoUrl) {
     document.getElementById('photoDisplay').src = photoUrl;
     new bootstrap.Modal(document.getElementById('photoModal')).show();
+}
+
+function scanPhoto(rowId) {
+    // Redirect to create listing page with the draft's photo for enhanced scanning
+    window.location.href = `{{ url_for('main.create_listing') }}?scan_draft=${rowId}`;
 }
 </script>
 {% endblock %}

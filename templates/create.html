@@ -315,6 +315,7 @@
 <script>
 let uploadedPhotos = [];
 let editingDraftId = {% if draft_id %}{{ draft_id }}{% else %}null{% endif %};
+let scanDraftId = {% if scan_draft %}{{ scan_draft }}{% else %}null{% endif %};
 let editingListingUuid = null;
 
 // Generic photo handling function for both camera and file upload
@@ -2040,7 +2041,95 @@ function collectFormData() {
 }
 
 // Load draft data for editing
-async function loadDraftData() {
+async function loadScanDraftData() {
+    showLoading();
+
+    try {
+        // Load draft data from CSV API
+        const response = await fetch('/api/drafts-csv');
+        const data = await response.json();
+
+        if (data.success) {
+            // Find the draft by row ID
+            const draft = data.items.find(item => item.row_id == scanDraftId);
+            
+            if (draft) {
+                // Load photos for enhanced scanning
+                if (draft.photos && draft.photos.trim()) {
+                    const photoUrls = draft.photos.split(',').filter(url => url.trim());
+                    
+                    // Display photo previews
+                    const previewDiv = document.getElementById('photoPreview');
+                    previewDiv.innerHTML = '';
+
+                    for (let i = 0; i < photoUrls.length; i++) {
+                        const photoUrl = photoUrls[i].trim();
+                        uploadedPhotos.push(photoUrl);
+
+                        // Create container for photo + delete button
+                        const container = document.createElement('div');
+                        container.className = 'photo-preview-container';
+                        container.style.position = 'relative';
+                        container.style.display = 'inline-block';
+                        container.style.margin = '5px';
+
+                        // Create image
+                        const img = document.createElement('img');
+                        img.src = photoUrl;
+                        img.className = 'photo-preview';
+                        img.title = 'Click to edit | Right-click to zoom';
+
+                        // Make photo clickable to open editor
+                        img.onclick = function(e) {
+                            e.preventDefault();
+                            openPhotoEditor(i, this.src);
+                        };
+
+                        // Right-click to zoom
+                        img.oncontextmenu = function(e) {
+                            e.preventDefault();
+                            openImageZoom(this.src);
+                        };
+
+                        // Create delete button
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
+                        deleteBtn.className = 'btn btn-danger btn-sm photo-delete-btn';
+                        deleteBtn.style.position = 'absolute';
+                        deleteBtn.style.top = '5px';
+                        deleteBtn.style.right = '5px';
+                        deleteBtn.style.padding = '2px 6px';
+                        deleteBtn.style.fontSize = '12px';
+                        deleteBtn.title = 'Remove photo';
+                        deleteBtn.onclick = function(e) {
+                            e.preventDefault();
+                            removePhoto(i);
+                        };
+
+                        container.appendChild(img);
+                        container.appendChild(deleteBtn);
+                        previewDiv.appendChild(container);
+                    }
+
+                    document.getElementById('analyzeBtn').disabled = false;
+                    
+                    // Show message about enhanced scanning
+                    showAlert('Draft photos loaded for enhanced scanning! Use the Enhanced Scan button for detailed AI analysis.', 'info');
+                } else {
+                    showAlert('No photos found in this draft for scanning.', 'warning');
+                }
+            } else {
+                showAlert('Draft not found.', 'danger');
+            }
+        } else {
+            showAlert('Failed to load draft data.', 'danger');
+        }
+    } catch (error) {
+        showAlert('Failed to load draft for scanning: ' + error.message, 'danger');
+    } finally {
+        hideLoading();
+    }
+}
     if (!editingDraftId) return;
 
     showLoading();
@@ -2165,6 +2254,8 @@ async function loadDraftData() {
 // Load draft data when page loads
 if (editingDraftId) {
     document.addEventListener('DOMContentLoaded', loadDraftData);
+} else if (scanDraftId) {
+    document.addEventListener('DOMContentLoaded', loadScanDraftData);
 }
 
 // Cleanup temporary photos when user navigates away without saving

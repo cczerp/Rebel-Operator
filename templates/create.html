@@ -1837,24 +1837,36 @@ async function saveDraft() {
 // Save to Collection Vault - Save card to user's card_collections database
 async function saveToVault() {
     const formData = collectFormData();
-    
+
+    // Validation: Ensure title is provided
+    if (!formData.title || formData.title.trim() === '') {
+        showAlert('Please enter a title for this item before saving to vault', 'warning');
+        return;
+    }
+
     // Include card data from AI analysis if available
     const enhancedResultsCard = document.getElementById('enhancedResultsCard');
     if (enhancedResultsCard && window.lastEnhancedScanData) {
         formData.card_data = window.lastEnhancedScanData.data;
     }
-    
+
     // Also check for quick AI scan card data
     if (window.lastQuickAnalysis && (window.lastQuickAnalysis.category === 'Trading Cards' || window.lastQuickAnalysis.category === 'Sports Cards')) {
         formData.card_data = formData.card_data || window.lastQuickAnalysis;
     }
-    
+
     // Check if storage map guidance is enabled
     const storageMapCheckbox = document.getElementById('useStorageMap');
     if (storageMapCheckbox) {
         formData.use_storage_map = storageMapCheckbox.checked;
     }
-    
+
+    console.log('[VAULT SAVE] Sending data:', {
+        title: formData.title,
+        hasCardData: !!formData.card_data,
+        photoCount: formData.photos?.length || 0
+    });
+
     showLoading();
 
     try {
@@ -1864,16 +1876,25 @@ async function saveToVault() {
             body: JSON.stringify(formData)
         });
 
+        console.log('[VAULT SAVE] Response status:', response.status);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[VAULT SAVE] Error response:', errorText);
+            throw new Error(`Server error: ${response.status}`);
+        }
+
         const data = await response.json();
+        console.log('[VAULT SAVE] Response data:', data);
 
         if (data.success) {
-            let message = 'Card saved to your collection vault!';
-            
+            let message = 'Item saved to your collection vault!';
+
             // Show storage guidance if provided
             if (data.storage_guidance) {
                 message += `<br><br><strong><i class="fas fa-map-marked-alt"></i> Storage Guidance:</strong><br>${data.storage_guidance}`;
             }
-            
+
             showAlert(message, 'success');
             // Clear form and stay on page
             clearForm();
@@ -1881,11 +1902,14 @@ async function saveToVault() {
                 hideLoading();
             }, 1000);
         } else {
-            showAlert(data.error || 'Failed to save to vault', 'danger');
+            const errorMsg = data.error || 'Failed to save to vault';
+            console.error('[VAULT SAVE] Save failed:', errorMsg);
+            showAlert(errorMsg, 'danger');
             hideLoading();
         }
     } catch (error) {
-        showAlert('Save failed: ' + error, 'danger');
+        console.error('[VAULT SAVE] Exception:', error);
+        showAlert('Save failed: ' + error.message, 'danger');
         hideLoading();
     }
 }

@@ -91,12 +91,12 @@ class GeminiClassifier:
                 var_value = os.getenv(var_name)
                 logger.info(f"[GEMINI DEBUG] {var_name} exists: length={len(var_value)}, repr={repr(var_value[:30])}...")
 
-        # Use Gemini 2.5 Flash for speed and cost-efficiency
+        # Use Gemini 1.5 Flash for speed and cost-efficiency
         # Current image-capable models (v1 API endpoint):
-        # - gemini-2.5-flash (DEFAULT - fastest, cheapest, great for classification)
-        # - gemini-2.5-pro (better quality, more expensive)
-        # - gemini-2.0-flash (older but still supported)
-        self.model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        # - gemini-1.5-flash (DEFAULT - stable, fastest, cheapest, great for classification)
+        # - gemini-1.5-pro (better quality, more expensive)
+        # - gemini-2.0-flash-exp (experimental, may be unstable)
+        self.model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
         # Use v1 endpoint for Gemini models
         self.api_url = f"https://generativelanguage.googleapis.com/v1/models/{self.model}:generateContent"
 

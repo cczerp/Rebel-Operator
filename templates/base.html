@@ -1615,11 +1615,11 @@
             <div class="modal-body" style="padding: 20px;">
                 <div class="row g-3">
                     <div class="col-12">
-                        <a href="{{ url_for('settings') }}" class="text-decoration-none">
+                        <a href="{{ url_for('notifications') }}" class="text-decoration-none">
                             <div class="inventory-menu-item">
-                                <i class="fas fa-cog fa-3x mb-2" style="color: var(--cold-steel-light);"></i>
-                                <h6>Settings</h6>
-                                <small class="text-muted">Manage platforms<br>& credentials</small>
+                                <i class="fas fa-bell fa-3x mb-2" style="color: var(--cold-steel-light);"></i>
+                                <h6>Alerts</h6>
+                                <small class="text-muted">Notifications<br>& messages</small>
                             </div>
                         </a>
                     </div>
@@ -1711,9 +1711,9 @@
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('create_listing') }}" class="nav-link {% if request.endpoint == 'create_listing' %}active{% endif %}">
-                <i class="fas fa-plus-circle"></i>
-                <span>Create</span>
+            <a href="#" class="nav-link" onclick="alert('Search feature coming soon!'); return false;">
+                <i class="fas fa-search"></i>
+                <span>Search</span>
             </a>
         </div>
 

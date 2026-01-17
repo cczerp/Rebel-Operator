@@ -189,14 +189,14 @@ def create_listing():
 @app.route('/drafts')
 @login_required
 def drafts():
-    """Drafts page"""
-    try:
-        # Fetch all drafts for current user
-        drafts_list = db.get_drafts(user_id=current_user.id, limit=100)
-        return render_template('drafts.html', drafts=drafts_list or [])
-    except Exception as e:
-        flash(f'Error loading drafts: {str(e)}', 'error')
-        return render_template('drafts.html', drafts=[])
+    """Drafts page - CSV-based"""
+    return render_template('drafts.html')
+
+@app.route('/inventory')
+@login_required
+def inventory():
+    """Inventory page - CSV-based"""
+    return render_template('inventory.html')
 
 @app.route('/listings')
 @login_required

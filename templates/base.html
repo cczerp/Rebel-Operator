@@ -1623,6 +1623,17 @@
                             </div>
                         </a>
                     </div>
+                    {% if current_user.is_admin %}
+                    <div class="col-12">
+                        <a href="{{ url_for('admin.hall_photos') }}" class="text-decoration-none">
+                            <div class="inventory-menu-item" style="border-color: #FF9800;">
+                                <i class="fas fa-images fa-3x mb-2" style="color: #FF9800;"></i>
+                                <h6 style="color: #FF9800;">Hall Photos</h6>
+                                <small class="text-muted">Review pending<br>artifact photos</small>
+                            </div>
+                        </a>
+                    </div>
+                    {% endif %}
                     <div class="col-12">
                         <a href="{{ url_for('auth.logout') }}" class="text-decoration-none">
                             <div class="inventory-menu-item" style="border-color: var(--alert-crimson);">
@@ -1707,9 +1718,9 @@
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('create_listing') }}" class="nav-link {% if request.endpoint == 'create_listing' %}active{% endif %}">
-                <i class="fas fa-plus-circle"></i>
-                <span>Create</span>
+            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#inventoryModal">
+                <i class="fas fa-boxes"></i>
+                <span>Inventory</span>
             </a>
         </div>
 
@@ -1721,9 +1732,16 @@
         </div>
 
         <div class="nav-item">
-            <a href="#" class="nav-link {% if request.endpoint in ['notifications', 'settings'] %}active{% endif %}" data-bs-toggle="modal" data-bs-target="#accountModal">
+            <a href="{{ url_for('notifications') }}" class="nav-link {% if request.endpoint == 'notifications' %}active{% endif %}">
+                <i class="fas fa-bell"></i>
+                <span>Alerts</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#accountModal">
                 <i class="fas fa-user-circle"></i>
-                <span>Accounts</span>
+                <span>Account</span>
             </a>
         </div>
     </div>

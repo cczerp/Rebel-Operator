@@ -3738,8 +3738,12 @@ def api_save_vault():
         from src.cards import CardCollectionManager, UnifiedCard
         from src.cards.storage_maps import suggest_storage_region
         import uuid as uuid_module
-        
+
         data = request.json
+
+        # Validation logging
+        logging.info(f"[VAULT SAVE] User {current_user.id} saving item")
+        logging.info(f"[VAULT SAVE] Data keys: {list(data.keys()) if data else 'None'}")
         
         # Check if user wants storage map guidance
         use_storage_map = data.get('use_storage_map', False)
@@ -3914,8 +3918,11 @@ def api_save_vault():
                 card_kwargs['brand'] = brand
         
         card = UnifiedCard(**card_kwargs)
+        logging.info(f"[VAULT SAVE] Created UnifiedCard: type={card.card_type}, title={card.title}")
+
         card_id = manager.add_card(card)
-        
+        logging.info(f"[VAULT SAVE] Successfully saved card with ID: {card_id}")
+
         # Prepare response with storage guidance if used
         response_data = {
             "success": True,
@@ -3936,11 +3943,20 @@ def api_save_vault():
                     response_data['storage_region'] = storage_region
         
         return jsonify(response_data)
-        
+
+    except ImportError as e:
+        import traceback
+        logging.error(f"[VAULT SAVE] Import error: {e}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "error": f"Module import failed: {str(e)}"}), 500
+    except ValueError as e:
+        import traceback
+        logging.error(f"[VAULT SAVE] Validation error: {e}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "error": f"Invalid data: {str(e)}"}), 400
     except Exception as e:
         import traceback
-        logging.error(f"Save vault error: {e}\n{traceback.format_exc()}")
-        return jsonify({"error": str(e)}), 500
+        error_trace = traceback.format_exc()
+        logging.error(f"[VAULT SAVE] Unexpected error: {e}\n{error_trace}")
+        return jsonify({"success": False, "error": f"Failed to save: {str(e)}"}), 500
 
 
 # -------------------------------------------------------------------------

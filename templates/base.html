@@ -1573,7 +1573,7 @@
                         <a href="{{ url_for('drafts') }}" class="text-decoration-none">
                             <div class="inventory-menu-item">
                                 <i class="fas fa-folder fa-3x mb-2" style="color: var(--cold-steel-light);"></i>
-                                <h6>Draft Listings</h6>
+                                <h6>Drafts</h6>
                                 <small class="text-muted">Prepared<br>Not live yet</small>
                             </div>
                         </a>
@@ -1707,13 +1707,6 @@
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('cards.vault_overview') }}" class="nav-link {% if request.endpoint in ['cards.vault_overview', 'cards.vault_cards', 'cards.vault_coins'] %}active{% endif %}">
-                <i class="fas fa-shield-alt"></i>
-                <span>Vault</span>
-            </a>
-        </div>
-
-        <div class="nav-item">
             <a href="{{ url_for('main.my_artifacts') }}" class="nav-link {% if request.endpoint == 'main.my_artifacts' %}active{% endif %}" title="Public Card Knowledge Base">
                 <i class="fas fa-landmark"></i>
                 <span>Hall of Records</span>
@@ -1721,23 +1714,16 @@
         </div>
 
         <div class="nav-item">
-            <a href="{{ url_for('notifications') }}" class="nav-link {% if request.endpoint == 'notifications' %}active{% endif %}">
-                <i class="fas fa-bell"></i>
-                <span>Alerts</span>
+            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#inventoryModal">
+                <i class="fas fa-boxes"></i>
+                <span>Inventory</span>
             </a>
         </div>
 
         <div class="nav-item">
-            <button id="theme-toggle" class="nav-link theme-toggle-btn" title="Toggle Dark/Light Mode">
-                <i class="fas fa-moon"></i>
-                <span>Theme</span>
-            </button>
-        </div>
-
-        <div class="nav-item">
-            <a href="{{ url_for('auth.logout') }}" class="nav-link" style="color: #ef4444 !important;">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>Logout</span>
+            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#accountModal">
+                <i class="fas fa-user-circle"></i>
+                <span>Accounts</span>
             </a>
         </div>
     </div>
@@ -1752,13 +1738,6 @@
                 <i class="fas fa-home"></i>
                 <span>Home</span>
             </a>
-        </div>
-
-        <div class="nav-item">
-            <button id="theme-toggle-guest" class="nav-link theme-toggle-btn" title="Toggle Dark/Light Mode">
-                <i class="fas fa-moon"></i>
-                <span>Theme</span>
-            </button>
         </div>
 
         <div class="nav-item">
@@ -1828,9 +1807,8 @@
 
         // Theme Toggle Functionality
         function initThemeToggle() {
-            // Handle both floating button and navigation buttons
+            // Handle floating button only
             const themeToggleFloating = document.getElementById('theme-toggle-floating');
-            const themeToggleNav = document.getElementById('theme-toggle') || document.getElementById('theme-toggle-guest');
 
             // Get saved theme or default to dark
             const savedTheme = localStorage.getItem('theme') || 'dark';
@@ -1839,13 +1817,6 @@
             // Toggle theme on floating button click
             if (themeToggleFloating) {
                 themeToggleFloating.addEventListener('click', () => {
-                    toggleTheme();
-                });
-            }
-
-            // Toggle theme on navigation button click
-            if (themeToggleNav) {
-                themeToggleNav.addEventListener('click', () => {
                     toggleTheme();
                 });
             }

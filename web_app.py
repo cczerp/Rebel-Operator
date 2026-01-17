@@ -46,11 +46,17 @@ app.config['UPLOAD_FOLDER'] = './data/uploads'
 # SESSION & SECURITY CONFIGURATION
 # ============================================================================
 
+# Detect if we're in production with HTTPS
+is_production = os.getenv('RENDER') or os.getenv('RAILWAY_ENVIRONMENT')
+use_https = is_production or os.getenv('FORCE_HTTPS', 'False').lower() == 'true'
+
 # Session security settings
-app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS-only cookies in production
+app.config['SESSION_COOKIE_SECURE'] = use_https  # HTTPS-only cookies (only in production)
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent XSS access to cookies
-app.config['SESSION_COOKIE_SAMESITE'] = 'Strict'  # Prevent CSRF attacks
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Prevent CSRF while allowing OAuth flows
 app.config['PERMANENT_SESSION_LIFETIME'] = 604800  # 7 days in seconds
+
+print(f"[SESSION] Production mode: {is_production}, HTTPS: {use_https}, Secure cookies: {use_https}")
 
 # Configure Flask-Session for server-side sessions (prevents session hijacking)
 try:
@@ -158,17 +164,25 @@ def load_user(user_id):
 def add_security_headers(response):
     """Add security headers to prevent caching and session hijacking"""
 
-    # CRITICAL: Prevent caching of authenticated content
-    # This prevents CDNs/proxies from serving one user's content to another
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private, max-age=0'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
+    # Prevent caching of dynamic content (pages, API responses)
+    # Allow static assets (JS, CSS, images) to be cached
+    if request.path.startswith('/static/') or request.path.endswith(('.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico')):
+        # Allow caching for static assets
+        response.headers['Cache-Control'] = 'public, max-age=3600'
+    else:
+        # Prevent caching for dynamic content
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
 
     # Security headers
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-XSS-Protection'] = '1; mode=block'
-    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+
+    # Only add HSTS in production with HTTPS
+    if use_https:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
 
     # Remove server header to reduce information disclosure
     response.headers.pop('Server', None)

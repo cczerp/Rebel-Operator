@@ -1623,6 +1623,24 @@
                             </div>
                         </a>
                     </div>
+                    <div class="col-12">
+                        <a href="#" class="text-decoration-none" onclick="alert('Account Settings feature coming soon!'); return false;">
+                            <div class="inventory-menu-item">
+                                <i class="fas fa-cog fa-3x mb-2" style="color: var(--cold-steel-light);"></i>
+                                <h6>Account Settings</h6>
+                                <small class="text-muted">Manage your<br>preferences</small>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-12">
+                        <a href="#" class="text-decoration-none" onclick="alert('Credentials feature coming soon!'); return false;">
+                            <div class="inventory-menu-item">
+                                <i class="fas fa-key fa-3x mb-2" style="color: var(--cold-steel-light);"></i>
+                                <h6>Credentials</h6>
+                                <small class="text-muted">API keys<br>& tokens</small>
+                            </div>
+                        </a>
+                    </div>
                     {% if current_user.is_admin %}
                     <div class="col-12">
                         <a href="{{ url_for('admin.hall_photos') }}" class="text-decoration-none">
@@ -1728,13 +1746,6 @@
             <a href="{{ url_for('hall_of_records') }}" class="nav-link {% if request.endpoint == 'hall_of_records' %}active{% endif %}" title="Public Card Knowledge Base">
                 <i class="fas fa-landmark"></i>
                 <span>Hall of Records</span>
-            </a>
-        </div>
-
-        <div class="nav-item">
-            <a href="{{ url_for('notifications') }}" class="nav-link {% if request.endpoint == 'notifications' %}active{% endif %}">
-                <i class="fas fa-bell"></i>
-                <span>Alerts</span>
             </a>
         </div>
 

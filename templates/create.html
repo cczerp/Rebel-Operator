@@ -29,16 +29,16 @@
         <div class="card-body">
             <div class="row mb-3">
                 <div class="col-6">
-            <button type="button" class="btn btn-outline-primary w-100" id="takePhotoBtn">
+            <button type="button" class="btn btn-outline-primary w-100" onclick="document.getElementById('cameraInput').click()">
                 <i class="fas fa-camera"></i><br>Take Photo
             </button>
-                    <input type="file" class="d-none" id="cameraInput" name="photos" accept="image/*" capture="environment">
+                    <input type="file" class="d-none" id="cameraInput" name="photos" accept="image/*" capture="environment" onchange="handlePhotoSelect(event)">
                 </div>
                 <div class="col-6">
-            <button type="button" class="btn btn-outline-secondary w-100" id="uploadFilesBtn">
+            <button type="button" class="btn btn-outline-secondary w-100" onclick="document.getElementById('photoInput').click()">
                 <i class="fas fa-upload"></i><br>Upload Files
             </button>
-                    <input type="file" class="d-none" id="photoInput" name="photos" multiple accept="image/*">
+                    <input type="file" class="d-none" id="photoInput" name="photos" multiple accept="image/*" onchange="handlePhotoSelect(event)">
                 </div>
             </div>
             <div id="photoPreview" class="mt-3 d-flex flex-wrap"></div>
@@ -2378,48 +2378,5 @@ new MutationObserver(() => {
 
 // Mark as saved when listing is saved (saveListing function is called)
 // We'll hook into the saveListing function below
-
-// ========================================
-// INITIALIZE PHOTO UPLOAD EVENT LISTENERS
-// ========================================
-(function() {
-    console.log('[INIT] Setting up photo upload event listeners...');
-
-    // Take Photo button
-    const takePhotoBtn = document.getElementById('takePhotoBtn');
-    const cameraInput = document.getElementById('cameraInput');
-
-    if (takePhotoBtn && cameraInput) {
-        takePhotoBtn.addEventListener('click', function(e) {
-            console.log('[CLICK] Take Photo button clicked');
-            e.preventDefault();
-            cameraInput.click();
-        });
-
-        cameraInput.addEventListener('change', handlePhotoSelect);
-        console.log('[INIT] ✅ Camera input event listener attached');
-    } else {
-        console.error('[INIT] ❌ Take Photo button or camera input not found!');
-    }
-
-    // Upload Files button
-    const uploadFilesBtn = document.getElementById('uploadFilesBtn');
-    const photoInput = document.getElementById('photoInput');
-
-    if (uploadFilesBtn && photoInput) {
-        uploadFilesBtn.addEventListener('click', function(e) {
-            console.log('[CLICK] Upload Files button clicked');
-            e.preventDefault();
-            photoInput.click();
-        });
-
-        photoInput.addEventListener('change', handlePhotoSelect);
-        console.log('[INIT] ✅ Photo input event listener attached');
-    } else {
-        console.error('[INIT] ❌ Upload Files button or photo input not found!');
-    }
-
-    console.log('[INIT] Photo upload initialization complete');
-})();
 </script>
 {% endblock %}

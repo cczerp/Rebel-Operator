@@ -897,6 +897,7 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
         {% if is_guest and guest_uses_remaining is not none %}
         // Note: Counter will be updated on next page load since session is server-side
         // For immediate feedback, we can show a message
+        {% if guest_uses_remaining is not none %}
         const guestAlert = document.querySelector('.alert-info');
         if (guestAlert) {
             const newRemaining = Math.max(0, {{ guest_uses_remaining }} - 1);
@@ -916,6 +917,7 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
                 }
             }
         }
+        {% endif %}
         {% endif %}
 
         const analysis = data.analysis;

@@ -1,8 +1,8 @@
 # Lessons Learned - Photo Uploader Debugging Session
 
 **Date:** 2026-01-18
-**Issue:** Photo upload buttons stopped working
-**Root Cause:** Attempted to "modernize" inline event handlers with addEventListener pattern
+**Issue:** Photo upload buttons stopped working for logged-in users
+**Root Cause:** Template variable `{{ guest_uses_remaining }}` rendered as `None` in JavaScript, creating syntax error that broke entire script
 
 ## What Went Wrong
 
@@ -84,10 +84,57 @@ Located in: `/home/user/Rebel-Operator/image flow/`
 
 **These are the source of truth. Follow them.**
 
+## The ACTUAL Root Cause (Update)
+
+After restoring the inline handlers, the photo uploader **STILL didn't work** for logged-in users! The real issue was:
+
+### The Bug
+```javascript
+const newRemaining = Math.max(0, {{ guest_uses_remaining }} - 1);
+```
+
+For logged-in users, `guest_uses_remaining` is `None` (Python), which rendered as:
+```javascript
+const newRemaining = Math.max(0, None - 1);  // ❌ JavaScript SyntaxError!
+```
+
+This broke the **entire script**, preventing `handlePhotoSelect()` from ever being defined.
+
+### The Real Fix
+```jinja
+{% if guest_uses_remaining is not none %}
+const newRemaining = Math.max(0, {{ guest_uses_remaining }} - 1);
+// ... rest of guest-specific code
+{% endif %}
+```
+
+### Debugging Process That Found It
+1. ✅ Checked contracts - led to inline handlers (red herring)
+2. ✅ Added debug logging to buttons and inputs
+3. ✅ User provided console screenshot showing `handlePhotoSelect is not defined`
+4. ✅ **Spotted "Illegal return statement" syntax error in console**
+5. ✅ Searched for template variables in JavaScript
+6. ✅ Found `{{ guest_uses_remaining }}` rendering as `None`
+
+## Updated Key Takeaways
+
+### DO ✅
+- **Always check browser console for ALL errors**, not just the obvious one
+- Look for **syntax errors that break the entire script** before functions can be defined
+- **Validate template variable rendering** - Python values (None, True, False) don't exist in JavaScript
+- Use Jinja conditionals (`{% if %}`) when template variables might be None
+- **Test with BOTH guest and logged-in users** - different code paths!
+
+### DON'T ❌
+- Assume the first thing you fix solved the problem
+- Ignore "unrelated" errors in the console - they might be the real cause
+- Put Python values directly into JavaScript without checking for None
+- Skip testing different user states (guest vs logged-in)
+
 ## Personal Note
 
-Sometimes the "right way" is the simple way that's already working. Don't fix what ain't broke, and when something is broke, check the contracts to see how it's supposed to work before trying clever solutions.
+Sometimes fixing the obvious bug reveals the real bug. Always check the browser console for ALL errors, and remember that template variables need validation before being rendered in JavaScript. A single `None` can break everything.
 
 ---
 
-*"The best code is the code that works and nobody has to think about."*
+*"The best code is the code that works and nobody has to think about. The best debugging is reading EVERY error in the console."*

@@ -315,7 +315,6 @@
 <script>
 let uploadedPhotos = [];
 let editingDraftId = {% if draft_id %}{{ draft_id }}{% else %}null{% endif %};
-let scanDraftId = {% if scan_draft %}{{ scan_draft }}{% else %}null{% endif %};
 let editingListingUuid = null;
 
 // Generic photo handling function for both camera and file upload
@@ -413,7 +412,7 @@ async function handlePhotoSelect(e) {
 
             // Show previews (append to existing)
             const previewDiv = document.getElementById('photoPreview');
-            for (let i = 0; i < data.paths.length; i++) {
+            for (let i = 0; i < files.length; i++) {
                 const photoIndex = uploadedPhotos.length - data.paths.length + i;
 
                 // Create container for photo + delete button
@@ -892,7 +891,7 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
             hideLoading();
             return;
         }
-
+        
         // Update guest usage counter if shown (will be updated on next page load)
         {% if is_guest and guest_uses_remaining is not none %}
         // Note: Counter will be updated on next page load since session is server-side
@@ -1800,17 +1799,17 @@ async function storeCollectibleAndList() {
         hideLoading();
     }
 }
-// Save Listing Draft - Save to CSV and database
+// Save Listing Draft - Save to user's database (listings table with status='draft')
 async function saveDraft() {
     const formData = collectFormData();
-
+    
     // Ensure status is set to 'draft'
     formData.status = 'draft';
-
+    
     showLoading();
 
     try {
-        const response = await fetch('/api/save-draft-csv', {
+        const response = await fetch('/api/save-draft', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(formData)
@@ -1819,7 +1818,7 @@ async function saveDraft() {
         const data = await response.json();
 
         if (data.success) {
-            showAlert('Draft saved successfully!', 'success');
+            showAlert('Draft saved to your database successfully!', 'success');
             // Clear form and stay on page
             clearForm();
             setTimeout(() => {
@@ -1838,36 +1837,24 @@ async function saveDraft() {
 // Save to Collection Vault - Save card to user's card_collections database
 async function saveToVault() {
     const formData = collectFormData();
-
-    // Validation: Ensure title is provided
-    if (!formData.title || formData.title.trim() === '') {
-        showAlert('Please enter a title for this item before saving to vault', 'warning');
-        return;
-    }
-
+    
     // Include card data from AI analysis if available
     const enhancedResultsCard = document.getElementById('enhancedResultsCard');
     if (enhancedResultsCard && window.lastEnhancedScanData) {
         formData.card_data = window.lastEnhancedScanData.data;
     }
-
+    
     // Also check for quick AI scan card data
     if (window.lastQuickAnalysis && (window.lastQuickAnalysis.category === 'Trading Cards' || window.lastQuickAnalysis.category === 'Sports Cards')) {
         formData.card_data = formData.card_data || window.lastQuickAnalysis;
     }
-
+    
     // Check if storage map guidance is enabled
     const storageMapCheckbox = document.getElementById('useStorageMap');
     if (storageMapCheckbox) {
         formData.use_storage_map = storageMapCheckbox.checked;
     }
-
-    console.log('[VAULT SAVE] Sending data:', {
-        title: formData.title,
-        hasCardData: !!formData.card_data,
-        photoCount: formData.photos?.length || 0
-    });
-
+    
     showLoading();
 
     try {
@@ -1877,25 +1864,16 @@ async function saveToVault() {
             body: JSON.stringify(formData)
         });
 
-        console.log('[VAULT SAVE] Response status:', response.status);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('[VAULT SAVE] Error response:', errorText);
-            throw new Error(`Server error: ${response.status}`);
-        }
-
         const data = await response.json();
-        console.log('[VAULT SAVE] Response data:', data);
 
         if (data.success) {
-            let message = 'Item saved to your collection vault!';
-
+            let message = 'Card saved to your collection vault!';
+            
             // Show storage guidance if provided
             if (data.storage_guidance) {
                 message += `<br><br><strong><i class="fas fa-map-marked-alt"></i> Storage Guidance:</strong><br>${data.storage_guidance}`;
             }
-
+            
             showAlert(message, 'success');
             // Clear form and stay on page
             clearForm();
@@ -1903,14 +1881,11 @@ async function saveToVault() {
                 hideLoading();
             }, 1000);
         } else {
-            const errorMsg = data.error || 'Failed to save to vault';
-            console.error('[VAULT SAVE] Save failed:', errorMsg);
-            showAlert(errorMsg, 'danger');
+            showAlert(data.error || 'Failed to save to vault', 'danger');
             hideLoading();
         }
     } catch (error) {
-        console.error('[VAULT SAVE] Exception:', error);
-        showAlert('Save failed: ' + error.message, 'danger');
+        showAlert('Save failed: ' + error, 'danger');
         hideLoading();
     }
 }
@@ -2065,95 +2040,7 @@ function collectFormData() {
 }
 
 // Load draft data for editing
-async function loadScanDraftData() {
-    showLoading();
-
-    try {
-        // Load draft data from CSV API
-        const response = await fetch('/api/drafts-csv');
-        const data = await response.json();
-
-        if (data.success) {
-            // Find the draft by row ID
-            const draft = data.items.find(item => item.row_id == scanDraftId);
-            
-            if (draft) {
-                // Load photos for enhanced scanning
-                if (draft.photos && draft.photos.trim()) {
-                    const photoUrls = draft.photos.split(',').filter(url => url.trim());
-                    
-                    // Display photo previews
-                    const previewDiv = document.getElementById('photoPreview');
-                    previewDiv.innerHTML = '';
-
-                    for (let i = 0; i < photoUrls.length; i++) {
-                        const photoUrl = photoUrls[i].trim();
-                        uploadedPhotos.push(photoUrl);
-
-                        // Create container for photo + delete button
-                        const container = document.createElement('div');
-                        container.className = 'photo-preview-container';
-                        container.style.position = 'relative';
-                        container.style.display = 'inline-block';
-                        container.style.margin = '5px';
-
-                        // Create image
-                        const img = document.createElement('img');
-                        img.src = photoUrl;
-                        img.className = 'photo-preview';
-                        img.title = 'Click to edit | Right-click to zoom';
-
-                        // Make photo clickable to open editor
-                        img.onclick = function(e) {
-                            e.preventDefault();
-                            openPhotoEditor(i, this.src);
-                        };
-
-                        // Right-click to zoom
-                        img.oncontextmenu = function(e) {
-                            e.preventDefault();
-                            openImageZoom(this.src);
-                        };
-
-                        // Create delete button
-                        const deleteBtn = document.createElement('button');
-                        deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
-                        deleteBtn.className = 'btn btn-danger btn-sm photo-delete-btn';
-                        deleteBtn.style.position = 'absolute';
-                        deleteBtn.style.top = '5px';
-                        deleteBtn.style.right = '5px';
-                        deleteBtn.style.padding = '2px 6px';
-                        deleteBtn.style.fontSize = '12px';
-                        deleteBtn.title = 'Remove photo';
-                        deleteBtn.onclick = function(e) {
-                            e.preventDefault();
-                            removePhoto(i);
-                        };
-
-                        container.appendChild(img);
-                        container.appendChild(deleteBtn);
-                        previewDiv.appendChild(container);
-                    }
-
-                    document.getElementById('analyzeBtn').disabled = false;
-                    
-                    // Show message about enhanced scanning
-                    showAlert('Draft photos loaded for enhanced scanning! Use the Enhanced Scan button for detailed AI analysis.', 'info');
-                } else {
-                    showAlert('No photos found in this draft for scanning.', 'warning');
-                }
-            } else {
-                showAlert('Draft not found.', 'danger');
-            }
-        } else {
-            showAlert('Failed to load draft data.', 'danger');
-        }
-    } catch (error) {
-        showAlert('Failed to load draft for scanning: ' + error.message, 'danger');
-    } finally {
-        hideLoading();
-    }
-}
+async function loadDraftData() {
     if (!editingDraftId) return;
 
     showLoading();
@@ -2278,8 +2165,6 @@ async function loadScanDraftData() {
 // Load draft data when page loads
 if (editingDraftId) {
     document.addEventListener('DOMContentLoaded', loadDraftData);
-} else if (scanDraftId) {
-    document.addEventListener('DOMContentLoaded', loadScanDraftData);
 }
 
 // Cleanup temporary photos when user navigates away without saving

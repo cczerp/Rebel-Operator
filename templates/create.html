@@ -2382,7 +2382,7 @@ new MutationObserver(() => {
 // ========================================
 // INITIALIZE PHOTO UPLOAD EVENT LISTENERS
 // ========================================
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
     console.log('[INIT] Setting up photo upload event listeners...');
 
     // Take Photo button
@@ -2420,6 +2420,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     console.log('[INIT] Photo upload initialization complete');
-});
+})();
 </script>
 {% endblock %}

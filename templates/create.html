@@ -29,16 +29,16 @@
         <div class="card-body">
             <div class="row mb-3">
                 <div class="col-6">
-            <button type="button" class="btn btn-outline-primary w-100" onclick="document.getElementById('cameraInput').click()">
+            <button type="button" class="btn btn-outline-primary w-100" onclick="console.log('[BUTTON] Take Photo clicked'); document.getElementById('cameraInput').click()">
                 <i class="fas fa-camera"></i><br>Take Photo
             </button>
-                    <input type="file" class="d-none" id="cameraInput" name="photos" accept="image/*" capture="environment" onchange="handlePhotoSelect(event)">
+                    <input type="file" class="d-none" id="cameraInput" name="photos" accept="image/*" capture="environment" onchange="console.log('[INPUT] Camera input changed', event); handlePhotoSelect(event)">
                 </div>
                 <div class="col-6">
-            <button type="button" class="btn btn-outline-secondary w-100" onclick="document.getElementById('photoInput').click()">
+            <button type="button" class="btn btn-outline-secondary w-100" onclick="console.log('[BUTTON] Upload Files clicked'); document.getElementById('photoInput').click()">
                 <i class="fas fa-upload"></i><br>Upload Files
             </button>
-                    <input type="file" class="d-none" id="photoInput" name="photos" multiple accept="image/*" onchange="handlePhotoSelect(event)">
+                    <input type="file" class="d-none" id="photoInput" name="photos" multiple accept="image/*" onchange="console.log('[INPUT] Photo input changed', event); handlePhotoSelect(event)">
                 </div>
             </div>
             <div id="photoPreview" class="mt-3 d-flex flex-wrap"></div>

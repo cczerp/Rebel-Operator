@@ -29,16 +29,16 @@
         <div class="card-body">
             <div class="row mb-3">
                 <div class="col-6">
-            <button type="button" class="btn btn-outline-primary w-100" onclick="console.log('[BUTTON] Take Photo clicked'); document.getElementById('cameraInput').click()">
+            <button type="button" class="btn btn-outline-primary w-100" onclick="document.getElementById('cameraInput').click()">
                 <i class="fas fa-camera"></i><br>Take Photo
             </button>
-                    <input type="file" class="d-none" id="cameraInput" name="photos" accept="image/*" capture="environment" onchange="console.log('[INPUT] Camera input changed', event); handlePhotoSelect(event)">
+                    <input type="file" class="d-none" id="cameraInput" name="photos" accept="image/*" capture="environment" onchange="handlePhotoSelect(event)">
                 </div>
                 <div class="col-6">
-            <button type="button" class="btn btn-outline-secondary w-100" onclick="console.log('[BUTTON] Upload Files clicked'); document.getElementById('photoInput').click()">
+            <button type="button" class="btn btn-outline-secondary w-100" onclick="document.getElementById('photoInput').click()">
                 <i class="fas fa-upload"></i><br>Upload Files
             </button>
-                    <input type="file" class="d-none" id="photoInput" name="photos" multiple accept="image/*" onchange="console.log('[INPUT] Photo input changed', event); handlePhotoSelect(event)">
+                    <input type="file" class="d-none" id="photoInput" name="photos" multiple accept="image/*" onchange="handlePhotoSelect(event)">
                 </div>
             </div>
             <div id="photoPreview" class="mt-3 d-flex flex-wrap"></div>
@@ -892,12 +892,11 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
             hideLoading();
             return;
         }
-        
+
         // Update guest usage counter if shown (will be updated on next page load)
         {% if is_guest and guest_uses_remaining is not none %}
         // Note: Counter will be updated on next page load since session is server-side
         // For immediate feedback, we can show a message
-        {% if guest_uses_remaining is not none %}
         const guestAlert = document.querySelector('.alert-info');
         if (guestAlert) {
             const newRemaining = Math.max(0, {{ guest_uses_remaining }} - 1);
@@ -917,7 +916,6 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
                 }
             }
         }
-        {% endif %}
         {% endif %}
 
         const analysis = data.analysis;

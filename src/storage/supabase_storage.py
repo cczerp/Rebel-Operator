@@ -320,52 +320,102 @@ class SupabaseStorageManager:
                     return None
                     
             except Exception as download_error:
-                logger.error(f"❌ Supabase download error: {download_error}")
+                error_str = str(download_error).lower()
+                logger.error(f"❌ Supabase SDK download error: {download_error}")
                 logger.error(f"   Bucket: {bucket}, Path: {path}")
-                import traceback
-                logger.error(f"   Traceback: {traceback.format_exc()}")
-                
+
+                # Provide specific guidance based on error type
+                if 'row-level security' in error_str or 'rls' in error_str or 'policy' in error_str:
+                    logger.error(f"   ⚠️ RLS POLICY ERROR: You're likely using SUPABASE_ANON_KEY which has RLS restrictions.")
+                    logger.error(f"   💡 SOLUTION: Set SUPABASE_SERVICE_ROLE_KEY in your .env file instead.")
+                    logger.error(f"   📍 Get it from: https://app.supabase.com → Your Project → Settings → API → service_role key")
+                elif 'unauthorized' in error_str or 'forbidden' in error_str or '401' in error_str or '403' in error_str:
+                    logger.error(f"   ⚠️ AUTHENTICATION ERROR: Your Supabase key doesn't have permission to access this bucket.")
+                    logger.error(f"   💡 SOLUTION: Check your SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are correct.")
+                elif 'not found' in error_str or '404' in error_str:
+                    logger.error(f"   ⚠️ FILE NOT FOUND: The file doesn't exist in bucket '{bucket}'")
+                    logger.error(f"   💡 SOLUTION: Verify the photo was uploaded correctly and the URL is valid.")
+                else:
+                    import traceback
+                    logger.error(f"   Traceback: {traceback.format_exc()}")
+
                 # Try alternative: use requests to download from public URL directly
                 try:
                     import requests
                     logger.info(f"Attempting direct HTTP download from public URL: {public_url[:100]}...")
                     http_response = requests.get(public_url, timeout=30, allow_redirects=True)
+
                     if http_response.status_code == 200:
                         content = http_response.content
                         if content and len(content) > 0:
                             logger.info(f"✅ Direct HTTP download successful: {len(content)} bytes")
                             return content
                         else:
-                            logger.error(f"Direct HTTP download returned empty content")
+                            logger.error(f"❌ Direct HTTP download returned empty content")
+                            logger.error(f"   💡 The file exists but has no data. Check the file in Supabase Storage.")
                             return None
+                    elif http_response.status_code == 401 or http_response.status_code == 403:
+                        logger.error(f"❌ Direct HTTP download failed: HTTP {http_response.status_code} (Authentication/Permission Error)")
+                        logger.error(f"   ⚠️ BUCKET IS PRIVATE or RLS is blocking access!")
+                        logger.error(f"   💡 SOLUTION 1: Make bucket '{bucket}' PUBLIC in Supabase Dashboard:")
+                        logger.error(f"      → https://app.supabase.com → Storage → {bucket} → Settings → Public bucket: ON")
+                        logger.error(f"   💡 SOLUTION 2: Use SUPABASE_SERVICE_ROLE_KEY instead of SUPABASE_ANON_KEY")
+                        logger.error(f"   💡 SOLUTION 3: Disable RLS for bucket '{bucket}' (Settings → RLS Policies)")
+                        return None
+                    elif http_response.status_code == 404:
+                        logger.error(f"❌ Direct HTTP download failed: HTTP 404 (File Not Found)")
+                        logger.error(f"   💡 The file doesn't exist at: {public_url[:100]}")
+                        logger.error(f"   📍 Check: Bucket '{bucket}', Path '{path}'")
+                        return None
                     else:
-                        logger.error(f"Direct HTTP download failed with status: {http_response.status_code}")
-                        logger.error(f"Response preview: {http_response.text[:200] if hasattr(http_response, 'text') else 'N/A'}")
+                        logger.error(f"❌ Direct HTTP download failed with status: {http_response.status_code}")
+                        logger.error(f"   Response preview: {http_response.text[:200] if hasattr(http_response, 'text') else 'N/A'}")
                         return None
                 except Exception as http_error:
-                    logger.error(f"Direct HTTP download also failed: {http_error}")
+                    logger.error(f"❌ Direct HTTP download also failed: {http_error}")
                     import traceback
-                    logger.error(f"HTTP error traceback: {traceback.format_exc()}")
+                    logger.error(f"   HTTP error traceback: {traceback.format_exc()}")
                     return None
                 
         except Exception as e:
+            error_str = str(e).lower()
             logger.error(f"❌ Download failed for {public_url}: {e}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            
+
+            # Provide specific guidance based on error type
+            if 'supabase_url' in error_str or 'supabase_key' in error_str:
+                logger.error(f"   ⚠️ ENVIRONMENT VARIABLE ERROR: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set!")
+                logger.error(f"   💡 SOLUTION: Add to your .env file:")
+                logger.error(f"      SUPABASE_URL=https://your-project.supabase.co")
+                logger.error(f"      SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here")
+                logger.error(f"   📍 Get credentials from: https://app.supabase.com → Your Project → Settings → API")
+            else:
+                import traceback
+                logger.error(f"   Traceback: {traceback.format_exc()}")
+
             # Last resort: try direct HTTP download from the original URL
             try:
                 import requests
                 logger.info("Last resort: attempting direct HTTP download from original URL...")
                 http_response = requests.get(public_url, timeout=30, allow_redirects=True)
+
                 if http_response.status_code == 200 and http_response.content and len(http_response.content) > 0:
                     logger.info(f"✅ Last resort HTTP download successful: {len(http_response.content)} bytes")
                     return http_response.content
+                elif http_response.status_code in [401, 403]:
+                    logger.error(f"❌ Last resort download failed: HTTP {http_response.status_code} (Permission Denied)")
+                    logger.error(f"   ⚠️ Your Supabase bucket is PRIVATE or has RLS enabled!")
+                    logger.error(f"   💡 SOLUTIONS:")
+                    logger.error(f"      1. Make bucket PUBLIC: Supabase Dashboard → Storage → Bucket Settings")
+                    logger.error(f"      2. Use SUPABASE_SERVICE_ROLE_KEY (not anon key)")
+                    logger.error(f"      3. Disable RLS on the bucket")
+                elif http_response.status_code == 404:
+                    logger.error(f"❌ Last resort download failed: HTTP 404 (File Not Found)")
+                    logger.error(f"   💡 The image doesn't exist at this URL. Check your upload flow.")
                 else:
-                    logger.error(f"Last resort HTTP download failed: status={http_response.status_code if hasattr(http_response, 'status_code') else 'unknown'}, content_len={len(http_response.content) if hasattr(http_response, 'content') else 0}")
+                    logger.error(f"❌ Last resort download failed: status={http_response.status_code}, content_len={len(http_response.content) if hasattr(http_response, 'content') else 0}")
             except Exception as last_error:
-                logger.error(f"Last resort HTTP download error: {last_error}")
-            
+                logger.error(f"❌ Last resort HTTP download error: {last_error}")
+
             return None
 
     def move_photo(

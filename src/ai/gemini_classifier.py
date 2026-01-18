@@ -93,11 +93,11 @@ class GeminiClassifier:
 
         # Use Gemini 1.5 Flash for speed and cost-efficiency
         # Current image-capable models (v1beta API endpoint):
-        # - gemini-1.5-pro (DEFAULT - reliable, supports images, better quality)
-        # - gemini-pro-vision (fallback if 1.5 models don't work)
-        # - gemini-1.5-flash (faster but may not be available)
-        # - gemini-1.0-pro (older but still supported)
-        self.model = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
+        # - gemini-1.5-pro-latest (DEFAULT - reliable, supports images, better quality)
+        # - gemini-1.5-flash-latest (faster, cheaper)
+        # - gemini-pro-vision (legacy model, still works)
+        # NOTE: Model names MUST include "-latest" suffix for v1beta API
+        self.model = os.getenv("GEMINI_MODEL", "gemini-1.5-pro-latest")
         # Use v1beta endpoint for Gemini models
         self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
 

@@ -1802,14 +1802,14 @@ async function storeCollectibleAndList() {
 // Save Listing Draft - Save to user's database (listings table with status='draft')
 async function saveDraft() {
     const formData = collectFormData();
-    
+
     // Ensure status is set to 'draft'
     formData.status = 'draft';
-    
+
     showLoading();
 
     try {
-        const response = await fetch('/api/save-draft', {
+        const response = await fetch('/api/save-draft-csv', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(formData)
@@ -1818,7 +1818,7 @@ async function saveDraft() {
         const data = await response.json();
 
         if (data.success) {
-            showAlert('Draft saved to your database successfully!', 'success');
+            showAlert('Draft saved successfully!', 'success');
             // Clear form and stay on page
             clearForm();
             setTimeout(() => {

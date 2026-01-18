@@ -4,9 +4,92 @@ FRONTEND IMAGE FLOW - JAVASCRIPT
 File: templates/create.html (lines 295-739)
 Purpose: Photo upload, editing, and management JavaScript
 
-// ========================================
+========================================
+⚠️  NON-NEGOTIABLE RULES ⚠️
+========================================
+
+1. **TEMPLATE VARIABLES IN JAVASCRIPT - CRITICAL**
+
+   ❌ NEVER DO THIS:
+   ```javascript
+   const value = {{ some_variable }};  // If None in Python, breaks JavaScript!
+   ```
+
+   ✅ ALWAYS DO THIS:
+   ```jinja
+   {% if some_variable is not none %}
+   const value = {{ some_variable }};
+   {% endif %}
+   ```
+
+2. **GUEST USER HANDLING - EXACT PATTERN REQUIRED**
+
+   When using guest_uses_remaining or any guest-specific variables:
+
+   ❌ WRONG - Missing is_guest check:
+   ```jinja
+   {% if guest_uses_remaining is not none %}
+   const newRemaining = Math.max(0, {{ guest_uses_remaining }} - 1);
+   {% endif %}
+   ```
+
+   ❌ WRONG - Duplicate if statements:
+   ```jinja
+   {% if is_guest and guest_uses_remaining is not none %}
+     {% if guest_uses_remaining is not none %}  <!-- DUPLICATE! -->
+       const newRemaining = ...
+     {% endif %}
+   {% endif %}
+   ```
+
+   ✅ CORRECT - Check BOTH conditions in ONE if:
+   ```jinja
+   {% if is_guest and guest_uses_remaining is not none %}
+   const newRemaining = Math.max(0, {{ guest_uses_remaining }} - 1);
+   // ... rest of guest-specific code
+   {% endif %}
+   ```
+
+3. **EVENT HANDLERS - USE INLINE HANDLERS**
+
+   ✅ CORRECT - Inline handlers:
+   ```html
+   <button onclick="document.getElementById('cameraInput').click()">
+   <input onchange="handlePhotoSelect(event)">
+   ```
+
+   ❌ WRONG - addEventListener (timing issues, overcomplicated):
+   ```javascript
+   button.addEventListener('click', function() { ... });
+   ```
+
+4. **WHEN CODE BREAKS**
+
+   a) Check browser console for ALL errors (not just the obvious one)
+   b) Look for "Illegal return statement" or "SyntaxError"
+   c) Search for template variables: `grep -n "{{" templates/create.html`
+   d) If user says "check this working branch" - DO IT IMMEDIATELY
+   e) Copy working code EXACTLY - don't "improve" it
+
+5. **TESTING REQUIREMENTS**
+
+   MUST test with BOTH:
+   - Guest users (is_guest=True, guest_uses_remaining=0-8)
+   - Logged-in users (is_guest=False, guest_uses_remaining=None)
+
+   If it works for one but not the other, it's a template variable issue.
+
+6. **REFERENCE BRANCH**
+
+   The working reference implementation is in:
+   `claude/update-website-logo-vfdYM`
+
+   Before making changes, ALWAYS check this branch first.
+   If your code doesn't match it, you're probably doing it wrong.
+
+========================================
 // VARIABLES
-// ========================================
+========================================
 let uploadedPhotos = [];
 let editingDraftId = null;
 let editingListingUuid = null;

@@ -526,8 +526,8 @@ IMPORTANT:
                 logger.error(f"❌ Image {i+1} missing inline_data in payload!")
 
         # Retry logic for rate limits (exponential backoff)
-        max_retries = 4
-        base_delay = 2  # seconds
+        max_retries = 6  # Increased for better resilience during free tier overload
+        base_delay = 2  # seconds (exponential backoff: 2s, 4s, 8s, 16s, 32s)
 
         for attempt in range(max_retries):
             try:
@@ -609,18 +609,29 @@ IMPORTANT:
                             "raw_response": content_text
                         }
 
-                # Handle rate limit errors (429) with exponential backoff
-                elif response.status_code == 429:
+                # Handle rate limit errors (429) and service overload (503) with exponential backoff
+                elif response.status_code in [429, 503]:
+                    error_type = "rate_limit" if response.status_code == 429 else "service_overload"
+
                     if attempt < max_retries - 1:
-                        delay = base_delay * (2 ** attempt)  # 2s, 4s, 8s, 16s
-                        print(f"Gemini rate limit hit. Retrying in {delay}s... (attempt {attempt + 1}/{max_retries})")
+                        delay = base_delay * (2 ** attempt)  # 2s, 4s, 8s, 16s, 32s
+                        logger.warning(f"⚠️ Gemini API {response.status_code} ({error_type}). Retrying in {delay}s... (attempt {attempt + 1}/{max_retries})")
+                        print(f"⚠️ Gemini API is temporarily overloaded (free tier limits). Retrying in {delay} seconds... (attempt {attempt + 1}/{max_retries})")
                         time.sleep(delay)
                         continue
                     else:
+                        logger.error(f"❌ Gemini API {response.status_code} after {max_retries} retries. Giving up.")
                         return {
-                            "error": "Gemini API is currently overloaded. Please wait 60 seconds and try again. This is due to free tier rate limits.",
-                            "error_type": "rate_limit",
-                            "retry_after": 60
+                            "error": "Gemini API is currently overloaded due to high demand on the free tier. Please try again in 1-2 minutes. If this persists, consider upgrading to a paid API key or trying during off-peak hours.",
+                            "error_type": error_type,
+                            "status_code": response.status_code,
+                            "retry_after": 120,  # Suggest waiting 2 minutes
+                            "tips": [
+                                "Wait 1-2 minutes before trying again",
+                                "Try during off-peak hours (late night/early morning)",
+                                "Consider upgrading to a paid Gemini API key for higher rate limits",
+                                "Reduce the number of images being analyzed at once"
+                            ]
                         }
 
                 # Handle other API errors

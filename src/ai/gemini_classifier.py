@@ -91,14 +91,14 @@ class GeminiClassifier:
                 var_value = os.getenv(var_name)
                 logger.info(f"[GEMINI DEBUG] {var_name} exists: length={len(var_value)}, repr={repr(var_value[:30])}...")
 
-        # Use Gemini 1.5 Flash for speed and cost-efficiency
+        # Use Gemini 2.0 Flash for speed and cost-efficiency
         # Current image-capable models (v1beta API endpoint):
-        # - gemini-1.5-flash-latest (DEFAULT - FREE TIER, fast, supports images)
-        # - gemini-1.5-pro-latest (paid tier, better quality but costs money)
-        # - gemini-pro-vision (legacy model)
-        # NOTE: Model names MUST include "-latest" suffix for v1beta API
-        # IMPORTANT: Using FLASH because it's FREE on Google AI Studio
-        self.model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash-latest")
+        # - gemini-2.0-flash-exp (DEFAULT - experimental, fast, supports images)
+        # - gemini-1.5-flash-002 (stable 1.5 version)
+        # - gemini-1.5-pro-002 (paid tier, better quality but costs money)
+        # NOTE: gemini-2.0-flash-exp is the latest and fastest
+        # IMPORTANT: Using 2.0 FLASH for latest features and better performance
+        self.model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp")
         # Use v1beta endpoint for Gemini models
         self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
 

@@ -86,11 +86,15 @@ class SupabaseStorageManager:
             self.temp_bucket = os.getenv('SUPABASE_BUCKET_TEMP', 'temp-photos').strip()
             self.drafts_bucket = os.getenv('SUPABASE_BUCKET_DRAFTS', 'draft-images').strip()
             self.listings_bucket = os.getenv('SUPABASE_BUCKET_LISTINGS', 'listing-images').strip()
-            
+            self.vault_bucket = os.getenv('SUPABASE_BUCKET_VAULT', 'vault').strip()
+            self.hall_bucket = os.getenv('SUPABASE_BUCKET_HALL', 'hall-of-records').strip()
+
             logger.info(f"✅ Supabase Storage initialized")
             logger.info(f"   Temp bucket: {self.temp_bucket}")
             logger.info(f"   Drafts bucket: {self.drafts_bucket}")
             logger.info(f"   Listings bucket: {self.listings_bucket}")
+            logger.info(f"   Vault bucket: {self.vault_bucket}")
+            logger.info(f"   Hall of Records bucket: {self.hall_bucket}")
             
         except ImportError:
             raise ImportError("supabase package not installed. Run: pip install supabase")
@@ -103,7 +107,8 @@ class SupabaseStorageManager:
         file_data: bytes,
         filename: Optional[str] = None,
         folder: str = 'temp',
-        content_type: str = 'image/jpeg'
+        content_type: str = 'image/jpeg',
+        user_id: Optional[str] = None
     ) -> Tuple[bool, str]:
         """
         Upload a photo to Supabase Storage.
@@ -111,8 +116,9 @@ class SupabaseStorageManager:
         Args:
             file_data: Image file bytes
             filename: Optional custom filename (will generate UUID if not provided)
-            folder: 'temp' for temporary uploads, 'drafts' for saved drafts, 'listings' for posted listings
+            folder: 'temp', 'drafts', 'listings', 'vault', or 'hall-of-records'
             content_type: MIME type (image/jpeg, image/png, etc.)
+            user_id: Optional user ID for vault uploads (for organizing by user)
 
         Returns:
             (success: bool, public_url: str)
@@ -125,6 +131,12 @@ class SupabaseStorageManager:
             elif folder == 'listings':
                 bucket = self.listings_bucket
                 logger.info(f"[STORAGE DEBUG] Using listings bucket: {bucket} (expected: listing-images)")
+            elif folder == 'vault':
+                bucket = self.vault_bucket
+                logger.info(f"[STORAGE DEBUG] Using vault bucket: {bucket} (expected: vault)")
+            elif folder == 'hall-of-records' or folder == 'hall':
+                bucket = self.hall_bucket
+                logger.info(f"[STORAGE DEBUG] Using hall-of-records bucket: {bucket} (expected: hall-of-records)")
             else:  # 'drafts' or default
                 bucket = self.drafts_bucket
                 logger.info(f"[STORAGE DEBUG] Using drafts bucket: {bucket} (expected: draft-images)")
@@ -145,7 +157,12 @@ class SupabaseStorageManager:
             # Strip any whitespace/newlines from filename and bucket
             filename = filename.strip()
             bucket = bucket.strip()
-            
+
+            # For vault uploads, organize by user_id
+            if folder == 'vault' and user_id:
+                filename = f"{user_id}/{filename}"
+                logger.info(f"[STORAGE DEBUG] Vault upload organized by user: {filename}")
+
             # Upload to Supabase Storage
             # Ensure file_data is bytes (Supabase SDK accepts bytes or file-like objects)
             if not isinstance(file_data, bytes):
@@ -320,67 +337,119 @@ class SupabaseStorageManager:
                     return None
                     
             except Exception as download_error:
-                logger.error(f"❌ Supabase download error: {download_error}")
+                error_str = str(download_error).lower()
+                logger.error(f"❌ Supabase SDK download error: {download_error}")
                 logger.error(f"   Bucket: {bucket}, Path: {path}")
-                import traceback
-                logger.error(f"   Traceback: {traceback.format_exc()}")
-                
+
+                # Provide specific guidance based on error type
+                if 'row-level security' in error_str or 'rls' in error_str or 'policy' in error_str:
+                    logger.error(f"   ⚠️ RLS POLICY ERROR: You're likely using SUPABASE_ANON_KEY which has RLS restrictions.")
+                    logger.error(f"   💡 SOLUTION: Set SUPABASE_SERVICE_ROLE_KEY in your .env file instead.")
+                    logger.error(f"   📍 Get it from: https://app.supabase.com → Your Project → Settings → API → service_role key")
+                elif 'unauthorized' in error_str or 'forbidden' in error_str or '401' in error_str or '403' in error_str:
+                    logger.error(f"   ⚠️ AUTHENTICATION ERROR: Your Supabase key doesn't have permission to access this bucket.")
+                    logger.error(f"   💡 SOLUTION: Check your SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are correct.")
+                elif 'not found' in error_str or '404' in error_str:
+                    logger.error(f"   ⚠️ FILE NOT FOUND: The file doesn't exist in bucket '{bucket}'")
+                    logger.error(f"   💡 SOLUTION: Verify the photo was uploaded correctly and the URL is valid.")
+                else:
+                    import traceback
+                    logger.error(f"   Traceback: {traceback.format_exc()}")
+
                 # Try alternative: use requests to download from public URL directly
                 try:
                     import requests
                     logger.info(f"Attempting direct HTTP download from public URL: {public_url[:100]}...")
                     http_response = requests.get(public_url, timeout=30, allow_redirects=True)
+
                     if http_response.status_code == 200:
                         content = http_response.content
                         if content and len(content) > 0:
                             logger.info(f"✅ Direct HTTP download successful: {len(content)} bytes")
                             return content
                         else:
-                            logger.error(f"Direct HTTP download returned empty content")
+                            logger.error(f"❌ Direct HTTP download returned empty content")
+                            logger.error(f"   💡 The file exists but has no data. Check the file in Supabase Storage.")
                             return None
+                    elif http_response.status_code == 401 or http_response.status_code == 403:
+                        logger.error(f"❌ Direct HTTP download failed: HTTP {http_response.status_code} (Authentication/Permission Error)")
+                        logger.error(f"   ⚠️ BUCKET IS PRIVATE or RLS is blocking access!")
+                        logger.error(f"   💡 SOLUTION 1: Make bucket '{bucket}' PUBLIC in Supabase Dashboard:")
+                        logger.error(f"      → https://app.supabase.com → Storage → {bucket} → Settings → Public bucket: ON")
+                        logger.error(f"   💡 SOLUTION 2: Use SUPABASE_SERVICE_ROLE_KEY instead of SUPABASE_ANON_KEY")
+                        logger.error(f"   💡 SOLUTION 3: Disable RLS for bucket '{bucket}' (Settings → RLS Policies)")
+                        return None
+                    elif http_response.status_code == 404:
+                        logger.error(f"❌ Direct HTTP download failed: HTTP 404 (File Not Found)")
+                        logger.error(f"   💡 The file doesn't exist at: {public_url[:100]}")
+                        logger.error(f"   📍 Check: Bucket '{bucket}', Path '{path}'")
+                        return None
                     else:
-                        logger.error(f"Direct HTTP download failed with status: {http_response.status_code}")
-                        logger.error(f"Response preview: {http_response.text[:200] if hasattr(http_response, 'text') else 'N/A'}")
+                        logger.error(f"❌ Direct HTTP download failed with status: {http_response.status_code}")
+                        logger.error(f"   Response preview: {http_response.text[:200] if hasattr(http_response, 'text') else 'N/A'}")
                         return None
                 except Exception as http_error:
-                    logger.error(f"Direct HTTP download also failed: {http_error}")
+                    logger.error(f"❌ Direct HTTP download also failed: {http_error}")
                     import traceback
-                    logger.error(f"HTTP error traceback: {traceback.format_exc()}")
+                    logger.error(f"   HTTP error traceback: {traceback.format_exc()}")
                     return None
                 
         except Exception as e:
+            error_str = str(e).lower()
             logger.error(f"❌ Download failed for {public_url}: {e}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            
+
+            # Provide specific guidance based on error type
+            if 'supabase_url' in error_str or 'supabase_key' in error_str:
+                logger.error(f"   ⚠️ ENVIRONMENT VARIABLE ERROR: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set!")
+                logger.error(f"   💡 SOLUTION: Add to your .env file:")
+                logger.error(f"      SUPABASE_URL=https://your-project.supabase.co")
+                logger.error(f"      SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here")
+                logger.error(f"   📍 Get credentials from: https://app.supabase.com → Your Project → Settings → API")
+            else:
+                import traceback
+                logger.error(f"   Traceback: {traceback.format_exc()}")
+
             # Last resort: try direct HTTP download from the original URL
             try:
                 import requests
                 logger.info("Last resort: attempting direct HTTP download from original URL...")
                 http_response = requests.get(public_url, timeout=30, allow_redirects=True)
+
                 if http_response.status_code == 200 and http_response.content and len(http_response.content) > 0:
                     logger.info(f"✅ Last resort HTTP download successful: {len(http_response.content)} bytes")
                     return http_response.content
+                elif http_response.status_code in [401, 403]:
+                    logger.error(f"❌ Last resort download failed: HTTP {http_response.status_code} (Permission Denied)")
+                    logger.error(f"   ⚠️ Your Supabase bucket is PRIVATE or has RLS enabled!")
+                    logger.error(f"   💡 SOLUTIONS:")
+                    logger.error(f"      1. Make bucket PUBLIC: Supabase Dashboard → Storage → Bucket Settings")
+                    logger.error(f"      2. Use SUPABASE_SERVICE_ROLE_KEY (not anon key)")
+                    logger.error(f"      3. Disable RLS on the bucket")
+                elif http_response.status_code == 404:
+                    logger.error(f"❌ Last resort download failed: HTTP 404 (File Not Found)")
+                    logger.error(f"   💡 The image doesn't exist at this URL. Check your upload flow.")
                 else:
-                    logger.error(f"Last resort HTTP download failed: status={http_response.status_code if hasattr(http_response, 'status_code') else 'unknown'}, content_len={len(http_response.content) if hasattr(http_response, 'content') else 0}")
+                    logger.error(f"❌ Last resort download failed: status={http_response.status_code}, content_len={len(http_response.content) if hasattr(http_response, 'content') else 0}")
             except Exception as last_error:
-                logger.error(f"Last resort HTTP download error: {last_error}")
-            
+                logger.error(f"❌ Last resort HTTP download error: {last_error}")
+
             return None
 
     def move_photo(
         self,
         source_url: str,
         destination_folder: str,
-        new_filename: Optional[str] = None
+        new_filename: Optional[str] = None,
+        user_id: Optional[str] = None
     ) -> Tuple[bool, str]:
         """
         Move a photo from one bucket to another (or rename within bucket).
 
         Args:
             source_url: Public URL of source image
-            destination_folder: 'drafts' to move to drafts bucket, 'listings' to move to listings bucket
+            destination_folder: 'drafts', 'listings', 'vault', or 'hall-of-records'
             new_filename: Optional new filename (will use original if not provided)
+            user_id: Optional user ID for vault uploads (for organizing by user)
 
         Returns:
             (success: bool, new_public_url: str)
@@ -390,12 +459,16 @@ class SupabaseStorageManager:
             file_data = self.download_photo(source_url)
             if not file_data:
                 return False, "Failed to download source image"
-            
+
             # Determine destination bucket
             if destination_folder == 'listings':
                 dest_bucket = self.listings_bucket
             elif destination_folder == 'drafts':
                 dest_bucket = self.drafts_bucket
+            elif destination_folder == 'vault':
+                dest_bucket = self.vault_bucket
+            elif destination_folder == 'hall-of-records' or destination_folder == 'hall':
+                dest_bucket = self.hall_bucket
             else:
                 dest_bucket = self.temp_bucket
             
@@ -420,7 +493,8 @@ class SupabaseStorageManager:
                 file_data=file_data,
                 filename=new_filename,
                 folder=destination_folder,
-                content_type=content_type
+                content_type=content_type,
+                user_id=user_id
             )
             
             if success:
@@ -532,6 +606,129 @@ class SupabaseStorageManager:
         except Exception as e:
             logger.error(f"❌ List temp photos failed: {e}")
             return []
+
+    def move_to_hall_of_records(
+        self,
+        source_url: str,
+        new_filename: Optional[str] = None
+    ) -> Tuple[bool, str]:
+        """
+        Move a photo from draft-images to hall-of-records bucket.
+
+        IMPORTANT: This is ONLY for admin photo approval.
+        Hall of Records entries are created AUTOMATICALLY by the scanner when
+        it detects a new collectible item/franchise. This function is called
+        ONLY when admin approves pending photos - NOT for creating entries.
+
+        Args:
+            source_url: Public URL of source image (should be in draft-images)
+            new_filename: Optional new filename (will use original if not provided)
+
+        Returns:
+            (success: bool, new_public_url_or_error: str)
+        """
+        try:
+            logger.info(f"[HALL OF RECORDS] Moving image to hall-of-records: {source_url[:100]}...")
+
+            # Download from source (should be in drafts bucket)
+            file_data = self.download_photo(source_url)
+            if not file_data:
+                logger.error(f"[HALL OF RECORDS] ❌ Failed to download source image")
+                return False, "Failed to download source image"
+
+            # Extract original filename from URL if not provided
+            if not new_filename:
+                parts = source_url.split('/')
+                new_filename = parts[-1]
+                # Remove query parameters if present
+                if '?' in new_filename:
+                    new_filename = new_filename.split('?')[0]
+
+            logger.info(f"[HALL OF RECORDS] Using filename: {new_filename}")
+
+            # Determine content type from filename
+            ext = Path(new_filename).suffix.lower()
+            content_type_map = {
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.png': 'image/png',
+                '.gif': 'image/gif',
+                '.webp': 'image/webp'
+            }
+            content_type = content_type_map.get(ext, 'image/jpeg')
+
+            # Upload to hall-of-records bucket
+            success, new_url = self.upload_photo(
+                file_data=file_data,
+                filename=new_filename,
+                folder='hall-of-records',
+                content_type=content_type
+            )
+
+            if success:
+                logger.info(f"[HALL OF RECORDS] ✅ Successfully uploaded to hall-of-records")
+                logger.info(f"[HALL OF RECORDS] New URL: {new_url[:100]}...")
+
+                # Delete from source (drafts bucket)
+                if self.delete_photo(source_url):
+                    logger.info(f"[HALL OF RECORDS] ✅ Deleted original from drafts")
+                else:
+                    logger.warning(f"[HALL OF RECORDS] ⚠️ Failed to delete original from drafts")
+
+                return True, new_url
+            else:
+                logger.error(f"[HALL OF RECORDS] ❌ Failed to upload to hall-of-records: {new_url}")
+                return False, new_url
+
+        except Exception as e:
+            logger.error(f"[HALL OF RECORDS] ❌ Move to hall-of-records failed: {e}")
+            import traceback
+            logger.error(f"[HALL OF RECORDS] Traceback: {traceback.format_exc()}")
+            return False, str(e)
+
+    def upload_to_vault(
+        self,
+        file_data: bytes,
+        user_id: str,
+        filename: Optional[str] = None,
+        content_type: str = 'image/jpeg'
+    ) -> Tuple[bool, str]:
+        """
+        Upload a photo to user's vault (personal collection).
+        Files are organized by user_id in the vault bucket.
+
+        Args:
+            file_data: Image file bytes
+            user_id: User ID (for organizing vault by user)
+            filename: Optional custom filename (will generate UUID if not provided)
+            content_type: MIME type (image/jpeg, image/png, etc.)
+
+        Returns:
+            (success: bool, public_url_or_error: str)
+        """
+        try:
+            logger.info(f"[VAULT] Uploading to vault for user: {user_id}")
+
+            success, url = self.upload_photo(
+                file_data=file_data,
+                filename=filename,
+                folder='vault',
+                content_type=content_type,
+                user_id=user_id
+            )
+
+            if success:
+                logger.info(f"[VAULT] ✅ Uploaded to vault: {url[:100]}...")
+            else:
+                logger.error(f"[VAULT] ❌ Upload to vault failed: {url}")
+
+            return success, url
+
+        except Exception as e:
+            logger.error(f"[VAULT] ❌ Upload to vault failed: {e}")
+            import traceback
+            logger.error(f"[VAULT] Traceback: {traceback.format_exc()}")
+            return False, str(e)
 
 
 # Global instance

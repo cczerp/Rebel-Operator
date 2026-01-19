@@ -925,6 +925,141 @@ def get_api_credentials(platform):
 
 
 # -------------------------------------------------------------------------
+# SUPABASE DIAGNOSTIC ENDPOINT
+# -------------------------------------------------------------------------
+
+@main_bp.route("/api/test-supabase", methods=["GET"])
+def test_supabase_connection():
+    """
+    Diagnostic endpoint to test Supabase Storage connection and downloads.
+    Returns detailed information about configuration and connectivity.
+    """
+    try:
+        from src.storage.supabase_storage import get_supabase_storage
+        import requests
+
+        results = {
+            "status": "checking",
+            "environment": {},
+            "connection": {},
+            "buckets": {},
+            "download_test": {}
+        }
+
+        # Check environment variables
+        supabase_url = os.getenv('SUPABASE_URL', '').strip()
+        service_role_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY', '').strip()
+        secret_api_key = os.getenv('SUPABASE_SECRET_API_KEY', '').strip()
+        supabase_key = os.getenv('SUPABASE_KEY', '').strip()
+        anon_key = os.getenv('SUPABASE_ANON_KEY', '').strip()
+
+        # Determine active key
+        active_key_name = None
+        if service_role_key:
+            active_key_name = 'SUPABASE_SERVICE_ROLE_KEY ✅'
+        elif secret_api_key:
+            active_key_name = 'SUPABASE_SECRET_API_KEY'
+        elif supabase_key:
+            active_key_name = 'SUPABASE_KEY'
+        elif anon_key:
+            active_key_name = 'SUPABASE_ANON_KEY ⚠️ (may cause RLS errors)'
+
+        results["environment"] = {
+            "supabase_url": supabase_url if supabase_url else "❌ NOT SET",
+            "active_key": active_key_name if active_key_name else "❌ NO KEY FOUND",
+            "temp_bucket": os.getenv('SUPABASE_BUCKET_TEMP', 'temp-photos'),
+            "drafts_bucket": os.getenv('SUPABASE_BUCKET_DRAFTS', 'draft-images'),
+            "listings_bucket": os.getenv('SUPABASE_BUCKET_LISTINGS', 'listing-images')
+        }
+
+        if not supabase_url or not active_key_name:
+            results["status"] = "error"
+            results["error"] = "Missing required environment variables"
+            results["help"] = "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your .env file"
+            return jsonify(results), 500
+
+        # Test connection
+        try:
+            storage = get_supabase_storage()
+            results["connection"]["status"] = "✅ Connected"
+            results["connection"]["initialized"] = True
+
+            # Try to list buckets
+            try:
+                buckets = storage.client.storage.list_buckets()
+                results["buckets"]["count"] = len(buckets)
+                results["buckets"]["list"] = []
+
+                for bucket in buckets:
+                    bucket_name = bucket.get('name') if isinstance(bucket, dict) else bucket.name
+                    bucket_public = bucket.get('public') if isinstance(bucket, dict) else getattr(bucket, 'public', 'unknown')
+                    results["buckets"]["list"].append({
+                        "name": bucket_name,
+                        "public": bucket_public,
+                        "status": "PUBLIC ✅" if bucket_public else "PRIVATE ⚠️"
+                    })
+
+                # Try to list files in each bucket
+                for bucket_info in [
+                    ("temp", results["environment"]["temp_bucket"]),
+                    ("drafts", results["environment"]["drafts_bucket"]),
+                    ("listings", results["environment"]["listings_bucket"])
+                ]:
+                    bucket_type, bucket_name = bucket_info
+                    try:
+                        files = storage.client.storage.from_(bucket_name).list()
+                        results["buckets"][f"{bucket_type}_files"] = f"{len(files)} file(s)"
+
+                        # Try to download first file if exists
+                        if files and bucket_type == "listings":
+                            test_file = files[0]
+                            test_file_name = test_file.get('name') if isinstance(test_file, dict) else test_file.name
+                            public_url = f"{supabase_url}/storage/v1/object/public/{bucket_name}/{test_file_name}"
+
+                            # Test SDK download
+                            try:
+                                file_data = storage.download_photo(public_url)
+                                if file_data:
+                                    results["download_test"]["sdk"] = f"✅ SUCCESS ({len(file_data)} bytes)"
+                                    results["download_test"]["test_file"] = test_file_name
+                                    results["download_test"]["bucket"] = bucket_name
+                                else:
+                                    results["download_test"]["sdk"] = "❌ FAILED (returned None)"
+                            except Exception as dl_error:
+                                results["download_test"]["sdk"] = f"❌ ERROR: {str(dl_error)}"
+
+                            # Test HTTP download
+                            try:
+                                http_response = requests.get(public_url, timeout=10)
+                                if http_response.status_code == 200:
+                                    results["download_test"]["http"] = f"✅ SUCCESS (HTTP {http_response.status_code}, {len(http_response.content)} bytes)"
+                                else:
+                                    results["download_test"]["http"] = f"❌ FAILED (HTTP {http_response.status_code})"
+                            except Exception as http_error:
+                                results["download_test"]["http"] = f"❌ ERROR: {str(http_error)}"
+
+                    except Exception as bucket_error:
+                        results["buckets"][f"{bucket_type}_error"] = str(bucket_error)
+
+            except Exception as bucket_list_error:
+                results["buckets"]["error"] = f"Failed to list buckets: {str(bucket_list_error)}"
+
+        except Exception as conn_error:
+            results["connection"]["status"] = f"❌ FAILED: {str(conn_error)}"
+            results["connection"]["initialized"] = False
+
+        results["status"] = "complete"
+        return jsonify(results), 200
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# -------------------------------------------------------------------------
 # CARD ANALYSIS (TCG + Sports) - QUICK ANALYSIS
 # -------------------------------------------------------------------------
 
@@ -1047,11 +1182,45 @@ def api_analyze():
                             local_path = temp_file.name
                             temp_files.append(local_path)
                             logging.info(f"✅ Last resort HTTP download successful: {len(http_response.content)} bytes to {local_path}")
+                        elif http_response.status_code in [401, 403]:
+                            logging.error(f"❌ HTTP {http_response.status_code}: Permission denied - bucket is private or using wrong API key")
+                            return jsonify({
+                                "error": f"Failed to download photo {i+1} from Supabase Storage: Permission Denied (HTTP {http_response.status_code})",
+                                "details": "Your Supabase bucket is private or you're using the wrong API key.",
+                                "solutions": [
+                                    "Make sure you're using SUPABASE_SERVICE_ROLE_KEY (not anon key) in your .env file",
+                                    "Make your Supabase Storage bucket PUBLIC in the dashboard",
+                                    "Disable RLS (Row Level Security) on your bucket"
+                                ],
+                                "help": "Get your service_role key from: https://app.supabase.com → Project → Settings → API"
+                            }), 403
+                        elif http_response.status_code == 404:
+                            logging.error(f"❌ HTTP 404: File not found in Supabase Storage")
+                            return jsonify({
+                                "error": f"Failed to download photo {i+1} from Supabase Storage: File Not Found (HTTP 404)",
+                                "details": "The image doesn't exist at this URL.",
+                                "url": path[:100] + "..." if len(path) > 100 else path
+                            }), 404
                         else:
-                            return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage. URL may be invalid or file may not exist. Status: {http_response.status_code if hasattr(http_response, 'status_code') else 'unknown'}"}), 404
+                            logging.error(f"❌ HTTP {http_response.status_code}: Download failed")
+                            return jsonify({
+                                "error": f"Failed to download photo {i+1} from Supabase Storage (HTTP {http_response.status_code})",
+                                "details": "Check server logs for more information."
+                            }), 500
                     except Exception as http_error:
                         logging.error(f"Last resort HTTP download also failed: {http_error}")
-                        return jsonify({"error": f"Failed to download photo {i+1} from Supabase Storage. All download methods failed. Error: {str(http_error)}"}), 404
+                        error_str = str(http_error).lower()
+                        if 'timeout' in error_str:
+                            return jsonify({
+                                "error": f"Failed to download photo {i+1}: Network timeout",
+                                "details": "The download took too long. Check your internet connection or try again."
+                            }), 504
+                        else:
+                            return jsonify({
+                                "error": f"Failed to download photo {i+1} from Supabase Storage",
+                                "details": str(http_error),
+                                "help": "Check that SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set correctly in your .env file"
+                            }), 500
             else:
                 # Assume local path (legacy support)
                 if path.startswith('/'):
@@ -1283,9 +1452,40 @@ def api_enhanced_scan():
                                 logging.info(f"✅ Last resort HTTP download successful: {len(http_response.content)} bytes to {local_path}")
                                 photo_objects.append(Photo(url=path, local_path=local_path))
                                 continue  # Continue to next photo
+                            elif http_response.status_code in [401, 403]:
+                                logging.error(f"❌ HTTP {http_response.status_code}: Permission denied - bucket is private or using wrong API key")
+                                # Cleanup temp files
+                                for temp_file in temp_files:
+                                    try:
+                                        os.unlink(temp_file)
+                                    except:
+                                        pass
+                                return jsonify({
+                                    "error": f"Failed to download photo {i+1} from Supabase Storage: Permission Denied (HTTP {http_response.status_code})",
+                                    "details": "Your Supabase bucket is private or you're using the wrong API key.",
+                                    "solutions": [
+                                        "Make sure you're using SUPABASE_SERVICE_ROLE_KEY (not anon key) in your .env file",
+                                        "Make your Supabase Storage bucket PUBLIC in the dashboard",
+                                        "Disable RLS (Row Level Security) on your bucket"
+                                    ],
+                                    "help": "Get your service_role key from: https://app.supabase.com → Project → Settings → API"
+                                }), 403
+                            elif http_response.status_code == 404:
+                                logging.error(f"❌ HTTP 404: File not found in Supabase Storage")
+                                # Cleanup temp files
+                                for temp_file in temp_files:
+                                    try:
+                                        os.unlink(temp_file)
+                                    except:
+                                        pass
+                                return jsonify({
+                                    "error": f"Failed to download photo {i+1} from Supabase Storage: File Not Found (HTTP 404)",
+                                    "details": "The image doesn't exist at this URL.",
+                                    "url": path[:100] + "..." if len(path) > 100 else path
+                                }), 404
                         except Exception as http_error:
                             logging.error(f"[ENHANCED SCAN] Last resort HTTP download also failed: {http_error}")
-                        
+
                         # If all download methods failed, return error
                         # Cleanup temp files
                         for temp_file in temp_files:
@@ -1293,11 +1493,20 @@ def api_enhanced_scan():
                                 os.unlink(temp_file)
                             except:
                                 pass
-                        return jsonify({
-                            "error": f"Failed to download photo {i+1} from Supabase Storage. URL may be invalid or file may not exist.",
-                            "url_preview": path[:100] if path else "No URL provided",
-                            "hint": "Check that the photo URL is a valid Supabase Storage URL"
-                        }), 404
+
+                        error_str = str(http_error) if 'http_error' in locals() else "Unknown error"
+                        if 'timeout' in error_str.lower():
+                            return jsonify({
+                                "error": f"Failed to download photo {i+1}: Network timeout",
+                                "details": "The download took too long. Check your internet connection or try again."
+                            }), 504
+                        else:
+                            return jsonify({
+                                "error": f"Failed to download photo {i+1} from Supabase Storage",
+                                "details": "All download methods failed. Check server logs for detailed error information.",
+                                "help": "Verify SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set correctly in your .env file",
+                                "url_preview": path[:100] if path else "No URL provided"
+                            }), 500
             else:
                 # Assume local path (legacy support)
                 if path.startswith('/'):

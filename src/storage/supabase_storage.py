@@ -86,11 +86,15 @@ class SupabaseStorageManager:
             self.temp_bucket = os.getenv('SUPABASE_BUCKET_TEMP', 'temp-photos').strip()
             self.drafts_bucket = os.getenv('SUPABASE_BUCKET_DRAFTS', 'draft-images').strip()
             self.listings_bucket = os.getenv('SUPABASE_BUCKET_LISTINGS', 'listing-images').strip()
-            
+            self.vault_bucket = os.getenv('SUPABASE_BUCKET_VAULT', 'vault').strip()
+            self.hall_bucket = os.getenv('SUPABASE_BUCKET_HALL', 'hall-of-records').strip()
+
             logger.info(f"✅ Supabase Storage initialized")
             logger.info(f"   Temp bucket: {self.temp_bucket}")
             logger.info(f"   Drafts bucket: {self.drafts_bucket}")
             logger.info(f"   Listings bucket: {self.listings_bucket}")
+            logger.info(f"   Vault bucket: {self.vault_bucket}")
+            logger.info(f"   Hall of Records bucket: {self.hall_bucket}")
             
         except ImportError:
             raise ImportError("supabase package not installed. Run: pip install supabase")
@@ -103,7 +107,8 @@ class SupabaseStorageManager:
         file_data: bytes,
         filename: Optional[str] = None,
         folder: str = 'temp',
-        content_type: str = 'image/jpeg'
+        content_type: str = 'image/jpeg',
+        user_id: Optional[str] = None
     ) -> Tuple[bool, str]:
         """
         Upload a photo to Supabase Storage.
@@ -111,8 +116,9 @@ class SupabaseStorageManager:
         Args:
             file_data: Image file bytes
             filename: Optional custom filename (will generate UUID if not provided)
-            folder: 'temp' for temporary uploads, 'drafts' for saved drafts, 'listings' for posted listings
+            folder: 'temp', 'drafts', 'listings', 'vault', or 'hall-of-records'
             content_type: MIME type (image/jpeg, image/png, etc.)
+            user_id: Optional user ID for vault uploads (for organizing by user)
 
         Returns:
             (success: bool, public_url: str)
@@ -125,6 +131,12 @@ class SupabaseStorageManager:
             elif folder == 'listings':
                 bucket = self.listings_bucket
                 logger.info(f"[STORAGE DEBUG] Using listings bucket: {bucket} (expected: listing-images)")
+            elif folder == 'vault':
+                bucket = self.vault_bucket
+                logger.info(f"[STORAGE DEBUG] Using vault bucket: {bucket} (expected: vault)")
+            elif folder == 'hall-of-records' or folder == 'hall':
+                bucket = self.hall_bucket
+                logger.info(f"[STORAGE DEBUG] Using hall-of-records bucket: {bucket} (expected: hall-of-records)")
             else:  # 'drafts' or default
                 bucket = self.drafts_bucket
                 logger.info(f"[STORAGE DEBUG] Using drafts bucket: {bucket} (expected: draft-images)")
@@ -145,7 +157,12 @@ class SupabaseStorageManager:
             # Strip any whitespace/newlines from filename and bucket
             filename = filename.strip()
             bucket = bucket.strip()
-            
+
+            # For vault uploads, organize by user_id
+            if folder == 'vault' and user_id:
+                filename = f"{user_id}/{filename}"
+                logger.info(f"[STORAGE DEBUG] Vault upload organized by user: {filename}")
+
             # Upload to Supabase Storage
             # Ensure file_data is bytes (Supabase SDK accepts bytes or file-like objects)
             if not isinstance(file_data, bytes):
@@ -422,15 +439,17 @@ class SupabaseStorageManager:
         self,
         source_url: str,
         destination_folder: str,
-        new_filename: Optional[str] = None
+        new_filename: Optional[str] = None,
+        user_id: Optional[str] = None
     ) -> Tuple[bool, str]:
         """
         Move a photo from one bucket to another (or rename within bucket).
 
         Args:
             source_url: Public URL of source image
-            destination_folder: 'drafts' to move to drafts bucket, 'listings' to move to listings bucket
+            destination_folder: 'drafts', 'listings', 'vault', or 'hall-of-records'
             new_filename: Optional new filename (will use original if not provided)
+            user_id: Optional user ID for vault uploads (for organizing by user)
 
         Returns:
             (success: bool, new_public_url: str)
@@ -440,12 +459,16 @@ class SupabaseStorageManager:
             file_data = self.download_photo(source_url)
             if not file_data:
                 return False, "Failed to download source image"
-            
+
             # Determine destination bucket
             if destination_folder == 'listings':
                 dest_bucket = self.listings_bucket
             elif destination_folder == 'drafts':
                 dest_bucket = self.drafts_bucket
+            elif destination_folder == 'vault':
+                dest_bucket = self.vault_bucket
+            elif destination_folder == 'hall-of-records' or destination_folder == 'hall':
+                dest_bucket = self.hall_bucket
             else:
                 dest_bucket = self.temp_bucket
             
@@ -470,7 +493,8 @@ class SupabaseStorageManager:
                 file_data=file_data,
                 filename=new_filename,
                 folder=destination_folder,
-                content_type=content_type
+                content_type=content_type,
+                user_id=user_id
             )
             
             if success:
@@ -582,6 +606,125 @@ class SupabaseStorageManager:
         except Exception as e:
             logger.error(f"❌ List temp photos failed: {e}")
             return []
+
+    def move_to_hall_of_records(
+        self,
+        source_url: str,
+        new_filename: Optional[str] = None
+    ) -> Tuple[bool, str]:
+        """
+        Move a photo from draft-images to hall-of-records bucket.
+        This is specifically for admin approval of collectibles database images.
+
+        Args:
+            source_url: Public URL of source image (should be in draft-images)
+            new_filename: Optional new filename (will use original if not provided)
+
+        Returns:
+            (success: bool, new_public_url_or_error: str)
+        """
+        try:
+            logger.info(f"[HALL OF RECORDS] Moving image to hall-of-records: {source_url[:100]}...")
+
+            # Download from source (should be in drafts bucket)
+            file_data = self.download_photo(source_url)
+            if not file_data:
+                logger.error(f"[HALL OF RECORDS] ❌ Failed to download source image")
+                return False, "Failed to download source image"
+
+            # Extract original filename from URL if not provided
+            if not new_filename:
+                parts = source_url.split('/')
+                new_filename = parts[-1]
+                # Remove query parameters if present
+                if '?' in new_filename:
+                    new_filename = new_filename.split('?')[0]
+
+            logger.info(f"[HALL OF RECORDS] Using filename: {new_filename}")
+
+            # Determine content type from filename
+            ext = Path(new_filename).suffix.lower()
+            content_type_map = {
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.png': 'image/png',
+                '.gif': 'image/gif',
+                '.webp': 'image/webp'
+            }
+            content_type = content_type_map.get(ext, 'image/jpeg')
+
+            # Upload to hall-of-records bucket
+            success, new_url = self.upload_photo(
+                file_data=file_data,
+                filename=new_filename,
+                folder='hall-of-records',
+                content_type=content_type
+            )
+
+            if success:
+                logger.info(f"[HALL OF RECORDS] ✅ Successfully uploaded to hall-of-records")
+                logger.info(f"[HALL OF RECORDS] New URL: {new_url[:100]}...")
+
+                # Delete from source (drafts bucket)
+                if self.delete_photo(source_url):
+                    logger.info(f"[HALL OF RECORDS] ✅ Deleted original from drafts")
+                else:
+                    logger.warning(f"[HALL OF RECORDS] ⚠️ Failed to delete original from drafts")
+
+                return True, new_url
+            else:
+                logger.error(f"[HALL OF RECORDS] ❌ Failed to upload to hall-of-records: {new_url}")
+                return False, new_url
+
+        except Exception as e:
+            logger.error(f"[HALL OF RECORDS] ❌ Move to hall-of-records failed: {e}")
+            import traceback
+            logger.error(f"[HALL OF RECORDS] Traceback: {traceback.format_exc()}")
+            return False, str(e)
+
+    def upload_to_vault(
+        self,
+        file_data: bytes,
+        user_id: str,
+        filename: Optional[str] = None,
+        content_type: str = 'image/jpeg'
+    ) -> Tuple[bool, str]:
+        """
+        Upload a photo to user's vault (personal collection).
+        Files are organized by user_id in the vault bucket.
+
+        Args:
+            file_data: Image file bytes
+            user_id: User ID (for organizing vault by user)
+            filename: Optional custom filename (will generate UUID if not provided)
+            content_type: MIME type (image/jpeg, image/png, etc.)
+
+        Returns:
+            (success: bool, public_url_or_error: str)
+        """
+        try:
+            logger.info(f"[VAULT] Uploading to vault for user: {user_id}")
+
+            success, url = self.upload_photo(
+                file_data=file_data,
+                filename=filename,
+                folder='vault',
+                content_type=content_type,
+                user_id=user_id
+            )
+
+            if success:
+                logger.info(f"[VAULT] ✅ Uploaded to vault: {url[:100]}...")
+            else:
+                logger.error(f"[VAULT] ❌ Upload to vault failed: {url}")
+
+            return success, url
+
+        except Exception as e:
+            logger.error(f"[VAULT] ❌ Upload to vault failed: {e}")
+            import traceback
+            logger.error(f"[VAULT] Traceback: {traceback.format_exc()}")
+            return False, str(e)
 
 
 # Global instance

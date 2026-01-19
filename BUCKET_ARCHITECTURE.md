@@ -142,17 +142,21 @@ success, url = storage.upload_to_vault(
 - NOT a leaderboard or sales tracker
 - Information about collectible franchises and items
 - Reference images, logos, examples
-- Crowdsourced but admin-approved
+- **Automatic:** Entries created automatically when scanner detects new collectible
+- **No manual control:** Users/admins cannot manually add entries
+- **Admin control:** Only photo approval/denial
 
-**Workflow:**
+**Automatic Workflow:**
 ```
-User scans new item/franchise
+Scanner detects NEW collectible item/franchise
          ↓
-Info automatically added to hall_of_records table
+✅ AUTOMATICALLY create hall_of_records entry
+   (franchise, item_name, category, description)
          ↓
-Images go to draft-images bucket (pending_hall_images table)
+✅ AUTOMATICALLY save images to draft-images bucket
+   (stored in pending_hall_images table)
          ↓
-Admin reviews images
+Admin reviews pending images
          ↓
     ┌────┴────┐
     ↓         ↓
@@ -160,14 +164,24 @@ Approved   Denied
     ↓         ↓
 Move to    Delete from
 hall-of-   draft-images
-records
-bucket
+records    (image removed,
+bucket     but hall entry
+(image     remains)
+approved)
 ```
 
-**Admin Approval Function:**
+**Key Points:**
+- ✅ Hall of Records entry creation is **100% automatic** (triggered by scanner)
+- ✅ NO "Add to Hall of Records" button or manual submission
+- ✅ Scanner determines what's new and creates entries automatically
+- ⚠️ Admin ONLY approves/denies **photos** (not entries)
+- ⚠️ Hall entries persist even if photos are denied (info is still valuable)
+
+**Admin Photo Approval Function:**
 ```python
 from src.storage.supabase_storage import get_supabase_storage
 
+# Admin approves a pending photo (ONLY admin action needed)
 storage = get_supabase_storage()
 success, new_url = storage.move_to_hall_of_records(
     source_url="https://...supabase.co/.../draft-images/pending123.jpg",
@@ -175,9 +189,15 @@ success, new_url = storage.move_to_hall_of_records(
 )
 
 if success:
-    # Update hall_of_records table with new_url
-    # Delete pending_hall_images entry
+    # Update hall_of_records table to add new_url to approved_image_urls[]
+    # Update pending_hall_images: status='approved', reviewed_by, reviewed_at
+    # Photo is now public in hall-of-records bucket
 ```
+
+**Important Notes:**
+- This function is ONLY for admin photo approval
+- Hall of Records entries are created automatically by the scanner
+- No user/admin action needed to create entries - scanner handles it all
 
 ---
 
@@ -208,29 +228,79 @@ if success:
                   │  │ listing-images  │ (Public)
                   │  └─────────────────┘
                   │
-                  ├─→ Add to Vault
-                  │         ↓
-                  │  ┌─────────────────┐
-                  │  │     vault       │ (Private)
-                  │  └─────────────────┘
-                  │
-                  └─→ Scan New Collectible
+                  └─→ Add to Vault
                             ↓
                      ┌─────────────────┐
-                     │  draft-images   │ (Pending Review)
-                     │ (pending_hall)  │
-                     └────────┬────────┘
-                              │
-                         Admin Reviews
-                              │
-                    ┌─────────┴─────────┐
-                    ↓                   ↓
-              Approved                Denied
-                    ↓                   ↓
-         ┌─────────────────┐     Delete from
-         │ hall-of-records │     draft-images
-         └─────────────────┘
+                     │     vault       │ (Private)
+                     └─────────────────┘
 ```
+
+### Hall of Records Flow (Automatic)
+```
+┌──────────────────────────────────┐
+│ User Scans Collectible Item     │
+│ (via /api/analyze endpoint)      │
+└────────┬─────────────────────────┘
+         ↓
+    Scanner analyzes
+         ↓
+  ┌──────────────────┐
+  │ Is this NEW?     │
+  │ (franchise/item  │
+  │ not in hall yet?)│
+  └───┬──────────┬───┘
+      │          │
+     NO         YES ← ✅ AUTOMATIC TRIGGER
+      │          │
+      ↓          ↓
+   Skip    ┌─────────────────────────┐
+           │ 1. Auto-create entry in │
+           │    hall_of_records DB   │
+           │    (franchise, item,    │
+           │     category, etc.)     │
+           └──────────┬──────────────┘
+                      ↓
+           ┌─────────────────────────┐
+           │ 2. Auto-save images to  │
+           │    draft-images bucket  │
+           │    (pending_hall_images │
+           │     table)              │
+           └──────────┬──────────────┘
+                      ↓
+           ┌─────────────────────────┐
+           │ 3. Notify admins:       │
+           │    "New Hall entry      │
+           │     needs photo review" │
+           └──────────┬──────────────┘
+                      ↓
+              ┌─────────────┐
+              │Admin Reviews│
+              │   Photos    │
+              └──────┬──────┘
+                     │
+           ┌─────────┴─────────┐
+           ↓                   ↓
+      Approved              Denied
+           ↓                   ↓
+┌──────────────────┐   ┌──────────────────┐
+│ Move image to    │   │ Delete image     │
+│ hall-of-records  │   │ from draft-      │
+│ bucket (public)  │   │ images           │
+└──────────────────┘   └──────────────────┘
+           │                   │
+           ↓                   ↓
+    Add URL to          Update status to
+    approved_image_     'denied' in
+    urls[] in DB        pending table
+           │                   │
+           └───────┬───────────┘
+                   ↓
+         Hall entry persists
+         (with or without photos)
+```
+
+**Key Difference:** Hall of Records creation is AUTOMATIC during scan.
+No user or admin action is needed to create entries - only to approve photos.
 
 ---
 
@@ -289,24 +359,46 @@ CREATE TABLE hall_of_records (
 ### New Endpoints Needed
 
 #### Hall of Records
-```python
-@main_bp.route("/api/hall/submit-images", methods=["POST"])
-@login_required
-def submit_hall_images():
-    """
-    Submit images for Hall of Records approval.
-    Images go to draft-images bucket, pending admin review.
-    """
-    # Upload to draft-images
-    # Create pending_hall_images entries
-    # Return pending status
 
+**IMPORTANT:** Hall of Records entries are created AUTOMATICALLY during scan.
+There is NO manual submission endpoint. The scanner handles everything.
+
+**Automatic Process (in scanner/analysis endpoint):**
+```python
+# Inside /api/analyze or /api/enhanced-scan endpoint:
+# After successful scan, check if collectible is new:
+
+if is_new_collectible(franchise, item_name):
+    # 1. AUTOMATICALLY create hall_of_records entry
+    hall_entry = db.create_hall_of_records_entry(
+        franchise=franchise,
+        item_name=item_name,
+        category=category,
+        description=description,
+        created_by=current_user.id if current_user else None
+    )
+
+    # 2. AUTOMATICALLY save images to draft-images bucket
+    for image_url in scanned_images:
+        db.create_pending_hall_image(
+            hall_record_id=hall_entry.id,
+            image_url=image_url,  # Already in draft-images from scan
+            uploaded_by=current_user.id if current_user else None
+        )
+
+    # No user action required - it's all automatic!
+```
+
+**Admin Endpoints (ONLY for photo approval):**
+
+```python
 @main_bp.route("/api/hall/approve-image/<int:image_id>", methods=["POST"])
 @admin_required
 def approve_hall_image(image_id):
     """
     Admin approves a pending Hall of Records image.
     Moves from draft-images to hall-of-records bucket.
+    This is the ONLY admin action needed - entries are auto-created by scanner.
     """
     storage = get_supabase_storage()
 
@@ -317,9 +409,12 @@ def approve_hall_image(image_id):
     success, new_url = storage.move_to_hall_of_records(pending.image_url)
 
     if success:
-        # Update hall_of_records table
-        # Delete pending_hall_images entry
+        # Add new_url to hall_of_records.approved_image_urls[]
+        db.add_approved_image_to_hall(pending.hall_record_id, new_url)
+        # Update pending_hall_images: status='approved'
+        db.update_pending_hall_image(image_id, status='approved', reviewed_by=current_user.id)
         # Return success
+        return jsonify({"success": True, "url": new_url})
 
 @main_bp.route("/api/hall/deny-image/<int:image_id>", methods=["POST"])
 @admin_required

@@ -614,7 +614,11 @@ class SupabaseStorageManager:
     ) -> Tuple[bool, str]:
         """
         Move a photo from draft-images to hall-of-records bucket.
-        This is specifically for admin approval of collectibles database images.
+
+        IMPORTANT: This is ONLY for admin photo approval.
+        Hall of Records entries are created AUTOMATICALLY by the scanner when
+        it detects a new collectible item/franchise. This function is called
+        ONLY when admin approves pending photos - NOT for creating entries.
 
         Args:
             source_url: Public URL of source image (should be in draft-images)

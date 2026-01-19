@@ -41,55 +41,62 @@ class GeminiClassifier:
     """
 
     def __init__(self, api_key: Optional[str] = None):
-        """Initialize Gemini classifier"""
-        # Check multiple env var names (including common typo GEMENI_API_KEY)
-        raw_key = (
-            api_key or
-            os.getenv("GOOGLE_AI_API_KEY") or
-            os.getenv("GEMINI_API_KEY") or
-            os.getenv("GEMENI_API_KEY")  # Common typo
-        )
-        
-        if not raw_key:
-            raise ValueError("GOOGLE_AI_API_KEY, GEMINI_API_KEY, or GEMENI_API_KEY must be set")
-        
-        # CRITICAL: Strip whitespace and hidden characters (common issue with copied keys)
-        # Google API keys are sensitive to leading/trailing whitespace, newlines, etc.
-        self.api_key = raw_key.strip()
-        
-        # Debug: Log RAW key repr to detect hidden characters (ChatGPT's #1 fix)
-        # This shows newlines (\n), carriage returns (\r), spaces, etc.
-        logger.info(f"[GEMINI DEBUG] RAW KEY REPR (first 50 chars): {repr(raw_key[:50])}")
-        logger.info(f"[GEMINI DEBUG] STRIPPED KEY REPR (first 50 chars): {repr(self.api_key[:50])}")
-        
-        # Debug: Log key info (first/last 5 chars only for security)
-        key_preview = f"{self.api_key[:5]}...{self.api_key[-5:]}" if len(self.api_key) > 10 else "***"
-        logger.info(f"[GEMINI DEBUG] API Key loaded: length={len(self.api_key)}, preview={key_preview}")
-        
-        # Check for common issues
-        if len(self.api_key) < 30:
-            logger.warning(f"[GEMINI DEBUG] ⚠️ API key seems too short ({len(self.api_key)} chars). Expected ~39-45 chars.")
-        if len(self.api_key) > 60:
-            logger.warning(f"[GEMINI DEBUG] ⚠️ API key seems too long ({len(self.api_key)} chars). May contain extra characters.")
-        
-        # Check for hidden characters (log repr to see newlines, spaces, etc.)
-        if raw_key != self.api_key:
-            logger.warning(f"[GEMINI DEBUG] ⚠️ API key had whitespace! Stripped {len(raw_key) - len(self.api_key)} characters.")
-            logger.warning(f"[GEMINI DEBUG] ⚠️ Original had: {repr(raw_key)}")
-            logger.warning(f"[GEMINI DEBUG] ⚠️ After strip: {repr(self.api_key)}")
-        
-        # Verify key format (should start with AIza)
+        """Initialize Gemini classifier with round-robin API key failover"""
+
+        # Load all available API keys for round-robin failover
+        # Priority: GEMINI_API_KEY_1 → GEMINI_API_KEY_2 → GEMINI_API_KEY_3 → legacy single key
+        self.api_keys = []
+
+        # Try loading keys 1, 2, 3 first
+        for i in range(1, 4):
+            key_var = f"GEMINI_API_KEY_{i}"
+            raw_key = os.getenv(key_var)
+            if raw_key:
+                cleaned_key = raw_key.strip()
+                if cleaned_key:
+                    self.api_keys.append({
+                        'key': cleaned_key,
+                        'name': key_var,
+                        'index': i
+                    })
+                    logger.info(f"[GEMINI KEYS] ✅ Loaded {key_var}: {cleaned_key[:5]}...{cleaned_key[-5:]}")
+
+        # Fallback to legacy single key if numbered keys not found
+        if not self.api_keys:
+            legacy_raw_key = (
+                api_key or
+                os.getenv("GOOGLE_AI_API_KEY") or
+                os.getenv("GEMINI_API_KEY") or
+                os.getenv("GEMENI_API_KEY")  # Common typo
+            )
+
+            if not legacy_raw_key:
+                raise ValueError(
+                    "No Gemini API keys found! Set GEMINI_API_KEY_1, GEMINI_API_KEY_2, GEMINI_API_KEY_3 "
+                    "or legacy GEMINI_API_KEY in your .env file"
+                )
+
+            cleaned_key = legacy_raw_key.strip()
+            self.api_keys.append({
+                'key': cleaned_key,
+                'name': 'GEMINI_API_KEY (legacy)',
+                'index': 0
+            })
+            logger.info(f"[GEMINI KEYS] ✅ Loaded legacy GEMINI_API_KEY: {cleaned_key[:5]}...{cleaned_key[-5:]}")
+
+        # Set current key to first available (will be rotated on rate limits)
+        self.current_key_index = 0
+        self.api_key = self.api_keys[0]['key']
+
+        logger.info(f"[GEMINI KEYS] 🔄 Round-robin failover enabled with {len(self.api_keys)} key(s)")
+        logger.info(f"[GEMINI KEYS] 🎯 Starting with: {self.api_keys[0]['name']}")
+
+        # Validate first key format
         if not self.api_key.startswith('AIza'):
             logger.warning(f"[GEMINI DEBUG] ⚠️ API key doesn't start with 'AIza'. May be invalid format.")
-        
-        # Check env var exists
-        env_var_names = ["GOOGLE_AI_API_KEY", "GEMINI_API_KEY", "GEMENI_API_KEY"]
-        found_vars = [name for name in env_var_names if os.getenv(name)]
-        logger.info(f"[GEMINI DEBUG] Environment variables found: {found_vars}")
-        for var_name in env_var_names:
-            if os.getenv(var_name):
-                var_value = os.getenv(var_name)
-                logger.info(f"[GEMINI DEBUG] {var_name} exists: length={len(var_value)}, repr={repr(var_value[:30])}...")
+
+        if len(self.api_key) < 30 or len(self.api_key) > 60:
+            logger.warning(f"[GEMINI DEBUG] ⚠️ API key length unusual: {len(self.api_key)} chars (expected ~39-45)")
 
         # Use Gemini 2.0 Flash for speed and cost-efficiency
         # Current image-capable models (v1beta API endpoint):
@@ -525,197 +532,231 @@ IMPORTANT:
             else:
                 logger.error(f"❌ Image {i+1} missing inline_data in payload!")
 
-        # Retry logic for rate limits (exponential backoff)
-        max_retries = 4
-        base_delay = 2  # seconds
+        # Retry logic with round-robin API key failover
+        max_retries_per_key = 2  # Try each key twice before moving to next
+        base_delay = 2  # seconds (exponential backoff: 2s, 4s, 8s, 16s, 32s)
+        total_attempts = 0
+        max_total_attempts = len(self.api_keys) * max_retries_per_key
 
-        for attempt in range(max_retries):
-            try:
-                # CRITICAL: Gemini API ONLY wants key in query string, NO Authorization header
-                # Verify we're not accidentally adding Authorization header
-                api_url_with_key = f"{self.api_url}?key={self.api_key}"
-                
-                # Ensure headers ONLY contain Content-Type (no Authorization)
-                headers = {"Content-Type": "application/json"}
-                
-                # Debug: Log request details (key hidden for security)
-                logger.debug(f"[GEMINI DEBUG] Request URL: {self.api_url}?key=***")
-                logger.debug(f"[GEMINI DEBUG] Request headers: {headers}")
-                logger.debug(f"[GEMINI DEBUG] API key length: {len(self.api_key)} chars")
-                
-                response = requests.post(
-                    api_url_with_key,
-                    headers=headers,
-                    json=payload,
-                    timeout=30
-                )
+        for key_index in range(len(self.api_keys)):
+            # Switch to next key
+            current_key_info = self.api_keys[key_index]
+            self.api_key = current_key_info['key']
+            self.current_key_index = key_index
 
-                if response.status_code == 200:
-                    # Check if response is actually JSON (not HTML error page)
-                    content_type = response.headers.get('Content-Type', '').lower()
-                    if 'application/json' not in content_type:
-                        logger.error(f"[GEMINI ERROR] Response is not JSON! Content-Type: {content_type}")
-                        logger.error(f"[GEMINI ERROR] Response text (first 500 chars): {response.text[:500]}")
-                        return {
-                            "error": f"Gemini API returned non-JSON response (Content-Type: {content_type}). This usually means the API endpoint is wrong or the API key is invalid.",
-                            "error_type": "invalid_response",
-                            "details": response.text[:500]
-                        }
-                    
-                    try:
-                        result = response.json()
-                    except json.JSONDecodeError as e:
-                        logger.error(f"[GEMINI ERROR] Failed to parse JSON response: {e}")
-                        logger.error(f"[GEMINI ERROR] Response text (first 500 chars): {response.text[:500]}")
-                        # Check if it's HTML
-                        if response.text.strip().startswith('<'):
+            logger.info(f"[GEMINI KEYS] 🔑 Using {current_key_info['name']} ({current_key_info['key'][:5]}...{current_key_info['key'][-5:]})")
+
+            for key_attempt in range(max_retries_per_key):
+                total_attempts += 1
+
+                try:
+                    # CRITICAL: Gemini API ONLY wants key in query string, NO Authorization header
+                    api_url_with_key = f"{self.api_url}?key={self.api_key}"
+
+                    # Ensure headers ONLY contain Content-Type (no Authorization)
+                    headers = {"Content-Type": "application/json"}
+
+                    # Debug: Log request details (key hidden for security)
+                    logger.debug(f"[GEMINI DEBUG] Request URL: {self.api_url}?key=***")
+                    logger.debug(f"[GEMINI DEBUG] Using key: {current_key_info['name']}")
+                    logger.debug(f"[GEMINI DEBUG] Attempt {total_attempts}/{max_total_attempts}")
+
+                    response = requests.post(
+                        api_url_with_key,
+                        headers=headers,
+                        json=payload,
+                        timeout=30
+                    )
+
+                    if response.status_code == 200:
+                        # Check if response is actually JSON (not HTML error page)
+                        content_type = response.headers.get('Content-Type', '').lower()
+                        if 'application/json' not in content_type:
+                            logger.error(f"[GEMINI ERROR] Response is not JSON! Content-Type: {content_type}")
+                            logger.error(f"[GEMINI ERROR] Response text (first 500 chars): {response.text[:500]}")
                             return {
-                                "error": "Gemini API returned HTML instead of JSON. This usually means the API endpoint is wrong, the API key is invalid, or there's a network issue.",
-                                "error_type": "html_response",
+                                "error": f"Gemini API returned non-JSON response (Content-Type: {content_type}). This usually means the API endpoint is wrong or the API key is invalid.",
+                                "error_type": "invalid_response",
                                 "details": response.text[:500]
                             }
-                        return {
-                            "error": f"Failed to parse Gemini API response as JSON: {str(e)}",
-                            "error_type": "json_parse_error",
-                            "details": response.text[:500]
-                        }
 
-                    # Extract text from Gemini response
-                    try:
-                        content_text = result["candidates"][0]["content"]["parts"][0]["text"]
-                    except (KeyError, IndexError) as e:
-                        logger.error(f"[GEMINI ERROR] Unexpected response structure: {e}")
-                        logger.error(f"[GEMINI ERROR] Full response: {json.dumps(result, indent=2)}")
-                        return {
-                            "error": f"Unexpected Gemini response structure: {str(e)}",
-                            "raw_response": result
-                        }
-
-                    # Parse JSON response
-                    try:
-                        # Clean up any markdown formatting
-                        if "```json" in content_text:
-                            content_text = content_text.split("```json")[1].split("```")[0].strip()
-                        elif "```" in content_text:
-                            content_text = content_text.split("```")[1].split("```")[0].strip()
-
-                        analysis = json.loads(content_text)
-                        analysis["ai_provider"] = "gemini"
-                        return analysis
-
-                    except json.JSONDecodeError as e:
-                        return {
-                            "error": f"JSON parse error: {str(e)}",
-                            "raw_response": content_text
-                        }
-
-                # Handle rate limit errors (429) with exponential backoff
-                elif response.status_code == 429:
-                    if attempt < max_retries - 1:
-                        delay = base_delay * (2 ** attempt)  # 2s, 4s, 8s, 16s
-                        print(f"Gemini rate limit hit. Retrying in {delay}s... (attempt {attempt + 1}/{max_retries})")
-                        time.sleep(delay)
-                        continue
-                    else:
-                        return {
-                            "error": "Gemini API is currently overloaded. Please wait 60 seconds and try again. This is due to free tier rate limits.",
-                            "error_type": "rate_limit",
-                            "retry_after": 60
-                        }
-
-                # Handle other API errors
-                else:
-                    # Log FULL error response (not just first 500 chars)
-                    error_msg_full = response.text
-                    error_msg_short = error_msg_full[:500] if len(error_msg_full) > 500 else error_msg_full
-                    
-                    # Try to parse JSON error response for more details
-                    try:
-                        # Check if response is HTML (common when API key is wrong)
-                        if error_msg_full.strip().startswith('<'):
-                            logger.error(f"[GEMINI ERROR] API returned HTML instead of JSON (likely invalid API key or wrong endpoint)")
-                            logger.error(f"[GEMINI ERROR] HTML response (first 1000 chars): {error_msg_full[:1000]}")
+                        try:
+                            result = response.json()
+                        except json.JSONDecodeError as e:
+                            logger.error(f"[GEMINI ERROR] Failed to parse JSON response: {e}")
+                            logger.error(f"[GEMINI ERROR] Response text (first 500 chars): {response.text[:500]}")
+                            # Check if it's HTML
+                            if response.text.strip().startswith('<'):
+                                return {
+                                    "error": "Gemini API returned HTML instead of JSON. This usually means the API endpoint is wrong, the API key is invalid, or there's a network issue.",
+                                    "error_type": "html_response",
+                                    "details": response.text[:500]
+                                }
                             return {
-                                "error": "Gemini API returned HTML instead of JSON. Please check your GEMINI_API_KEY is valid and the API endpoint is correct.",
-                                "error_type": "html_error_response",
-                                "details": error_msg_full[:1000]
+                                "error": f"Failed to parse Gemini API response as JSON: {str(e)}",
+                                "error_type": "json_parse_error",
+                                "details": response.text[:500]
                             }
-                        
-                        error_json = response.json()
-                        logger.error(f"[GEMINI ERROR] Full error response: {json.dumps(error_json, indent=2)}")
-                        if 'error' in error_json:
-                            gemini_error = error_json.get('error', {})
-                            if isinstance(gemini_error, dict):
-                                error_message = gemini_error.get('message', str(gemini_error))
-                                logger.error(f"[GEMINI ERROR] Gemini error message: {error_message}")
-                    except json.JSONDecodeError:
-                        logger.error(f"[GEMINI ERROR] Failed to parse error response as JSON")
-                        logger.error(f"[GEMINI ERROR] Raw error response: {error_msg_full[:1000]}")
-                    except Exception as e:
-                        logger.error(f"[GEMINI ERROR] Error parsing error response: {e}")
-                        logger.error(f"[GEMINI ERROR] Raw error response: {error_msg_full[:1000]}")
 
-                    # Provide user-friendly error messages
-                    if response.status_code == 400:
-                        logger.error(f"[GEMINI ERROR] 400 Bad Request - Full response: {error_msg_full}")
-                        return {
-                            "error": "Invalid request to Gemini API. Please check your photos are valid images.",
-                            "error_type": "bad_request",
-                            "details": error_msg_short,
-                            "full_error": error_msg_full  # Include full error for debugging
-                        }
-                    elif response.status_code == 403:
-                        return {
-                            "error": "Gemini API key is invalid or doesn't have access. Please check your GEMINI_API_KEY in .env file.",
-                            "error_type": "auth_error",
-                            "details": error_msg_short
-                        }
-                    elif response.status_code >= 500:
-                        if attempt < max_retries - 1:
-                            delay = base_delay * (2 ** attempt)
-                            print(f"Gemini server error. Retrying in {delay}s... (attempt {attempt + 1}/{max_retries})")
+                        # Extract text from Gemini response
+                        try:
+                            content_text = result["candidates"][0]["content"]["parts"][0]["text"]
+                        except (KeyError, IndexError) as e:
+                            logger.error(f"[GEMINI ERROR] Unexpected response structure: {e}")
+                            logger.error(f"[GEMINI ERROR] Full response: {json.dumps(result, indent=2)}")
+                            return {
+                                "error": f"Unexpected Gemini response structure: {str(e)}",
+                                "raw_response": result
+                            }
+
+                        # Parse JSON response
+                        try:
+                            # Clean up any markdown formatting
+                            if "```json" in content_text:
+                                content_text = content_text.split("```json")[1].split("```")[0].strip()
+                            elif "```" in content_text:
+                                content_text = content_text.split("```")[1].split("```")[0].strip()
+
+                            analysis = json.loads(content_text)
+                            analysis["ai_provider"] = "gemini"
+                            analysis["api_key_used"] = current_key_info['name']  # Track which key worked
+                            logger.info(f"[GEMINI KEYS] ✅ Success with {current_key_info['name']}")
+                            return analysis
+
+                        except json.JSONDecodeError as e:
+                            return {
+                                "error": f"JSON parse error: {str(e)}",
+                                "raw_response": content_text
+                            }
+
+                    # Handle rate limit errors (429) and service overload (503) - try next key
+                    elif response.status_code in [429, 503]:
+                        error_type = "rate_limit" if response.status_code == 429 else "service_overload"
+
+                        logger.warning(f"⚠️ {current_key_info['name']} hit {response.status_code} ({error_type})")
+
+                        # If this is the last retry for this key, move to next key
+                        if key_attempt == max_retries_per_key - 1:
+                            if key_index < len(self.api_keys) - 1:
+                                logger.info(f"[GEMINI KEYS] 🔄 Switching to next API key...")
+                                break  # Break inner loop to try next key
+                            else:
+                                # Last key exhausted, give up
+                                logger.error(f"❌ All {len(self.api_keys)} API keys exhausted!")
+                                return {
+                                    "error": f"All {len(self.api_keys)} Gemini API keys are rate-limited or overloaded. Please wait 1-2 minutes before trying again.",
+                                    "error_type": error_type,
+                                    "status_code": response.status_code,
+                                    "keys_tried": len(self.api_keys),
+                                    "retry_after": 120,
+                                    "tips": [
+                                        f"All {len(self.api_keys)} API keys hit rate limits",
+                                        "Wait 1-2 minutes before trying again",
+                                        "Try during off-peak hours (late night/early morning)",
+                                        "Consider adding more API keys or upgrading to paid tier"
+                                    ]
+                                }
+                        else:
+                            # Retry with same key after delay
+                            delay = base_delay * (2 ** key_attempt)
+                            logger.warning(f"⚠️ Retrying with same key in {delay}s... (attempt {key_attempt + 1}/{max_retries_per_key})")
+                            print(f"⚠️ Gemini API overloaded. Retrying in {delay} seconds...")
                             time.sleep(delay)
                             continue
-                        else:
+
+                    # Handle other API errors
+                    else:
+                        # Log error details
+                        error_msg_full = response.text
+                        error_msg_short = error_msg_full[:500] if len(error_msg_full) > 500 else error_msg_full
+
+                        logger.error(f"[GEMINI ERROR] {response.status_code} error with {current_key_info['name']}")
+                        logger.error(f"[GEMINI ERROR] Response: {error_msg_short}")
+
+                        # For 403 (auth errors), try next key immediately
+                        if response.status_code == 403:
+                            logger.warning(f"⚠️ {current_key_info['name']} authentication failed (403)")
+                            if key_index < len(self.api_keys) - 1:
+                                logger.info(f"[GEMINI KEYS] 🔄 Key invalid, switching to next API key...")
+                                break  # Try next key
+                            else:
+                                return {
+                                    "error": f"All {len(self.api_keys)} Gemini API keys failed authentication. Please check your API keys are valid.",
+                                    "error_type": "auth_error",
+                                    "keys_tried": len(self.api_keys)
+                                }
+
+                        # For 400 errors, return immediately (bad request, not a key issue)
+                        if response.status_code == 400:
                             return {
-                                "error": "Gemini API is experiencing server issues. Please try again in a few minutes.",
-                                "error_type": "server_error",
+                                "error": "Invalid request to Gemini API. Please check your photos are valid images.",
+                                "error_type": "bad_request",
                                 "details": error_msg_short
                             }
-                    else:
+
+                        # For 500+ errors, retry
+                        if response.status_code >= 500:
+                            if key_attempt < max_retries_per_key - 1:
+                                delay = base_delay * (2 ** key_attempt)
+                                logger.warning(f"⚠️ Server error, retrying in {delay}s...")
+                                time.sleep(delay)
+                                continue
+                            else:
+                                # Try next key on server errors
+                                if key_index < len(self.api_keys) - 1:
+                                    break
+                                else:
+                                    return {
+                                        "error": "Gemini API is experiencing server issues. Please try again later.",
+                                        "error_type": "server_error"
+                                    }
+
+                        # Other errors
                         return {
                             "error": f"Gemini API error ({response.status_code}): {error_msg_short}",
                             "error_type": "unknown"
                         }
 
-            except requests.Timeout:
-                if attempt < max_retries - 1:
-                    delay = base_delay * (2 ** attempt)
-                    print(f"Request timeout. Retrying in {delay}s... (attempt {attempt + 1}/{max_retries})")
-                    time.sleep(delay)
-                    continue
-                else:
-                    return {
-                        "error": "Request to Gemini API timed out after multiple attempts. Please check your internet connection.",
-                        "error_type": "timeout"
-                    }
+                except requests.Timeout:
+                    logger.warning(f"⚠️ Request timeout with {current_key_info['name']}")
+                    if key_attempt < max_retries_per_key - 1:
+                        delay = base_delay * (2 ** key_attempt)
+                        logger.warning(f"⚠️ Retrying in {delay}s...")
+                        time.sleep(delay)
+                        continue
+                    else:
+                        # Try next key on timeout
+                        if key_index < len(self.api_keys) - 1:
+                            break
+                        else:
+                            return {
+                                "error": "Request to Gemini API timed out. Please check your internet connection.",
+                                "error_type": "timeout"
+                            }
 
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    delay = base_delay * (2 ** attempt)
-                    print(f"Exception occurred: {str(e)}. Retrying in {delay}s... (attempt {attempt + 1}/{max_retries})")
-                    time.sleep(delay)
-                    continue
-                else:
-                    return {
-                        "error": f"Error communicating with Gemini API: {str(e)}",
-                        "error_type": "exception"
-                    }
+                except Exception as e:
+                    logger.error(f"[GEMINI ERROR] Exception with {current_key_info['name']}: {str(e)}")
+                    if key_attempt < max_retries_per_key - 1:
+                        delay = base_delay * (2 ** key_attempt)
+                        logger.warning(f"⚠️ Exception, retrying in {delay}s...")
+                        time.sleep(delay)
+                        continue
+                    else:
+                        # Try next key on exception
+                        if key_index < len(self.api_keys) - 1:
+                            logger.info(f"[GEMINI KEYS] 🔄 Exception occurred, trying next key...")
+                            break
+                        else:
+                            return {
+                                "error": f"Error communicating with Gemini API: {str(e)}",
+                                "error_type": "exception"
+                            }
 
-        # Should never reach here, but just in case
+        # If we get here, all keys failed
         return {
-            "error": "Failed after maximum retries",
-            "error_type": "max_retries_exceeded"
+            "error": f"All {len(self.api_keys)} Gemini API keys failed after {max_total_attempts} total attempts",
+            "error_type": "all_keys_failed",
+            "keys_tried": len(self.api_keys)
         }
 
     def analyze_card(self, photos: List[Photo]) -> Dict[str, Any]:

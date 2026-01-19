@@ -98,13 +98,13 @@ class GeminiClassifier:
         if len(self.api_key) < 30 or len(self.api_key) > 60:
             logger.warning(f"[GEMINI DEBUG] ⚠️ API key length unusual: {len(self.api_key)} chars (expected ~39-45)")
 
-        # Use Gemini 2.0 Flash for speed and cost-efficiency
+        # Use Gemini 2.0 Flash for free tier image analysis (best free option)
         # Current image-capable models (v1beta API endpoint):
-        # - gemini-2.0-flash-exp (DEFAULT - experimental, fast, supports images)
-        # - gemini-1.5-flash-002 (stable 1.5 version)
+        # - gemini-2.0-flash-exp (DEFAULT - free, fast, supports images, best performance)
+        # - gemini-1.5-flash-002 (free, stable but older)
         # - gemini-1.5-pro-002 (paid tier, better quality but costs money)
-        # NOTE: gemini-2.0-flash-exp is the latest and fastest
-        # IMPORTANT: Using 2.0 FLASH for latest features and better performance
+        # NOTE: Using 2.0 Flash for optimal free tier image analysis
+        # IMPORTANT: This is the latest free model with best capabilities
         self.model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp")
         # Use v1beta endpoint for Gemini models
         self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"

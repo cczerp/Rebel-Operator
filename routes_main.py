@@ -16,6 +16,8 @@ import traceback
 from werkzeug.utils import secure_filename
 from PIL import Image
 import io
+from src.platform_config import PLATFORM_CREDENTIALS_CONFIG, VALID_PLATFORMS, PLATFORM_CATEGORIES
+from src.csv_field_mappings import CSV_FIELD_MAPPINGS, transform_listing_to_platform_csv
 
 
 # Create blueprint
@@ -772,13 +774,10 @@ def update_notification_email():
 # MARKETPLACE CREDENTIALS CRUD
 # -------------------------------------------------------------------------
 
-VALID_MARKETPLATFORMS = [
-    "etsy", "poshmark", "depop", "offerup", "shopify", "craigslist",
-    "facebook", "tiktok_shop", "woocommerce", "nextdoor", "varagesale",
-    "ruby_lane", "ecrater", "bonanza", "kijiji", "personal_website",
-    "grailed", "vinted", "mercado_libre", "tradesy", "vestiaire",
-    "rebag", "thredup", "poshmark_ca", "mercari", "ebay", "pinterest",
-    "square", "rubylane", "other"
+# Import platform list from platform_config
+VALID_MARKETPLATFORMS = VALID_PLATFORMS + [
+    "tiktok_shop", "ruby_lane", "ecrater", "kijiji", "personal_website",
+    "mercado_libre", "poshmark_ca", "pinterest", "square", "rubylane", "other"
 ]
 
 
@@ -789,7 +788,7 @@ def save_platform_credentials():
     try:
         data = request.json
         platform = data.get("platform", "").lower()
-        cred_type = data.get("type", "email_password")
+        cred_type = data.get("type", "username_password")
         credentials = data.get("credentials", {})
 
         if platform not in VALID_MARKETPLATFORMS:
@@ -797,12 +796,18 @@ def save_platform_credentials():
         if not credentials:
             return jsonify({"error": "Credentials required"}), 400
 
-        # Store credentials as JSON
+        # Extract username from credentials if present for backward compatibility
+        username = credentials.get("username", "")
+        password = credentials.get("password", "")
+
+        # Store credentials as JSON with flexible format
         db.save_marketplace_credentials(
             current_user.id,
             platform,
-            cred_type,
-            json.dumps(credentials)
+            username=username,
+            password=password,
+            credentials_json=json.dumps(credentials),
+            credential_type=cred_type
         )
         return jsonify({"success": True})
 

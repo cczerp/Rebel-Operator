@@ -1,0 +1,524 @@
+{% extends "base.html" %}
+
+{% block title %}Listings - Master Ledger{% endblock %}
+
+{% block extra_css %}
+<style>
+/* CSV-Style Table */
+.csv-container {
+    background: #fff;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.csv-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ledger-switcher {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ledger-switcher:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+.ledger-switcher:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.3);
+}
+
+.csv-table-wrapper {
+    overflow-x: auto;
+    max-height: calc(100vh - 250px);
+}
+
+.csv-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.csv-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.csv-table th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 700;
+    color: #495057;
+    border-right: 1px solid #dee2e6;
+    white-space: nowrap;
+    background: #f8f9fa;
+}
+
+.csv-table th:last-child {
+    border-right: none;
+}
+
+.csv-table tbody tr {
+    border-bottom: 1px solid #e9ecef;
+    transition: background-color 0.15s;
+}
+
+.csv-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.csv-table tbody tr:nth-child(even) {
+    background-color: #fafbfc;
+}
+
+.csv-table tbody tr:nth-child(even):hover {
+    background-color: #f1f3f5;
+}
+
+.csv-table td {
+    padding: 0.5rem 1rem;
+    border-right: 1px solid #e9ecef;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 300px;
+}
+
+.csv-table td:last-child {
+    border-right: none;
+}
+
+/* Status badges */
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-available { background: #d4edda; color: #155724; }
+.status-listed { background: #d1ecf1; color: #0c5460; }
+.status-sold { background: #f8d7da; color: #721c24; }
+.status-draft { background: #fff3cd; color: #856404; }
+.status-delivered { background: #d4edda; color: #155724; }
+.status-in-transit { background: #cce5ff; color: #004085; }
+.status-pending { background: #e2e3e5; color: #383d41; }
+
+/* Money values */
+.money {
+    font-weight: 600;
+    color: #28a745;
+    font-family: 'Courier New', monospace;
+}
+
+.money.negative {
+    color: #dc3545;
+}
+
+/* ID cells */
+.id-cell {
+    font-family: 'Courier New', monospace;
+    color: #6c757d;
+    font-size: 0.85rem;
+}
+
+/* Action buttons */
+.csv-actions {
+    padding: 1rem 1.5rem;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+/* Export button */
+.export-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 0.5rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.export-btn:hover {
+    background: #218838;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Loading state */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+.spinner-border-lg {
+    width: 3rem;
+    height: 3rem;
+    border-width: 0.3rem;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.3;
+}
+
+/* Stats bar */
+.stats-bar {
+    display: flex;
+    gap: 2rem;
+    padding: 1rem 1.5rem;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #495057;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="csv-container position-relative">
+    <!-- Header with Ledger Switcher -->
+    <div class="csv-header">
+        <div>
+            <h4 class="mb-0">
+                <i class="fas fa-table"></i>
+                <span id="ledgerTitle">Inventory Master Ledger</span>
+            </h4>
+            <small id="ledgerSubtitle">What you own - Physical inventory tracking</small>
+        </div>
+        <select class="ledger-switcher" id="ledgerSwitch" onchange="switchLedger(this.value)">
+            <option value="inventory">📦 Inventory Master</option>
+            <option value="sales">💰 Sales & Revenue</option>
+            <option value="shipping">🚚 Shipping & Fulfillment</option>
+        </select>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="stats-bar" id="statsBar">
+        <div class="stat-item">
+            <span class="stat-label">Total Records</span>
+            <span class="stat-value" id="statTotal">0</span>
+        </div>
+        <div class="stat-item" id="statExtra1Container">
+            <span class="stat-label" id="statExtra1Label">Available</span>
+            <span class="stat-value" id="statExtra1Value">0</span>
+        </div>
+        <div class="stat-item" id="statExtra2Container">
+            <span class="stat-label" id="statExtra2Label">Listed</span>
+            <span class="stat-value" id="statExtra2Value">0</span>
+        </div>
+        <div class="stat-item" id="statExtra3Container">
+            <span class="stat-label" id="statExtra3Label">Total Value</span>
+            <span class="stat-value" id="statExtra3Value">$0.00</span>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="csv-table-wrapper">
+        <table class="csv-table" id="ledgerTable">
+            <thead id="tableHead">
+                <!-- Headers populated by JS -->
+            </thead>
+            <tbody id="tableBody">
+                <!-- Rows populated by JS -->
+            </tbody>
+        </table>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state" style="display:none;">
+            <i class="fas fa-inbox"></i>
+            <h5>No Data Yet</h5>
+            <p class="text-muted">Start adding items to see them here!</p>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display:none;">
+        <div class="spinner-border spinner-border-lg text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="csv-actions">
+        <button class="export-btn" onclick="exportCurrentLedger()">
+            <i class="fas fa-download"></i>
+            Export to CSV
+        </button>
+        <button class="btn btn-outline-primary" onclick="exportAllLedgers()">
+            <i class="fas fa-file-archive"></i>
+            Export All Ledgers (ZIP)
+        </button>
+        <button class="btn btn-outline-secondary" onclick="refreshData()">
+            <i class="fas fa-sync-alt"></i>
+            Refresh
+        </button>
+        <div class="ms-auto">
+            <span class="text-muted">Last updated: <span id="lastUpdated">-</span></span>
+        </div>
+    </div>
+</div>
+
+<script>
+// Current ledger state
+let currentLedger = 'inventory';
+let ledgerData = [];
+
+// Ledger configurations
+const ledgerConfigs = {
+    inventory: {
+        title: 'Inventory Master Ledger',
+        subtitle: 'What you own - Physical inventory tracking',
+        headers: ['MasterItemID', 'SKU', 'Title', 'Category', 'Brand', 'Condition', 'Quantity', 'Storage', 'Status', 'Cost', 'Currency'],
+        fields: ['master_item_id', 'sku', 'title', 'category', 'brand', 'condition', 'quantity', 'storage_location', 'status', 'cost_basis', 'currency'],
+        statsLabels: ['Available', 'Listed', 'Total Value'],
+        endpoint: '/api/ledgers/export/inventory'
+    },
+    sales: {
+        title: 'Sales & Revenue Ledger',
+        subtitle: 'Financial transactions - Money tracking',
+        headers: ['TransactionID', 'Platform', 'Sale Date', 'Gross Amount', 'Fees', 'Shipping', 'Net Payout', 'Profit', 'Status'],
+        fields: ['transaction_id', 'platform', 'sale_date', 'gross_sale_amount', 'platform_fees', 'shipping_cost', 'net_payout', 'profit', 'payout_status'],
+        statsLabels: ['Total Sales', 'Revenue', 'Profit'],
+        endpoint: '/api/ledgers/export/sales'
+    },
+    shipping: {
+        title: 'Shipping & Fulfillment Ledger',
+        subtitle: 'Logistics tracking - Package delivery',
+        headers: ['ShipmentID', 'Carrier', 'Tracking', 'Ship Date', 'Delivery Date', 'Cost', 'Status', 'Issues'],
+        fields: ['shipment_id', 'carrier', 'tracking_number', 'ship_date', 'actual_delivery_date', 'shipping_cost', 'delivery_status', 'issue_reported'],
+        statsLabels: ['In Transit', 'Delivered', 'Issues'],
+        endpoint: '/api/ledgers/export/shipping'
+    }
+};
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadLedgerData('inventory');
+});
+
+// Switch between ledgers
+function switchLedger(ledgerType) {
+    currentLedger = ledgerType;
+    const config = ledgerConfigs[ledgerType];
+
+    // Update header
+    document.getElementById('ledgerTitle').textContent = config.title;
+    document.getElementById('ledgerSubtitle').textContent = config.subtitle;
+
+    // Load data
+    loadLedgerData(ledgerType);
+}
+
+// Load ledger data from API
+async function loadLedgerData(ledgerType) {
+    showLoading();
+
+    try {
+        // For now, we'll load from the existing listings endpoint
+        // In production, you'd call the appropriate ledger API
+        const response = await fetch('/api/listings');
+        const data = await response.json();
+
+        ledgerData = transformDataForLedger(data.listings || [], ledgerType);
+        renderTable(ledgerType, ledgerData);
+        updateStats(ledgerType, ledgerData);
+
+        document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+    } catch (error) {
+        console.error('Error loading ledger:', error);
+        showError('Failed to load data');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Transform listing data to match ledger format
+function transformDataForLedger(listings, ledgerType) {
+    // This is a temporary transformation until you have real ledger data
+    if (ledgerType === 'inventory') {
+        return listings.map(l => ({
+            master_item_id: l.listing_uuid || 'INV-' + l.id,
+            sku: l.sku || '-',
+            title: l.title,
+            category: l.category || '-',
+            brand: l.item_specifics?.brand || '-',
+            condition: l.condition,
+            quantity: l.quantity || 1,
+            storage_location: l.storage_location || '-',
+            status: l.status || 'available',
+            cost_basis: l.cost || 0,
+            currency: 'USD'
+        }));
+    }
+    // Add transforms for sales and shipping when real data is available
+    return [];
+}
+
+// Render table
+function renderTable(ledgerType, data) {
+    const config = ledgerConfigs[ledgerType];
+    const thead = document.getElementById('tableHead');
+    const tbody = document.getElementById('tableBody');
+    const emptyState = document.getElementById('emptyState');
+
+    // Clear existing
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+
+    if (!data || data.length === 0) {
+        emptyState.style.display = 'block';
+        return;
+    }
+
+    emptyState.style.display = 'none';
+
+    // Render headers
+    const headerRow = document.createElement('tr');
+    config.headers.forEach(header => {
+        const th = document.createElement('th');
+        th.textContent = header;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+
+    // Render rows
+    data.forEach(row => {
+        const tr = document.createElement('tr');
+
+        config.fields.forEach(field => {
+            const td = document.createElement('td');
+            const value = row[field];
+
+            // Format based on field type
+            if (field.includes('_id') || field === 'sku') {
+                td.className = 'id-cell';
+                td.textContent = value || '-';
+            } else if (field.includes('amount') || field.includes('cost') || field.includes('price') || field === 'profit') {
+                td.className = 'money';
+                if (parseFloat(value) < 0) td.classList.add('negative');
+                td.textContent = value ? '$' + parseFloat(value).toFixed(2) : '$0.00';
+            } else if (field === 'status' || field.includes('_status')) {
+                const badge = document.createElement('span');
+                badge.className = `status-badge status-${(value || 'pending').toLowerCase()}`;
+                badge.textContent = value || 'Pending';
+                td.appendChild(badge);
+            } else if (field.includes('date')) {
+                td.textContent = value ? new Date(value).toLocaleDateString() : '-';
+            } else {
+                td.textContent = value || '-';
+            }
+
+            tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+    });
+}
+
+// Update stats bar
+function updateStats(ledgerType, data) {
+    document.getElementById('statTotal').textContent = data.length;
+
+    if (ledgerType === 'inventory') {
+        const available = data.filter(d => d.status === 'available').length;
+        const listed = data.filter(d => d.status === 'listed').length;
+        const totalValue = data.reduce((sum, d) => sum + (parseFloat(d.cost_basis) || 0), 0);
+
+        document.getElementById('statExtra1Value').textContent = available;
+        document.getElementById('statExtra2Value').textContent = listed;
+        document.getElementById('statExtra3Value').textContent = '$' + totalValue.toFixed(2);
+    }
+}
+
+// Export current ledger
+async function exportCurrentLedger() {
+    const config = ledgerConfigs[currentLedger];
+    window.location.href = config.endpoint;
+}
+
+// Export all ledgers
+function exportAllLedgers() {
+    window.location.href = '/api/ledgers/export/all';
+}
+
+// Refresh data
+function refreshData() {
+    loadLedgerData(currentLedger);
+}
+
+// Loading states
+function showLoading() {
+    document.getElementById('loadingOverlay').style.display = 'flex';
+}
+
+function hideLoading() {
+    document.getElementById('loadingOverlay').style.display = 'none';
+}
+
+function showError(message) {
+    alert(message); // Replace with better error UI
+}
+</script>
+{% endblock %}

@@ -241,8 +241,8 @@ def create_listing():
 @app.route('/drafts')
 @login_required
 def drafts():
-    """Drafts page - CSV-based"""
-    return render_template('drafts.html')
+    """Drafts page - CSV-style ledger view"""
+    return render_template('drafts_ledger.html')
 
 @app.route('/inventory')
 @login_required
@@ -253,28 +253,8 @@ def inventory():
 @app.route('/listings')
 @login_required
 def listings():
-    """Listings page - shows user's active (non-draft) listings"""
-    cursor = None
-    try:
-        cursor = db._get_cursor()
-        cursor.execute("""
-            SELECT * FROM listings
-            WHERE user_id = %s AND status != 'draft'
-            ORDER BY created_at DESC
-        """, (current_user.id,))
-        user_listings = [dict(row) for row in cursor.fetchall()]
-        return render_template('listings.html', listings=user_listings)
-    except Exception as e:
-        import logging
-        logging.error(f"Listings page error: {e}")
-        # Return empty list on error so page still renders
-        return render_template('listings.html', listings=[])
-    finally:
-        if cursor:
-            try:
-                cursor.close()
-            except Exception:
-                pass
+    """Listings page - CSV-style ledger view with switcher"""
+    return render_template('listings_ledger.html')
 
 @app.route('/notifications')
 @login_required

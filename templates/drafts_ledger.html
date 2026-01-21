@@ -1,0 +1,574 @@
+{% extends "base.html" %}
+
+{% block title %}Draft Listings - Master Ledger{% endblock %}
+
+{% block extra_css %}
+<style>
+/* CSV-Style Table */
+.csv-container {
+    background: #fff;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.csv-header {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.csv-table-wrapper {
+    overflow-x: auto;
+    max-height: calc(100vh - 250px);
+}
+
+.csv-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.csv-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.csv-table th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 700;
+    color: #495057;
+    border-right: 1px solid #dee2e6;
+    white-space: nowrap;
+    background: #f8f9fa;
+}
+
+.csv-table th:last-child {
+    border-right: none;
+}
+
+.csv-table tbody tr {
+    border-bottom: 1px solid #e9ecef;
+    transition: background-color 0.15s;
+    cursor: pointer;
+}
+
+.csv-table tbody tr:hover {
+    background-color: #fff3cd;
+}
+
+.csv-table tbody tr:nth-child(even) {
+    background-color: #fafbfc;
+}
+
+.csv-table tbody tr:nth-child(even):hover {
+    background-color: #fff3cd;
+}
+
+.csv-table td {
+    padding: 0.5rem 1rem;
+    border-right: 1px solid #e9ecef;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 300px;
+}
+
+.csv-table td:last-child {
+    border-right: none;
+}
+
+/* Completeness progress bar */
+.completeness-bar {
+    width: 100px;
+    height: 20px;
+    background: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+.completeness-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+    transition: width 0.3s;
+}
+
+.completeness-text {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #495057;
+}
+
+.completeness-low .completeness-fill {
+    background: linear-gradient(90deg, #dc3545 0%, #fd7e14 100%);
+}
+
+.completeness-medium .completeness-fill {
+    background: linear-gradient(90deg, #ffc107 0%, #fd7e14 100%);
+}
+
+/* Target platforms pills */
+.platform-pills {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.platform-pill {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    background: #e7f3ff;
+    color: #0056b3;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+/* Status badges */
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-draft { background: #fff3cd; color: #856404; }
+.status-ready { background: #d4edda; color: #155724; }
+.status-published { background: #d1ecf1; color: #0c5460; }
+.status-archived { background: #e2e3e5; color: #383d41; }
+
+/* AI Enhanced indicator */
+.ai-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+/* ID cells */
+.id-cell {
+    font-family: 'Courier New', monospace;
+    color: #6c757d;
+    font-size: 0.85rem;
+}
+
+/* Money values */
+.money {
+    font-weight: 600;
+    color: #28a745;
+    font-family: 'Courier New', monospace;
+}
+
+/* Actions */
+.csv-actions {
+    padding: 1rem 1.5rem;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.export-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 0.5rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.export-btn:hover {
+    background: #218838;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Stats bar */
+.stats-bar {
+    display: flex;
+    gap: 2rem;
+    padding: 1rem 1.5rem;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #495057;
+}
+
+/* Loading */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+.spinner-border-lg {
+    width: 3rem;
+    height: 3rem;
+    border-width: 0.3rem;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.3;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="csv-container position-relative">
+    <!-- Header -->
+    <div class="csv-header">
+        <div>
+            <h4 class="mb-0">
+                <i class="fas fa-edit"></i>
+                Draft Listings Ledger ⭐
+            </h4>
+            <small>Pre-publication listing preparation - Zero-rework exports</small>
+        </div>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span class="stat-label">Total Drafts</span>
+            <span class="stat-value" id="statTotal">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Ready to Publish</span>
+            <span class="stat-value" id="statReady">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Avg Completeness</span>
+            <span class="stat-value" id="statCompleteness">0%</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">AI Enhanced</span>
+            <span class="stat-value" id="statAI">0</span>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="csv-table-wrapper">
+        <table class="csv-table" id="draftsTable">
+            <thead>
+                <tr>
+                    <th>DraftID</th>
+                    <th>Title</th>
+                    <th>Target Platforms</th>
+                    <th>Price</th>
+                    <th>Completeness</th>
+                    <th>Status</th>
+                    <th>AI Enhanced</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- Rows populated by JS -->
+            </tbody>
+        </table>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state" style="display:none;">
+            <i class="fas fa-file-alt"></i>
+            <h5>No Drafts Yet</h5>
+            <p class="text-muted">Create your first draft to start preparing listings!</p>
+            <a href="/create" class="btn btn-primary mt-3">
+                <i class="fas fa-plus"></i> Create First Draft
+            </a>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display:none;">
+        <div class="spinner-border spinner-border-lg text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="csv-actions">
+        <button class="export-btn" onclick="exportDrafts()">
+            <i class="fas fa-download"></i>
+            Export to CSV
+        </button>
+        <button class="btn btn-outline-primary" onclick="exportReadyDrafts()">
+            <i class="fas fa-check-circle"></i>
+            Export Ready Drafts Only
+        </button>
+        <button class="btn btn-outline-success" onclick="bulkEnhanceWithAI()">
+            <i class="fas fa-magic"></i>
+            Bulk AI Enhancement
+        </button>
+        <button class="btn btn-outline-secondary" onclick="refreshData()">
+            <i class="fas fa-sync-alt"></i>
+            Refresh
+        </button>
+        <div class="ms-auto">
+            <span class="text-muted">Last updated: <span id="lastUpdated">-</span></span>
+        </div>
+    </div>
+</div>
+
+<script>
+let draftsData = [];
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadDrafts();
+});
+
+// Load drafts from API
+async function loadDrafts() {
+    showLoading();
+
+    try {
+        // Load existing drafts
+        const response = await fetch('/api/drafts');
+        const data = await response.json();
+
+        draftsData = data.drafts || [];
+        renderTable(draftsData);
+        updateStats(draftsData);
+
+        document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+    } catch (error) {
+        console.error('Error loading drafts:', error);
+        showError('Failed to load drafts');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Render table
+function renderTable(data) {
+    const tbody = document.getElementById('tableBody');
+    const emptyState = document.getElementById('emptyState');
+
+    tbody.innerHTML = '';
+
+    if (!data || data.length === 0) {
+        emptyState.style.display = 'block';
+        return;
+    }
+
+    emptyState.style.display = 'none';
+
+    data.forEach(draft => {
+        const tr = document.createElement('tr');
+        tr.onclick = () => window.location.href = `/drafts/${draft.id}`;
+
+        // DraftID
+        const idCell = document.createElement('td');
+        idCell.className = 'id-cell';
+        idCell.textContent = draft.draft_id || `DRAFT-${draft.id}`;
+        tr.appendChild(idCell);
+
+        // Title
+        const titleCell = document.createElement('td');
+        titleCell.textContent = draft.title || 'Untitled';
+        titleCell.style.maxWidth = '250px';
+        tr.appendChild(titleCell);
+
+        // Target Platforms
+        const platformsCell = document.createElement('td');
+        const platforms = JSON.parse(draft.target_platforms || '[]');
+        const pillsDiv = document.createElement('div');
+        pillsDiv.className = 'platform-pills';
+        platforms.forEach(p => {
+            const pill = document.createElement('span');
+            pill.className = 'platform-pill';
+            pill.textContent = p;
+            pillsDiv.appendChild(pill);
+        });
+        platformsCell.appendChild(pillsDiv);
+        tr.appendChild(platformsCell);
+
+        // Price
+        const priceCell = document.createElement('td');
+        priceCell.className = 'money';
+        priceCell.textContent = draft.price ? '$' + parseFloat(draft.price).toFixed(2) : '-';
+        tr.appendChild(priceCell);
+
+        // Completeness
+        const completenessCell = document.createElement('td');
+        const score = draft.completeness_score || 0;
+        const barDiv = document.createElement('div');
+        barDiv.className = 'completeness-bar';
+        if (score < 50) barDiv.classList.add('completeness-low');
+        else if (score < 80) barDiv.classList.add('completeness-medium');
+
+        const fillDiv = document.createElement('div');
+        fillDiv.className = 'completeness-fill';
+        fillDiv.style.width = score + '%';
+        barDiv.appendChild(fillDiv);
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'completeness-text';
+        textSpan.textContent = score + '%';
+        barDiv.appendChild(textSpan);
+
+        completenessCell.appendChild(barDiv);
+        tr.appendChild(completenessCell);
+
+        // Status
+        const statusCell = document.createElement('td');
+        const statusBadge = document.createElement('span');
+        statusBadge.className = `status-badge status-${(draft.status || 'draft').toLowerCase()}`;
+        statusBadge.textContent = draft.status || 'Draft';
+        statusCell.appendChild(statusBadge);
+        tr.appendChild(statusCell);
+
+        // AI Enhanced
+        const aiCell = document.createElement('td');
+        if (draft.ai_enhanced) {
+            const aiBadge = document.createElement('span');
+            aiBadge.className = 'ai-badge';
+            aiBadge.innerHTML = '<i class="fas fa-robot"></i> AI';
+            aiCell.appendChild(aiBadge);
+        } else {
+            aiCell.textContent = '-';
+        }
+        tr.appendChild(aiCell);
+
+        // Created
+        const dateCell = document.createElement('td');
+        dateCell.textContent = draft.created_at ? new Date(draft.created_at).toLocaleDateString() : '-';
+        tr.appendChild(dateCell);
+
+        // Actions
+        const actionsCell = document.createElement('td');
+        actionsCell.innerHTML = `
+            <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); editDraft(${draft.id})">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-success" onclick="event.stopPropagation(); publishDraft(${draft.id})">
+                <i class="fas fa-rocket"></i>
+            </button>
+        `;
+        tr.appendChild(actionsCell);
+
+        tbody.appendChild(tr);
+    });
+}
+
+// Update stats
+function updateStats(data) {
+    document.getElementById('statTotal').textContent = data.length;
+
+    const ready = data.filter(d => (d.completeness_score || 0) >= 90).length;
+    document.getElementById('statReady').textContent = ready;
+
+    const avgCompleteness = data.length > 0
+        ? data.reduce((sum, d) => sum + (d.completeness_score || 0), 0) / data.length
+        : 0;
+    document.getElementById('statCompleteness').textContent = Math.round(avgCompleteness) + '%';
+
+    const aiEnhanced = data.filter(d => d.ai_enhanced).length;
+    document.getElementById('statAI').textContent = aiEnhanced;
+}
+
+// Export functions
+function exportDrafts() {
+    window.location.href = '/api/ledgers/export/drafts';
+}
+
+function exportReadyDrafts() {
+    window.location.href = '/api/ledgers/export/drafts?min_completeness=90&status=ready';
+}
+
+function bulkEnhanceWithAI() {
+    if (confirm('Enhance all drafts with AI? This may take a few minutes.')) {
+        alert('Bulk AI enhancement coming soon!');
+    }
+}
+
+function editDraft(id) {
+    window.location.href = `/drafts/${id}/edit`;
+}
+
+function publishDraft(id) {
+    window.location.href = `/drafts/${id}/publish`;
+}
+
+function refreshData() {
+    loadDrafts();
+}
+
+// Loading states
+function showLoading() {
+    document.getElementById('loadingOverlay').style.display = 'flex';
+}
+
+function hideLoading() {
+    document.getElementById('loadingOverlay').style.display = 'none';
+}
+
+function showError(message) {
+    alert(message);
+}
+</script>
+{% endblock %}

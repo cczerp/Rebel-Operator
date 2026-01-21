@@ -886,7 +886,19 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
                     window.location.href = '{{ url_for("auth.register") }}';
                 }
             } else {
-                showAlert(data.error || 'Analysis failed', 'danger');
+                // Format error message for better readability
+                let errorMsg = data.error || 'Analysis failed';
+
+                // Convert numbered lists to HTML for better display
+                errorMsg = errorMsg.replace(/(\d+\))/g, '<br>$1');
+
+                // Add extra spacing for "IMPORTANT:" prefix
+                errorMsg = errorMsg.replace(/IMPORTANT:/g, '<br><strong>IMPORTANT:</strong>');
+
+                // Add line breaks for better readability
+                errorMsg = errorMsg.replace(/\. ([A-Z])/g, '.<br>$1');
+
+                showAlert(errorMsg, 'danger');
             }
             hideLoading();
             return;

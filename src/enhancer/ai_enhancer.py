@@ -27,14 +27,14 @@ from ..schema.unified_listing import (
 
 class AiAnalyzer:
     """
-    Dual-AI enhancer with ChatGPT as primary analyzer.
+    Multi-AI enhancer with local Ollama support.
 
     Strategy:
-    - Step 1: ChatGPT (GPT-4 Vision) analyzes photos (PRIMARY analyzer)
-    - Step 2: Only use Claude as fallback if ChatGPT can't identify the item
-    - ChatGPT has superior image-to-text and OCR capabilities
+    - Step 1: Ollama (local, free) - llama3.2-vision:11b (if available)
+    - Step 2: ChatGPT (GPT-4 Vision) as fallback if Ollama unavailable
+    - Step 3: Claude as final fallback if both above fail
 
-    ChatGPT handles most listings successfully, Claude is reliable fallback.
+    Ollama is FREE and runs locally - no API costs!
     """
 
     def __init__(
@@ -43,6 +43,9 @@ class AiAnalyzer:
         anthropic_api_key: Optional[str] = None,
         use_openai: bool = True,
         use_anthropic: bool = True,
+        use_ollama: bool = True,
+        ollama_model: str = "llama3.2-vision:11b",
+        ollama_host: str = "http://localhost:11434",
     ):
         """
         Initialize AI enhancer.
@@ -52,15 +55,21 @@ class AiAnalyzer:
             anthropic_api_key: Anthropic API key
             use_openai: Enable OpenAI enhancement
             use_anthropic: Enable Anthropic enhancement
+            use_ollama: Enable Ollama (local) enhancement
+            ollama_model: Ollama model to use (default: llama3.2-vision:11b)
+            ollama_host: Ollama server URL (default: http://localhost:11434)
         """
         self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
         self.anthropic_api_key = anthropic_api_key or os.getenv("ANTHROPIC_API_KEY")
         self.use_openai = use_openai and self.openai_api_key is not None
         self.use_anthropic = use_anthropic and self.anthropic_api_key is not None
+        self.use_ollama = use_ollama
+        self.ollama_model = ollama_model
+        self.ollama_host = ollama_host
 
-        if not (self.use_openai or self.use_anthropic):
+        if not (self.use_openai or self.use_anthropic or self.use_ollama):
             raise ValueError(
-                "At least one AI provider must be enabled with valid API key"
+                "At least one AI provider must be enabled (OpenAI, Anthropic, or Ollama)"
             )
 
     def _convert_to_claude_format(self, image_path: str) -> tuple[bytes, str]:
@@ -266,6 +275,107 @@ Format as JSON:
         else:
             raise Exception(f"Claude API error: {response.text}")
 
+    def analyze_photos_ollama(self, photos: List[Photo]) -> Dict[str, Any]:
+        """
+        Analyze photos using local Ollama (FREE!).
+        Uses llama3.2-vision:11b by default - Meta's latest vision model.
+
+        Args:
+            photos: List of photos to analyze
+
+        Returns:
+            Dictionary with photo analysis, suggested title, description, keywords
+        """
+        if not self.use_ollama:
+            return {}
+
+        # Prepare images for vision analysis
+        image_contents = []
+        for photo in photos[:4]:  # Limit to 4 photos
+            if photo.local_path:
+                # Ollama expects base64 encoded images
+                image_b64 = self._encode_image_to_base64(photo.local_path)
+                image_contents.append(image_b64)
+
+        if not image_contents:
+            return {}
+
+        # Build prompt for comprehensive analysis
+        prompt = """Analyze these product images and provide comprehensive listing details for an e-commerce resale platform.
+
+Provide:
+1. **Item Title**: Compelling, keyword-rich title (under 80 characters)
+2. **Detailed Description**: 2-3 paragraphs covering features, condition, and value proposition
+3. **SEO Keywords**: 15-20 relevant search keywords
+4. **Search Terms**: Alternative phrases buyers might use
+5. **Category**: Suggested category (e.g., "Electronics > Cameras")
+6. **Item Specifics**: Brand, model, size, color, material if visible
+7. **Condition Notes**: Specific observations about condition
+8. **Key Features**: Bullet points of notable selling points
+
+Format as JSON:
+{
+  "title": "...",
+  "description": "...",
+  "keywords": ["...", "..."],
+  "search_terms": ["...", "..."],
+  "category": "...",
+  "brand": "...",
+  "model": "...",
+  "color": "...",
+  "condition_notes": "...",
+  "features": ["...", "..."]
+}"""
+
+        # Build Ollama API request
+        # Ollama's vision API format
+        payload = {
+            "model": self.ollama_model,
+            "prompt": prompt,
+            "images": image_contents,
+            "stream": False,
+            "format": "json"
+        }
+
+        try:
+            response = requests.post(
+                f"{self.ollama_host}/api/generate",
+                json=payload,
+                timeout=60  # Ollama can be slow on first run
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                response_text = result.get("response", "")
+
+                # Parse JSON response
+                import json
+                try:
+                    # Try to extract JSON from markdown code blocks if present
+                    if "```json" in response_text:
+                        response_text = response_text.split("```json")[1].split("```")[0].strip()
+                    elif "```" in response_text:
+                        response_text = response_text.split("```")[1].split("```")[0].strip()
+
+                    analysis = json.loads(response_text)
+                    return analysis
+                except json.JSONDecodeError:
+                    # Fallback if JSON parsing fails
+                    return {"raw_response": response_text}
+            else:
+                raise Exception(f"Ollama API error (HTTP {response.status_code}): {response.text}")
+
+        except requests.exceptions.ConnectionError:
+            raise Exception(
+                "Ollama not running. Start it with: ollama serve\n"
+                "Or install from: https://ollama.com"
+            )
+        except requests.exceptions.Timeout:
+            raise Exception(
+                "Ollama request timed out. This is normal on first run (downloading model). "
+                "Try again in a minute."
+            )
+
     def analyze_photos_openai_fallback(self, photos: List[Photo]) -> Dict[str, Any]:
         """
         Analyze photos using GPT-4 Vision as fallback (when Claude fails).
@@ -427,12 +537,12 @@ Format as JSON:
         force: bool = False,
     ) -> UnifiedListing:
         """
-        Complete AI enhancement workflow with ChatGPT as primary.
+        Complete AI enhancement workflow with Ollama as primary (FREE!).
 
         Strategy:
-        - Step 1: ChatGPT (GPT-4 Vision) analyzes photos (PRIMARY analyzer)
-        - Step 2: If ChatGPT can't identify the item, use Claude as fallback
-        - ChatGPT has superior image-to-text capabilities
+        - Step 1: Ollama (local, FREE) - llama3.2-vision:11b (if available)
+        - Step 2: ChatGPT (GPT-4 Vision) as paid fallback if Ollama unavailable
+        - Step 3: Claude as final fallback if both above fail
 
         Args:
             listing: UnifiedListing to enhance
@@ -448,35 +558,59 @@ Format as JSON:
 
         final_data = {}
         ai_providers_used = []
+        last_error = None
 
-        # Step 1: ChatGPT analyzes photos first (PRIMARY analyzer)
-        chatgpt_error = None
-        if self.use_openai and listing.photos:
+        # Step 1: Try Ollama first (FREE and local!)
+        if self.use_ollama and listing.photos:
             try:
-                print("🤖 ChatGPT analyzing photos (PRIMARY)...")
-                chatgpt_analysis = self.analyze_photos_openai_fallback(listing.photos)
+                print("🦙 Ollama analyzing photos (FREE, local)...")
+                ollama_analysis = self.analyze_photos_ollama(listing.photos)
 
-                # Check if ChatGPT successfully identified the item
-                if self._is_analysis_complete(chatgpt_analysis):
-                    print("✅ ChatGPT successfully identified the item")
-                    final_data = chatgpt_analysis
-                    ai_providers_used.append("ChatGPT")
+                # Check if Ollama successfully identified the item
+                if self._is_analysis_complete(ollama_analysis):
+                    print("✅ Ollama successfully identified the item")
+                    final_data = ollama_analysis
+                    ai_providers_used.append("Ollama (local)")
                 else:
-                    print("⚠️  ChatGPT analysis incomplete - will try Claude as fallback")
-                    # Keep ChatGPT's partial data, may use as fallback
-                    final_data = chatgpt_analysis
+                    print("⚠️  Ollama analysis incomplete - will try paid APIs as fallback")
+                    # Keep Ollama's partial data
+                    final_data = ollama_analysis
 
             except Exception as e:
-                chatgpt_error = str(e)
-                print(f"❌ ChatGPT analysis failed: {e}")
-                # Store error for later use if Claude also fails
+                last_error = str(e)
+                print(f"❌ Ollama analysis failed: {e}")
+                # Continue to ChatGPT fallback
 
-        # Step 2: Use Claude as fallback ONLY if ChatGPT failed or couldn't identify
-        if self.use_anthropic and listing.photos:
-            # Only use Claude if ChatGPT didn't successfully complete the analysis
+        # Step 2: ChatGPT as fallback (if Ollama failed or incomplete)
+        if self.use_openai and listing.photos:
+            # Only use ChatGPT if Ollama didn't complete the analysis
             if not self._is_analysis_complete(final_data):
                 try:
-                    print("🔄 Using Claude as fallback...")
+                    print("🤖 ChatGPT analyzing photos (paid fallback)...")
+                    chatgpt_analysis = self.analyze_photos_openai_fallback(listing.photos)
+
+                    # Check if ChatGPT successfully identified the item
+                    if self._is_analysis_complete(chatgpt_analysis):
+                        print("✅ ChatGPT successfully identified the item")
+                        final_data = chatgpt_analysis
+                        ai_providers_used.append("ChatGPT")
+                    else:
+                        print("⚠️  ChatGPT analysis incomplete - will try Claude as fallback")
+                        # Merge with existing data
+                        final_data = {**final_data, **chatgpt_analysis}
+
+                except Exception as e:
+                    last_error = str(e)
+                    print(f"❌ ChatGPT analysis failed: {e}")
+            else:
+                print("💰 Skipping ChatGPT (Ollama analysis was complete)")
+
+        # Step 3: Claude as final fallback
+        if self.use_anthropic and listing.photos:
+            # Only use Claude if neither Ollama nor ChatGPT completed the analysis
+            if not self._is_analysis_complete(final_data):
+                try:
+                    print("🔄 Using Claude as final fallback...")
                     # Use Claude to analyze from scratch
                     claude_analysis = self.analyze_photos_claude(listing.photos, target_platform)
 
@@ -485,17 +619,17 @@ Format as JSON:
                         final_data = claude_analysis
                         ai_providers_used.append("Claude (fallback)")
                     else:
-                        # Merge partial results from both
+                        # Merge partial results
                         final_data = {**final_data, **claude_analysis}
                         ai_providers_used.append("Claude (fallback partial)")
 
                 except Exception as e:
                     print(f"❌ Claude fallback failed: {e}")
-                    # If both failed, raise the original ChatGPT error (it's more informative)
-                    if chatgpt_error and not final_data:
-                        raise Exception(chatgpt_error)
+                    # If everything failed, raise the most relevant error
+                    if last_error and not final_data:
+                        raise Exception(last_error)
             else:
-                print("💰 Skipping Claude (ChatGPT analysis was complete)")
+                print("💰 Skipping Claude (analysis already complete)")
 
         # Step 3: Apply enhancements to listing
         if final_data:
@@ -551,10 +685,20 @@ Format as JSON:
         Expected variables:
             - OPENAI_API_KEY (optional)
             - ANTHROPIC_API_KEY (optional)
+            - USE_OLLAMA (optional, default: true)
+            - OLLAMA_MODEL (optional, default: llama3.2-vision:11b)
+            - OLLAMA_HOST (optional, default: http://localhost:11434)
         """
+        use_ollama = os.getenv("USE_OLLAMA", "true").lower() in ("true", "1", "yes")
+        ollama_model = os.getenv("OLLAMA_MODEL", "llama3.2-vision:11b")
+        ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+
         return cls(
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
+            use_ollama=use_ollama,
+            ollama_model=ollama_model,
+            ollama_host=ollama_host,
         )
 
 

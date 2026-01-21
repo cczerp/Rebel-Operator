@@ -188,6 +188,8 @@ from src.routes.admin import admin_bp, init_routes as init_admin
 from src.routes.cards import cards_bp, init_routes as init_cards
 from src.routes.main import main_bp, init_routes as init_main
 from src.routes.csv import csv_bp
+from src.routes.import_routes import import_bp
+from src.routes.ledger_routes import ledger_bp
 from monitoring.health import health_bp
 
 # Initialize blueprints with database and User class
@@ -202,6 +204,8 @@ app.register_blueprint(admin_bp)
 app.register_blueprint(cards_bp)
 app.register_blueprint(main_bp)
 app.register_blueprint(csv_bp)
+app.register_blueprint(import_bp)  # Listing import routes
+app.register_blueprint(ledger_bp)  # Master ledger system
 app.register_blueprint(health_bp)
 
 # ============================================================================

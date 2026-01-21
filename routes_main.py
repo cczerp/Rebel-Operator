@@ -1070,10 +1070,10 @@ def test_supabase_connection():
 
 @main_bp.route("/api/analyze", methods=["POST"])
 def api_analyze():
-    """Analyze general items with Gemini (fast, cheap) - allows guest access with 8 free uses"""
+    """Analyze general items with ChatGPT (PRIMARY) - allows guest access with 8 free uses"""
     from flask import session
     from flask_login import current_user
-    
+
     # Check guest usage limit if not authenticated
     if not current_user.is_authenticated:
         guest_uses = session.get('guest_ai_uses', 0)
@@ -1083,14 +1083,14 @@ def api_analyze():
                 "error": "You've used all 8 free AI analyses. Please sign up to continue using AI features!",
                 "requires_signup": True
             }), 403
-        
+
         # Increment guest usage counter
         session['guest_ai_uses'] = guest_uses + 1
         session.permanent = True  # Make session persist
-    
+
     try:
-        from src.ai.gemini_classifier import GeminiClassifier
-        from src.schema.unified_listing import Photo
+        from src.enhancer.ai_enhancer import AiAnalyzer
+        from src.schema.unified_listing import Photo, UnifiedListing
         import tempfile
         import os
 
@@ -1243,9 +1243,9 @@ def api_analyze():
         if not photo_objects:
             return jsonify({"error": "No valid photos found"}), 400
 
-        # Initialize classifier
+        # Initialize AiAnalyzer (uses ChatGPT as PRIMARY)
         try:
-            classifier = GeminiClassifier.from_env()
+            analyzer = AiAnalyzer.from_env()
         except ValueError as e:
             # Cleanup temp files
             for temp_file in temp_files:
@@ -1255,8 +1255,11 @@ def api_analyze():
                     pass
             return jsonify({"error": f"AI service not configured: {str(e)}"}), 500
 
-        # Analyze photos
-        result = classifier.analyze_item(photo_objects)
+        # Create a minimal listing for analysis
+        listing = UnifiedListing(photos=photo_objects)
+
+        # Analyze photos using ChatGPT
+        enhanced_listing = analyzer.enhance_listing(listing)
 
         # Cleanup temp files
         for temp_file in temp_files:
@@ -1265,8 +1268,18 @@ def api_analyze():
             except:
                 pass
 
-        if result.get("error"):
-            return jsonify({"success": False, "error": result.get("error")}), 500
+        # Extract analysis results
+        result = {
+            "title": enhanced_listing.title,
+            "description": enhanced_listing.description,
+            "category": f"{enhanced_listing.category.primary} > {enhanced_listing.category.subcategory}" if enhanced_listing.category and enhanced_listing.category.subcategory else (enhanced_listing.category.primary if enhanced_listing.category else ""),
+            "brand": enhanced_listing.item_specifics.brand if enhanced_listing.item_specifics else "",
+            "model": enhanced_listing.item_specifics.model if enhanced_listing.item_specifics else "",
+            "color": enhanced_listing.item_specifics.color if enhanced_listing.item_specifics else "",
+            "keywords": enhanced_listing.seo_data.keywords if enhanced_listing.seo_data else [],
+            "search_terms": enhanced_listing.seo_data.search_terms if enhanced_listing.seo_data else [],
+            "ai_provider": enhanced_listing.ai_provider
+        }
 
         return jsonify({"success": True, "analysis": result})
 
@@ -1284,26 +1297,28 @@ def api_analyze():
 @main_bp.route("/api/analyze-card", methods=["POST"])
 @login_required
 def api_analyze_card():
-    """Legacy card analysis endpoint (use /api/enhanced-scan instead)"""
+    """Legacy card analysis endpoint - redirects to enhanced-scan for ChatGPT analysis"""
+    import logging
+    logging.warning("/api/analyze-card is deprecated, use /api/enhanced-scan instead")
+
+    # Redirect to enhanced-scan which uses ChatGPT
     try:
-        from src.ai.gemini_classifier import analyze_card
-        from src.schema.unified_listing import Photo
+        from flask import request as flask_request
+        data = flask_request.get_json()
 
-        data = request.get_json()
-        paths = data.get("photos", [])
-        if not paths:
-            return jsonify({"error": "No photos provided"}), 400
-
-        photos = [Photo(url=p, local_path=f"./data{p}") for p in paths]
-        result = analyze_card(photos)
-
-        if result.get("error"):
-            return jsonify(result), 500
-
-        return jsonify({"success": True, "card_data": result})
-
+        # Forward to enhanced-scan endpoint
+        from flask import current_app
+        with current_app.test_client() as client:
+            response = client.post(
+                '/api/enhanced-scan',
+                json=data,
+                headers={'Content-Type': 'application/json'}
+            )
+            return response.get_json(), response.status_code
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        import logging
+        logging.error(f"Card analysis redirect error: {e}")
+        return jsonify({"error": f"Analysis failed: {str(e)}"}), 500
 
 
 # -------------------------------------------------------------------------

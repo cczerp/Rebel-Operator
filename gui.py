@@ -62,8 +62,8 @@ class AIListerGUI(ctk.CTk):
         self.photos = []
         self.current_listing = None
         self.collectible_data = None
-        self.is_collectible = False  # Track if Gemini detected collectible
-        self.gemini_analysis = None  # Store Gemini's analysis
+        self.is_collectible = False  # Track if AI detected collectible
+        self.chatgpt_analysis = None  # Store ChatGPT's analysis
 
         # Create UI
         self.create_widgets()
@@ -329,7 +329,7 @@ class AIListerGUI(ctk.CTk):
             font=("Arial Bold", 12),
         ).pack(side="left", padx=3)
 
-        # Middle - Main AI Analysis (Gemini)
+        # Middle - Main AI Analysis (ChatGPT Primary)
         ctk.CTkButton(
             all_buttons_frame,
             text="🤖 Analyze with AI",
@@ -351,7 +351,7 @@ class AIListerGUI(ctk.CTk):
             height=50,
             width=170,
             font=("Arial Bold", 12),
-            state="disabled",  # Disabled until Gemini detects collectible
+            state="disabled",  # Disabled until AI detects collectible
         )
         self.deep_analysis_button.pack(side="left", padx=3)
 
@@ -402,12 +402,12 @@ class AIListerGUI(ctk.CTk):
             self.update_status("Photo removed")
 
     def ai_enhance_listing(self):
-        """Use Gemini AI for fast item classification (PRIMARY ANALYZER)"""
+        """Use ChatGPT AI for item classification (PRIMARY ANALYZER)"""
         if not self.photos:
             messagebox.showwarning("No Photos", "Please add photos first!")
             return
 
-        self.update_status("🤖 Analyzing with Gemini AI...")
+        self.update_status("🤖 Analyzing with ChatGPT AI...")
 
         def enhance():
             try:
@@ -422,29 +422,44 @@ class AIListerGUI(ctk.CTk):
                     for i, p in enumerate(self.photos)
                 ]
 
-                # Use Gemini for fast classification
-                from src.ai.gemini_classifier import GeminiClassifier
-                classifier = GeminiClassifier.from_env()
+                # Use AiAnalyzer with ChatGPT as PRIMARY
+                from src.enhancer.ai_enhancer import AiAnalyzer
+                from src.schema.unified_listing import UnifiedListing
 
-                self.after(0, lambda: self.update_status("🤖 Gemini analyzing..."))
-                analysis = classifier.analyze_item(photo_objects)
+                analyzer = AiAnalyzer.from_env()
 
-                # Check for errors
-                if "error" in analysis:
-                    error_msg = analysis.get("error", "Unknown error")
-                    self.after(0, lambda: messagebox.showerror(
-                        "Gemini AI Error",
-                        f"Gemini could not analyze the photos:\n\n{error_msg}\n\nPlease check:\n- GOOGLE_AI_API_KEY or GEMINI_API_KEY is set in .env\n- Photos are valid images\n- Internet connection"
-                    ))
-                    self.after(0, lambda: self.update_status(f"❌ Gemini failed: {error_msg}"))
-                    return
+                self.after(0, lambda: self.update_status("🤖 ChatGPT analyzing..."))
+
+                # Create minimal listing for analysis with placeholder values
+                from src.schema.unified_listing import Price, ListingCondition
+                listing = UnifiedListing(
+                    title="",  # Will be filled by AI
+                    description="",  # Will be filled by AI
+                    price=Price(amount=0.0),  # Placeholder
+                    condition=ListingCondition.GOOD,  # Placeholder
+                    photos=photo_objects
+                )
+                enhanced_listing = analyzer.enhance_listing(listing)
+
+                # Extract analysis results
+                analysis = {
+                    "brand": enhanced_listing.item_specifics.brand if enhanced_listing.item_specifics else "",
+                    "model": enhanced_listing.item_specifics.model if enhanced_listing.item_specifics else "",
+                    "color": enhanced_listing.item_specifics.color if enhanced_listing.item_specifics else "",
+                    "suggested_title": enhanced_listing.title,
+                    "suggested_description": enhanced_listing.description,
+                    "category": enhanced_listing.category.primary if enhanced_listing.category else "",
+                    "keywords": enhanced_listing.seo_data.keywords if enhanced_listing.seo_data else [],
+                    "ai_provider": enhanced_listing.ai_provider,
+                    "collectible": False  # Will be determined separately if needed
+                }
 
                 # Store analysis
-                self.gemini_analysis = analysis
+                self.chatgpt_analysis = analysis
                 self.is_collectible = analysis.get("collectible", False)
 
                 # Update UI on main thread
-                self.after(0, lambda: self.apply_gemini_classification(analysis))
+                self.after(0, lambda: self.apply_ai_classification(analysis))
 
             except FileNotFoundError as e:
                 self.after(0, lambda: messagebox.showerror("File Error", str(e)))
@@ -460,8 +475,8 @@ class AIListerGUI(ctk.CTk):
 
         threading.Thread(target=enhance, daemon=True).start()
 
-    def apply_gemini_classification(self, analysis):
-        """Apply Gemini's classification results to form"""
+    def apply_ai_classification(self, analysis):
+        """Apply AI classification results to form"""
         # Fill in basic fields
         if analysis.get("brand"):
             self.brand_entry.delete(0, tk.END)
@@ -480,7 +495,7 @@ class AIListerGUI(ctk.CTk):
             self.title_entry.delete(0, tk.END)
             self.title_entry.insert(0, analysis["suggested_title"][:80])
 
-        # Use Gemini's description
+        # Use AI's description
         if analysis.get("description"):
             self.description_text.delete("1.0", tk.END)
             self.description_text.insert("1.0", analysis["description"])
@@ -515,7 +530,7 @@ class AIListerGUI(ctk.CTk):
 
             messagebox.showinfo(
                 "Collectible Detected!",
-                f"Gemini detected this may be a COLLECTIBLE item!\n\nConfidence: {confidence:.0%}\n\nIndicators:\n{indicator_text}\n\nClick '🔍 Identify Collectible' for deep authentication analysis."
+                f"AI detected this may be a COLLECTIBLE item!\n\nConfidence: {confidence:.0%}\n\nIndicators:\n{indicator_text}\n\nClick '🔍 Identify Collectible' for deep authentication analysis."
             )
         else:
             # Turn off collectible light
@@ -526,7 +541,7 @@ class AIListerGUI(ctk.CTk):
             # Keep deep analysis button disabled
             self.deep_analysis_button.configure(state="disabled")
 
-        self.update_status(f"✅ Gemini classification complete! ({analysis.get('category', 'unknown')})")
+        self.update_status(f"✅ AI classification complete! ({analysis.get('category', 'unknown')})")
 
     def apply_ai_attributes(self, attributes):
         """LEGACY: Apply Claude AttributeDetector results (kept for regenerate_description)"""
@@ -735,7 +750,7 @@ Return ONLY the description text, no JSON, no formatting, just the description."
         """
         Deep collectible analysis using Claude (EXPERT MODE).
 
-        This runs AFTER Gemini has detected a collectible.
+        This runs AFTER AI has detected a collectible.
         Claude performs expert-level:
         - Authenticity checks
         - Variant identification
@@ -750,7 +765,7 @@ Return ONLY the description text, no JSON, no formatting, just the description."
         if not self.is_collectible:
             messagebox.showinfo(
                 "Not a Collectible",
-                "Gemini didn't detect this as a collectible.\n\nRun 'Analyze with AI' first, or this item may not be a collectible."
+                "AI didn't detect this as a collectible.\n\nRun 'Analyze with AI' first, or this item may not be a collectible."
             )
             return
 

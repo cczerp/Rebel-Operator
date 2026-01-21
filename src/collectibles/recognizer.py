@@ -653,38 +653,40 @@ REMEMBER: Respond with ONLY the JSON object. No other text before or after.
     def identify_and_store(
         self,
         photos: List[Photo],
-        force_gpt4: bool = False
+        force_claude: bool = False
     ) -> Tuple[bool, Optional[int], Dict[str, Any]]:
         """
         Main method: Identify if item is collectible and store in database.
 
+        NOW USES CHATGPT AS PRIMARY with Claude as fallback.
+
         Returns:
             (is_collectible, collectible_id, analysis_data)
         """
-        # Step 1: Try Claude first (unless force_gpt4)
+        # Step 1: Try ChatGPT first (PRIMARY - unless force_claude)
         analysis = {}
 
-        if not force_gpt4:
-            print("🔍 Analyzing with Claude to identify collectible...")
-            analysis = self.analyze_for_collectibles_claude(photos)
+        if not force_claude:
+            print("🔍 Analyzing with ChatGPT (PRIMARY) to identify collectible...")
+            analysis = self.analyze_for_collectibles_openai(photos)
 
-        # Step 2: Fallback to GPT-4 if Claude failed or force_gpt4
-        if force_gpt4 or not analysis.get("is_collectible"):
-            if not force_gpt4:
-                print("🔄 Claude didn't identify as collectible, trying GPT-4 Vision...")
+        # Step 2: Fallback to Claude if ChatGPT failed or force_claude
+        if force_claude or not analysis.get("is_collectible"):
+            if not force_claude:
+                print("🔄 ChatGPT didn't identify as collectible, trying Claude...")
             else:
-                print("🔍 Analyzing with GPT-4 Vision...")
+                print("🔍 Analyzing with Claude...")
 
-            gpt_analysis = self.analyze_for_collectibles_openai(photos)
+            claude_analysis = self.analyze_for_collectibles_claude(photos)
 
             # Merge analyses if both ran
             if analysis:
-                analysis["gpt4_fallback"] = gpt_analysis
-                # Trust GPT-4 if it says it's collectible
-                if gpt_analysis.get("is_collectible"):
-                    analysis = gpt_analysis
+                analysis["claude_fallback"] = claude_analysis
+                # Trust Claude if it says it's collectible
+                if claude_analysis.get("is_collectible"):
+                    analysis = claude_analysis
             else:
-                analysis = gpt_analysis
+                analysis = claude_analysis
 
         # Step 3: Check if it's a collectible
         if not analysis.get("is_collectible"):
@@ -776,17 +778,19 @@ REMEMBER: Respond with ONLY the JSON object. No other text before or after.
 # Convenience function
 def identify_collectible(
     photos: List[Photo],
-    force_gpt4: bool = False
+    force_claude: bool = False
 ) -> Tuple[bool, Optional[int], Dict[str, Any]]:
     """
     Quick function to identify and store collectible.
 
+    NOW USES CHATGPT AS PRIMARY with Claude as fallback.
+
     Args:
         photos: List of Photo objects
-        force_gpt4: Force use of GPT-4 Vision (skip Claude)
+        force_claude: Force use of Claude (skip ChatGPT primary)
 
     Returns:
         (is_collectible, collectible_id, analysis_data)
     """
     recognizer = CollectibleRecognizer.from_env()
-    return recognizer.identify_and_store(photos, force_gpt4)
+    return recognizer.identify_and_store(photos, force_claude)

@@ -768,13 +768,13 @@ Return ONLY the description text, no JSON, no formatting, just the description."
                 from src.collectibles.recognizer import CollectibleRecognizer
                 recognizer = CollectibleRecognizer.from_env()
 
-                # Check if GPT-4 fallback is enabled
+                # Check if Claude override is enabled (ChatGPT is now primary)
                 use_fallback = self.enable_gpt4_fallback.get()
 
-                self.after(0, lambda: self.update_status("🔍 Claude analyzing collectible..."))
+                self.after(0, lambda: self.update_status("🔍 ChatGPT analyzing collectible..."))
                 is_collectible, collectible_id, analysis = recognizer.identify_and_store(
                     photo_objects,
-                    force_gpt4=use_fallback
+                    force_claude=use_fallback
                 )
 
                 # Check for errors
@@ -784,7 +784,8 @@ Return ONLY the description text, no JSON, no formatting, just the description."
                     debug_info = analysis.get("debug_info", "")
 
                     # Build detailed error message
-                    full_error = f"Claude could not complete deep analysis:\n\n{error_msg}"
+                    ai_provider = analysis.get("ai_provider", "ChatGPT")
+                    full_error = f"{ai_provider} could not complete deep analysis:\n\n{error_msg}"
                     if debug_info:
                         full_error += f"\n\nDebug: {debug_info}"
                     if raw_response and raw_response != "No raw response available":

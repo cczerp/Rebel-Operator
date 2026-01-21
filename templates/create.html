@@ -1106,15 +1106,29 @@ async function runEnhancedScan() {
 
         // Artifact has been AUTOMATICALLY created/updated in Hall of Records
         // Database update is automatic (no user choice) - follows merge rules
-        // User will select photos and can save to personal collection
-        if (data.artifact_id) {
+        // NOW: Fill out the listing form with the analysis data
+        if (data.artifact_id && data.listing_data) {
             hideLoading();
-            showAlert('Artifact automatically updated in public Hall of Records! Redirecting...', 'success');
-            setTimeout(() => {
-                window.location.href = `/artifact/${data.artifact_id}`;
-            }, 1500);
+
+            // Fill form with listing data
+            const listing = data.listing_data;
+            if (listing.suggested_title) document.getElementById('title').value = listing.suggested_title;
+            if (listing.description) document.getElementById('description').value = listing.description;
+            if (listing.brand) document.getElementById('brand').value = listing.brand;
+            if (listing.size) document.getElementById('size').value = listing.size;
+            if (listing.color) document.getElementById('color').value = listing.color;
+            if (listing.suggested_price) document.getElementById('price').value = listing.suggested_price;
+            if (listing.condition) document.getElementById('condition').value = listing.condition;
+            if (listing.item_type) document.getElementById('item_type').value = listing.item_type;
+
+            // Show success message with link to artifact
+            const artifactLink = `/artifact/${data.artifact_id}`;
+            showAlert(`Enhanced analysis complete! Listing form filled. <a href="${artifactLink}" target="_blank" class="alert-link">View artifact in Hall of Records</a>`, 'success');
+
+            // Store artifact_id for potential use
+            window.lastArtifactId = data.artifact_id;
         } else {
-            throw new Error('No artifact ID returned from server');
+            throw new Error('No artifact ID or listing data returned from server');
         }
 
     } catch (error) {

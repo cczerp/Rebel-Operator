@@ -1724,12 +1724,89 @@ def api_enhanced_scan():
         # - New franchise: Sets initial data
         # - Existing franchise: Only adds new missing fields (never overwrites)
         # Photos stored as pending - user will select which to make public
-        
-        # Return artifact_id for redirect to artifact detail page
+
+        # Prepare listing form data for frontend
+        # Extract pricing info
+        suggested_price = None
+        if value_context.get('current_market_value_high'):
+            suggested_price = value_context.get('current_market_value_high')
+        elif value_context.get('current_market_value_low'):
+            suggested_price = value_context.get('current_market_value_low')
+        elif value_context.get('estimated_value'):
+            suggested_price = value_context.get('estimated_value')
+
+        # Build suggested title
+        item_name = data.get('item_name', 'Unknown Item')
+        brand = data.get('brand', '')
+        year = historical_context.get('release_year')
+        suggested_title = item_name
+        if brand and brand not in item_name:
+            suggested_title = f"{brand} {item_name}"
+        if year and str(year) not in suggested_title:
+            suggested_title = f"{suggested_title} ({year})"
+        # Truncate to 80 chars
+        if len(suggested_title) > 80:
+            suggested_title = suggested_title[:77] + "..."
+
+        # Build description from analysis
+        description_parts = []
+        if historical_context.get('backstory'):
+            description_parts.append(historical_context['backstory'])
+        if collector_notes:
+            description_parts.append(f"\n\n{collector_notes}")
+        if value_context.get('value_factors'):
+            description_parts.append(f"\n\nValue factors: {', '.join(value_context['value_factors'])}")
+
+        description = "\n".join(description_parts) if description_parts else data.get('description', '')
+
+        # Determine condition from grading if available
+        condition = 'excellent'  # default
+        if data.get('grading'):
+            grade = data.get('grading', {}).get('overall_grade', '').lower()
+            if 'mint' in grade or 'gem' in grade or grade.startswith('10') or grade.startswith('9'):
+                condition = 'new'
+            elif 'near mint' in grade or grade.startswith('8'):
+                condition = 'like_new'
+            elif 'excellent' in grade or grade.startswith('7'):
+                condition = 'excellent'
+            elif 'good' in grade or grade.startswith('6') or grade.startswith('5'):
+                condition = 'good'
+            elif 'fair' in grade or grade.startswith('4') or grade.startswith('3'):
+                condition = 'fair'
+            else:
+                condition = 'poor'
+
+        # Determine item_type from category
+        category = data.get('category', '').lower()
+        item_type = 'collectible'  # default
+        if 'card' in category or result.get('type') == 'card':
+            item_type = 'trading_card'
+        elif 'antique' in category or 'vintage' in category:
+            item_type = 'antiques'
+        elif 'toy' in category or 'game' in category:
+            item_type = 'toys_games'
+        elif 'jewelry' in category or 'watch' in category:
+            item_type = 'jewelry'
+        elif 'book' in category or 'media' in category:
+            item_type = 'books_media'
+
+        # Return artifact_id AND listing form data
         return jsonify({
             'success': True,
             'artifact_id': artifact_id,
-            'message': 'Artifact automatically updated in public Hall of Records'
+            'message': 'Artifact automatically updated in public Hall of Records',
+            'listing_data': {
+                'suggested_title': suggested_title,
+                'description': description,
+                'brand': brand,
+                'suggested_price': suggested_price,
+                'condition': condition,
+                'item_type': item_type,
+                'size': data.get('size', ''),
+                'color': data.get('color', ''),
+                'category': data.get('category', ''),
+                'franchise': data.get('franchise', '')
+            }
         })
 
     except Exception as e:

@@ -1,52 +1,48 @@
 """
-Enhanced Scanner - Deep Collectible Analysis
-============================================
-Unified scanner for deep collectible analysis focusing on:
+Collectable Scanner - Deep Collectible Analysis
+================================================
+Deep scanner for collectible analysis focusing on:
 - Mint marks
 - Serial numbers
 - Signatures
 - Errors (error coins, misprints, etc.)
 - Historical context and backstory
 
-This is the Tier 2 analyzer that runs after Gemini's quick classification.
+Uses ChatGPT as PRIMARY with Claude as fallback.
 """
 
 import os
 import json
 from typing import List, Dict, Any, Optional
 from pathlib import Path
+import base64
 
 from ..schema.unified_listing import Photo
 from ..ai.claude_collectible_analyzer import ClaudeCollectibleAnalyzer
-from ..ai.gemini_classifier import GeminiClassifier
 
 
-class EnhancedScanner:
+class CollectableScanner:
     """
-    Enhanced scanner for deep collectible analysis using Claude AI.
-    
+    Deep collectable scanner using ChatGPT as primary analyzer.
+
     This scanner focuses on collector-specific value indicators:
     - Mint marks (coin mint locations)
     - Serial numbers (production numbers, limited edition numbers)
     - Signatures (autographs, artist signatures)
     - Errors (error coins, misprints, factory defects)
     - Historical backstory (item significance, rarity context)
+
+    Uses ChatGPT (GPT-4 Vision) as PRIMARY with Claude as fallback.
     """
 
-    def __init__(self, claude_api_key: Optional[str] = None, gemini_api_key: Optional[str] = None, openai_api_key: Optional[str] = None):
-        """Initialize enhanced scanner"""
+    def __init__(self, claude_api_key: Optional[str] = None, openai_api_key: Optional[str] = None):
+        """Initialize collectable scanner with ChatGPT primary"""
         try:
             self.claude_analyzer = ClaudeCollectibleAnalyzer(api_key=claude_api_key)
         except Exception as e:
             raise ValueError(f"Failed to initialize Claude analyzer: {e}")
-        try:
-            self.gemini_classifier = GeminiClassifier(api_key=gemini_api_key)
-        except Exception as e:
-            # Gemini is optional for enhanced scan, just log warning
-            print(f"Warning: Gemini classifier not available: {e}")
-            self.gemini_classifier = None
 
-        # Initialize OpenAI for image-to-text extraction
+        # Initialize OpenAI as PRIMARY scanner
         self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
         if not self.openai_api_key:
             print("Warning: OpenAI API key not available - ChatGPT image-to-text disabled")
@@ -1028,17 +1024,8 @@ REMEMBER: Respond with ONLY the JSON object. No markdown code blocks, no other t
             print(f"⚠️  ChatGPT analysis failed: {deep_analysis['error']}")
             print("   Falling back to Claude...")
 
-            # Fallback to Claude
-            quick_analysis = {}
-            if self.gemini_classifier:
-                try:
-                    quick_analysis = self.gemini_classifier.analyze_item(photos)
-                    if quick_analysis.get('error'):
-                        quick_analysis = {}
-                except Exception:
-                    quick_analysis = {}
-
-            claude_analysis = self._deep_analyze_collectible(photos, quick_analysis)
+            # Fallback to Claude (no Gemini quick analysis needed)
+            claude_analysis = self._deep_analyze_collectible(photos, {})
 
             if claude_analysis.get('error'):
                 return {
@@ -1046,14 +1033,14 @@ REMEMBER: Respond with ONLY the JSON object. No markdown code blocks, no other t
                     'type': 'collectible'
                 }
 
-            # Determine type and format response
-            category = quick_analysis.get('category', '').lower()
+            # Determine type from Claude's analysis
+            category = claude_analysis.get('category', '').lower()
             is_card = 'card' in category or 'trading card' in category or 'tcg' in category
 
             if is_card:
-                return self._format_card_response(claude_analysis, quick_analysis)
+                return self._format_card_response(claude_analysis, {})
             else:
-                return self._format_collectible_response(claude_analysis, quick_analysis)
+                return self._format_collectible_response(claude_analysis, {})
 
         # ChatGPT succeeded
         print("✅ ChatGPT analysis complete")

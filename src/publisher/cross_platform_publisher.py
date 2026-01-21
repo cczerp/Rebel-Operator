@@ -17,7 +17,7 @@ from datetime import datetime
 from ..schema.unified_listing import UnifiedListing
 from ..adapters.ebay_adapter import EbayAdapter
 from ..adapters.mercari_adapter import MercariAdapter
-from ..enhancer.ai_enhancer import AIEnhancer
+from ..enhancer.ai_enhancer import AiAnalyzer
 
 
 @dataclass
@@ -52,7 +52,7 @@ class CrossPlatformPublisher:
         self,
         ebay_adapter: Optional[EbayAdapter] = None,
         mercari_adapter: Optional[MercariAdapter] = None,
-        ai_enhancer: Optional[AIEnhancer] = None,
+        ai_enhancer: Optional[AiAnalyzer] = None,
         auto_enhance: bool = True,
     ):
         """
@@ -319,7 +319,7 @@ class CrossPlatformPublisher:
         # Initialize AI enhancer if keys available
         ai_enhancer = None
         try:
-            ai_enhancer = AIEnhancer.from_env()
+            ai_enhancer = AiAnalyzer.from_env()
         except ValueError:
             print("⚠️  AI enhancer not configured (missing API keys)")
 

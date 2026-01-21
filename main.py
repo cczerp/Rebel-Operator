@@ -26,7 +26,7 @@ from src.schema import (
     ListingCondition,
     ShippingService,
 )
-from src.enhancer import AIEnhancer
+from src.enhancer import AiAnalyzer
 from src.publisher import (
     CrossPlatformPublisher,
     ListingPreviewer,
@@ -87,8 +87,8 @@ def initialize_services():
         publisher = None
 
     try:
-        ai_enhancer = AIEnhancer.from_env()
-        print("✅ AI enhancer initialized")
+        ai_enhancer = AiAnalyzer.from_env()
+        print("✅ AI analyzer initialized")
     except Exception as e:
         print(f"⚠️  AI enhancer initialization warning: {e}")
         ai_enhancer = None

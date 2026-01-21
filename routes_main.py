@@ -1542,17 +1542,17 @@ def api_enhanced_scan():
             logging.error("[ENHANCED SCAN ERROR] No valid photo objects created")
             return jsonify({"error": "No valid photos found"}), 400
 
-        logging.info(f"[ENHANCED SCAN] Created {len(photo_objects)} photo objects. Using Gemini with detailed collectible analysis prompt...")
+        logging.info(f"[ENHANCED SCAN] Created {len(photo_objects)} photo objects. Using ChatGPT (PRIMARY) for enhanced scan...")
 
-        # Use Gemini with detailed prompt (same prompt that was designed for Claude)
+        # Use CollectableScanner with ChatGPT as primary (Claude as fallback)
         try:
-            from src.ai.gemini_classifier import GeminiClassifier
-            classifier = GeminiClassifier.from_env()
-            logging.info("[ENHANCED SCAN] Analyzing with Gemini using detailed collectible prompt (mint marks, serial numbers, signatures, errors, historical context, etc.)...")
-            detailed_analysis = classifier.analyze_collectible_detailed(photo_objects)
-            logging.info(f"[ENHANCED SCAN] ✅ Gemini detailed analysis completed: {list(detailed_analysis.keys()) if detailed_analysis else 'empty'}")
-            
-            if detailed_analysis.get("error"):
+            from src.collectibles.enhanced_scanner import CollectableScanner
+            scanner = CollectableScanner.from_env()
+            logging.info("[ENHANCED SCAN] Analyzing with ChatGPT (PRIMARY) using comprehensive deep analysis (mint marks, serial numbers, signatures, errors, historical context, etc.)...")
+            scan_result = scanner.scan(photo_objects)
+            logging.info(f"[ENHANCED SCAN] ✅ Analysis completed: AI={scan_result.get('ai_provider', 'unknown')}, Type={scan_result.get('type', 'unknown')}")
+
+            if scan_result.get("error"):
                 # Cleanup temp files
                 for temp_file in temp_files:
                     try:
@@ -1561,89 +1561,18 @@ def api_enhanced_scan():
                         pass
                 return jsonify({
                     "success": False,
-                    "error": f"Detailed analysis failed: {detailed_analysis.get('error')}"
+                    "error": f"Analysis failed: {scan_result.get('error')}"
                 }), 500
-            
-            # Format Gemini's detailed analysis (same structure as Claude's EnhancedScanner returns)
-            # Determine item type
-            item_type = 'collectible'
-            category = detailed_analysis.get('category', '').lower()
-            if 'card' in category or 'trading card' in category or detailed_analysis.get('card_type'):
-                item_type = 'card'
-            
-            # Extract market analysis
-            market_analysis = detailed_analysis.get('market_analysis', {})
-            
-            # Format as collectible or card response (similar to EnhancedScanner)
-            if item_type == 'card':
-                # Format as card
-                result = {
-                    'type': 'card',
-                    'data': {
-                        'card_name': detailed_analysis.get('item_name', 'Unknown Card'),
-                        'player_name': detailed_analysis.get('player_name', ''),
-                        'set_name': detailed_analysis.get('set_name', ''),
-                        'card_number': detailed_analysis.get('card_number', ''),
-                        'card_type': detailed_analysis.get('card_type', 'unknown'),
-                        'game_name': detailed_analysis.get('game_name', ''),
-                        'franchise': detailed_analysis.get('franchise', ''),
-                        'rarity': detailed_analysis.get('rarity', ''),
-                        'brand': detailed_analysis.get('brand', ''),
-                        'sport': detailed_analysis.get('sport', ''),
-                        'serial_number': detailed_analysis.get('serial_number', {}),
-                        'signature': detailed_analysis.get('signature', {}),
-                        'errors_variations': detailed_analysis.get('errors_variations', {}),
-                        'historical_context': detailed_analysis.get('historical_context', {}),
-                        'condition': detailed_analysis.get('condition', {}),
-                        'authentication': detailed_analysis.get('authentication', {}),
-                        'estimated_value_low': market_analysis.get('current_market_value_low', 0),
-                        'estimated_value_high': market_analysis.get('current_market_value_high', 0),
-                        'collector_notes': detailed_analysis.get('collector_notes', ''),
-                        'is_card': True
-                    },
-                    'market_prices': {
-                        'tcgplayer': {'market': market_analysis.get('estimated_value')},
-                        'ebay': {'avg': market_analysis.get('estimated_value')},
-                        'actual_selling': market_analysis.get('estimated_value'),
-                        'quick_sale': market_analysis.get('current_market_value_low')
-                    },
-                    'ai_provider': 'gemini'
-                }
-            else:
-                # Format as collectible
-                result = {
-                    'type': 'collectible',
-                    'data': {
-                        'item_name': detailed_analysis.get('item_name', 'Unknown Collectible'),
-                        'franchise': detailed_analysis.get('franchise', ''),
-                        'brand': detailed_analysis.get('brand', ''),
-                        'category': detailed_analysis.get('category', ''),
-                        'mint_mark': detailed_analysis.get('mint_mark', {}),
-                        'serial_number': detailed_analysis.get('serial_number', {}),
-                        'signature': detailed_analysis.get('signature', {}),
-                        'errors_variations': detailed_analysis.get('errors_variations', {}),
-                        'historical_context': detailed_analysis.get('historical_context', {}),
-                        'condition': detailed_analysis.get('condition', {}),
-                        'authentication': detailed_analysis.get('authentication', {}),
-                        'item_significance': detailed_analysis.get('historical_context', {}).get('backstory', ''),
-                        'rarity_info': detailed_analysis.get('collector_notes', ''),
-                        'authentication_markers': detailed_analysis.get('authentication', {}).get('authentication_markers', []),
-                        'market_analysis': market_analysis,
-                        'collector_notes': detailed_analysis.get('collector_notes', '')
-                    },
-                    'market_prices': {
-                        'retail': market_analysis.get('estimated_value') or market_analysis.get('current_market_value_high'),
-                        'actual_selling': market_analysis.get('estimated_value'),
-                        'quick_sale': market_analysis.get('current_market_value_low'),
-                        'value_range': {
-                            'low': market_analysis.get('current_market_value_low', 0),
-                            'high': market_analysis.get('current_market_value_high', 0)
-                        }
-                    },
-                    'ai_provider': 'gemini'
-                }
+
+            # CollectableScanner returns properly formatted response already
+            # Just need to extract the result structure
+            item_type = scan_result.get('type', 'collectible')
+
+            # CollectableScanner already returns properly formatted response
+            # Just use it directly
+            result = scan_result
         except Exception as analyze_error:
-            logging.error(f"[ENHANCED SCAN] Gemini detailed analysis error: {analyze_error}")
+            logging.error(f"[ENHANCED SCAN] Collectable scanner error: {analyze_error}")
             import traceback
             logging.error(f"[ENHANCED SCAN] Traceback: {traceback.format_exc()}")
             # Cleanup temp files

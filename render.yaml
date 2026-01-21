@@ -4,7 +4,7 @@ services:
     env: python
     region: oregon
     plan: free
-    branch: claude/update-brand-name-2QXFp
+    branch: claude/fix-render-deployment-WERNU
     buildCommand: pip install --upgrade pip && pip install gunicorn && pip install -r requirements.txt
     startCommand: gunicorn web_app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --threads 4
     maxUploadSizeMB: 50
@@ -15,6 +15,16 @@ services:
     envVars:
       - key: FLASK_SECRET_KEY
         generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: USE_LOCAL_STORAGE
+        value: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GEMINI_API_KEY

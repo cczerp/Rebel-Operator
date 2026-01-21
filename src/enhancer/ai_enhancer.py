@@ -685,17 +685,23 @@ Format as JSON:
         Expected variables:
             - OPENAI_API_KEY (optional)
             - ANTHROPIC_API_KEY (optional)
+            - USE_OPENAI (optional, default: false if OPENAI_API_KEY not set)
+            - USE_ANTHROPIC (optional, default: false if ANTHROPIC_API_KEY not set)
             - USE_OLLAMA (optional, default: true)
             - OLLAMA_MODEL (optional, default: llama3.2-vision:11b)
             - OLLAMA_HOST (optional, default: http://localhost:11434)
         """
         use_ollama = os.getenv("USE_OLLAMA", "true").lower() in ("true", "1", "yes")
+        use_openai = os.getenv("USE_OPENAI", "true").lower() in ("true", "1", "yes")
+        use_anthropic = os.getenv("USE_ANTHROPIC", "true").lower() in ("true", "1", "yes")
         ollama_model = os.getenv("OLLAMA_MODEL", "llama3.2-vision:11b")
         ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 
         return cls(
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
+            use_openai=use_openai,
+            use_anthropic=use_anthropic,
             use_ollama=use_ollama,
             ollama_model=ollama_model,
             ollama_host=ollama_host,

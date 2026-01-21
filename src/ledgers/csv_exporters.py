@@ -59,7 +59,10 @@ class InventoryMasterExporter(LedgerCSVExporter):
     COLUMNS = [
         'MasterItemID',
         'SKU',
+        'AutoSKU',
         'Title',
+        'Description',
+        'Price',
         'Category',
         'Subcategory',
         'Brand',
@@ -67,6 +70,8 @@ class InventoryMasterExporter(LedgerCSVExporter):
         'Color',
         'Size',
         'Condition',
+        'Measurements',        # JSON
+        'Variants',            # JSON array
         'Quantity',
         'StorageLocation',
         'Status',
@@ -100,7 +105,10 @@ class InventoryMasterExporter(LedgerCSVExporter):
             SELECT
                 master_item_id,
                 sku,
+                auto_sku,
                 title,
+                description,
+                price,
                 category,
                 subcategory,
                 brand,
@@ -108,6 +116,8 @@ class InventoryMasterExporter(LedgerCSVExporter):
                 color,
                 size,
                 condition,
+                measurements,
+                variants,
                 quantity,
                 storage_location,
                 status,
@@ -149,25 +159,30 @@ class InventoryMasterExporter(LedgerCSVExporter):
             writer.writerow([
                 row[0],  # master_item_id
                 row[1] or "",  # sku
-                row[2],  # title
-                row[3] or "",  # category
-                row[4] or "",  # subcategory
-                row[5] or "",  # brand
-                row[6] or "",  # model
-                row[7] or "",  # color
-                row[8] or "",  # size
-                row[9] or "",  # condition
-                row[10],  # quantity
-                row[11] or "",  # storage_location
-                row[12],  # status
-                InventoryMasterExporter._format_decimal(row[13]),  # cost_basis
-                row[14] or "USD",  # currency
-                row[15] or "",  # platform_listing_ids
-                row[16] or "",  # photos
-                row[17] or "",  # notes
-                InventoryMasterExporter._format_date(row[18]),  # acquired_date
-                InventoryMasterExporter._format_datetime(row[19]),  # created_at
-                InventoryMasterExporter._format_datetime(row[20]),  # updated_at
+                "TRUE" if row[2] else "FALSE",  # auto_sku
+                row[3] or "",  # title
+                row[4] or "",  # description
+                InventoryMasterExporter._format_decimal(row[5]),  # price
+                row[6] or "",  # category
+                row[7] or "",  # subcategory
+                row[8] or "",  # brand
+                row[9] or "",  # model
+                row[10] or "",  # color
+                row[11] or "",  # size
+                row[12] or "",  # condition
+                row[13] or "",  # measurements (JSON)
+                row[14] or "",  # variants (JSON)
+                row[15] or 1,  # quantity
+                row[16] or "",  # storage_location
+                row[17] or "available",  # status
+                InventoryMasterExporter._format_decimal(row[18]),  # cost_basis
+                row[19] or "USD",  # currency
+                row[20] or "",  # platform_listing_ids
+                row[21] or "",  # photos
+                row[22] or "",  # notes
+                InventoryMasterExporter._format_date(row[23]),  # acquired_date
+                InventoryMasterExporter._format_datetime(row[24]),  # created_at
+                InventoryMasterExporter._format_datetime(row[25]),  # updated_at
             ])
 
         cursor.close()
@@ -200,10 +215,16 @@ class SalesLedgerExporter(LedgerCSVExporter):
         'TaxCollected',
         'NetPayout',
         'CostBasis',
+        'COGS',  # Same as CostBasis but explicit for accounting
         'Profit',
         'BuyerUsername',
         'BuyerLocation',
         'PayoutStatus',
+        'ShippingLabelURL',
+        'ItemStorageLocation',
+        'DelistingScheduledAt',
+        'DelistedAt',
+        'AutoDelisted',
         'Notes',
     ]
 
@@ -240,10 +261,16 @@ class SalesLedgerExporter(LedgerCSVExporter):
                 tax_collected,
                 net_payout,
                 cost_basis,
+                cogs,
                 profit,
                 buyer_username,
                 buyer_location,
                 payout_status,
+                shipping_label_url,
+                item_storage_location,
+                delisting_scheduled_at,
+                delisted_at,
+                auto_delisted,
                 notes
             FROM sales_ledger
             WHERE user_id = %s
@@ -292,11 +319,17 @@ class SalesLedgerExporter(LedgerCSVExporter):
                 SalesLedgerExporter._format_decimal(row[13]),  # tax_collected
                 SalesLedgerExporter._format_decimal(row[14]),  # net_payout
                 SalesLedgerExporter._format_decimal(row[15]),  # cost_basis
-                SalesLedgerExporter._format_decimal(row[16]),  # profit
-                row[17] or "",  # buyer_username
-                row[18] or "",  # buyer_location
-                row[19] or "",  # payout_status
-                row[20] or "",  # notes
+                SalesLedgerExporter._format_decimal(row[16]),  # cogs
+                SalesLedgerExporter._format_decimal(row[17]),  # profit
+                row[18] or "",  # buyer_username
+                row[19] or "",  # buyer_location
+                row[20] or "",  # payout_status
+                row[21] or "",  # shipping_label_url
+                row[22] or "",  # item_storage_location
+                SalesLedgerExporter._format_datetime(row[23]),  # delisting_scheduled_at
+                SalesLedgerExporter._format_datetime(row[24]),  # delisted_at
+                "TRUE" if row[25] else "FALSE",  # auto_delisted
+                row[26] or "",  # notes
             ])
 
         cursor.close()
@@ -320,6 +353,8 @@ class ShippingLedgerExporter(LedgerCSVExporter):
         'ServiceType',
         'TrackingNumber',
         'LabelSource',
+        'ShippingLabelURL',
+        'LabelFormat',
         'LabelCreatedDate',
         'ShipDate',
         'ExpectedDeliveryDate',
@@ -620,6 +655,171 @@ class DraftListingsExporter(LedgerCSVExporter):
 
 
 # ============================================================================
+# 5️⃣ INVOICES LEDGER EXPORTER
+# ============================================================================
+
+class InvoicesExporter(LedgerCSVExporter):
+    """Export Invoices Ledger to CSV"""
+
+    COLUMNS = [
+        'InvoiceID',
+        'InvoiceNumber',
+        'MasterItemID',
+        'InvoiceDate',
+        'DueDate',
+        'BuyerName',
+        'BuyerEmail',
+        'BuyerPhone',
+        'BuyerAddress',
+        'Items',  # JSON
+        'Subtotal',
+        'TaxRate',
+        'TaxAmount',
+        'ShippingAmount',
+        'DiscountAmount',
+        'TotalAmount',
+        'PaymentMethod',
+        'PaymentStatus',
+        'PaidAmount',
+        'PaidDate',
+        'PDFUrl',
+        'PDFGenerated',
+        'SentVia',
+        'SentAt',
+        'Status',
+        'InventoryMarkedSold',
+        'Notes',
+        'Terms',
+        'CreatedAt',
+        'UpdatedAt',
+    ]
+
+    @staticmethod
+    def export_to_csv(user_id: int, filters: Optional[Dict] = None) -> str:
+        """
+        Export invoices ledger to CSV string.
+
+        Args:
+            user_id: User ID
+            filters: Optional filters (status, payment_status, etc.)
+
+        Returns:
+            CSV string
+        """
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # Build query with filters
+        query = """
+            SELECT
+                invoice_id,
+                invoice_number,
+                master_item_id,
+                invoice_date,
+                due_date,
+                buyer_name,
+                buyer_email,
+                buyer_phone,
+                buyer_address,
+                items,
+                subtotal,
+                tax_rate,
+                tax_amount,
+                shipping_amount,
+                discount_amount,
+                total_amount,
+                payment_method,
+                payment_status,
+                paid_amount,
+                paid_date,
+                pdf_url,
+                pdf_generated,
+                sent_via,
+                sent_at,
+                status,
+                inventory_marked_sold,
+                notes,
+                terms,
+                created_at,
+                updated_at
+            FROM invoices
+            WHERE user_id = %s
+        """
+
+        params = [user_id]
+        conditions = []
+
+        if filters:
+            if 'status' in filters:
+                conditions.append("status = %s")
+                params.append(filters['status'])
+            if 'payment_status' in filters:
+                conditions.append("payment_status = %s")
+                params.append(filters['payment_status'])
+            if 'payment_method' in filters:
+                conditions.append("payment_method = %s")
+                params.append(filters['payment_method'])
+            if 'start_date' in filters:
+                conditions.append("invoice_date >= %s")
+                params.append(filters['start_date'])
+            if 'end_date' in filters:
+                conditions.append("invoice_date <= %s")
+                params.append(filters['end_date'])
+
+        if conditions:
+            query += " AND " + " AND ".join(conditions)
+
+        query += " ORDER BY invoice_date DESC"
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+
+        # Write CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(InvoicesExporter.COLUMNS)
+
+        for row in rows:
+            writer.writerow([
+                row[0] or "",  # invoice_id
+                row[1] or "",  # invoice_number
+                row[2] or "",  # master_item_id
+                InvoicesExporter._format_date(row[3]),  # invoice_date
+                InvoicesExporter._format_date(row[4]),  # due_date
+                row[5] or "",  # buyer_name
+                row[6] or "",  # buyer_email
+                row[7] or "",  # buyer_phone
+                row[8] or "",  # buyer_address
+                row[9] or "",  # items (JSON)
+                InvoicesExporter._format_decimal(row[10]),  # subtotal
+                float(row[11]) if row[11] else "",  # tax_rate
+                InvoicesExporter._format_decimal(row[12]),  # tax_amount
+                InvoicesExporter._format_decimal(row[13]),  # shipping_amount
+                InvoicesExporter._format_decimal(row[14]),  # discount_amount
+                InvoicesExporter._format_decimal(row[15]),  # total_amount
+                row[16] or "",  # payment_method
+                row[17] or "",  # payment_status
+                InvoicesExporter._format_decimal(row[18]),  # paid_amount
+                InvoicesExporter._format_date(row[19]),  # paid_date
+                row[20] or "",  # pdf_url
+                "TRUE" if row[21] else "FALSE",  # pdf_generated
+                row[22] or "",  # sent_via
+                InvoicesExporter._format_datetime(row[23]),  # sent_at
+                row[24] or "",  # status
+                "TRUE" if row[25] else "FALSE",  # inventory_marked_sold
+                row[26] or "",  # notes
+                row[27] or "",  # terms
+                InvoicesExporter._format_datetime(row[28]),  # created_at
+                InvoicesExporter._format_datetime(row[29]),  # updated_at
+            ])
+
+        cursor.close()
+        conn.close()
+
+        return output.getvalue()
+
+
+# ============================================================================
 # CONVENIENCE FUNCTIONS
 # ============================================================================
 
@@ -628,7 +828,7 @@ def export_ledger(ledger_type: str, user_id: int, filters: Optional[Dict] = None
     Export any ledger type to CSV.
 
     Args:
-        ledger_type: 'inventory', 'sales', 'shipping', or 'drafts'
+        ledger_type: 'inventory', 'sales', 'shipping', 'drafts', or 'invoices'
         user_id: User ID
         filters: Optional filters
 
@@ -643,6 +843,7 @@ def export_ledger(ledger_type: str, user_id: int, filters: Optional[Dict] = None
         'sales': SalesLedgerExporter,
         'shipping': ShippingLedgerExporter,
         'drafts': DraftListingsExporter,
+        'invoices': InvoicesExporter,
     }
 
     exporter_class = exporters.get(ledger_type.lower())

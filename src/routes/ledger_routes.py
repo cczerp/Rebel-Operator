@@ -34,7 +34,7 @@ def export_ledger_api(ledger_type: str):
     Export ledger to CSV file.
 
     Path:
-        ledger_type: 'inventory', 'sales', 'shipping', or 'drafts'
+        ledger_type: 'inventory', 'sales', 'shipping', 'drafts', or 'invoices'
 
     Query params:
         format: 'download' (default) or 'inline'
@@ -84,6 +84,14 @@ def export_ledger_api(ledger_type: str):
             if request.args.get('min_completeness'):
                 filters['min_completeness'] = int(request.args.get('min_completeness'))
 
+        elif ledger_type == 'invoices':
+            if request.args.get('status'):
+                filters['status'] = request.args.get('status')
+            if request.args.get('payment_status'):
+                filters['payment_status'] = request.args.get('payment_status')
+            if request.args.get('payment_method'):
+                filters['payment_method'] = request.args.get('payment_method')
+
         # Export CSV
         csv_content = export_ledger(ledger_type, current_user.id, filters)
 
@@ -124,8 +132,8 @@ def export_all_ledgers():
         # Create ZIP in memory
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-            # Export each ledger
-            ledgers = ['inventory', 'sales', 'shipping', 'drafts']
+            # Export each ledger (all 5 ledgers)
+            ledgers = ['inventory', 'sales', 'shipping', 'drafts', 'invoices']
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
             for ledger_type in ledgers:

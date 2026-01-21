@@ -16,11 +16,6 @@ This folder contains all project documentation organized by category for easy na
 - **[platforms/](platforms/)** - Platform integration documentation (eBay, Mercari, etc.)
 - **[technical-details/](technical-details/)** - Technical specifications and architecture
 
-### 🔧 Special Folders
-
-- **[duplicates-review/](duplicates-review/)** - Files flagged as duplicates or near-duplicates for review
-- **[archive/](archive/)** - Old debug sessions and deprecated documentation
-
 ## 🔑 Key Files (Located in Root)
 
 These important files remain in the project root for quick access:
@@ -38,15 +33,13 @@ These important files remain in the project root for quick access:
 2. **Working on code?** Read the rule files first: `FRONTEND_RULES.md`, `BACKEND_RULES.md`, `EXTERNAL_API_RULES.md`
 3. **Looking for a specific feature?** Check [features/](features/)
 4. **Setting up deployment?** See [setup-deployment/](setup-deployment/)
-5. **Investigating a past fix?** Browse [archive/](archive/)
-6. **Need technical details?** Explore [technical-details/](technical-details/)
+5. **Need technical details?** Explore [technical-details/](technical-details/)
 
 ## 📝 Notes
 
 - Documentation files have been reorganized from the root directory into this structured folder system
-- Verbose fix/explanation documents have been consolidated into 3 non-negotiable rule files in the root
-- Old debug documentation has been moved to [archive/](archive/)
-- Empty files and duplicates have been removed or moved to [duplicates-review/](duplicates-review/)
+- All verbose fix/explanation documents have been consolidated into 3 non-negotiable rule files in the root
+- All duplicate and archived documentation has been removed
 - For the complete file history, check the git commit log
 
 ---

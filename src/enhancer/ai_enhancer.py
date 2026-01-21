@@ -344,7 +344,7 @@ Format as JSON:
             response = requests.post(
                 f"{self.ollama_host}/api/generate",
                 json=payload,
-                timeout=180  # Ollama can be slow on first run (3 minutes)
+                timeout=300  # Ollama can be slow (5 minutes for model load + inference)
             )
 
             if response.status_code == 200:

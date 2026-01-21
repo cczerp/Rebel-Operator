@@ -919,12 +919,31 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
 
         const analysis = data.analysis;
 
-        // Fill form with basic info
-        if (analysis.suggested_title) document.getElementById('title').value = analysis.suggested_title;
-        if (analysis.description) document.getElementById('description').value = analysis.description;
-        if (analysis.brand) document.getElementById('brand').value = analysis.brand;
-        if (analysis.size) document.getElementById('size').value = analysis.size;
-        if (analysis.color) document.getElementById('color').value = analysis.color;
+        // Debug logging to verify data received
+        console.log('AI Analyzer response:', analysis);
+
+        // Fill form with basic info (using correct field names from backend)
+        if (analysis.title) {
+            document.getElementById('title').value = analysis.title;
+            console.log('Set title:', analysis.title);
+        }
+        if (analysis.description) {
+            document.getElementById('description').value = analysis.description;
+            console.log('Set description:', analysis.description.substring(0, 50) + '...');
+        }
+        if (analysis.brand) {
+            document.getElementById('brand').value = analysis.brand;
+            console.log('Set brand:', analysis.brand);
+        }
+        if (analysis.model) {
+            document.getElementById('size').value = analysis.model; // Use model as size fallback
+            console.log('Set size (from model):', analysis.model);
+        }
+        if (analysis.color) {
+            document.getElementById('color').value = analysis.color;
+            console.log('Set color:', analysis.color);
+        }
+        // Note: suggested_price and condition not provided by AiAnalyzer (general scanner)
         if (analysis.suggested_price) document.getElementById('price').value = analysis.suggested_price;
         if (analysis.condition) {
             const condition = analysis.condition.replace(' ', '_').toLowerCase();

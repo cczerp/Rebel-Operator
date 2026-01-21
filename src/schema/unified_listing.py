@@ -173,6 +173,11 @@ class UnifiedListing:
     ai_enhancement_timestamp: Optional[datetime] = None
     ai_provider: Optional[str] = None  # e.g., "OpenAI", "Anthropic"
 
+    # Import tracking (for reverse sync from platforms)
+    platform_source: Optional[str] = None  # Platform this was imported from (ebay, poshmark, etc.)
+    platform_listing_id: Optional[str] = None  # Original listing ID on that platform
+    imported_at: Optional[datetime] = None  # When it was imported
+
     # Platform-specific overrides (use sparingly)
     ebay_overrides: Dict[str, Any] = field(default_factory=dict)
     mercari_overrides: Dict[str, Any] = field(default_factory=dict)

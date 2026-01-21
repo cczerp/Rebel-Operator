@@ -373,7 +373,34 @@ Format as JSON:
                 # Fallback if JSON parsing fails
                 return {"raw_response": content}
         else:
-            raise Exception(f"OpenAI API error: {response.text}")
+            # Parse OpenAI error response for better error messages
+            import json
+            try:
+                error_data = response.json()
+                error_message = error_data.get("error", {}).get("message", response.text)
+                error_type = error_data.get("error", {}).get("type", "unknown")
+                error_code = error_data.get("error", {}).get("code", "")
+
+                # Check for common errors and provide helpful messages
+                if response.status_code == 429 or "rate_limit" in error_type or "quota" in error_message.lower() or "insufficient_quota" in error_code:
+                    raise Exception(
+                        "OpenAI API rate limit or quota exceeded. "
+                        "IMPORTANT: ChatGPT Plus/Pro subscription is different from OpenAI API credits. "
+                        "To use the AI analyzer, you need to: "
+                        "1) Go to https://platform.openai.com/account/billing "
+                        "2) Add credits to your API account (minimum $5) "
+                        "3) Make sure you're using the correct API key from https://platform.openai.com/api-keys"
+                    )
+                elif response.status_code == 401:
+                    raise Exception(
+                        "OpenAI API authentication failed. "
+                        "Please check that your OPENAI_API_KEY is correct. "
+                        "Get your API key from: https://platform.openai.com/api-keys"
+                    )
+                else:
+                    raise Exception(f"OpenAI API error ({error_type}): {error_message}")
+            except json.JSONDecodeError:
+                raise Exception(f"OpenAI API error (HTTP {response.status_code}): {response.text}")
 
 
     def _is_analysis_complete(self, analysis: Dict[str, Any]) -> bool:
@@ -423,6 +450,7 @@ Format as JSON:
         ai_providers_used = []
 
         # Step 1: ChatGPT analyzes photos first (PRIMARY analyzer)
+        chatgpt_error = None
         if self.use_openai and listing.photos:
             try:
                 print("🤖 ChatGPT analyzing photos (PRIMARY)...")
@@ -439,7 +467,9 @@ Format as JSON:
                     final_data = chatgpt_analysis
 
             except Exception as e:
+                chatgpt_error = str(e)
                 print(f"❌ ChatGPT analysis failed: {e}")
+                # Store error for later use if Claude also fails
 
         # Step 2: Use Claude as fallback ONLY if ChatGPT failed or couldn't identify
         if self.use_anthropic and listing.photos:
@@ -461,7 +491,9 @@ Format as JSON:
 
                 except Exception as e:
                     print(f"❌ Claude fallback failed: {e}")
-                    # Continue with whatever data we have from ChatGPT
+                    # If both failed, raise the original ChatGPT error (it's more informative)
+                    if chatgpt_error and not final_data:
+                        raise Exception(chatgpt_error)
             else:
                 print("💰 Skipping Claude (ChatGPT analysis was complete)")
 

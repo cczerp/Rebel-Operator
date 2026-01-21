@@ -171,11 +171,33 @@ class Database:
                 platform TEXT NOT NULL,
                 username TEXT,
                 password TEXT,
+                credentials_json TEXT,
+                credential_type TEXT DEFAULT 'username_password',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id),
                 UNIQUE(user_id, platform)
             )
+        """)
+
+        # Add credentials_json column if it doesn't exist (for existing databases)
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name='marketplace_credentials' AND column_name='credentials_json'
+                ) THEN
+                    ALTER TABLE marketplace_credentials ADD COLUMN credentials_json TEXT;
+                END IF;
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name='marketplace_credentials' AND column_name='credential_type'
+                ) THEN
+                    ALTER TABLE marketplace_credentials ADD COLUMN credential_type TEXT DEFAULT 'username_password';
+                END IF;
+            END $$;
         """)
 
         # Collectibles database table
@@ -2098,19 +2120,37 @@ class Database:
     # MARKETPLACE CREDENTIALS METHODS
     # ========================================================================
 
-    def save_marketplace_credentials(self, user_id: int, platform: str, username: str, password: str):
-        """Save or update marketplace credentials"""
+    def save_marketplace_credentials(self, user_id: int, platform: str, username: str = None, password: str = None, credentials_json: str = None, credential_type: str = 'username_password'):
+        """Save or update marketplace credentials
+
+        Supports both legacy (username/password) and new flexible JSON credential storage
+        """
         cursor = self._get_cursor()
 
-        cursor.execute("""
-            INSERT INTO marketplace_credentials
-            (user_id, platform, username, password, updated_at)
-            VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
-            ON CONFLICT (user_id, platform) DO UPDATE SET
-                username = EXCLUDED.username,
-                password = EXCLUDED.password,
-                updated_at = CURRENT_TIMESTAMP
-        """, (user_id, platform, username, password))
+        # If credentials_json is provided, use flexible storage
+        if credentials_json:
+            cursor.execute("""
+                INSERT INTO marketplace_credentials
+                (user_id, platform, username, password, credentials_json, credential_type, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                ON CONFLICT (user_id, platform) DO UPDATE SET
+                    username = EXCLUDED.username,
+                    password = EXCLUDED.password,
+                    credentials_json = EXCLUDED.credentials_json,
+                    credential_type = EXCLUDED.credential_type,
+                    updated_at = CURRENT_TIMESTAMP
+            """, (user_id, platform, username, password, credentials_json, credential_type))
+        else:
+            # Legacy format - username/password only
+            cursor.execute("""
+                INSERT INTO marketplace_credentials
+                (user_id, platform, username, password, updated_at)
+                VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+                ON CONFLICT (user_id, platform) DO UPDATE SET
+                    username = EXCLUDED.username,
+                    password = EXCLUDED.password,
+                    updated_at = CURRENT_TIMESTAMP
+            """, (user_id, platform, username, password))
 
         self.conn.commit()
 

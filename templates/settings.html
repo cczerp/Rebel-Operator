@@ -1,275 +1,1089 @@
 {% extends "base.html" %}
 
-{% block title %}Settings - Rebel Operator{% endblock %}
+{% block title %}Platform Credentials - Rebel Operator{% endblock %}
 
 {% block content %}
 <div class="mb-3">
-    <h2><i class="fas fa-cog"></i> Platform Settings</h2>
-    <p class="text-muted">Configure API credentials for automated posting to platforms</p>
+    <h2><i class="fas fa-cog"></i> Platform Credentials</h2>
+    <p class="text-muted">Configure login credentials for automated syncing and posting to platforms</p>
 </div>
 
 <div class="alert alert-info mb-3">
-    <i class="fas fa-info-circle"></i> <strong>Note:</strong>
-    These platforms support <strong>API automation</strong>. For CSV platforms (Poshmark, Ruby Lane, etc.), just use the "Export CSV as" button on the Drafts page - no credentials needed!
+    <i class="fas fa-info-circle"></i> <strong>Important:</strong>
+    Your credentials are stored <strong>securely</strong> and encrypted. They enable automated syncing and CSV export with platform-specific formatting.
 </div>
 
-<!-- API Key Platforms -->
+<!-- Filter/Search Bar -->
 <div class="card mb-3">
-    <div class="card-header" style="background: var(--alert-crimson);">
-        <h5 class="mb-0" style="color: white;"><i class="fas fa-key"></i> API Key Platforms</h5>
-    </div>
     <div class="card-body">
-        <p class="text-muted small">
-            These platforms use API keys for automated posting. <strong>Your credentials are stored securely.</strong>
-        </p>
-
-        <!-- Mercari -->
-        <div class="border rounded p-3 mb-3" style="border-color: var(--cold-steel-dark);">
-            <h6 class="d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-store text-info"></i> Mercari Shops</span>
-                <span class="badge bg-secondary" id="mercari-status">Not Configured</span>
-            </h6>
-            <p class="small text-muted">
-                Requires Mercari Shops account. Get API key from: <a href="https://developer.mercari.com" target="_blank">Mercari Developer Portal</a>
-            </p>
-            <form class="platform-form" data-platform="mercari" data-type="api_key">
-                <div class="mb-2">
-                    <label class="form-label small">API Key</label>
-                    <input type="password" class="form-control form-control-sm" name="api_key" placeholder="Your Mercari API Key">
-                </div>
-                <button type="submit" class="btn btn-sm btn-primary">
-                    <i class="fas fa-save"></i> Save Mercari
-                </button>
-            </form>
-        </div>
-
-        <!-- Depop -->
-        <div class="border rounded p-3 mb-3" style="border-color: var(--cold-steel-dark);">
-            <h6 class="d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-tshirt text-danger"></i> Depop</span>
-                <span class="badge bg-secondary" id="depop-status">Not Configured</span>
-            </h6>
-            <p class="small text-muted">
-                Requires API approval. Apply at: <a href="https://api.depop.com" target="_blank">Depop API</a>
-            </p>
-            <form class="platform-form" data-platform="depop" data-type="api_key">
-                <div class="mb-2">
-                    <label class="form-label small">API Key</label>
-                    <input type="password" class="form-control form-control-sm" name="api_key" placeholder="Your Depop API Key">
-                </div>
-                <button type="submit" class="btn btn-sm btn-primary">
-                    <i class="fas fa-save"></i> Save Depop
-                </button>
-            </form>
-        </div>
-
-        <!-- Etsy -->
-        <div class="border rounded p-3 mb-3" style="border-color: var(--cold-steel-dark);">
-            <h6 class="d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-shopping-bag text-warning"></i> Etsy</span>
-                <span class="badge bg-secondary" id="etsy-status">Not Configured</span>
-            </h6>
-            <p class="small text-muted">
-                Get your API key from: <a href="https://www.etsy.com/developers" target="_blank">Etsy Developer Portal</a>
-            </p>
-            <form class="platform-form" data-platform="etsy" data-type="api_key">
-                <div class="mb-2">
-                    <label class="form-label small">API Key</label>
-                    <input type="password" class="form-control form-control-sm" name="api_key" placeholder="Your Etsy API Key">
-                </div>
-                <div class="mb-2">
-                    <label class="form-label small">Shop ID</label>
-                    <input type="text" class="form-control form-control-sm" name="shop_id" placeholder="Your Etsy Shop ID">
-                </div>
-                <button type="submit" class="btn btn-sm btn-primary">
-                    <i class="fas fa-save"></i> Save Etsy
-                </button>
-            </form>
+        <div class="row">
+            <div class="col-md-6">
+                <input type="text" class="form-control" id="platformSearch" placeholder="🔍 Search platforms...">
+            </div>
+            <div class="col-md-6">
+                <select class="form-select" id="categoryFilter">
+                    <option value="">All Categories</option>
+                    <option value="marketplace">General Marketplaces</option>
+                    <option value="fashion">Fashion & Apparel</option>
+                    <option value="luxury">Luxury & Designer</option>
+                    <option value="cards">Trading Cards & Collectibles</option>
+                    <option value="ecommerce">E-Commerce Platforms</option>
+                    <option value="local">Local & Community</option>
+                    <option value="home">Home & Furniture</option>
+                    <option value="international">International Platforms</option>
+                </select>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- OAuth / Token Platforms -->
-<div class="card mb-3">
+<!-- Marketplace Platforms -->
+<div class="card mb-3 platform-category" data-category="marketplace">
     <div class="card-header" style="background: var(--cold-steel);">
-        <h5 class="mb-0" style="color: white;"><i class="fas fa-lock"></i> OAuth / Token Platforms</h5>
+        <h5 class="mb-0" style="color: white;"><i class="fas fa-store"></i> General Marketplaces</h5>
     </div>
     <div class="card-body">
-        <p class="text-muted small">
-            These platforms use OAuth tokens or access tokens for automated API posting.
-        </p>
+        <div class="row">
+            <!-- eBay -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="ebay">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-gavel text-primary"></i> eBay</span>
+                        <span class="badge bg-secondary platform-status" data-platform="ebay">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="ebay">
+                        <div class="mb-2">
+                            <label class="form-label small">API Key</label>
+                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="Your eBay API Key">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Username (optional)</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password (optional)</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password">
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
 
-        <!-- eBay -->
-        <div class="border rounded p-3 mb-3" style="border-color: var(--cold-steel-dark);">
-            <h6 class="d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-gavel text-primary"></i> eBay</span>
-                <span class="badge bg-secondary" id="ebay-status">Not Configured</span>
-            </h6>
-            <p class="small text-muted">
-                Get OAuth token from: <a href="https://developer.ebay.com" target="_blank">eBay Developers</a>
-            </p>
-            <form class="platform-form" data-platform="ebay" data-type="oauth">
-                <div class="mb-2">
-                    <label class="form-label small">OAuth Token</label>
-                    <input type="password" class="form-control form-control-sm" name="oauth_token" placeholder="Your eBay OAuth Token">
+            <!-- Mercari -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="mercari">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-store text-info"></i> Mercari</span>
+                        <span class="badge bg-secondary platform-status" data-platform="mercari">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="mercari">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">API Key (optional)</label>
+                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="API Key">
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
                 </div>
-                <button type="submit" class="btn btn-sm btn-primary">
-                    <i class="fas fa-save"></i> Save eBay
-                </button>
-            </form>
-        </div>
+            </div>
 
-        <!-- Shopify -->
-        <div class="border rounded p-3 mb-3" style="border-color: var(--cold-steel-dark);">
-            <h6 class="d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-shopping-cart text-success"></i> Shopify</span>
-                <span class="badge bg-secondary" id="shopify-status">Not Configured</span>
-            </h6>
-            <p class="small text-muted">
-                Get access token from: Shopify Admin → Apps → Develop Apps
-            </p>
-            <form class="platform-form" data-platform="shopify" data-type="token">
-                <div class="mb-2">
-                    <label class="form-label small">Store URL</label>
-                    <input type="text" class="form-control form-control-sm" name="store_url" placeholder="yourstore.myshopify.com">
+            <!-- Etsy -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="etsy">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-shopping-bag text-warning"></i> Etsy</span>
+                        <span class="badge bg-secondary platform-status" data-platform="etsy">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="etsy">
+                        <div class="mb-2">
+                            <label class="form-label small">API Key</label>
+                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="API Key" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Shop ID</label>
+                            <input type="text" class="form-control form-control-sm" name="shop_id" placeholder="Shop ID" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
                 </div>
-                <div class="mb-2">
-                    <label class="form-label small">Access Token</label>
-                    <input type="password" class="form-control form-control-sm" name="access_token" placeholder="Your Shopify Access Token">
-                </div>
-                <button type="submit" class="btn btn-sm btn-primary">
-                    <i class="fas fa-save"></i> Save Shopify
-                </button>
-            </form>
-        </div>
+            </div>
 
-        <!-- WooCommerce -->
-        <div class="border rounded p-3 mb-3" style="border-color: var(--cold-steel-dark);">
-            <h6 class="d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-wordpress text-primary"></i> WooCommerce</span>
-                <span class="badge bg-secondary" id="woocommerce-status">Not Configured</span>
-            </h6>
-            <p class="small text-muted">
-                Get API keys from: WordPress Admin → WooCommerce → Settings → Advanced → REST API
-            </p>
-            <form class="platform-form" data-platform="woocommerce" data-type="api_secret">
-                <div class="mb-2">
-                    <label class="form-label small">Store URL</label>
-                    <input type="text" class="form-control form-control-sm" name="store_url" placeholder="https://yoursite.com">
+            <!-- OfferUp -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="offerup">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-tags text-success"></i> OfferUp</span>
+                        <span class="badge bg-secondary platform-status" data-platform="offerup">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="offerup">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
                 </div>
-                <div class="mb-2">
-                    <label class="form-label small">Consumer Key</label>
-                    <input type="text" class="form-control form-control-sm" name="consumer_key" placeholder="ck_...">
-                </div>
-                <div class="mb-2">
-                    <label class="form-label small">Consumer Secret</label>
-                    <input type="password" class="form-control form-control-sm" name="consumer_secret" placeholder="cs_...">
-                </div>
-                <button type="submit" class="btn btn-sm btn-primary">
-                    <i class="fas fa-save"></i> Save WooCommerce
-                </button>
-            </form>
-        </div>
+            </div>
 
-        <!-- Facebook Shops -->
-        <div class="border rounded p-3 mb-3" style="border-color: var(--cold-steel-dark);">
-            <h6 class="d-flex justify-content-between align-items-center">
-                <span><i class="fab fa-facebook text-primary"></i> Facebook Shops</span>
-                <span class="badge bg-secondary" id="facebook-status">Not Configured</span>
-            </h6>
-            <p class="small text-muted">
-                Get access token from: <a href="https://developers.facebook.com/" target="_blank">Facebook for Developers</a>
-            </p>
-            <form class="platform-form" data-platform="facebook" data-type="oauth">
-                <div class="mb-2">
-                    <label class="form-label small">Page Access Token</label>
-                    <input type="password" class="form-control form-control-sm" name="access_token" placeholder="Your Facebook Page Access Token">
+            <!-- Bonanza -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="bonanza">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-gem text-warning"></i> Bonanza</span>
+                        <span class="badge bg-secondary platform-status" data-platform="bonanza">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="bonanza">
+                        <div class="mb-2">
+                            <label class="form-label small">API Key</label>
+                            <input type="text" class="form-control form-control-sm" name="api_key" placeholder="API Key" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">API Secret</label>
+                            <input type="password" class="form-control form-control-sm" name="api_secret" placeholder="API Secret" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
                 </div>
-                <div class="mb-2">
-                    <label class="form-label small">Catalog ID</label>
-                    <input type="text" class="form-control form-control-sm" name="catalog_id" placeholder="Your Facebook Catalog ID">
-                </div>
-                <button type="submit" class="btn btn-sm btn-primary">
-                    <i class="fas fa-save"></i> Save Facebook
-                </button>
-            </form>
-        </div>
+            </div>
 
-        <!-- Pinterest -->
-        <div class="border rounded p-3 mb-3" style="border-color: var(--cold-steel-dark);">
-            <h6 class="d-flex justify-content-between align-items-center">
-                <span><i class="fab fa-pinterest text-danger"></i> Pinterest</span>
-                <span class="badge bg-secondary" id="pinterest-status">Not Configured</span>
-            </h6>
-            <p class="small text-muted">
-                Get OAuth token from: <a href="https://developers.pinterest.com/" target="_blank">Pinterest Developers</a>
-            </p>
-            <form class="platform-form" data-platform="pinterest" data-type="oauth">
-                <div class="mb-2">
-                    <label class="form-label small">OAuth Token</label>
-                    <input type="password" class="form-control form-control-sm" name="oauth_token" placeholder="Your Pinterest OAuth Token">
+            <!-- eBid -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="ebid">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-gavel text-primary"></i> eBid</span>
+                        <span class="badge bg-secondary platform-status" data-platform="ebid">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="ebid">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
                 </div>
-                <button type="submit" class="btn btn-sm btn-primary">
-                    <i class="fas fa-save"></i> Save Pinterest
-                </button>
-            </form>
-        </div>
-
-        <!-- Square -->
-        <div class="border rounded p-3 mb-3" style="border-color: var(--cold-steel-dark);">
-            <h6 class="d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-square text-info"></i> Square</span>
-                <span class="badge bg-secondary" id="square-status">Not Configured</span>
-            </h6>
-            <p class="small text-muted">
-                Get OAuth token from: <a href="https://developer.squareup.com/" target="_blank">Square Developer Portal</a>
-            </p>
-            <form class="platform-form" data-platform="square" data-type="oauth">
-                <div class="mb-2">
-                    <label class="form-label small">Access Token</label>
-                    <input type="password" class="form-control form-control-sm" name="access_token" placeholder="Your Square Access Token">
-                </div>
-                <button type="submit" class="btn btn-sm btn-primary">
-                    <i class="fas fa-save"></i> Save Square
-                </button>
-            </form>
-        </div>
-
-        <!-- Bonanza -->
-        <div class="border rounded p-3 mb-3" style="border-color: var(--cold-steel-dark);">
-            <h6 class="d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-gem text-warning"></i> Bonanza</span>
-                <span class="badge bg-secondary" id="bonanza-status">Not Configured</span>
-            </h6>
-            <p class="small text-muted">
-                Get API credentials from: <a href="https://www.bonanza.com/developer_api" target="_blank">Bonanza Developer</a>
-            </p>
-            <form class="platform-form" data-platform="bonanza" data-type="api_secret">
-                <div class="mb-2">
-                    <label class="form-label small">API Key</label>
-                    <input type="text" class="form-control form-control-sm" name="api_key" placeholder="Your Bonanza API Key">
-                </div>
-                <div class="mb-2">
-                    <label class="form-label small">API Secret</label>
-                    <input type="password" class="form-control form-control-sm" name="api_secret" placeholder="Your Bonanza API Secret">
-                </div>
-                <button type="submit" class="btn btn-sm btn-primary">
-                    <i class="fas fa-save"></i> Save Bonanza
-                </button>
-            </form>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="alert alert-success">
-    <i class="fas fa-check-circle"></i> <strong>CSV Platforms (Poshmark, Ruby Lane, etc.):</strong>
-    No credentials needed! Just go to your <a href="{{ url_for('drafts') }}" class="alert-link">Drafts page</a> and use "Export CSV as" to download platform-specific files.
+<!-- Fashion & Apparel -->
+<div class="card mb-3 platform-category" data-category="fashion">
+    <div class="card-header" style="background: var(--alert-crimson);">
+        <h5 class="mb-0" style="color: white;"><i class="fas fa-tshirt"></i> Fashion & Apparel</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- Poshmark -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="poshmark">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-shopping-bag text-danger"></i> Poshmark</span>
+                        <span class="badge bg-secondary platform-status" data-platform="poshmark">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="poshmark">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Depop -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="depop">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-tshirt text-danger"></i> Depop</span>
+                        <span class="badge bg-secondary platform-status" data-platform="depop">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="depop">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">API Key (optional)</label>
+                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="API Key">
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Grailed -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="grailed">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-user-tie text-dark"></i> Grailed</span>
+                        <span class="badge bg-secondary platform-status" data-platform="grailed">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="grailed">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Vinted -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="vinted">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-recycle text-info"></i> Vinted</span>
+                        <span class="badge bg-secondary platform-status" data-platform="vinted">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="vinted">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ThredUp -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="thredup">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-recycle text-success"></i> ThredUp</span>
+                        <span class="badge bg-secondary platform-status" data-platform="thredup">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="thredup">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">API Key (limited)</label>
+                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="API Key">
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Luxury & Designer -->
+<div class="card mb-3 platform-category" data-category="luxury">
+    <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <h5 class="mb-0" style="color: white;"><i class="fas fa-gem"></i> Luxury & Designer</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- The RealReal -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="therealreal">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-gem text-dark"></i> The RealReal</span>
+                        <span class="badge bg-secondary platform-status" data-platform="therealreal">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="therealreal">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Vestiaire Collective -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="vestiaire">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-crown text-warning"></i> Vestiaire Collective</span>
+                        <span class="badge bg-secondary platform-status" data-platform="vestiaire">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="vestiaire">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tradesy -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="tradesy">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-shopping-bag text-info"></i> Tradesy</span>
+                        <span class="badge bg-secondary platform-status" data-platform="tradesy">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="tradesy">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Rebag -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="rebag">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-handbag text-danger"></i> Rebag</span>
+                        <span class="badge bg-secondary platform-status" data-platform="rebag">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="rebag">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trading Cards & Collectibles -->
+<div class="card mb-3 platform-category" data-category="cards">
+    <div class="card-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <h5 class="mb-0" style="color: white;"><i class="fas fa-dice-d20"></i> Trading Cards & Collectibles</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- TCGplayer -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="tcgplayer">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-dice-d20 text-primary"></i> TCGplayer</span>
+                        <span class="badge bg-secondary platform-status" data-platform="tcgplayer">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="tcgplayer">
+                        <div class="mb-2">
+                            <label class="form-label small">API Key</label>
+                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="API Key" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Username (optional)</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password (optional)</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password">
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Cardmarket -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="cardmarket">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-globe-europe text-primary"></i> Cardmarket (EU)</span>
+                        <span class="badge bg-secondary platform-status" data-platform="cardmarket">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="cardmarket">
+                        <div class="mb-2">
+                            <label class="form-label small">API Key</label>
+                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="API Key" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Whatnot -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="whatnot">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-video text-danger"></i> Whatnot</span>
+                        <span class="badge bg-secondary platform-status" data-platform="whatnot">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Live streaming platform</p>
+                    <form class="platform-form" data-platform="whatnot">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- COMC -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="comc">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-baseball-ball text-info"></i> COMC</span>
+                        <span class="badge bg-secondary platform-status" data-platform="comc">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="comc">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">API Key (optional)</label>
+                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="API Key">
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- PWCC -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="pwcc">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-trophy text-warning"></i> PWCC</span>
+                        <span class="badge bg-secondary platform-status" data-platform="pwcc">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="pwcc">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- MySlabs -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="myslabs">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-certificate text-info"></i> MySlabs</span>
+                        <span class="badge bg-secondary platform-status" data-platform="myslabs">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="myslabs">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">API Key (optional)</label>
+                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="API Key">
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Alt -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="alt">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-exchange-alt text-primary"></i> Alt</span>
+                        <span class="badge bg-secondary platform-status" data-platform="alt">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-success">API</span></p>
+                    <form class="platform-form" data-platform="alt">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- StockX -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="stockx">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-chart-line text-success"></i> StockX</span>
+                        <span class="badge bg-secondary platform-status" data-platform="stockx">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Cards + sealed products. Supports: <span class="badge bg-success">API</span></p>
+                    <form class="platform-form" data-platform="stockx">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Goldin -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="goldin">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-hammer text-warning"></i> Goldin</span>
+                        <span class="badge bg-secondary platform-status" data-platform="goldin">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Auction sync. Supports: <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="goldin">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- E-Commerce Platforms -->
+<div class="card mb-3 platform-category" data-category="ecommerce">
+    <div class="card-header" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+        <h5 class="mb-0" style="color: white;"><i class="fas fa-shopping-cart"></i> E-Commerce Platforms</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- Shopify -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="shopify">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-shopping-cart text-success"></i> Shopify</span>
+                        <span class="badge bg-secondary platform-status" data-platform="shopify">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="shopify">
+                        <div class="mb-2">
+                            <label class="form-label small">Store URL</label>
+                            <input type="text" class="form-control form-control-sm" name="store_url" placeholder="yourstore.myshopify.com" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Access Token</label>
+                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="Access Token" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- WooCommerce -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="woocommerce">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fab fa-wordpress text-primary"></i> WooCommerce</span>
+                        <span class="badge bg-secondary platform-status" data-platform="woocommerce">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="woocommerce">
+                        <div class="mb-2">
+                            <label class="form-label small">Store URL</label>
+                            <input type="text" class="form-control form-control-sm" name="store_url" placeholder="https://yoursite.com" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Consumer Key</label>
+                            <input type="text" class="form-control form-control-sm" name="api_key" placeholder="ck_..." required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Consumer Secret</label>
+                            <input type="password" class="form-control form-control-sm" name="api_secret" placeholder="cs_..." required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Squarespace -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="squarespace">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-square text-dark"></i> Squarespace</span>
+                        <span class="badge bg-secondary platform-status" data-platform="squarespace">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="squarespace">
+                        <div class="mb-2">
+                            <label class="form-label small">API Key</label>
+                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="API Key" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- BigCommerce -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="bigcommerce">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-store text-info"></i> BigCommerce</span>
+                        <span class="badge bg-secondary platform-status" data-platform="bigcommerce">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="bigcommerce">
+                        <div class="mb-2">
+                            <label class="form-label small">Access Token</label>
+                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="Access Token" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Store Hash</label>
+                            <input type="text" class="form-control form-control-sm" name="store_hash" placeholder="Store Hash" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Ecwid -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="ecwid">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-shopping-basket text-success"></i> Ecwid</span>
+                        <span class="badge bg-secondary platform-status" data-platform="ecwid">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="ecwid">
+                        <div class="mb-2">
+                            <label class="form-label small">API Token</label>
+                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="API Token" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Store ID</label>
+                            <input type="text" class="form-control form-control-sm" name="store_id" placeholder="Store ID" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Local & Community -->
+<div class="card mb-3 platform-category" data-category="local">
+    <div class="card-header" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);">
+        <h5 class="mb-0" style="color: #333;"><i class="fas fa-home"></i> Local & Community Platforms</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- Craigslist -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="craigslist">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-list text-info"></i> Craigslist</span>
+                        <span class="badge bg-secondary platform-status" data-platform="craigslist">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Local classifieds</p>
+                    <form class="platform-form" data-platform="craigslist">
+                        <div class="mb-2">
+                            <label class="form-label small">Username/Email</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username or Email" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Nextdoor -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="nextdoor">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-home text-success"></i> Nextdoor</span>
+                        <span class="badge bg-secondary platform-status" data-platform="nextdoor">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Neighborhood marketplace</p>
+                    <form class="platform-form" data-platform="nextdoor">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Facebook Marketplace -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="facebook">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fab fa-facebook text-primary"></i> Facebook Marketplace</span>
+                        <span class="badge bg-secondary platform-status" data-platform="facebook">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Supports: <span class="badge bg-success">API</span></p>
+                    <form class="platform-form" data-platform="facebook">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Access Token (optional)</label>
+                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="Access Token">
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- VarageSale -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="varagesale">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-handshake text-info"></i> VarageSale</span>
+                        <span class="badge bg-secondary platform-status" data-platform="varagesale">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Local marketplace</p>
+                    <form class="platform-form" data-platform="varagesale">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 5miles -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="5miles">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-map-marker-alt text-success"></i> 5miles</span>
+                        <span class="badge bg-secondary platform-status" data-platform="5miles">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Local marketplace</p>
+                    <form class="platform-form" data-platform="5miles">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Home & Furniture -->
+<div class="card mb-3 platform-category" data-category="home">
+    <div class="card-header" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);">
+        <h5 class="mb-0" style="color: #333;"><i class="fas fa-couch"></i> Home & Furniture</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- Chairish -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="chairish">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-couch text-warning"></i> Chairish</span>
+                        <span class="badge bg-secondary platform-status" data-platform="chairish">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Home + vintage. Supports: <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="chairish">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- International Platforms -->
+<div class="card mb-3 platform-category" data-category="international">
+    <div class="card-header" style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);">
+        <h5 class="mb-0" style="color: #333;"><i class="fas fa-globe"></i> International Platforms</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- Rakuten -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="rakuten">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-yen-sign text-danger"></i> Rakuten</span>
+                        <span class="badge bg-secondary platform-status" data-platform="rakuten">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Japan. Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="rakuten">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">API Key (optional)</label>
+                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="API Key">
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Buyee -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="buyee">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-shopping-cart text-warning"></i> Buyee</span>
+                        <span class="badge bg-secondary platform-status" data-platform="buyee">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Japan proxy service</p>
+                    <form class="platform-form" data-platform="buyee">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Allegro -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="allegro">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-tags text-danger"></i> Allegro</span>
+                        <span class="badge bg-secondary platform-status" data-platform="allegro">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Poland. Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="allegro">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">API Key (optional)</label>
+                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="API Key">
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Leboncoin -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="leboncoin">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-euro-sign text-warning"></i> Leboncoin</span>
+                        <span class="badge bg-secondary platform-status" data-platform="leboncoin">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">France</p>
+                    <form class="platform-form" data-platform="leboncoin">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Carousell -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="carousell">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-circle text-danger"></i> Carousell</span>
+                        <span class="badge bg-secondary platform-status" data-platform="carousell">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Southeast Asia. Supports: <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="carousell">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Shopee -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="shopee">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-shopping-bag text-warning"></i> Shopee</span>
+                        <span class="badge bg-secondary platform-status" data-platform="shopee">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Southeast Asia. Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="shopee">
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">API Key (optional)</label>
+                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="API Key">
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 {% endblock %}
 
 {% block extra_js %}
 <script>
+// Platform search and filter
+document.getElementById('platformSearch').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    document.querySelectorAll('.platform-item').forEach(item => {
+        const platform = item.dataset.platform.toLowerCase();
+        const text = item.textContent.toLowerCase();
+        item.style.display = text.includes(searchTerm) ? '' : 'none';
+    });
+});
+
+document.getElementById('categoryFilter').addEventListener('change', function(e) {
+    const category = e.target.value;
+    document.querySelectorAll('.platform-category').forEach(cat => {
+        if (!category || cat.dataset.category === category) {
+            cat.style.display = '';
+        } else {
+            cat.style.display = 'none';
+        }
+    });
+});
+
 // Handle all platform forms
 document.querySelectorAll('.platform-form').forEach(form => {
     form.addEventListener('submit', async function(e) {
@@ -277,7 +1091,6 @@ document.querySelectorAll('.platform-form').forEach(form => {
         showLoading();
 
         const platform = this.dataset.platform;
-        const type = this.dataset.type;
         const formData = new FormData(this);
         const credentials = {};
 
@@ -301,7 +1114,7 @@ document.querySelectorAll('.platform-form').forEach(form => {
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     platform,
-                    type,
+                    type: 'username_password',
                     credentials
                 })
             });
@@ -312,9 +1125,10 @@ document.querySelectorAll('.platform-form').forEach(form => {
             if (data.success) {
                 showAlert(`${platform.charAt(0).toUpperCase() + platform.slice(1)} credentials saved successfully!`, 'success');
                 // Update status badge
-                const statusBadge = document.getElementById(`${platform}-status`);
+                const statusBadge = document.querySelector(`.platform-status[data-platform="${platform}"]`);
                 if (statusBadge) {
-                    statusBadge.className = 'badge bg-success';
+                    statusBadge.className = 'badge bg-success platform-status';
+                    statusBadge.setAttribute('data-platform', platform);
                     statusBadge.textContent = 'Configured';
                 }
             } else {
@@ -336,9 +1150,10 @@ window.addEventListener('load', async function() {
         if (data.success && data.credentials) {
             // Update status badges for configured platforms
             Object.keys(data.credentials).forEach(platform => {
-                const statusBadge = document.getElementById(`${platform}-status`);
+                const statusBadge = document.querySelector(`.platform-status[data-platform="${platform}"]`);
                 if (statusBadge) {
-                    statusBadge.className = 'badge bg-success';
+                    statusBadge.className = 'badge bg-success platform-status';
+                    statusBadge.setAttribute('data-platform', platform);
                     statusBadge.textContent = 'Configured';
                 }
             });

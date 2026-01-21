@@ -18,7 +18,6 @@ This folder contains all project documentation organized by category for easy na
 
 ### 🔧 Special Folders
 
-- **[fixes-and-explanations/](fixes-and-explanations/)** - Documentation about bugs fixed, issues resolved, and why/how they were addressed
 - **[duplicates-review/](duplicates-review/)** - Files flagged as duplicates or near-duplicates for review
 - **[archive/](archive/)** - Old debug sessions and deprecated documentation
 
@@ -28,19 +27,24 @@ These important files remain in the project root for quick access:
 
 - **README.md** - Main project README
 - **CONTRACTS.md** - Master index of non-negotiable code patterns
-- **LESSONS_LEARNED.md** - Best practices and debugging lessons
+- **FRONTEND_RULES.md** - Non-negotiable rules for JavaScript, templates, and photo uploads
+- **BACKEND_RULES.md** - Non-negotiable rules for database, API, and file handling
+- **EXTERNAL_API_RULES.md** - Non-negotiable rules for Gemini, Supabase, and Mercari APIs
 
 ## 📖 How to Use This Documentation
 
 1. **New to the project?** Start with [getting-started/](getting-started/)
-2. **Looking for a specific feature?** Check [features/](features/)
-3. **Setting up deployment?** See [setup-deployment/](setup-deployment/)
-4. **Investigating a past fix?** Browse [fixes-and-explanations/](fixes-and-explanations/)
-5. **Need technical details?** Explore [technical-details/](technical-details/)
+2. **Working on code?** Read the rule files first: `FRONTEND_RULES.md`, `BACKEND_RULES.md`, `EXTERNAL_API_RULES.md`
+3. **Looking for a specific feature?** Check [features/](features/)
+4. **Setting up deployment?** See [setup-deployment/](setup-deployment/)
+5. **Investigating a past fix?** Browse [archive/](archive/)
+6. **Need technical details?** Explore [technical-details/](technical-details/)
 
 ## 📝 Notes
 
 - Documentation files have been reorganized from the root directory into this structured folder system
+- Verbose fix/explanation documents have been consolidated into 3 non-negotiable rule files in the root
+- Old debug documentation has been moved to [archive/](archive/)
 - Empty files and duplicates have been removed or moved to [duplicates-review/](duplicates-review/)
 - For the complete file history, check the git commit log
 

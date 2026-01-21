@@ -16,7 +16,7 @@ from ..importers import (
     get_supported_platforms,
     validate_csv_format,
 )
-from ..database.db import get_connection
+from ..database.db import get_db
 
 
 import_bp = Blueprint('import_bp', __name__)
@@ -198,7 +198,7 @@ def get_import_history():
         platform = request.args.get('platform')
         limit = int(request.args.get('limit', 50))
 
-        conn = get_connection()
+        conn = get_db()
         cursor = conn.cursor()
 
         if platform:
@@ -305,7 +305,7 @@ def _get_platform_credentials(user_id: int, platform: str) -> Dict[str, Any]:
     Returns:
         Dictionary of credentials or empty dict if not found
     """
-    conn = get_connection()
+    conn = get_db()
     cursor = conn.cursor()
 
     try:

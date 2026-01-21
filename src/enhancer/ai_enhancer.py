@@ -337,7 +337,8 @@ Format as JSON:
             "prompt": prompt,
             "images": image_contents,
             "stream": False,
-            "format": "json"
+            "format": "json",
+            "keep_alive": "1h"  # Keep model loaded for 1 hour (avoid reload time)
         }
 
         try:

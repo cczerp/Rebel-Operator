@@ -1,6 +1,4 @@
-# 📋 Editable Drafts - Quick Start Guide
-
-## What Changed?
+# 📋 Editable Drafts - User Guide
 
 Your **Drafts page** is now an **interactive, Excel-like spreadsheet** where you can edit items directly without leaving the page!
 
@@ -30,16 +28,44 @@ Your **Drafts page** is now an **interactive, Excel-like spreadsheet** where you
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## ✨ Features
 
-| Key | Action |
-|-----|--------|
-| **Click Cell** | Start editing |
-| **Tab** | Save and move to next editable cell |
-| **Shift+Tab** | Move to previous cell |
-| **Enter** | Save edit in place |
-| **Escape** | Cancel edit (no save) |
-| **Space** (on checkbox) | Toggle selection |
+### ✏️ Inline Editing
+- **Click any cell** to edit it directly
+- Fields you can edit:
+  - 📝 **Title** - Edit listing title
+  - 💰 **Price** - Edit selling price
+  - 💸 **Cost** - Edit acquisition cost
+  - 🏷️ **Condition** - Select from dropdown (New, Like New, Good, Fair, Poor)
+  - 🏢 **Brand** - Edit brand name
+  - 📐 **Size** - Edit size
+  - 🎨 **Color** - Edit color
+
+### 🎯 Keyboard Navigation
+- **Tab** - Move to next editable cell
+- **Shift+Tab** - Move to previous cell
+- **Enter** - Save edit and stay in cell
+- **Escape** - Cancel edit without saving
+- **Space** (on checkbox) - Toggle selection
+
+### 💾 Change Tracking
+- Changed cells are **highlighted in yellow**
+- A **floating indicator** appears showing unsaved changes
+- **Save All Changes** button to commit all edits at once
+- **Discard** button to revert all unsaved changes
+
+### ✅ Bulk Operations
+- **Checkbox selection** for multiple drafts
+- **Select All** to quickly select/deselect all items
+- **Bulk Delete** for removing multiple drafts at once
+- **Export Selected** to CSV for your chosen platform
+
+### 📊 Spreadsheet Interface
+- Clean, dark-themed table with sticky headers
+- Hover effects show which rows are editable
+- **Full Editor** link to open the complete editing form
+- Photo previews with modal viewer
+- Horizontal scrolling for large datasets
 
 ---
 
@@ -54,7 +80,7 @@ Your **Drafts page** is now an **interactive, Excel-like spreadsheet** where you
 
 ---
 
-## 📝 What You Can Edit
+## 📝 Editable Fields
 
 | Field | Type | Example |
 |-------|------|---------|
@@ -102,7 +128,7 @@ Your **Drafts page** is now an **interactive, Excel-like spreadsheet** where you
 ### Example 2: Bulk Update Conditions
 ```
 ✓ Click Condition cell → "Good"
-✓ Tab to next → "Good" 
+✓ Tab to next → "Good"
 ✓ Tab to next → "Like New"
 ✓ Save All Changes
 ```
@@ -119,11 +145,26 @@ Your **Drafts page** is now an **interactive, Excel-like spreadsheet** where you
 
 ---
 
+## 🚀 Pro Tips
+
+1. **Use Tab to fly through edits** - Much faster than clicking each time
+2. **Edit first, save once** - Edit multiple items, then save all at once
+3. **Check your yellow highlights** - Make sure you edited what you meant to
+4. **Use condition dropdown** - Only valid options: New, Like New, Good, Fair, Poor
+5. **Prices need numbers** - Can use decimals (45.99), not text
+6. **No need to close/reopen** - Stay on this page to make bulk changes
+7. **Batch updates** - Edit multiple drafts, then **Save All Changes** once
+8. **Review changes** - Yellow highlighting shows what you've modified
+9. **Photo preview** - Click photos to view them in a modal
+
+---
+
 ## ❌ Troubleshooting
 
 ### "Can't edit a cell?"
 - Make sure you're **clicking on the text**, not the borders
 - Try double-clicking if single-click doesn't work
+- Some fields may be read-only (creation date)
 - Refresh the page and try again
 
 ### "Yellow highlight won't go away?"
@@ -143,22 +184,24 @@ Your **Drafts page** is now an **interactive, Excel-like spreadsheet** where you
 - Try refreshing the page
 - Ensure it's checked before clicking Delete
 
----
-
-## 🚀 Pro Tips
-
-1. **Use Tab to fly through edits** - Much faster than clicking each time
-2. **Edit first, save once** - Edit multiple items, then save all at once
-3. **Check your yellow highlights** - Make sure you edited what you meant to
-4. **Use condition dropdown** - Only valid options: New, Like New, Good, Fair, Poor
-5. **Prices need numbers** - Can use decimals (45.99), not text
-6. **No need to close/reopen** - Stay on this page to make bulk changes
+### "Changes not saving?"
+- Click the **Save All Changes** button
+- Check for error messages at top of page
+- Verify you're not editing a deleted item
 
 ---
 
-## 📞 Need Help?
+## ⚠️ Important Notes
 
-### Common Issues:
+- Changes are **only saved when you click "Save All Changes"**
+- Use **Escape key** to cancel individual edits
+- **Prices should be positive numbers** (decimals supported)
+- **Conditions** can only be: New, Like New, Good, Fair, Poor
+- **Bulk operations** (delete, export) cannot be undone after confirmation
+
+---
+
+## 📞 Common Questions
 
 **"Why does it reload after saving?"**
 - Normal behavior - ensures fresh data from server
@@ -178,23 +221,9 @@ Your **Drafts page** is now an **interactive, Excel-like spreadsheet** where you
 
 ---
 
-## ✨ Features at a Glance
-
-✅ **Click to edit** - No form needed
-✅ **Excel-style** - Familiar interface
-✅ **Change tracking** - See what you modified
-✅ **Bulk operations** - Delete/export multiple at once
-✅ **Keyboard friendly** - Tab through cells
-✅ **Auto-save option** - Choose when to save
-✅ **Dark theme** - Easy on the eyes
-✅ **Real-time feedback** - See changes instantly
-
----
-
 ## 🎓 Learn More
 
-For technical details, see:
-- `EDITABLE_DRAFTS_FEATURES.md` - Full feature documentation
+For technical implementation details, see:
 - `EDITABLE_DRAFTS_TECHNICAL.md` - Developer implementation guide
 
 ---

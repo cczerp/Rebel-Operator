@@ -25,16 +25,16 @@ from ..schema.unified_listing import (
 )
 
 
-class AIEnhancer:
+class AiAnalyzer:
     """
-    Dual-AI enhancer with cost-efficient fallback strategy.
+    Dual-AI enhancer with ChatGPT as primary analyzer.
 
-    Strategy (Cost-Optimized):
-    - Step 1: Claude analyzes photos (primary analyzer)
-    - Step 2: Only use GPT-4 Vision as fallback if Claude can't identify the item
-    - This saves costs by avoiding double analysis on every photo
+    Strategy:
+    - Step 1: ChatGPT (GPT-4 Vision) analyzes photos (PRIMARY analyzer)
+    - Step 2: Only use Claude as fallback if ChatGPT can't identify the item
+    - ChatGPT has superior image-to-text and OCR capabilities
 
-    Claude handles ~90% of listings successfully, so GPT-4 is rarely needed.
+    ChatGPT handles most listings successfully, Claude is reliable fallback.
     """
 
     def __init__(
@@ -400,12 +400,12 @@ Format as JSON:
         force: bool = False,
     ) -> UnifiedListing:
         """
-        Complete AI enhancement workflow with cost-efficient fallback.
+        Complete AI enhancement workflow with ChatGPT as primary.
 
         Strategy:
-        - Step 1: Claude analyzes photos (primary analyzer)
-        - Step 2: If Claude can't identify the item, use GPT-4 Vision as fallback
-        - This saves costs by only using GPT-4 when necessary
+        - Step 1: ChatGPT (GPT-4 Vision) analyzes photos (PRIMARY analyzer)
+        - Step 2: If ChatGPT can't identify the item, use Claude as fallback
+        - ChatGPT has superior image-to-text capabilities
 
         Args:
             listing: UnifiedListing to enhance
@@ -422,48 +422,48 @@ Format as JSON:
         final_data = {}
         ai_providers_used = []
 
-        # Step 1: Claude analyzes photos first (primary analyzer)
-        if self.use_anthropic and listing.photos:
+        # Step 1: ChatGPT analyzes photos first (PRIMARY analyzer)
+        if self.use_openai and listing.photos:
             try:
-                print("🤖 Claude analyzing photos...")
-                claude_analysis = self.analyze_photos_claude(listing.photos, target_platform)
+                print("🤖 ChatGPT analyzing photos (PRIMARY)...")
+                chatgpt_analysis = self.analyze_photos_openai_fallback(listing.photos)
 
-                # Check if Claude successfully identified the item
-                if self._is_analysis_complete(claude_analysis):
-                    print("✅ Claude successfully identified the item")
-                    final_data = claude_analysis
-                    ai_providers_used.append("Claude")
+                # Check if ChatGPT successfully identified the item
+                if self._is_analysis_complete(chatgpt_analysis):
+                    print("✅ ChatGPT successfully identified the item")
+                    final_data = chatgpt_analysis
+                    ai_providers_used.append("ChatGPT")
                 else:
-                    print("⚠️  Claude analysis incomplete - will try GPT-4 Vision as fallback")
-                    # Keep Claude's partial data, may use as fallback
-                    final_data = claude_analysis
+                    print("⚠️  ChatGPT analysis incomplete - will try Claude as fallback")
+                    # Keep ChatGPT's partial data, may use as fallback
+                    final_data = chatgpt_analysis
 
             except Exception as e:
-                print(f"❌ Claude analysis failed: {e}")
+                print(f"❌ ChatGPT analysis failed: {e}")
 
-        # Step 2: Use GPT-4 Vision as fallback ONLY if Claude failed or couldn't identify
-        if self.use_openai and listing.photos:
-            # Only use GPT-4 if Claude didn't successfully complete the analysis
+        # Step 2: Use Claude as fallback ONLY if ChatGPT failed or couldn't identify
+        if self.use_anthropic and listing.photos:
+            # Only use Claude if ChatGPT didn't successfully complete the analysis
             if not self._is_analysis_complete(final_data):
                 try:
-                    print("🔄 Using GPT-4 Vision as fallback...")
-                    # Use GPT-4 to analyze from scratch (not verify Claude's data)
-                    gpt_analysis = self.analyze_photos_openai_fallback(listing.photos)
+                    print("🔄 Using Claude as fallback...")
+                    # Use Claude to analyze from scratch
+                    claude_analysis = self.analyze_photos_claude(listing.photos, target_platform)
 
-                    if self._is_analysis_complete(gpt_analysis):
-                        print("✅ GPT-4 Vision successfully identified the item")
-                        final_data = gpt_analysis
-                        ai_providers_used.append("GPT-4 Vision (fallback)")
+                    if self._is_analysis_complete(claude_analysis):
+                        print("✅ Claude successfully identified the item")
+                        final_data = claude_analysis
+                        ai_providers_used.append("Claude (fallback)")
                     else:
                         # Merge partial results from both
-                        final_data = {**final_data, **gpt_analysis}
-                        ai_providers_used.append("GPT-4 Vision (fallback partial)")
+                        final_data = {**final_data, **claude_analysis}
+                        ai_providers_used.append("Claude (fallback partial)")
 
                 except Exception as e:
-                    print(f"❌ GPT-4 Vision fallback failed: {e}")
-                    # Continue with whatever data we have from Claude
+                    print(f"❌ Claude fallback failed: {e}")
+                    # Continue with whatever data we have from ChatGPT
             else:
-                print("💰 Skipping GPT-4 Vision (Claude analysis was complete)")
+                print("💰 Skipping Claude (ChatGPT analysis was complete)")
 
         # Step 3: Apply enhancements to listing
         if final_data:
@@ -512,7 +512,7 @@ Format as JSON:
         return listing
 
     @classmethod
-    def from_env(cls) -> "AIEnhancer":
+    def from_env(cls) -> "AiAnalyzer":
         """
         Create enhancer from environment variables.
 
@@ -542,5 +542,5 @@ def enhance_listing(
     Returns:
         Enhanced listing
     """
-    enhancer = AIEnhancer.from_env()
+    enhancer = AiAnalyzer.from_env()
     return enhancer.enhance_listing(listing, target_platform, force)

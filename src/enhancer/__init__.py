@@ -1,5 +1,5 @@
 """AI-powered listing enhancement"""
 
-from .ai_enhancer import AIEnhancer, enhance_listing
+from .ai_enhancer import AiAnalyzer, enhance_listing
 
-__all__ = ["AIEnhancer", "enhance_listing"]
+__all__ = ["AiAnalyzer", "enhance_listing"]

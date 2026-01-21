@@ -1544,10 +1544,10 @@ def api_enhanced_scan():
 
         logging.info(f"[ENHANCED SCAN] Created {len(photo_objects)} photo objects. Using ChatGPT (PRIMARY) for enhanced scan...")
 
-        # Use EnhancedScanner with ChatGPT as primary (Claude as fallback)
+        # Use CollectableScanner with ChatGPT as primary (Claude as fallback)
         try:
-            from src.collectibles.enhanced_scanner import EnhancedScanner
-            scanner = EnhancedScanner.from_env()
+            from src.collectibles.enhanced_scanner import CollectableScanner
+            scanner = CollectableScanner.from_env()
             logging.info("[ENHANCED SCAN] Analyzing with ChatGPT (PRIMARY) using comprehensive deep analysis (mint marks, serial numbers, signatures, errors, historical context, etc.)...")
             scan_result = scanner.scan(photo_objects)
             logging.info(f"[ENHANCED SCAN] ✅ Analysis completed: AI={scan_result.get('ai_provider', 'unknown')}, Type={scan_result.get('type', 'unknown')}")
@@ -1564,15 +1564,15 @@ def api_enhanced_scan():
                     "error": f"Analysis failed: {scan_result.get('error')}"
                 }), 500
 
-            # EnhancedScanner returns properly formatted response already
+            # CollectableScanner returns properly formatted response already
             # Just need to extract the result structure
             item_type = scan_result.get('type', 'collectible')
 
-            # EnhancedScanner already returns properly formatted response
+            # CollectableScanner already returns properly formatted response
             # Just use it directly
             result = scan_result
         except Exception as analyze_error:
-            logging.error(f"[ENHANCED SCAN] Enhanced scanner error: {analyze_error}")
+            logging.error(f"[ENHANCED SCAN] Collectable scanner error: {analyze_error}")
             import traceback
             logging.error(f"[ENHANCED SCAN] Traceback: {traceback.format_exc()}")
             # Cleanup temp files

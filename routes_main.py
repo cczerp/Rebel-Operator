@@ -1255,8 +1255,15 @@ def api_analyze():
                     pass
             return jsonify({"error": f"AI service not configured: {str(e)}"}), 500
 
-        # Create a minimal listing for analysis
-        listing = UnifiedListing(photos=photo_objects)
+        # Create a minimal listing for analysis with placeholder values
+        from src.schema.unified_listing import Price, ListingCondition
+        listing = UnifiedListing(
+            title="",  # Will be filled by AI
+            description="",  # Will be filled by AI
+            price=Price(amount=0.0),  # Placeholder
+            condition=ListingCondition.GOOD,  # Placeholder
+            photos=photo_objects
+        )
 
         # Analyze photos using ChatGPT
         enhanced_listing = analyzer.enhance_listing(listing)

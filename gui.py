@@ -430,8 +430,15 @@ class AIListerGUI(ctk.CTk):
 
                 self.after(0, lambda: self.update_status("🤖 ChatGPT analyzing..."))
 
-                # Create minimal listing for analysis
-                listing = UnifiedListing(photos=photo_objects)
+                # Create minimal listing for analysis with placeholder values
+                from src.schema.unified_listing import Price, ListingCondition
+                listing = UnifiedListing(
+                    title="",  # Will be filled by AI
+                    description="",  # Will be filled by AI
+                    price=Price(amount=0.0),  # Placeholder
+                    condition=ListingCondition.GOOD,  # Placeholder
+                    photos=photo_objects
+                )
                 enhanced_listing = analyzer.enhance_listing(listing)
 
                 # Extract analysis results

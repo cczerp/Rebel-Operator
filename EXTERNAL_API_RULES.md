@@ -48,6 +48,16 @@
 ## Gemini API Authentication
 
 ### ✅ CORRECT
+```python
+headers = {"Content-Type": "application/json"}  # Only this header
+response = requests.post(
+    f"{api_url}?key={api_key}",  # Key in query param
+    headers=headers,
+    json=payload,
+    timeout=30
+)
+```
+
 - API key in URL query parameter: `?key=YOUR_API_KEY`
 - Only `Content-Type: application/json` header
 - Strip whitespace from API key
@@ -60,15 +70,70 @@
 - Never use raw env var without stripping whitespace
 - Never skip key validation
 
-**Correct Request**:
+---
+
+## Claude API Image Requirements
+
+### ✅ SUPPORTED FORMATS
+- `image/jpeg` (recommended)
+- `image/png`
+- `image/gif`
+
+**ONLY THESE THREE - MORE RESTRICTIVE THAN GEMINI**
+
+### ❌ NOT SUPPORTED
+- `image/webp` (convert to JPEG - Claude doesn't support this!)
+- `image/heic` / `image/heif` (convert to JPEG)
+- All other formats (convert to JPEG)
+
+### ✅ REQUIRED CONVERSION
 ```python
-headers = {"Content-Type": "application/json"}  # Only this header
-response = requests.post(
-    f"{api_url}?key={api_key}",  # Key in query param
-    headers=headers,
-    json=payload,
-    timeout=30
-)
+def _convert_to_claude_format(image_path):
+    img = Image.open(image_path)
+    original_format = img.format
+
+    # If already supported, return as-is
+    if original_format in ('JPEG', 'PNG', 'GIF'):
+        with open(image_path, "rb") as f:
+            image_bytes = f.read()
+        mime_type = {
+            'JPEG': 'image/jpeg',
+            'PNG': 'image/png',
+            'GIF': 'image/gif'
+        }[original_format]
+        return image_bytes, mime_type
+
+    # Convert unsupported formats (WebP, HEIC, etc.) to JPEG
+    if img.mode in ('RGBA', 'LA', 'P'):
+        background = Image.new('RGB', img.size, (255, 255, 255))
+        if img.mode == 'P':
+            img = img.convert('RGBA')
+        background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+        img = background
+    elif img.mode != 'RGB':
+        img = img.convert('RGB')
+
+    output = io.BytesIO()
+    img.save(output, format='JPEG', quality=95, optimize=True)
+    return output.getvalue(), 'image/jpeg'
+```
+
+### ✅ REQUIRED PAYLOAD STRUCTURE
+```python
+{
+    "role": "user",
+    "content": [
+        {"type": "text", "text": "prompt text"},
+        {
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": "image/jpeg",
+                "data": "clean_base64_string_no_prefix"
+            }
+        }
+    ]
+}
 ```
 
 ---
@@ -126,13 +191,7 @@ SUPABASE_BUCKET_LISTINGS=listing-images
 
 ## Image Download from Supabase
 
-### ✅ REQUIREMENTS
-- Download images to temp files before processing
-- Verify download succeeded (check file size)
-- Validate image can be opened by PIL
-- Clean up temp files after use
-
-**Correct Flow**:
+### ✅ REQUIRED FLOW
 ```python
 # 1. Download
 file_data = download_from_supabase(url)
@@ -141,6 +200,7 @@ file_data = download_from_supabase(url)
 temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
 temp_file.write(file_data)
 temp_file.flush()
+os.fsync(temp_file.fileno())
 temp_file.close()
 
 # 3. Validate
@@ -161,16 +221,9 @@ os.unlink(temp_file.name)
 
 ---
 
-## Base64 Encoding for Gemini
+## Base64 Encoding
 
 ### ✅ REQUIREMENTS
-- Encode image bytes (not file paths or URLs)
-- Strip any whitespace or newlines from base64 string
-- No data URI prefix
-- Validate base64 is valid (try decoding)
-- Check base64 length is reasonable (~33% larger than bytes)
-
-**Correct Pattern**:
 ```python
 # Encode
 base64_str = base64.b64encode(image_bytes).decode('utf-8').strip()
@@ -183,6 +236,12 @@ except Exception as e:
     logger.error(f"Base64 validation failed: {e}")
 ```
 
+- Encode image bytes (not file paths or URLs)
+- Strip any whitespace or newlines from base64 string
+- No data URI prefix
+- Validate base64 is valid (try decoding)
+- Check base64 length is reasonable (~33% larger than bytes)
+
 ### ❌ NEVER
 - Never include `data:image/jpeg;base64,` prefix
 - Never skip validation
@@ -194,12 +253,6 @@ except Exception as e:
 ## Error Handling
 
 ### ✅ ALWAYS
-- Log full API error response (not just status code)
-- Log request details (without sensitive data)
-- Provide specific error messages to user
-- Check for multiple error types
-
-**Example**:
 ```python
 if not response.ok:
     logger.error(f"API Error: {response.status_code}")
@@ -207,6 +260,11 @@ if not response.ok:
     logger.error(f"Headers: {response.headers}")
     return {"error": f"API returned {response.status_code}"}
 ```
+
+- Log full API error response (not just status code)
+- Log request details (without sensitive data)
+- Provide specific error messages to user
+- Check for multiple error types
 
 ### ❌ NEVER
 - Don't return generic "API failed" messages
@@ -224,6 +282,16 @@ headers = {
     "Content-Type": "application/json"
 }
 # No Authorization header!
+# API key goes in query param: ?key=API_KEY
+```
+
+### ✅ CLAUDE API
+```python
+headers = {
+    "anthropic-version": "2023-06-01",
+    "x-api-key": api_key,
+    "content-type": "application/json"
+}
 ```
 
 ### ✅ SUPABASE STORAGE
@@ -236,7 +304,8 @@ headers = {
 
 ### ❌ NEVER MIX THEM UP
 - Gemini uses query param, not header
-- Supabase uses header, not query param
+- Claude uses x-api-key header
+- Supabase uses Authorization Bearer header
 - Check API documentation for each service
 
 ---
@@ -244,14 +313,15 @@ headers = {
 ## Timeouts
 
 ### ✅ REQUIREMENTS
-- Always set timeouts on requests
-- Gemini API: 30-60 seconds (image processing takes time)
-- File downloads: 30 seconds
-- Simple API calls: 10 seconds
-
 ```python
 response = requests.post(url, json=payload, timeout=30)
 ```
+
+- Always set timeouts on requests
+- Gemini API: 30-60 seconds (image processing takes time)
+- Claude API: 30-60 seconds
+- File downloads: 30 seconds
+- Simple API calls: 10 seconds
 
 ### ❌ NEVER
 - Don't skip timeouts (requests can hang forever)
@@ -260,12 +330,28 @@ response = requests.post(url, json=payload, timeout=30)
 
 ---
 
-## Key Lessons
+## Image Flow Contracts (Detailed Implementations)
+
+**Before modifying API integration code, check**:
+- `/image flow/06_backend_ai_analyze_api.txt` - Gemini integration
+- `/image flow/07_backend_enhanced_scan_api.txt` - Claude integration
+- `/image flow/08_ai_image_format_conversion.txt` - Format conversion for Claude
+- `/image flow/09_ai_gemini_classifier.txt` - Gemini classifier
+- `/image flow/10_ai_claude_analysis.txt` - Claude analysis
+
+**These are the source of truth. Follow them exactly.**
+
+---
+
+## Key Rules
 
 1. **Gemini requires exact payload structure** - `mime_type` field is non-negotiable
 2. **No Authorization header for Gemini** - API key goes in query param only
-3. **Supabase requires service_role key** - Anon key fails with RLS
-4. **Base64 must be clean** - No prefixes, no whitespace
-5. **Cookie-based auth for Mercari** - Bypasses bot detection
-6. **Always validate downloads** - Don't assume files are valid
-7. **Strip all API keys** - Hidden whitespace causes silent failures
+3. **Claude is more restrictive** - Only JPEG/PNG/GIF (no WebP!)
+4. **Supabase requires service_role key** - Anon key fails with RLS
+5. **Base64 must be clean** - No prefixes, no whitespace
+6. **Cookie-based auth for Mercari** - Bypasses bot detection
+7. **Always validate downloads** - Don't assume files are valid
+8. **Strip all API keys** - Hidden whitespace causes silent failures
+9. **Different headers for different APIs** - Don't mix them up
+10. **Always set timeouts** - Requests can hang forever without them

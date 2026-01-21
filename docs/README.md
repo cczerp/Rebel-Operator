@@ -26,10 +26,11 @@ This folder contains all project documentation organized by category for easy na
 These important files remain in the project root for quick access:
 
 - **README.md** - Main project README
-- **CONTRACTS.md** - Master index of non-negotiable code patterns
+- **NON_NEGOTIABLES.md** - Quick reference to all rule files
 - **FRONTEND_RULES.md** - Non-negotiable rules for JavaScript, templates, and photo uploads
 - **BACKEND_RULES.md** - Non-negotiable rules for database, API, and file handling
-- **EXTERNAL_API_RULES.md** - Non-negotiable rules for Gemini, Supabase, and Mercari APIs
+- **EXTERNAL_API_RULES.md** - Non-negotiable rules for Gemini, Claude, Supabase, and Mercari APIs
+- **/image flow/** - Detailed technical contracts with working code examples
 
 ## 📖 How to Use This Documentation
 

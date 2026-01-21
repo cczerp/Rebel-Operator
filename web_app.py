@@ -183,11 +183,11 @@ app.admin_required = admin_required
 # ============================================================================
 
 # Import blueprints
-from routes_auth import auth_bp, init_routes as init_auth
-from routes_admin import admin_bp, init_routes as init_admin
-from routes_cards import cards_bp, init_routes as init_cards
-from routes_main import main_bp, init_routes as init_main
-from routes_csv import csv_bp
+from src.routes.auth import auth_bp, init_routes as init_auth
+from src.routes.admin import admin_bp, init_routes as init_admin
+from src.routes.cards import cards_bp, init_routes as init_cards
+from src.routes.main import main_bp, init_routes as init_main
+from src.routes.csv import csv_bp
 from monitoring.health import health_bp
 
 # Initialize blueprints with database and User class

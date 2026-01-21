@@ -2,6 +2,49 @@
 
 This document describes the complete bucket architecture for Rebel Operator's image storage system.
 
+---
+
+## Quick Reference: Photo Flow
+
+```
+User Uploads Photo
+    ↓
+Upload to: temp-photos bucket
+    ↓
+┌─────────────────────────────┐
+│ User Action:                │
+├─────────────────────────────┤
+│ Save Draft?                 │
+│   → Move to draft-images    │
+│                             │
+│ Publish Listing?            │
+│   → Move to listing-images  │
+│                             │
+│ Save to Vault?              │
+│   → Move to vault/{user_id} │
+│                             │
+│ Analyze with AI?            │
+│   → Download → Base64       │
+│   → Send to AI API          │
+│   → Cleanup temp file       │
+│                             │
+│ Leave Page (no save)?       │
+│   → Delete from temp-photos │
+└─────────────────────────────┘
+```
+
+### Why Download for AI Analysis?
+
+The AI APIs (Gemini, Claude) require images as **base64-encoded strings** in JSON requests. They cannot access URLs directly, so we must:
+1. Download image from Supabase Storage
+2. Encode to base64
+3. Send to AI API
+4. Clean up temp file
+
+This is an AI API requirement, not a code limitation.
+
+---
+
 ## Bucket Overview
 
 ```

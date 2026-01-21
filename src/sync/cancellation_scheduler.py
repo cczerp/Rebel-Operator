@@ -12,7 +12,6 @@ Or use a cron job / systemd service to run it every minute.
 import time
 from datetime import datetime
 from typing import List, Dict, Any
-import sqlite3
 
 from ..database import get_db
 
@@ -33,7 +32,7 @@ class CancellationScheduler:
             JOIN listings l ON pl.listing_id = l.id
             WHERE pl.status = 'pending_cancel'
             AND pl.cancel_scheduled_at IS NOT NULL
-            AND datetime(pl.cancel_scheduled_at) <= datetime('now')
+            AND pl.cancel_scheduled_at <= NOW()
         """)
 
         return [dict(row) for row in cursor.fetchall()]
@@ -72,7 +71,7 @@ class CancellationScheduler:
                 UPDATE platform_listings
                 SET status = 'canceled',
                     last_synced = CURRENT_TIMESTAMP
-                WHERE listing_id = ? AND platform = ?
+                WHERE listing_id = %s AND platform = %s
             """, (listing_id, platform))
             self.db.conn.commit()
 
@@ -104,8 +103,8 @@ class CancellationScheduler:
             cursor = self.db._get_cursor()
             cursor.execute("""
                 UPDATE platform_listings
-                SET error_message = ?
-                WHERE listing_id = ? AND platform = ?
+                SET error_message = %s
+                WHERE listing_id = %s AND platform = %s
             """, (str(e), listing_id, platform))
             self.db.conn.commit()
 

@@ -2,26 +2,24 @@
 Quick script to create admin account or check existing users
 Run this with: python create_admin.py
 """
-import sqlite3
+import sys
 from werkzeug.security import generate_password_hash
+from src.database.db import get_db
 
-db_path = 'data/cross_poster.db'
-
-# Connect to database
-conn = sqlite3.connect(db_path)
-cursor = conn.cursor()
+# Get database connection
+db = get_db()
 
 # Check existing users
-cursor.execute("SELECT id, username, email, is_admin FROM users")
-users = cursor.fetchall()
+users = db.get_all_users(include_inactive=True)
 
 print("\n" + "="*60)
 print("CURRENT USERS:")
 print("="*60)
 if users:
     for user in users:
-        admin_status = "ADMIN" if user[3] else "User"
-        print(f"ID: {user[0]} | Username: {user[1]} | Email: {user[2]} | Role: {admin_status}")
+        admin_status = "ADMIN" if user.get('is_admin') else "User"
+        active_status = "Active" if user.get('is_active') else "Inactive"
+        print(f"ID: {user['id']} | Username: {user['username']} | Email: {user['email']} | Role: {admin_status} | Status: {active_status}")
 else:
     print("No users found!")
 print("="*60)
@@ -30,11 +28,13 @@ print("="*60)
 if len(users) == 0:
     print("\nCreating default admin account...")
     password_hash = generate_password_hash('admin')
-    cursor.execute("""
-        INSERT INTO users (username, email, password_hash, is_admin, is_active, email_verified)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, ('admin', 'admin@resellgenius.local', password_hash, 1, 1, 1))
-    conn.commit()
+
+    # Create user with admin privileges
+    user_id = db.create_user('admin', 'admin@resellgenius.local', password_hash)
+
+    # Make user admin (toggle from False to True)
+    db.toggle_user_admin(user_id)
+
     print("\n✓ Admin account created!")
     print("Username: admin")
     print("Password: admin")
@@ -46,18 +46,17 @@ else:
 
 print("="*60 + "\n")
 
-conn.close()
-
 # If argument provided, make that user admin
-import sys
 if len(sys.argv) > 1:
     username = sys.argv[1]
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("UPDATE users SET is_admin = 1 WHERE username = ?", (username,))
-    if cursor.rowcount > 0:
-        conn.commit()
-        print(f"\n✓ User '{username}' is now an admin!")
+    user = db.get_user_by_username(username)
+
+    if user:
+        # Toggle admin status (or just set to True)
+        if not user.get('is_admin'):
+            db.toggle_user_admin(user['id'])
+            print(f"\n✓ User '{username}' is now an admin!")
+        else:
+            print(f"\nℹ User '{username}' is already an admin.")
     else:
         print(f"\n✗ User '{username}' not found")
-    conn.close()

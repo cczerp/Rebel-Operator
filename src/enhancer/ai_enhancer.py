@@ -59,8 +59,11 @@ class AiAnalyzer:
             ollama_model: Ollama model to use (default: llama3.2-vision:11b)
             ollama_host: Ollama server URL (default: http://localhost:11434)
         """
-        self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
-        self.anthropic_api_key = anthropic_api_key or os.getenv("ANTHROPIC_API_KEY")
+        # Strip whitespace from API keys (common issue with env vars)
+        openai_key = openai_api_key or os.getenv("OPENAI_API_KEY")
+        anthropic_key = anthropic_api_key or os.getenv("ANTHROPIC_API_KEY")
+        self.openai_api_key = openai_key.strip() if openai_key else None
+        self.anthropic_api_key = anthropic_key.strip() if anthropic_key else None
         self.use_openai = use_openai and self.openai_api_key is not None
         self.use_anthropic = use_anthropic and self.anthropic_api_key is not None
         self.use_ollama = use_ollama
@@ -341,7 +344,7 @@ Format as JSON:
             response = requests.post(
                 f"{self.ollama_host}/api/generate",
                 json=payload,
-                timeout=60  # Ollama can be slow on first run
+                timeout=180  # Ollama can be slow on first run (3 minutes)
             )
 
             if response.status_code == 200:

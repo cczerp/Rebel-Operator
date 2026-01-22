@@ -35,22 +35,16 @@
         padding: 1rem;
     }
 
-    /* Column 1: Listings Stream */
+    /* Column 1: Listings Stream (45%) */
     .column-1 {
-        flex: 0 0 35%;
-        max-width: 35%;
+        flex: 0 0 45%;
+        max-width: 45%;
     }
 
-    /* Column 2: Comparison */
+    /* Column 2: Comparison (55%) */
     .column-2 {
-        flex: 0 0 35%;
-        max-width: 35%;
-    }
-
-    /* Column 3: Intelligence */
-    .column-3 {
-        flex: 0 0 30%;
-        max-width: 30%;
+        flex: 0 0 55%;
+        max-width: 55%;
     }
 
     /* Listing Card */
@@ -95,7 +89,9 @@
         margin-bottom: 0.25rem;
         overflow: hidden;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
     }
 
     .listing-price {
@@ -108,21 +104,36 @@
         display: inline-block;
         padding: 0.15rem 0.5rem;
         border-radius: 4px;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         font-weight: 600;
         text-transform: uppercase;
     }
 
+    /* Platform colors */
     .platform-ebay { background: #E53238; color: white; }
     .platform-etsy { background: #F1641E; color: white; }
     .platform-tcgplayer { background: #5AA9E6; color: white; }
     .platform-mercari { background: #FF0211; color: white; }
+    .platform-poshmark { background: #8127D3; color: white; }
+    .platform-shopify { background: #96BF48; color: white; }
+    .platform-reverb { background: #FF6138; color: white; }
+    .platform-discogs { background: #333333; color: white; }
+    .platform-grailed { background: #000000; color: white; }
+    .platform-depop { background: #FF0000; color: white; }
+    .platform-stockx { background: #00A650; color: white; }
+    .platform-goat { background: #000000; color: white; }
+    .platform-amazon { background: #FF9900; color: white; }
 
     /* Platform Toggles */
     .platform-toggles {
         display: flex;
         flex-wrap: wrap;
         gap: 0.5rem;
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 0.5rem;
+        background: var(--bg-secondary);
+        border-radius: 6px;
     }
 
     .platform-toggle {
@@ -130,12 +141,13 @@
         align-items: center;
         gap: 0.25rem;
         padding: 0.4rem 0.8rem;
-        background: var(--bg-secondary);
+        background: var(--bg-tertiary);
         border: 1px solid var(--border-primary);
         border-radius: 6px;
         cursor: pointer;
         transition: all 0.2s;
         user-select: none;
+        font-size: 0.85rem;
     }
 
     .platform-toggle:hover {
@@ -146,6 +158,11 @@
         background: var(--alert-crimson);
         border-color: var(--alert-crimson);
         color: white;
+    }
+
+    .platform-toggle.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 
     .platform-toggle input[type="checkbox"] {
@@ -162,7 +179,7 @@
 
     .filter-group {
         flex: 1;
-        min-width: 200px;
+        min-width: 150px;
     }
 
     /* Comparison Card */
@@ -172,6 +189,20 @@
         border-radius: 6px;
         padding: 1rem;
         margin-bottom: 1rem;
+    }
+
+    .comparison-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .comparison-item {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-secondary);
+        border-radius: 6px;
+        padding: 0.75rem;
     }
 
     .comparison-note {
@@ -188,76 +219,31 @@
         color: var(--warning);
     }
 
-    /* Intelligence Panel */
-    .intel-section {
-        margin-bottom: 1.5rem;
+    .price-comparison {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-top: 1rem;
+        padding: 1rem;
+        background: var(--bg-tertiary);
+        border-radius: 6px;
     }
 
-    .intel-section h5 {
-        margin-bottom: 0.75rem;
-        color: var(--alert-crimson);
-        font-size: 1rem;
-        font-weight: 600;
+    .price-stat {
+        text-align: center;
+    }
+
+    .price-stat-label {
+        font-size: 0.75rem;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .intel-stat {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid var(--border-secondary);
-    }
-
-    .intel-stat:last-child {
-        border-bottom: none;
-    }
-
-    .volume-indicator {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 4px;
-        font-size: 0.85rem;
-        font-weight: 600;
-    }
-
-    .volume-rare { background: var(--success); color: white; }
-    .volume-moderate { background: var(--warning); color: white; }
-    .volume-saturated { background: var(--danger); color: white; }
-
-    /* Tabs */
-    .intel-tabs {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-        border-bottom: 2px solid var(--border-primary);
-    }
-
-    .intel-tab {
-        padding: 0.5rem 1rem;
-        cursor: pointer;
-        border-bottom: 2px solid transparent;
-        margin-bottom: -2px;
-        transition: all 0.2s;
         color: var(--text-muted);
-        font-weight: 500;
+        margin-bottom: 0.25rem;
     }
 
-    .intel-tab:hover {
-        color: var(--text-primary);
-    }
-
-    .intel-tab.active {
+    .price-stat-value {
+        font-size: 1.25rem;
+        font-weight: bold;
         color: var(--alert-crimson);
-        border-bottom-color: var(--alert-crimson);
-    }
-
-    .tab-content {
-        display: none;
-    }
-
-    .tab-content.active {
-        display: block;
     }
 
     /* Loading State */
@@ -285,15 +271,19 @@
         color: var(--border-primary);
     }
 
-    /* Responsive */
-    @media (max-width: 1200px) {
+    /* Mobile Responsive - Stack columns */
+    @media (max-width: 768px) {
         .search-columns {
             flex-direction: column;
         }
 
-        .column-1, .column-2, .column-3 {
+        .column-1, .column-2 {
             flex: 1;
             max-width: 100%;
+        }
+
+        .comparison-grid {
+            grid-template-columns: 1fr;
         }
     }
 </style>
@@ -304,7 +294,7 @@
         <!-- Search Input -->
         <div class="mb-3">
             <div class="input-group input-group-lg">
-                <input type="text" id="searchKeywords" class="form-control" placeholder="Search across platforms (e.g., Pokemon Charizard PSA 10)" />
+                <input type="text" id="searchKeywords" class="form-control" placeholder="Search across all platforms (e.g., Pokemon Charizard PSA 10, Rolex Submariner)" />
                 <button class="btn btn-danger" id="searchButton">
                     <i class="fas fa-search"></i> Search
                 </button>
@@ -313,7 +303,13 @@
 
         <!-- Platform Toggles -->
         <div class="mb-3">
-            <label class="form-label small text-muted">PLATFORMS</label>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <label class="form-label small text-muted mb-0">PLATFORMS</label>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary" id="selectAllPlatforms">Select All</button>
+                    <button class="btn btn-sm btn-outline-secondary" id="deselectAllPlatforms">Deselect All</button>
+                </div>
+            </div>
             <div class="platform-toggles" id="platformToggles">
                 <!-- Dynamically populated -->
             </div>
@@ -330,13 +326,17 @@
                     <option value="Slabbed">Slabbed</option>
                     <option value="Raw">Raw</option>
                     <option value="Sealed">Sealed</option>
+                    <option value="Watch">Watch</option>
+                    <option value="Sneakers">Sneakers</option>
+                    <option value="Apparel">Apparel</option>
                     <option value="Other">Other</option>
                 </select>
             </div>
 
             <div class="filter-group">
                 <label class="form-label small text-muted">CONDITION</label>
-                <select id="filterCondition" class="form-select form-select-sm" multiple>
+                <select id="filterCondition" class="form-select form-select-sm">
+                    <option value="">All Conditions</option>
                     <option value="New">New</option>
                     <option value="NM">Near Mint</option>
                     <option value="LP">Lightly Played</option>
@@ -365,7 +365,7 @@
         </div>
     </div>
 
-    <!-- 3-Column Layout -->
+    <!-- 2-Column Layout -->
     <div class="search-columns">
         <!-- Column 1: Listings Stream -->
         <div class="search-column column-1">
@@ -376,12 +376,13 @@
             <div id="listingsStream">
                 <div class="empty-state">
                     <i class="fas fa-search"></i>
-                    <p>Enter search terms and click Search to find items across platforms</p>
+                    <p>Enter search terms and click Search to find items across all platforms</p>
+                    <small class="text-muted">We'll search eBay, Etsy, Mercari, Poshmark, TCGplayer, and 39+ more platforms</small>
                 </div>
             </div>
         </div>
 
-        <!-- Column 2: Comparison & Normalization -->
+        <!-- Column 2: Comparison & Analysis -->
         <div class="search-column column-2">
             <h5 class="mb-3">
                 <i class="fas fa-balance-scale"></i> Comparison & Analysis
@@ -390,57 +391,7 @@
                 <div class="empty-state">
                     <i class="fas fa-hand-pointer"></i>
                     <p>Select a listing to see detailed comparison</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Column 3: Intelligence Panel -->
-        <div class="search-column column-3">
-            <h5 class="mb-3">
-                <i class="fas fa-chart-line"></i> Market Intelligence
-            </h5>
-
-            <!-- Tabs -->
-            <div class="intel-tabs">
-                <div class="intel-tab active" data-tab="snapshot">Snapshot</div>
-                <div class="intel-tab" data-tab="history">History</div>
-                <div class="intel-tab" data-tab="vault">Vault Check</div>
-                <div class="intel-tab" data-tab="decision">Decision</div>
-            </div>
-
-            <!-- Tab: Market Snapshot -->
-            <div id="tabSnapshot" class="tab-content active">
-                <div id="marketSnapshot">
-                    <div class="empty-state">
-                        <i class="fas fa-chart-pie"></i>
-                        <p>Market data will appear after search</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tab: Historical Signals -->
-            <div id="tabHistory" class="tab-content">
-                <div class="empty-state">
-                    <i class="fas fa-history"></i>
-                    <p>Historical data coming soon</p>
-                </div>
-            </div>
-
-            <!-- Tab: Vault Check -->
-            <div id="tabVault" class="tab-content">
-                <div class="empty-state">
-                    <i class="fas fa-vault"></i>
-                    <p>Check your vault for similar items</p>
-                </div>
-            </div>
-
-            <!-- Tab: Decision Nudges -->
-            <div id="tabDecision" class="tab-content">
-                <div id="decisionNudges">
-                    <div class="empty-state">
-                        <i class="fas fa-brain"></i>
-                        <p>AI-powered purchase recommendations will appear here</p>
-                    </div>
+                    <small class="text-muted">We'll show you similar listings, price comparisons, and help you find the best deal</small>
                 </div>
             </div>
         </div>
@@ -450,6 +401,7 @@
 <script>
 let availablePlatforms = [];
 let currentResults = [];
+let normalizedResults = [];
 let selectedListing = null;
 let marketIntelligence = null;
 
@@ -482,8 +434,11 @@ function renderPlatformToggles() {
     availablePlatforms.forEach(platform => {
         const toggle = document.createElement('div');
         toggle.className = 'platform-toggle';
+
         if (platform.available) {
             toggle.classList.add('active');
+        } else {
+            toggle.classList.add('disabled');
         }
 
         toggle.innerHTML = `
@@ -496,9 +451,18 @@ function renderPlatformToggles() {
         `;
 
         if (!platform.available) {
-            toggle.style.opacity = '0.5';
-            toggle.title = platform.requires_auth ? 'Credentials required' : 'Not available';
+            toggle.title = platform.requires_auth ? 'API credentials required' : 'Not available yet';
         }
+
+        toggle.addEventListener('click', function(e) {
+            if (!platform.available) return;
+
+            const checkbox = this.querySelector('input[type="checkbox"]');
+            if (checkbox && !checkbox.disabled) {
+                checkbox.checked = !checkbox.checked;
+                this.classList.toggle('active', checkbox.checked);
+            }
+        });
 
         container.appendChild(toggle);
     });
@@ -516,32 +480,20 @@ function setupEventListeners() {
         }
     });
 
-    // Platform toggles
-    document.getElementById('platformToggles').addEventListener('click', (e) => {
-        if (e.target.classList.contains('platform-toggle')) {
-            const checkbox = e.target.querySelector('input[type="checkbox"]');
-            if (checkbox && !checkbox.disabled) {
-                checkbox.checked = !checkbox.checked;
-                e.target.classList.toggle('active', checkbox.checked);
-            }
-        }
-    });
-
-    // Tab switching
-    document.querySelectorAll('.intel-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            switchTab(tab.dataset.tab);
+    // Select/Deselect all platforms
+    document.getElementById('selectAllPlatforms').addEventListener('click', () => {
+        document.querySelectorAll('#platformToggles input[type="checkbox"]:not(:disabled)').forEach(cb => {
+            cb.checked = true;
+            cb.closest('.platform-toggle').classList.add('active');
         });
     });
-}
 
-// Switch intelligence panel tabs
-function switchTab(tabName) {
-    document.querySelectorAll('.intel-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-    document.getElementById(`tab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`).classList.add('active');
+    document.getElementById('deselectAllPlatforms').addEventListener('click', () => {
+        document.querySelectorAll('#platformToggles input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+            cb.closest('.platform-toggle').classList.remove('active');
+        });
+    });
 }
 
 // Execute search
@@ -566,19 +518,20 @@ async function executeSearch() {
     }
 
     // Build search query
+    const conditionVal = document.getElementById('filterCondition').value;
     const query = {
         keywords: keywords,
         item_type: document.getElementById('filterItemType').value || null,
-        condition: Array.from(document.getElementById('filterCondition').selectedOptions).map(o => o.value),
+        condition: conditionVal ? [conditionVal] : null,
         min_price: parseFloat(document.getElementById('filterMinPrice').value) || null,
         max_price: parseFloat(document.getElementById('filterMaxPrice').value) || null,
         sort_by: document.getElementById('filterSort').value,
         platforms: selectedPlatforms,
-        limit: 50
+        limit: 100
     };
 
     // Show loading
-    document.getElementById('listingsStream').innerHTML = '<div class="loading-spinner"><div class="spinner-border" role="status"></div><p class="mt-2">Searching...</p></div>';
+    document.getElementById('listingsStream').innerHTML = '<div class="loading-spinner"><div class="spinner-border" role="status"></div><p class="mt-2">Searching across ' + selectedPlatforms.length + ' platforms...</p></div>';
 
     try {
         const response = await fetch('/api/search/multi-platform', {
@@ -591,9 +544,9 @@ async function executeSearch() {
 
         if (data.success) {
             currentResults = data.results;
+            normalizedResults = data.normalized_results;
             marketIntelligence = data.market_intelligence;
             renderResults();
-            renderMarketIntelligence();
             document.getElementById('resultCount').textContent = data.total_results;
         } else {
             throw new Error(data.error || 'Search failed');
@@ -609,17 +562,17 @@ function renderResults() {
     const container = document.getElementById('listingsStream');
 
     if (currentResults.length === 0) {
-        container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>No results found</p></div>';
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>No results found</p><small class="text-muted">Try different keywords or select more platforms</small></div>';
         return;
     }
 
     container.innerHTML = currentResults.map(result => `
-        <div class="listing-card" data-listing-id="${result.listing_id}">
-            <img src="${result.thumbnail_url || '/static/placeholder.png'}" class="listing-thumbnail" alt="Thumbnail" />
+        <div class="listing-card" data-listing-id="${result.listing_id}" onclick="selectListing('${result.listing_id}')">
+            <img src="${result.thumbnail_url || '/static/placeholder.png'}" class="listing-thumbnail" alt="Thumbnail" onerror="this.src='/static/placeholder.png'" />
             <div class="listing-info">
                 <div class="listing-title">${escapeHtml(result.title)}</div>
                 <div class="mb-1">
-                    <span class="platform-badge platform-${result.platform.toLowerCase()}">${result.platform}</span>
+                    <span class="platform-badge platform-${result.platform.toLowerCase().replace(/\s+/g, '')}">${result.platform}</span>
                 </div>
                 <div class="listing-price">$${result.total_price.toFixed(2)}</div>
                 <div class="small text-muted">
@@ -629,13 +582,6 @@ function renderResults() {
             </div>
         </div>
     `).join('');
-
-    // Add click handlers
-    container.querySelectorAll('.listing-card').forEach(card => {
-        card.addEventListener('click', () => {
-            selectListing(card.dataset.listingId);
-        });
-    });
 }
 
 // Select a listing
@@ -659,105 +605,136 @@ function renderComparison() {
         return;
     }
 
+    // Find normalized result
+    const normalized = normalizedResults.find(n => n.result.listing_id === selectedListing.listing_id);
+
     // Find similar listings
     const similar = currentResults.filter(r =>
         r.listing_id !== selectedListing.listing_id &&
-        r.title.toLowerCase().includes(selectedListing.title.toLowerCase().split(' ')[0])
-    ).slice(0, 5);
+        titleSimilarity(r.title, selectedListing.title) > 0.4
+    ).slice(0, 8);
+
+    // Calculate price stats
+    let avgPrice = 0, minPrice = 0, maxPrice = 0;
+    if (similar.length > 0) {
+        const prices = similar.map(s => s.total_price);
+        avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
+        minPrice = Math.min(...prices);
+        maxPrice = Math.max(...prices);
+    }
 
     container.innerHTML = `
         <div class="comparison-card">
-            <h6>Selected Listing</h6>
+            <h6><i class="fas fa-bullseye"></i> Selected Listing</h6>
             <div class="mb-2"><strong>${escapeHtml(selectedListing.title)}</strong></div>
             <div class="mb-2">
-                <span class="platform-badge platform-${selectedListing.platform.toLowerCase()}">${selectedListing.platform}</span>
+                <span class="platform-badge platform-${selectedListing.platform.toLowerCase().replace(/\s+/g, '')}">${selectedListing.platform}</span>
                 <span class="ms-2">${selectedListing.condition || 'N/A'}</span>
             </div>
             <div class="listing-price mb-2">$${selectedListing.total_price.toFixed(2)}</div>
-            <a href="${selectedListing.url}" target="_blank" class="btn btn-sm btn-danger">
-                <i class="fas fa-external-link-alt"></i> View on ${selectedListing.platform}
-            </a>
+            ${selectedListing.shipping_cost ? `<small class="text-muted">Includes $${selectedListing.shipping_cost.toFixed(2)} shipping</small>` : ''}
+            <div class="mt-3">
+                <a href="${selectedListing.url}" target="_blank" class="btn btn-danger w-100">
+                    <i class="fas fa-external-link-alt"></i> View on ${selectedListing.platform}
+                </a>
+            </div>
         </div>
 
         ${similar.length > 0 ? `
             <div class="comparison-card">
-                <h6>Similar Listings (${similar.length})</h6>
-                ${similar.map(s => `
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div>
-                            <small class="platform-badge platform-${s.platform.toLowerCase()}">${s.platform}</small>
-                            <span class="ms-2">$${s.total_price.toFixed(2)}</span>
-                        </div>
-                        <a href="${s.url}" target="_blank" class="btn btn-sm btn-outline-secondary">
-                            <i class="fas fa-external-link-alt"></i>
-                        </a>
+                <h6><i class="fas fa-chart-bar"></i> Price Comparison</h6>
+                <div class="price-comparison">
+                    <div class="price-stat flex-fill">
+                        <div class="price-stat-label">This Listing</div>
+                        <div class="price-stat-value">$${selectedListing.total_price.toFixed(2)}</div>
                     </div>
-                `).join('')}
+                    <div class="price-stat flex-fill">
+                        <div class="price-stat-label">Average</div>
+                        <div class="price-stat-value">$${avgPrice.toFixed(2)}</div>
+                    </div>
+                    <div class="price-stat flex-fill">
+                        <div class="price-stat-label">Range</div>
+                        <div class="price-stat-value">$${minPrice.toFixed(2)} - $${maxPrice.toFixed(2)}</div>
+                    </div>
+                </div>
+
+                ${normalized && normalized.comparison_notes.length > 0 ? `
+                    <div class="mt-3">
+                        ${normalized.comparison_notes.map(note => `
+                            <div class="comparison-note">
+                                <i class="fas fa-info-circle"></i> ${note}
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+
+                ${normalized && normalized.is_outlier ? `
+                    <div class="comparison-note outlier-warning">
+                        <i class="fas fa-exclamation-triangle"></i> Price is significantly different from similar listings
+                    </div>
+                ` : ''}
+            </div>
+
+            <div class="comparison-card">
+                <h6><i class="fas fa-layer-group"></i> Similar Listings (${similar.length})</h6>
+                <div class="comparison-grid">
+                    ${similar.map(s => `
+                        <div class="comparison-item">
+                            <div class="small mb-1">
+                                <span class="platform-badge platform-${s.platform.toLowerCase().replace(/\s+/g, '')}">${s.platform}</span>
+                            </div>
+                            <div class="fw-bold mb-1">$${s.total_price.toFixed(2)}</div>
+                            <div class="small text-muted mb-2">${s.condition || 'N/A'}</div>
+                            <a href="${s.url}" target="_blank" class="btn btn-sm btn-outline-secondary w-100">
+                                <i class="fas fa-external-link-alt"></i> View
+                            </a>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        ` : `
+            <div class="comparison-note">
+                <i class="fas fa-info-circle"></i> No similar listings found to compare
+            </div>
+        `}
+
+        ${marketIntelligence ? `
+            <div class="comparison-card">
+                <h6><i class="fas fa-chart-line"></i> Market Snapshot</h6>
+                <div class="intel-stat mb-2">
+                    <small class="text-muted">Total Results Found</small>
+                    <div class="fw-bold">${marketIntelligence.total_results} listings</div>
+                </div>
+                <div class="intel-stat mb-2">
+                    <small class="text-muted">Average Price</small>
+                    <div class="fw-bold text-danger">$${marketIntelligence.average_price.toFixed(2)}</div>
+                </div>
+                <div class="intel-stat mb-2">
+                    <small class="text-muted">Market Volume</small>
+                    <div>
+                        <span class="badge ${marketIntelligence.volume_indicator === 'rare' ? 'bg-success' : marketIntelligence.volume_indicator === 'moderate' ? 'bg-warning' : 'bg-danger'}">
+                            ${marketIntelligence.volume_indicator.toUpperCase()}
+                        </span>
+                    </div>
+                </div>
+                <div class="intel-stat">
+                    <small class="text-muted">Platforms Found</small>
+                    <div class="small">${marketIntelligence.platforms_found.join(', ')}</div>
+                </div>
             </div>
         ` : ''}
-
-        <div class="comparison-note">
-            <i class="fas fa-info-circle"></i>
-            This listing ${selectedListing.shipping_cost ? 'includes' : 'may not include'} shipping costs
-        </div>
     `;
 }
 
-// Render market intelligence
-function renderMarketIntelligence() {
-    const container = document.getElementById('marketSnapshot');
+// Calculate title similarity (Jaccard similarity)
+function titleSimilarity(title1, title2) {
+    const words1 = new Set(title1.toLowerCase().split(/\s+/));
+    const words2 = new Set(title2.toLowerCase().split(/\s+/));
 
-    if (!marketIntelligence) {
-        return;
-    }
+    const intersection = new Set([...words1].filter(x => words2.has(x)));
+    const union = new Set([...words1, ...words2]);
 
-    const intel = marketIntelligence;
-
-    container.innerHTML = `
-        <div class="intel-section">
-            <h5>Price Analysis</h5>
-            <div class="intel-stat">
-                <span>Average Price</span>
-                <strong>$${intel.average_price.toFixed(2)}</strong>
-            </div>
-            <div class="intel-stat">
-                <span>Median Price</span>
-                <strong>$${intel.median_price.toFixed(2)}</strong>
-            </div>
-            <div class="intel-stat">
-                <span>Price Range</span>
-                <strong>$${intel.price_range[0].toFixed(2)} - $${intel.price_range[1].toFixed(2)}</strong>
-            </div>
-        </div>
-
-        <div class="intel-section">
-            <h5>Market Volume</h5>
-            <div class="intel-stat">
-                <span>Total Results</span>
-                <strong>${intel.total_results}</strong>
-            </div>
-            <div class="intel-stat">
-                <span>Volume</span>
-                <span class="volume-indicator volume-${intel.volume_indicator}">${intel.volume_indicator.toUpperCase()}</span>
-            </div>
-            <div class="intel-stat">
-                <span>Platforms Found</span>
-                <strong>${intel.platforms_found.join(', ')}</strong>
-            </div>
-        </div>
-
-        ${Object.keys(intel.condition_breakdown).length > 0 ? `
-            <div class="intel-section">
-                <h5>Condition Breakdown</h5>
-                ${Object.entries(intel.condition_breakdown).map(([cond, count]) => `
-                    <div class="intel-stat">
-                        <span>${cond}</span>
-                        <strong>${count}</strong>
-                    </div>
-                `).join('')}
-            </div>
-        ` : ''}
-    `;
+    return intersection.size / union.size;
 }
 
 // Utility: Escape HTML

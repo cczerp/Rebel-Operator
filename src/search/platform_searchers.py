@@ -1080,6 +1080,217 @@ class TheRealRealSearcher(BasePlatformSearcher):
         return results
 
 
+class ChairishSearcher(BasePlatformSearcher):
+    """
+    Chairish public search.
+
+    Chairish is a furniture and home decor marketplace with public listings.
+    """
+
+    def get_platform_name(self) -> str:
+        return "Chairish"
+
+    def get_search_capability(self) -> SearchCapability:
+        return SearchCapability.SCRAPER_FRIENDLY
+
+    def search(self, query: SearchQuery) -> List[SearchResult]:
+        """Search Chairish public listings"""
+        if not HAS_BS4:
+            print("BeautifulSoup4 required for Chairish search")
+            return []
+
+        results = []
+
+        try:
+            # Build search URL
+            search_url = f"https://www.chairish.com/search?query={quote_plus(query.keywords)}"
+
+            headers = {
+                'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'
+            }
+
+            response = requests.get(search_url, headers=headers, timeout=15)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            # Find product cards
+            items = soup.find_all('div', class_='product-card')[:query.limit]
+
+            for item_div in items:
+                try:
+                    link = item_div.find('a', href=True)
+                    if not link:
+                        continue
+
+                    url = link['href']
+                    if not url.startswith('http'):
+                        url = f"https://www.chairish.com{url}"
+
+                    # Extract ID from URL
+                    listing_id = re.search(r'/product/(\d+)', url)
+                    listing_id = listing_id.group(1) if listing_id else ''
+
+                    # Title
+                    title_elem = item_div.find('div', class_='product-title') or item_div.find('h2')
+                    title = title_elem.text.strip() if title_elem else ''
+
+                    # Price
+                    price_elem = item_div.find('span', class_='price')
+                    if price_elem:
+                        price_text = price_elem.text.strip()
+                        price = float(re.sub(r'[^\d.]', '', price_text))
+                    else:
+                        price = 0.0
+
+                    # Image
+                    img = item_div.find('img')
+                    thumbnail = img.get('src') or img.get('data-src') if img else None
+
+                    results.append(SearchResult(
+                        platform="Chairish",
+                        listing_id=listing_id,
+                        url=url,
+                        title=title,
+                        price=price,
+                        thumbnail_url=thumbnail,
+                    ))
+
+                except Exception as e:
+                    print(f"Error parsing Chairish listing: {e}")
+                    continue
+
+        except Exception as e:
+            print(f"Chairish search error: {e}")
+
+        return results
+
+
+class AmazonSearcher(BasePlatformSearcher):
+    """
+    Amazon Product Advertising API searcher.
+
+    Requires AWS credentials and Associate Tag.
+    https://webservices.amazon.com/paapi5/documentation/
+    """
+
+    def get_platform_name(self) -> str:
+        return "Amazon"
+
+    def get_search_capability(self) -> SearchCapability:
+        return SearchCapability.API_SEARCH
+
+    def requires_auth(self) -> bool:
+        return True
+
+    def search(self, query: SearchQuery) -> List[SearchResult]:
+        """
+        Search Amazon using Product Advertising API.
+
+        Note: This is a simplified implementation. Full implementation
+        would require HMAC-SHA256 signing of requests.
+        """
+        results = []
+
+        if not self.credentials.get('access_key'):
+            print("Amazon search requires PA-API credentials")
+            return []
+
+        # Amazon PA-API 5.0 implementation would go here
+        # Requires complex request signing, so skipping full implementation
+        # for now. This is a placeholder showing the structure.
+
+        print("Amazon PA-API 5.0 requires complex request signing - implement when credentials are available")
+
+        return results
+
+
+class FashionphileSearcher(BasePlatformSearcher):
+    """
+    Fashionphile public search.
+
+    Fashionphile is a luxury handbag consignment marketplace.
+    """
+
+    def get_platform_name(self) -> str:
+        return "Fashionphile"
+
+    def get_search_capability(self) -> SearchCapability:
+        return SearchCapability.SCRAPER_FRIENDLY
+
+    def search(self, query: SearchQuery) -> List[SearchResult]:
+        """Search Fashionphile public listings"""
+        if not HAS_BS4:
+            print("BeautifulSoup4 required for Fashionphile search")
+            return []
+
+        results = []
+
+        try:
+            # Build search URL
+            search_url = f"https://www.fashionphile.com/shop?search={quote_plus(query.keywords)}"
+
+            headers = {
+                'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'
+            }
+
+            response = requests.get(search_url, headers=headers, timeout=15)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            # Find product items
+            items = soup.find_all('div', class_='product-item')[:query.limit]
+
+            for item_div in items:
+                try:
+                    link = item_div.find('a', href=True)
+                    if not link:
+                        continue
+
+                    url = link['href']
+                    if not url.startswith('http'):
+                        url = f"https://www.fashionphile.com{url}"
+
+                    # Extract ID from URL
+                    listing_id = re.search(r'/(\d+)', url)
+                    listing_id = listing_id.group(1) if listing_id else ''
+
+                    # Title
+                    title_elem = item_div.find('div', class_='product-name')
+                    title = title_elem.text.strip() if title_elem else ''
+
+                    # Price
+                    price_elem = item_div.find('span', class_='product-price')
+                    if price_elem:
+                        price_text = price_elem.text.strip()
+                        price = float(re.sub(r'[^\d.]', '', price_text))
+                    else:
+                        price = 0.0
+
+                    # Image
+                    img = item_div.find('img')
+                    thumbnail = img.get('src') or img.get('data-src') if img else None
+
+                    results.append(SearchResult(
+                        platform="Fashionphile",
+                        listing_id=listing_id,
+                        url=url,
+                        title=title,
+                        price=price,
+                        thumbnail_url=thumbnail,
+                    ))
+
+                except Exception as e:
+                    print(f"Error parsing Fashionphile listing: {e}")
+                    continue
+
+        except Exception as e:
+            print(f"Fashionphile search error: {e}")
+
+        return results
+
+
 class FacebookMarketplaceSearcher(BasePlatformSearcher):
     """
     Facebook Marketplace - No external search allowed.
@@ -1119,14 +1330,15 @@ class ShopifySearcher(BasePlatformSearcher):
 
 # Searcher registry
 SEARCHER_REGISTRY = {
-    # Official APIs (5)
+    # Official APIs (6)
     'ebay': eBaySearcher,
     'etsy': EtsySearcher,
     'tcgplayer': TCGplayerSearcher,
     'reverb': ReverbSearcher,
     'discogs': DiscogsSearcher,
+    'amazon': AmazonSearcher,  # Requires PA-API credentials
 
-    # Public Search (8)
+    # Public Search (10)
     'mercari': MercariSearcher,
     'poshmark': PoshmarkSearcher,
     'grailed': GrailedSearcher,
@@ -1135,6 +1347,8 @@ SEARCHER_REGISTRY = {
     'rubylane': RubyLaneSearcher,
     'vinted': VintedSearcher,
     'therealreal': TheRealRealSearcher,
+    'chairish': ChairishSearcher,
+    'fashionphile': FashionphileSearcher,
 
     # Unavailable
     'facebook': FacebookMarketplaceSearcher,

@@ -1,28 +1,54 @@
 # Multi-User Search - Credential Setup Guide
 
+## What We're Building
+
+**A search aggregator** that searches publicly available listings across resale platforms and links back to the original listings.
+
+**What this does:**
+- Searches public listings (like Google does)
+- Shows unified results to users
+- Links directly to original platform listings
+- Helps buyers find items, helps sellers get discovered
+
+**What this does NOT do:**
+- ❌ Automated buying/selling
+- ❌ Scraping private data
+- ❌ Pretending to be a human user
+- ❌ Stealing listings or removing attribution
+
+**This is platform-friendly** - you're sending them traffic and helping their ecosystem.
+
 ## Overview
 
-For the multi-platform search to work for ALL users (not just you), you need to decide on a credential strategy for each platform type.
+For the multi-platform search to work for ALL users, you have three implementation options depending on the platform:
+
+1. **Official API** (10-12 platforms) - Use their API with credentials
+2. **Public Search** (25-30 platforms) - Search public pages directly (no credentials needed)
+3. **Not Available** (4-8 platforms) - Login required or explicitly forbidden
 
 ## Credential Strategies
 
-### Strategy 1: **App-Level Credentials** (RECOMMENDED for most platforms)
+### Strategy 1: **App-Level Credentials** (RECOMMENDED - Official APIs)
 - **What**: Single API key/app credentials shared across all users
-- **Best for**: Public search APIs that don't require user-specific auth
+- **Best for**: Platforms with official public search APIs
 - **How**: Store credentials in environment variables or admin settings
-- **Platforms**: eBay Finding API, Etsy, TCGplayer, Amazon Product API, Discogs
+- **Platforms**: eBay Finding API, Etsy, TCGplayer, Amazon Product API, Discogs, Reverb
+- **Count**: ~10-12 platforms
 
-### Strategy 2: **User-Level Credentials**
+### Strategy 2: **No Credentials Needed** (PUBLIC SEARCH - Most Platforms)
+- **What**: No authentication required - search public listings directly
+- **Best for**: Platforms with public-facing search pages
+- **How**: Send HTTP requests to public search URLs, parse results
+- **Platforms**: Mercari, Poshmark, Grailed, Depop, Bonanza, Ruby Lane, Vinted, The RealReal, and 20+ more
+- **Count**: ~25-30 platforms
+- **Note**: This is exactly what Google does when indexing these sites
+
+### Strategy 3: **User-Level Credentials** (Optional, for closed platforms)
 - **What**: Each user connects their own account
-- **Best for**: Platforms that require OAuth or user-specific access
+- **Best for**: Platforms that require login to search (StockX, GOAT)
 - **How**: Users authenticate via OAuth flow, tokens stored in `marketplace_credentials` table
-- **Platforms**: Shopify (individual stores), StockX, GOAT
-
-### Strategy 3: **Hybrid** (App creds + optional user creds)
-- **What**: Use app credentials for basic search, user credentials for enhanced features
-- **Best for**: Platforms with tiered API access
-- **How**: Fall back to app creds if user hasn't connected
-- **Platforms**: eBay (basic search vs saved searches), Reverb
+- **Count**: ~4-6 platforms
+- **Status**: Mark as "Not Available" unless you implement OAuth
 
 ---
 
@@ -112,21 +138,30 @@ For the multi-platform search to work for ALL users (not just you), you need to 
 
 ---
 
-### 🟡 **YELLOW TIER: No Public API (Limited Options)**
+### ✅ **PUBLIC SEARCH TIER: No API, But Public Search Available** (~25-30 platforms)
 
-These platforms don't have official public search APIs. Options:
+These platforms don't have official APIs, BUT they have public search pages that anyone can access.
 
-#### **Poshmark, Mercari, Grailed, Depop**
-- **Search Method**: None officially supported
-- **Options**:
-  1. **Wait for official API** (Mercari announced API coming 2024)
-  2. **RSS/Sitemap parsing** (if available and ToS-compliant)
-  3. **Show as "Not Available"** in platform list
-- **Recommendation**: Mark as unavailable until official API exists
-
-#### **The RealReal, Vestiaire Collective, Vinted**
-- **Search Method**: No public API
-- **Recommendation**: Mark as unavailable
+#### **Poshmark, Mercari, Grailed, Depop, Vinted, Bonanza, Ruby Lane, etc.**
+- **Search Method**: Public search URLs (no authentication required)
+- **Example URLs**:
+  - Mercari: `mercari.com/search/?keyword=pokemon`
+  - Poshmark: `poshmark.com/search?query=sneakers`
+  - Grailed: `grailed.com/shop?query=supreme`
+  - Depop: `depop.com/search/?q=vintage`
+  - Bonanza: `bonanza.com/listings/search?q=cards`
+- **Implementation**:
+  - Send HTTP requests to public search URLs
+  - Parse HTML or JSON responses
+  - Extract listing data (title, price, image, link)
+  - Link back to original listing
+- **Credentials Needed**: None (publicly accessible)
+- **Best Practices**:
+  - Identify yourself in User-Agent
+  - Rate limit to 1-2 requests/second
+  - Cache results briefly
+  - Always link back to platform
+- **Recommendation**: Implement these! They're publicly accessible and you're sending them traffic.
 
 ---
 
@@ -164,7 +199,9 @@ Facebook Marketplace, Craigslist, OfferUp, Nextdoor, VarageSale - **Cannot be au
 
 ## Implementation Priority
 
-### Phase 1: **Implement Now** (Easy, Free, High Value)
+### Phase 1: **Official APIs** (Best Quality - 6 platforms)
+These provide the cleanest, fastest, most reliable data:
+
 1. ✅ eBay (Finding API - no auth required for basic search)
 2. ✅ Etsy (API key only)
 3. ✅ TCGplayer (API key, must apply)
@@ -172,20 +209,51 @@ Facebook Marketplace, Craigslist, OfferUp, Nextdoor, VarageSale - **Cannot be au
 5. Discogs (simple key/secret)
 6. Amazon (requires affiliate account)
 
-### Phase 2: **Implement Next** (More Complex)
-7. AbeBooks (if API available)
-8. Bonanza (CSV-based, might have search endpoint)
-9. Ruby Lane (check for API)
-10. Cardmarket (European TCG, has API)
+**Time:** 1-2 hours per platform
+**Credentials:** Yes (see sections below)
 
-### Phase 3: **Mark as "Coming Soon"**
-- Mercari (API in development)
-- Poshmark (if API becomes available)
-- StockX (if partner access obtained)
+### Phase 2: **Public Search - Major Platforms** (Wider Coverage - 10+ platforms)
+These have public search, no credentials needed:
 
-### Phase 4: **Mark as "Unavailable"**
-- Facebook Marketplace, Craigslist, OfferUp (no automation possible)
-- GOAT, Grailed, Depop (no public API)
+7. Mercari (huge resale platform - public search)
+8. Poshmark (fashion/apparel - public search)
+9. Grailed (menswear - public search, even has GraphQL)
+10. Depop (vintage/streetwear - public search)
+11. Bonanza (general marketplace - public search)
+12. Ruby Lane (antiques - public search)
+13. Vinted (secondhand fashion - public search)
+14. COMC (sports cards - public search)
+15. The RealReal (luxury - public listings)
+16. Chairish (furniture - public search)
+
+**Time:** 2-3 hours per platform
+**Credentials:** None needed (public access)
+
+### Phase 3: **Public Search - Niche Platforms** (Specialty Coverage - 10+ platforms)
+Category-specific platforms with public search:
+
+17. Fashionphile (luxury handbags)
+18. Rebag (luxury bags)
+19. ThredUp (secondhand fashion)
+20. Curtsy (women's fashion)
+21. Cardmarket (European TCG - has API too)
+22. Sportlots (vintage sports cards)
+23. MySlabs (graded cards)
+24. AbeBooks (rare books)
+25. Biblio (books)
+26. ArtFire, Folksy, Zibbet (handmade)
+
+**Time:** 2-3 hours per platform
+**Credentials:** None needed
+
+### Phase 4: **Mark as "Not Available"** (4-8 platforms)
+These legitimately cannot be implemented:
+
+- StockX, GOAT (login required, no public search)
+- Facebook Marketplace (explicitly forbidden in TOS)
+- Craigslist (extremely litigious about automation)
+- Whatnot (live auction, no static search)
+- Local platforms (OfferUp, Nextdoor, VarageSale)
 
 ---
 

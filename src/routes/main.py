@@ -211,9 +211,12 @@ def api_upload_photos():
 
 
 @main_bp.route("/api/cleanup-temp-photos", methods=["POST"])
-@login_required
 def api_cleanup_temp_photos():
-    """Clean up temporary photos that weren't saved (called when user leaves page)"""
+    """Clean up temporary photos that weren't saved (called when user leaves page)
+
+    Note: No @login_required decorator - guest users (who get 8 free AI scans)
+    also need to cleanup their temp photos to prevent bucket bloat.
+    """
     import logging
     try:
         data = request.get_json()

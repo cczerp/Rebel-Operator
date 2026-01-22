@@ -165,6 +165,9 @@
         <button type="button" class="btn btn-outline-success btn-lg" id="saveToVaultBtn">
             <i class="fas fa-vault"></i> Save to My Vault
         </button>
+        <button type="button" class="btn btn-outline-danger btn-lg" id="clearFormBtn">
+            <i class="fas fa-eraser"></i> Clear Form
+        </button>
         <div class="form-check mt-2" id="storageMapOption" style="display: none;">
             <input class="form-check-input" type="checkbox" id="useStorageMap" checked>
             <label class="form-check-label" for="useStorageMap">
@@ -955,8 +958,11 @@ document.getElementById('analyzeBtn').addEventListener('click', async function()
             document.getElementById('color').value = analysis.color;
             console.log('Set color:', analysis.color);
         }
-        // Note: suggested_price and condition not provided by AiAnalyzer (general scanner)
-        if (analysis.suggested_price) document.getElementById('price').value = analysis.suggested_price;
+        // Set estimated price from AI analysis
+        if (analysis.estimated_price) {
+            document.getElementById('price').value = analysis.estimated_price;
+            console.log('Set estimated price:', analysis.estimated_price);
+        }
         if (analysis.condition) {
             const condition = analysis.condition.replace(' ', '_').toLowerCase();
             document.getElementById('condition').value = condition;
@@ -1382,8 +1388,7 @@ async function saveCardToVault() {
             }
             
             showAlert(message, 'success');
-            // Clear form and stay on page
-            clearForm();
+            // Keep form data intact after save
             setTimeout(() => {
                 hideLoading();
             }, 1000);
@@ -1849,9 +1854,8 @@ async function saveDraft() {
         const data = await response.json();
 
         if (data.success) {
-            showAlert('Draft saved successfully!', 'success');
-            // Clear form and stay on page
-            clearForm();
+            showAlert('Draft saved successfully! Use the Clear button to start a new listing.', 'success');
+            // Keep form data intact after save
             setTimeout(() => {
                 hideLoading();
             }, 1000);
@@ -1904,10 +1908,9 @@ async function saveToVault() {
             if (data.storage_guidance) {
                 message += `<br><br><strong><i class="fas fa-map-marked-alt"></i> Storage Guidance:</strong><br>${data.storage_guidance}`;
             }
-            
+
             showAlert(message, 'success');
-            // Clear form and stay on page
-            clearForm();
+            // Keep form data intact after save
             setTimeout(() => {
                 hideLoading();
             }, 1000);
@@ -2044,6 +2047,13 @@ document.getElementById('saveToVaultBtn').addEventListener('click', async functi
 
 document.getElementById('postListingBtn').addEventListener('click', function() {
     showPlatformSelection();
+});
+
+document.getElementById('clearFormBtn').addEventListener('click', function() {
+    if (confirm('Are you sure you want to clear the form? All unsaved data will be lost.')) {
+        clearForm();
+        showAlert('Form cleared successfully', 'info');
+    }
 });
 
 function collectFormData() {

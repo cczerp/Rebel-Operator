@@ -1,0 +1,781 @@
+{% extends "base.html" %}
+
+{% block title %}Multi-Platform Search - Rebel Operator{% endblock %}
+
+{% block content %}
+<style>
+    /* Search Page Specific Styles */
+    .search-container {
+        height: calc(100vh - 120px);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .search-top-bar {
+        background: var(--bg-card);
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 4px var(--shadow-secondary);
+    }
+
+    .search-columns {
+        display: flex;
+        gap: 1rem;
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .search-column {
+        background: var(--bg-card);
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        overflow-y: auto;
+        padding: 1rem;
+    }
+
+    /* Column 1: Listings Stream */
+    .column-1 {
+        flex: 0 0 35%;
+        max-width: 35%;
+    }
+
+    /* Column 2: Comparison */
+    .column-2 {
+        flex: 0 0 35%;
+        max-width: 35%;
+    }
+
+    /* Column 3: Intelligence */
+    .column-3 {
+        flex: 0 0 30%;
+        max-width: 30%;
+    }
+
+    /* Listing Card */
+    .listing-card {
+        display: flex;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-secondary);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .listing-card:hover {
+        border-color: var(--alert-crimson);
+        transform: translateX(4px);
+    }
+
+    .listing-card.selected {
+        border-color: var(--alert-crimson);
+        background: var(--bg-tertiary);
+    }
+
+    .listing-thumbnail {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 4px;
+        background: var(--bg-primary);
+    }
+
+    .listing-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .listing-title {
+        font-size: 0.9rem;
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .listing-price {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: var(--alert-crimson);
+    }
+
+    .platform-badge {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .platform-ebay { background: #E53238; color: white; }
+    .platform-etsy { background: #F1641E; color: white; }
+    .platform-tcgplayer { background: #5AA9E6; color: white; }
+    .platform-mercari { background: #FF0211; color: white; }
+
+    /* Platform Toggles */
+    .platform-toggles {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .platform-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.4rem 0.8rem;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        user-select: none;
+    }
+
+    .platform-toggle:hover {
+        border-color: var(--alert-crimson);
+    }
+
+    .platform-toggle.active {
+        background: var(--alert-crimson);
+        border-color: var(--alert-crimson);
+        color: white;
+    }
+
+    .platform-toggle input[type="checkbox"] {
+        cursor: pointer;
+    }
+
+    /* Filters */
+    .filter-row {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    /* Comparison Card */
+    .comparison-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: 6px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .comparison-note {
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        background: var(--bg-tertiary);
+        border-left: 3px solid var(--alert-crimson);
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+
+    .outlier-warning {
+        border-left-color: var(--warning);
+        color: var(--warning);
+    }
+
+    /* Intelligence Panel */
+    .intel-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .intel-section h5 {
+        margin-bottom: 0.75rem;
+        color: var(--alert-crimson);
+        font-size: 1rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .intel-stat {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--border-secondary);
+    }
+
+    .intel-stat:last-child {
+        border-bottom: none;
+    }
+
+    .volume-indicator {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .volume-rare { background: var(--success); color: white; }
+    .volume-moderate { background: var(--warning); color: white; }
+    .volume-saturated { background: var(--danger); color: white; }
+
+    /* Tabs */
+    .intel-tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        border-bottom: 2px solid var(--border-primary);
+    }
+
+    .intel-tab {
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.2s;
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+
+    .intel-tab:hover {
+        color: var(--text-primary);
+    }
+
+    .intel-tab.active {
+        color: var(--alert-crimson);
+        border-bottom-color: var(--alert-crimson);
+    }
+
+    .tab-content {
+        display: none;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    /* Loading State */
+    .loading-spinner {
+        text-align: center;
+        padding: 2rem;
+        color: var(--text-muted);
+    }
+
+    .spinner-border {
+        border-color: var(--alert-crimson);
+        border-right-color: transparent;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--text-muted);
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: var(--border-primary);
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+        .search-columns {
+            flex-direction: column;
+        }
+
+        .column-1, .column-2, .column-3 {
+            flex: 1;
+            max-width: 100%;
+        }
+    }
+</style>
+
+<div class="container-fluid search-container">
+    <!-- Top Bar: Search Controls -->
+    <div class="search-top-bar">
+        <!-- Search Input -->
+        <div class="mb-3">
+            <div class="input-group input-group-lg">
+                <input type="text" id="searchKeywords" class="form-control" placeholder="Search across platforms (e.g., Pokemon Charizard PSA 10)" />
+                <button class="btn btn-danger" id="searchButton">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </div>
+        </div>
+
+        <!-- Platform Toggles -->
+        <div class="mb-3">
+            <label class="form-label small text-muted">PLATFORMS</label>
+            <div class="platform-toggles" id="platformToggles">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-row">
+            <div class="filter-group">
+                <label class="form-label small text-muted">ITEM TYPE</label>
+                <select id="filterItemType" class="form-select form-select-sm">
+                    <option value="">All Types</option>
+                    <option value="Card">Card</option>
+                    <option value="Coin">Coin</option>
+                    <option value="Slabbed">Slabbed</option>
+                    <option value="Raw">Raw</option>
+                    <option value="Sealed">Sealed</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label class="form-label small text-muted">CONDITION</label>
+                <select id="filterCondition" class="form-select form-select-sm" multiple>
+                    <option value="New">New</option>
+                    <option value="NM">Near Mint</option>
+                    <option value="LP">Lightly Played</option>
+                    <option value="MP">Moderately Played</option>
+                    <option value="HP">Heavily Played</option>
+                    <option value="Used">Used</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label class="form-label small text-muted">PRICE RANGE</label>
+                <div class="d-flex gap-2">
+                    <input type="number" id="filterMinPrice" class="form-control form-control-sm" placeholder="Min" />
+                    <input type="number" id="filterMaxPrice" class="form-control form-control-sm" placeholder="Max" />
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label class="form-label small text-muted">SORT BY</label>
+                <select id="filterSort" class="form-select form-select-sm">
+                    <option value="newest">Newest Listing</option>
+                    <option value="lowest_price">Lowest Price</option>
+                    <option value="best_value">Best Value</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3-Column Layout -->
+    <div class="search-columns">
+        <!-- Column 1: Listings Stream -->
+        <div class="search-column column-1">
+            <h5 class="mb-3">
+                <i class="fas fa-stream"></i> Listings Stream
+                <span class="badge bg-secondary" id="resultCount">0</span>
+            </h5>
+            <div id="listingsStream">
+                <div class="empty-state">
+                    <i class="fas fa-search"></i>
+                    <p>Enter search terms and click Search to find items across platforms</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 2: Comparison & Normalization -->
+        <div class="search-column column-2">
+            <h5 class="mb-3">
+                <i class="fas fa-balance-scale"></i> Comparison & Analysis
+            </h5>
+            <div id="comparisonPanel">
+                <div class="empty-state">
+                    <i class="fas fa-hand-pointer"></i>
+                    <p>Select a listing to see detailed comparison</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 3: Intelligence Panel -->
+        <div class="search-column column-3">
+            <h5 class="mb-3">
+                <i class="fas fa-chart-line"></i> Market Intelligence
+            </h5>
+
+            <!-- Tabs -->
+            <div class="intel-tabs">
+                <div class="intel-tab active" data-tab="snapshot">Snapshot</div>
+                <div class="intel-tab" data-tab="history">History</div>
+                <div class="intel-tab" data-tab="vault">Vault Check</div>
+                <div class="intel-tab" data-tab="decision">Decision</div>
+            </div>
+
+            <!-- Tab: Market Snapshot -->
+            <div id="tabSnapshot" class="tab-content active">
+                <div id="marketSnapshot">
+                    <div class="empty-state">
+                        <i class="fas fa-chart-pie"></i>
+                        <p>Market data will appear after search</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Historical Signals -->
+            <div id="tabHistory" class="tab-content">
+                <div class="empty-state">
+                    <i class="fas fa-history"></i>
+                    <p>Historical data coming soon</p>
+                </div>
+            </div>
+
+            <!-- Tab: Vault Check -->
+            <div id="tabVault" class="tab-content">
+                <div class="empty-state">
+                    <i class="fas fa-vault"></i>
+                    <p>Check your vault for similar items</p>
+                </div>
+            </div>
+
+            <!-- Tab: Decision Nudges -->
+            <div id="tabDecision" class="tab-content">
+                <div id="decisionNudges">
+                    <div class="empty-state">
+                        <i class="fas fa-brain"></i>
+                        <p>AI-powered purchase recommendations will appear here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let availablePlatforms = [];
+let currentResults = [];
+let selectedListing = null;
+let marketIntelligence = null;
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    loadAvailablePlatforms();
+    setupEventListeners();
+});
+
+// Load available platforms from API
+async function loadAvailablePlatforms() {
+    try {
+        const response = await fetch('/api/search/platforms');
+        const data = await response.json();
+
+        if (data.success) {
+            availablePlatforms = data.platforms;
+            renderPlatformToggles();
+        }
+    } catch (error) {
+        console.error('Error loading platforms:', error);
+    }
+}
+
+// Render platform toggle buttons
+function renderPlatformToggles() {
+    const container = document.getElementById('platformToggles');
+    container.innerHTML = '';
+
+    availablePlatforms.forEach(platform => {
+        const toggle = document.createElement('div');
+        toggle.className = 'platform-toggle';
+        if (platform.available) {
+            toggle.classList.add('active');
+        }
+
+        toggle.innerHTML = `
+            <input type="checkbox" id="platform_${platform.id}"
+                   ${platform.available ? 'checked' : ''}
+                   ${!platform.available ? 'disabled' : ''}>
+            <label for="platform_${platform.id}" style="cursor: pointer; margin: 0;">
+                ${platform.name}
+            </label>
+        `;
+
+        if (!platform.available) {
+            toggle.style.opacity = '0.5';
+            toggle.title = platform.requires_auth ? 'Credentials required' : 'Not available';
+        }
+
+        container.appendChild(toggle);
+    });
+}
+
+// Setup event listeners
+function setupEventListeners() {
+    // Search button
+    document.getElementById('searchButton').addEventListener('click', executeSearch);
+
+    // Enter key in search input
+    document.getElementById('searchKeywords').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            executeSearch();
+        }
+    });
+
+    // Platform toggles
+    document.getElementById('platformToggles').addEventListener('click', (e) => {
+        if (e.target.classList.contains('platform-toggle')) {
+            const checkbox = e.target.querySelector('input[type="checkbox"]');
+            if (checkbox && !checkbox.disabled) {
+                checkbox.checked = !checkbox.checked;
+                e.target.classList.toggle('active', checkbox.checked);
+            }
+        }
+    });
+
+    // Tab switching
+    document.querySelectorAll('.intel-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            switchTab(tab.dataset.tab);
+        });
+    });
+}
+
+// Switch intelligence panel tabs
+function switchTab(tabName) {
+    document.querySelectorAll('.intel-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    document.getElementById(`tab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`).classList.add('active');
+}
+
+// Execute search
+async function executeSearch() {
+    const keywords = document.getElementById('searchKeywords').value.trim();
+
+    if (!keywords) {
+        alert('Please enter search keywords');
+        return;
+    }
+
+    // Get selected platforms
+    const selectedPlatforms = [];
+    document.querySelectorAll('#platformToggles input[type="checkbox"]:checked').forEach(checkbox => {
+        const platformId = checkbox.id.replace('platform_', '');
+        selectedPlatforms.push(platformId);
+    });
+
+    if (selectedPlatforms.length === 0) {
+        alert('Please select at least one platform');
+        return;
+    }
+
+    // Build search query
+    const query = {
+        keywords: keywords,
+        item_type: document.getElementById('filterItemType').value || null,
+        condition: Array.from(document.getElementById('filterCondition').selectedOptions).map(o => o.value),
+        min_price: parseFloat(document.getElementById('filterMinPrice').value) || null,
+        max_price: parseFloat(document.getElementById('filterMaxPrice').value) || null,
+        sort_by: document.getElementById('filterSort').value,
+        platforms: selectedPlatforms,
+        limit: 50
+    };
+
+    // Show loading
+    document.getElementById('listingsStream').innerHTML = '<div class="loading-spinner"><div class="spinner-border" role="status"></div><p class="mt-2">Searching...</p></div>';
+
+    try {
+        const response = await fetch('/api/search/multi-platform', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(query)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            currentResults = data.results;
+            marketIntelligence = data.market_intelligence;
+            renderResults();
+            renderMarketIntelligence();
+            document.getElementById('resultCount').textContent = data.total_results;
+        } else {
+            throw new Error(data.error || 'Search failed');
+        }
+    } catch (error) {
+        console.error('Search error:', error);
+        document.getElementById('listingsStream').innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>${error.message}</p></div>`;
+    }
+}
+
+// Render search results
+function renderResults() {
+    const container = document.getElementById('listingsStream');
+
+    if (currentResults.length === 0) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>No results found</p></div>';
+        return;
+    }
+
+    container.innerHTML = currentResults.map(result => `
+        <div class="listing-card" data-listing-id="${result.listing_id}">
+            <img src="${result.thumbnail_url || '/static/placeholder.png'}" class="listing-thumbnail" alt="Thumbnail" />
+            <div class="listing-info">
+                <div class="listing-title">${escapeHtml(result.title)}</div>
+                <div class="mb-1">
+                    <span class="platform-badge platform-${result.platform.toLowerCase()}">${result.platform}</span>
+                </div>
+                <div class="listing-price">$${result.total_price.toFixed(2)}</div>
+                <div class="small text-muted">
+                    ${result.condition || 'Condition not specified'}
+                    ${result.time_posted ? ' • ' + timeAgo(new Date(result.time_posted)) : ''}
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    // Add click handlers
+    container.querySelectorAll('.listing-card').forEach(card => {
+        card.addEventListener('click', () => {
+            selectListing(card.dataset.listingId);
+        });
+    });
+}
+
+// Select a listing
+function selectListing(listingId) {
+    selectedListing = currentResults.find(r => r.listing_id === listingId);
+
+    // Update UI
+    document.querySelectorAll('.listing-card').forEach(card => {
+        card.classList.toggle('selected', card.dataset.listingId === listingId);
+    });
+
+    renderComparison();
+}
+
+// Render comparison panel
+function renderComparison() {
+    const container = document.getElementById('comparisonPanel');
+
+    if (!selectedListing) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-hand-pointer"></i><p>Select a listing to see comparison</p></div>';
+        return;
+    }
+
+    // Find similar listings
+    const similar = currentResults.filter(r =>
+        r.listing_id !== selectedListing.listing_id &&
+        r.title.toLowerCase().includes(selectedListing.title.toLowerCase().split(' ')[0])
+    ).slice(0, 5);
+
+    container.innerHTML = `
+        <div class="comparison-card">
+            <h6>Selected Listing</h6>
+            <div class="mb-2"><strong>${escapeHtml(selectedListing.title)}</strong></div>
+            <div class="mb-2">
+                <span class="platform-badge platform-${selectedListing.platform.toLowerCase()}">${selectedListing.platform}</span>
+                <span class="ms-2">${selectedListing.condition || 'N/A'}</span>
+            </div>
+            <div class="listing-price mb-2">$${selectedListing.total_price.toFixed(2)}</div>
+            <a href="${selectedListing.url}" target="_blank" class="btn btn-sm btn-danger">
+                <i class="fas fa-external-link-alt"></i> View on ${selectedListing.platform}
+            </a>
+        </div>
+
+        ${similar.length > 0 ? `
+            <div class="comparison-card">
+                <h6>Similar Listings (${similar.length})</h6>
+                ${similar.map(s => `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <small class="platform-badge platform-${s.platform.toLowerCase()}">${s.platform}</small>
+                            <span class="ms-2">$${s.total_price.toFixed(2)}</span>
+                        </div>
+                        <a href="${s.url}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                    </div>
+                `).join('')}
+            </div>
+        ` : ''}
+
+        <div class="comparison-note">
+            <i class="fas fa-info-circle"></i>
+            This listing ${selectedListing.shipping_cost ? 'includes' : 'may not include'} shipping costs
+        </div>
+    `;
+}
+
+// Render market intelligence
+function renderMarketIntelligence() {
+    const container = document.getElementById('marketSnapshot');
+
+    if (!marketIntelligence) {
+        return;
+    }
+
+    const intel = marketIntelligence;
+
+    container.innerHTML = `
+        <div class="intel-section">
+            <h5>Price Analysis</h5>
+            <div class="intel-stat">
+                <span>Average Price</span>
+                <strong>$${intel.average_price.toFixed(2)}</strong>
+            </div>
+            <div class="intel-stat">
+                <span>Median Price</span>
+                <strong>$${intel.median_price.toFixed(2)}</strong>
+            </div>
+            <div class="intel-stat">
+                <span>Price Range</span>
+                <strong>$${intel.price_range[0].toFixed(2)} - $${intel.price_range[1].toFixed(2)}</strong>
+            </div>
+        </div>
+
+        <div class="intel-section">
+            <h5>Market Volume</h5>
+            <div class="intel-stat">
+                <span>Total Results</span>
+                <strong>${intel.total_results}</strong>
+            </div>
+            <div class="intel-stat">
+                <span>Volume</span>
+                <span class="volume-indicator volume-${intel.volume_indicator}">${intel.volume_indicator.toUpperCase()}</span>
+            </div>
+            <div class="intel-stat">
+                <span>Platforms Found</span>
+                <strong>${intel.platforms_found.join(', ')}</strong>
+            </div>
+        </div>
+
+        ${Object.keys(intel.condition_breakdown).length > 0 ? `
+            <div class="intel-section">
+                <h5>Condition Breakdown</h5>
+                ${Object.entries(intel.condition_breakdown).map(([cond, count]) => `
+                    <div class="intel-stat">
+                        <span>${cond}</span>
+                        <strong>${count}</strong>
+                    </div>
+                `).join('')}
+            </div>
+        ` : ''}
+    `;
+}
+
+// Utility: Escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Utility: Time ago
+function timeAgo(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+
+    if (seconds < 60) return 'Just now';
+    if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+    if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+    return Math.floor(seconds / 86400) + 'd ago';
+}
+</script>
+
+{% endblock %}

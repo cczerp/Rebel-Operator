@@ -337,14 +337,18 @@ Format as JSON:
             "prompt": prompt,
             "images": image_contents,
             "stream": False,
-            "format": "json"
+            "format": "json",
+            "keep_alive": "1h"  # Keep model loaded for 1 hour (avoid reload time)
         }
 
         try:
+            # Add header to bypass ngrok warning page (for free tier tunnels)
+            headers = {"ngrok-skip-browser-warning": "true"}
             response = requests.post(
                 f"{self.ollama_host}/api/generate",
                 json=payload,
-                timeout=180  # Ollama can be slow on first run (3 minutes)
+                headers=headers,
+                timeout=300  # Ollama can be slow (5 minutes for model load + inference)
             )
 
             if response.status_code == 200:
@@ -361,9 +365,11 @@ Format as JSON:
                         response_text = response_text.split("```")[1].split("```")[0].strip()
 
                     analysis = json.loads(response_text)
+                    print(f"🔍 Ollama returned: {analysis}")  # Debug logging
                     return analysis
                 except json.JSONDecodeError:
                     # Fallback if JSON parsing fails
+                    print(f"⚠️ JSON parse failed, raw response: {response_text[:200]}")  # Debug logging
                     return {"raw_response": response_text}
             else:
                 raise Exception(f"Ollama API error (HTTP {response.status_code}): {response.text}")
@@ -575,7 +581,7 @@ Format as JSON:
                     final_data = ollama_analysis
                     ai_providers_used.append("Ollama (local)")
                 else:
-                    print("⚠️  Ollama analysis incomplete - will try paid APIs as fallback")
+                    print(f"⚠️  Ollama analysis incomplete - missing fields. Has title: {bool(ollama_analysis.get('title'))}, description: {bool(ollama_analysis.get('description'))}, category: {bool(ollama_analysis.get('category'))}")
                     # Keep Ollama's partial data
                     final_data = ollama_analysis
 

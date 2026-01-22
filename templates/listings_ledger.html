@@ -251,6 +251,7 @@
             <option value="inventory">📦 Inventory Master</option>
             <option value="sales">💰 Sales & Revenue</option>
             <option value="shipping">🚚 Shipping & Fulfillment</option>
+            <option value="invoices">📄 Invoices</option>
         </select>
     </div>
 
@@ -325,31 +326,85 @@
 let currentLedger = 'inventory';
 let ledgerData = [];
 
-// Ledger configurations
+// Ledger configurations with comprehensive field coverage
 const ledgerConfigs = {
     inventory: {
         title: 'Inventory Master Ledger',
         subtitle: 'What you own - Physical inventory tracking',
-        headers: ['MasterItemID', 'SKU', 'Title', 'Category', 'Brand', 'Condition', 'Quantity', 'Storage', 'Status', 'Cost', 'Currency'],
-        fields: ['master_item_id', 'sku', 'title', 'category', 'brand', 'condition', 'quantity', 'storage_location', 'status', 'cost_basis', 'currency'],
+        headers: [
+            'MasterItemID', 'SKU', 'Title', 'Description', 'Price', 'Cost',
+            'Category', 'Brand', 'Model', 'Color', 'Size', 'Condition',
+            'Measurements', 'Variants', 'Quantity', 'Storage', 'Status',
+            'Platform IDs', 'Photos', 'Acquired', 'Created'
+        ],
+        fields: [
+            'master_item_id', 'sku', 'title', 'description', 'price', 'cost_basis',
+            'category', 'brand', 'model', 'color', 'size', 'condition',
+            'measurements', 'variants', 'quantity', 'storage_location', 'status',
+            'platform_listing_ids', 'photos', 'acquired_date', 'created_at'
+        ],
         statsLabels: ['Available', 'Listed', 'Total Value'],
         endpoint: '/api/ledgers/export/inventory'
     },
     sales: {
         title: 'Sales & Revenue Ledger',
-        subtitle: 'Financial transactions - Money tracking',
-        headers: ['TransactionID', 'Platform', 'Sale Date', 'Gross Amount', 'Fees', 'Shipping', 'Net Payout', 'Profit', 'Status'],
-        fields: ['transaction_id', 'platform', 'sale_date', 'gross_sale_amount', 'platform_fees', 'shipping_cost', 'net_payout', 'profit', 'payout_status'],
+        subtitle: 'Financial transactions - Money tracking for taxes',
+        headers: [
+            'TransactionID', 'MasterItemID', 'Platform', 'Platform Order ID',
+            'Sale Date', 'Payout Date', 'Gross Amount', 'Platform Fees',
+            'Processing Fees', 'Shipping Cost', 'Shipping Charged', 'Tax Collected',
+            'Net Payout', 'COGS', 'Profit', 'Storage Location', 'Buyer',
+            'Payout Status', 'Shipping Label', 'Delisting Scheduled', 'Auto-Delisted'
+        ],
+        fields: [
+            'transaction_id', 'master_item_id', 'platform', 'platform_order_id',
+            'sale_date', 'payout_date', 'gross_sale_amount', 'platform_fees',
+            'payment_processing_fees', 'shipping_cost', 'shipping_charged', 'tax_collected',
+            'net_payout', 'cogs', 'profit', 'item_storage_location', 'buyer_username',
+            'payout_status', 'shipping_label_url', 'delisting_scheduled_at', 'auto_delisted'
+        ],
         statsLabels: ['Total Sales', 'Revenue', 'Profit'],
         endpoint: '/api/ledgers/export/sales'
     },
     shipping: {
         title: 'Shipping & Fulfillment Ledger',
-        subtitle: 'Logistics tracking - Package delivery',
-        headers: ['ShipmentID', 'Carrier', 'Tracking', 'Ship Date', 'Delivery Date', 'Cost', 'Status', 'Issues'],
-        fields: ['shipment_id', 'carrier', 'tracking_number', 'ship_date', 'actual_delivery_date', 'shipping_cost', 'delivery_status', 'issue_reported'],
+        subtitle: 'Logistics tracking - Package delivery & issues',
+        headers: [
+            'ShipmentID', 'MasterItemID', 'TransactionID', 'Carrier', 'Service Type',
+            'Tracking', 'Label Source', 'Label URL', 'Label Created', 'Ship Date',
+            'Expected Delivery', 'Actual Delivery', 'Shipping Cost', 'Insurance',
+            'Weight (oz)', 'Dimensions', 'Package Type', 'Delivery Status',
+            'Ship To', 'Issues', 'Issue Type', 'Claim Filed'
+        ],
+        fields: [
+            'shipment_id', 'master_item_id', 'transaction_id', 'carrier', 'service_type',
+            'tracking_number', 'label_source', 'shipping_label_url', 'label_created_date', 'ship_date',
+            'expected_delivery_date', 'actual_delivery_date', 'shipping_cost', 'insurance_cost',
+            'weight_oz', 'dimensions', 'package_type', 'delivery_status',
+            'ship_to_address', 'issue_reported', 'issue_type', 'insurance_claim_filed'
+        ],
         statsLabels: ['In Transit', 'Delivered', 'Issues'],
         endpoint: '/api/ledgers/export/shipping'
+    },
+    invoices: {
+        title: 'Invoices Ledger',
+        subtitle: 'Invoicing for Facebook, local, and DM sales',
+        headers: [
+            'InvoiceID', 'Invoice #', 'MasterItemID', 'Invoice Date', 'Due Date',
+            'Buyer Name', 'Buyer Email', 'Buyer Phone', 'Subtotal', 'Tax Rate',
+            'Tax Amount', 'Shipping', 'Discount', 'Total', 'Payment Method',
+            'Payment Status', 'Paid Amount', 'Paid Date', 'PDF URL', 'Status',
+            'Inventory Sold', 'Created'
+        ],
+        fields: [
+            'invoice_id', 'invoice_number', 'master_item_id', 'invoice_date', 'due_date',
+            'buyer_name', 'buyer_email', 'buyer_phone', 'subtotal', 'tax_rate',
+            'tax_amount', 'shipping_amount', 'discount_amount', 'total_amount', 'payment_method',
+            'payment_status', 'paid_amount', 'paid_date', 'pdf_url', 'status',
+            'inventory_marked_sold', 'created_at'
+        ],
+        statsLabels: ['Total Invoices', 'Unpaid', 'Total Amount'],
+        endpoint: '/api/ledgers/export/invoices'
     }
 };
 

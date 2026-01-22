@@ -316,13 +316,32 @@
             <thead>
                 <tr>
                     <th>DraftID</th>
+                    <th>MasterItemID</th>
                     <th>Title</th>
-                    <th>Target Platforms</th>
+                    <th>Description</th>
                     <th>Price</th>
+                    <th>Quantity</th>
+                    <th>Category</th>
+                    <th>Brand</th>
+                    <th>Model</th>
+                    <th>Size</th>
+                    <th>Color</th>
+                    <th>Condition</th>
+                    <th>Target Platforms</th>
+                    <th>Primary Platform</th>
                     <th>Completeness</th>
                     <th>Status</th>
+                    <th>Ready For</th>
+                    <th>Photos</th>
+                    <th>Keywords</th>
+                    <th>Shipping Price</th>
+                    <th>Ships From</th>
+                    <th>Handling Days</th>
+                    <th>Returns</th>
                     <th>AI Enhanced</th>
+                    <th>AI Provider</th>
                     <th>Created</th>
+                    <th>Updated</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -351,6 +370,10 @@
 
     <!-- Actions -->
     <div class="csv-actions">
+        <button class="btn btn-primary" onclick="showImportModal()">
+            <i class="fas fa-upload"></i>
+            Import from CSV
+        </button>
         <button class="export-btn" onclick="exportDrafts()">
             <i class="fas fa-download"></i>
             Export to CSV
@@ -369,6 +392,68 @@
         </button>
         <div class="ms-auto">
             <span class="text-muted">Last updated: <span id="lastUpdated">-</span></span>
+        </div>
+    </div>
+</div>
+
+<!-- Import CSV Modal -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importModalLabel">
+                    <i class="fas fa-upload"></i> Import Listings from CSV
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="platformSelect" class="form-label">Select Platform</label>
+                    <select class="form-select" id="platformSelect">
+                        <option value="">Choose platform...</option>
+                        <option value="poshmark">Poshmark</option>
+                        <option value="mercari">Mercari</option>
+                        <option value="ebay">eBay</option>
+                        <option value="grailed">Grailed</option>
+                        <option value="depop">Depop</option>
+                        <option value="bonanza">Bonanza</option>
+                        <option value="etsy">Etsy</option>
+                        <option value="shopify">Shopify</option>
+                        <option value="facebook">Facebook Marketplace</option>
+                        <option value="vinted">Vinted</option>
+                        <option value="kidizen">Kidizen</option>
+                    </select>
+                    <div class="form-text">Choose the platform this CSV export came from</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="csvFileInput" class="form-label">Upload CSV File</label>
+                    <input class="form-control" type="file" id="csvFileInput" accept=".csv">
+                    <div class="form-text">Upload the CSV export from your platform</div>
+                </div>
+
+                <div class="alert alert-info" role="alert">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Duplicate Detection:</strong> We'll automatically detect duplicates by SKU, title+price, or platform listing ID.
+                </div>
+
+                <div id="importProgress" style="display:none;" class="mb-3">
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                    </div>
+                    <small class="text-muted">Importing listings...</small>
+                </div>
+
+                <div id="importResults" style="display:none;">
+                    <!-- Results will be shown here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="uploadCSV()">
+                    <i class="fas fa-upload"></i> Import
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -569,6 +654,107 @@ function hideLoading() {
 
 function showError(message) {
     alert(message);
+}
+
+// CSV Import Functions
+function showImportModal() {
+    const modal = new bootstrap.Modal(document.getElementById('importModal'));
+    // Reset form
+    document.getElementById('platformSelect').value = '';
+    document.getElementById('csvFileInput').value = '';
+    document.getElementById('importResults').style.display = 'none';
+    document.getElementById('importProgress').style.display = 'none';
+    modal.show();
+}
+
+async function uploadCSV() {
+    const platform = document.getElementById('platformSelect').value;
+    const fileInput = document.getElementById('csvFileInput');
+    const file = fileInput.files[0];
+
+    // Validation
+    if (!platform) {
+        alert('Please select a platform first!');
+        return;
+    }
+
+    if (!file) {
+        alert('Please select a CSV file to upload!');
+        return;
+    }
+
+    if (!file.name.endsWith('.csv')) {
+        alert('Please upload a valid CSV file!');
+        return;
+    }
+
+    // Show progress
+    document.getElementById('importProgress').style.display = 'block';
+    document.getElementById('importResults').style.display = 'none';
+
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('platform', platform);
+
+    try {
+        const response = await fetch('/api/import/csv', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        // Hide progress
+        document.getElementById('importProgress').style.display = 'none';
+
+        if (response.ok) {
+            // Show success results
+            const resultsDiv = document.getElementById('importResults');
+            resultsDiv.innerHTML = `
+                <div class="alert alert-success" role="alert">
+                    <h6><i class="fas fa-check-circle"></i> Import Successful!</h6>
+                    <ul class="mb-0">
+                        <li><strong>${result.imported || 0}</strong> listings imported</li>
+                        <li><strong>${result.duplicates || 0}</strong> duplicates skipped</li>
+                        <li><strong>${result.errors || 0}</strong> errors</li>
+                    </ul>
+                    ${result.message ? `<p class="mb-0 mt-2"><small>${result.message}</small></p>` : ''}
+                </div>
+            `;
+            resultsDiv.style.display = 'block';
+
+            // Refresh the drafts table after 2 seconds
+            setTimeout(() => {
+                loadDrafts();
+                bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
+            }, 2000);
+
+        } else {
+            // Show error
+            const resultsDiv = document.getElementById('importResults');
+            resultsDiv.innerHTML = `
+                <div class="alert alert-danger" role="alert">
+                    <h6><i class="fas fa-exclamation-circle"></i> Import Failed</h6>
+                    <p class="mb-0">${result.error || 'Unknown error occurred'}</p>
+                    ${result.details ? `<small class="text-muted">${result.details}</small>` : ''}
+                </div>
+            `;
+            resultsDiv.style.display = 'block';
+        }
+
+    } catch (error) {
+        document.getElementById('importProgress').style.display = 'none';
+        const resultsDiv = document.getElementById('importResults');
+        resultsDiv.innerHTML = `
+            <div class="alert alert-danger" role="alert">
+                <h6><i class="fas fa-exclamation-circle"></i> Network Error</h6>
+                <p class="mb-0">Failed to connect to server. Please try again.</p>
+                <small class="text-muted">${error.message}</small>
+            </div>
+        `;
+        resultsDiv.style.display = 'block';
+    }
 }
 </script>
 {% endblock %}

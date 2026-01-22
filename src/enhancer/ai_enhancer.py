@@ -321,6 +321,7 @@ Provide:
 6. **Item Specifics**: Brand, model, size, color, material if visible
 7. **Condition Notes**: Specific observations about condition
 8. **Key Features**: Bullet points of notable selling points
+9. **Estimated Price**: Fair market value in USD based on condition and market research
 
 Format as JSON:
 {
@@ -333,7 +334,8 @@ Format as JSON:
   "model": "...",
   "color": "...",
   "condition_notes": "...",
-  "features": ["...", "..."]
+  "features": ["...", "..."],
+  "estimated_price": 99.99
 }"""
 
         # Build Ollama API request
@@ -435,6 +437,7 @@ Provide:
 6. **Item Specifics**: Brand, model, size, color, material if visible
 7. **Condition Notes**: Specific observations about condition
 8. **Key Features**: Bullet points of notable selling points
+9. **Estimated Price**: Fair market value in USD based on condition and market research
 
 Format as JSON:
 {
@@ -447,7 +450,8 @@ Format as JSON:
   "model": "...",
   "color": "...",
   "condition_notes": "...",
-  "features": ["...", "..."]
+  "features": ["...", "..."],
+  "estimated_price": 99.99
 }"""
 
         messages = [
@@ -679,6 +683,11 @@ Format as JSON:
                 listing.item_specifics.model = final_data["model"]
             if final_data.get("color"):
                 listing.item_specifics.color = final_data["color"]
+
+            # Update price if estimated
+            if final_data.get("estimated_price"):
+                from ..schema.unified_listing import Price
+                listing.price = Price(amount=float(final_data["estimated_price"]))
 
             # Mark as AI enhanced
             listing.ai_enhanced = True

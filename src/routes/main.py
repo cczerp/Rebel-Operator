@@ -1285,6 +1285,7 @@ def api_analyze():
             "color": enhanced_listing.item_specifics.color if enhanced_listing.item_specifics else "",
             "keywords": enhanced_listing.seo_data.keywords if enhanced_listing.seo_data else [],
             "search_terms": enhanced_listing.seo_data.search_terms if enhanced_listing.seo_data else [],
+            "estimated_price": enhanced_listing.price.amount if enhanced_listing.price and enhanced_listing.price.amount > 0 else None,
             "ai_provider": enhanced_listing.ai_provider
         }
 

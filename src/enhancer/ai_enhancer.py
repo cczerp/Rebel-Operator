@@ -342,9 +342,12 @@ Format as JSON:
         }
 
         try:
+            # Add header to bypass ngrok warning page (for free tier tunnels)
+            headers = {"ngrok-skip-browser-warning": "true"}
             response = requests.post(
                 f"{self.ollama_host}/api/generate",
                 json=payload,
+                headers=headers,
                 timeout=300  # Ollama can be slow (5 minutes for model load + inference)
             )
 

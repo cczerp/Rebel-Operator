@@ -731,6 +731,25 @@ class Database:
             ON pending_artifact_photos(artifact_id, is_selected)
         """)
 
+        # Search history table - track user searches for analytics
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS search_history (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                keywords TEXT NOT NULL,
+                filters TEXT,
+                result_count INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        """)
+
+        # Create index for search history queries
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_search_history_user_created
+            ON search_history(user_id, created_at DESC)
+        """)
+
         self.conn.commit()
         print("[SUCCESS] PostgreSQL tables created successfully")
 

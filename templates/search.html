@@ -1,0 +1,758 @@
+{% extends "base.html" %}
+
+{% block title %}Multi-Platform Search - Rebel Operator{% endblock %}
+
+{% block content %}
+<style>
+    /* Search Page Specific Styles */
+    .search-container {
+        height: calc(100vh - 120px);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .search-top-bar {
+        background: var(--bg-card);
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 4px var(--shadow-secondary);
+    }
+
+    .search-columns {
+        display: flex;
+        gap: 1rem;
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .search-column {
+        background: var(--bg-card);
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        overflow-y: auto;
+        padding: 1rem;
+    }
+
+    /* Column 1: Listings Stream (45%) */
+    .column-1 {
+        flex: 0 0 45%;
+        max-width: 45%;
+    }
+
+    /* Column 2: Comparison (55%) */
+    .column-2 {
+        flex: 0 0 55%;
+        max-width: 55%;
+    }
+
+    /* Listing Card */
+    .listing-card {
+        display: flex;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-secondary);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .listing-card:hover {
+        border-color: var(--alert-crimson);
+        transform: translateX(4px);
+    }
+
+    .listing-card.selected {
+        border-color: var(--alert-crimson);
+        background: var(--bg-tertiary);
+    }
+
+    .listing-thumbnail {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 4px;
+        background: var(--bg-primary);
+    }
+
+    .listing-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .listing-title {
+        font-size: 0.9rem;
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+
+    .listing-price {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: var(--alert-crimson);
+    }
+
+    .platform-badge {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    /* Platform colors */
+    .platform-ebay { background: #E53238; color: white; }
+    .platform-etsy { background: #F1641E; color: white; }
+    .platform-tcgplayer { background: #5AA9E6; color: white; }
+    .platform-mercari { background: #FF0211; color: white; }
+    .platform-poshmark { background: #8127D3; color: white; }
+    .platform-shopify { background: #96BF48; color: white; }
+    .platform-reverb { background: #FF6138; color: white; }
+    .platform-discogs { background: #333333; color: white; }
+    .platform-grailed { background: #000000; color: white; }
+    .platform-depop { background: #FF0000; color: white; }
+    .platform-stockx { background: #00A650; color: white; }
+    .platform-goat { background: #000000; color: white; }
+    .platform-amazon { background: #FF9900; color: white; }
+
+    /* Platform Toggles */
+    .platform-toggles {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 0.5rem;
+        background: var(--bg-secondary);
+        border-radius: 6px;
+    }
+
+    .platform-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.4rem 0.8rem;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        user-select: none;
+        font-size: 0.85rem;
+    }
+
+    .platform-toggle:hover {
+        border-color: var(--alert-crimson);
+    }
+
+    .platform-toggle.active {
+        background: var(--alert-crimson);
+        border-color: var(--alert-crimson);
+        color: white;
+    }
+
+    .platform-toggle.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .platform-toggle input[type="checkbox"] {
+        cursor: pointer;
+    }
+
+    /* Filters */
+    .filter-row {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .filter-group {
+        flex: 1;
+        min-width: 150px;
+    }
+
+    /* Comparison Card */
+    .comparison-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: 6px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .comparison-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .comparison-item {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-secondary);
+        border-radius: 6px;
+        padding: 0.75rem;
+    }
+
+    .comparison-note {
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        background: var(--bg-tertiary);
+        border-left: 3px solid var(--alert-crimson);
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+
+    .outlier-warning {
+        border-left-color: var(--warning);
+        color: var(--warning);
+    }
+
+    .price-comparison {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-top: 1rem;
+        padding: 1rem;
+        background: var(--bg-tertiary);
+        border-radius: 6px;
+    }
+
+    .price-stat {
+        text-align: center;
+    }
+
+    .price-stat-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: 0.25rem;
+    }
+
+    .price-stat-value {
+        font-size: 1.25rem;
+        font-weight: bold;
+        color: var(--alert-crimson);
+    }
+
+    /* Loading State */
+    .loading-spinner {
+        text-align: center;
+        padding: 2rem;
+        color: var(--text-muted);
+    }
+
+    .spinner-border {
+        border-color: var(--alert-crimson);
+        border-right-color: transparent;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--text-muted);
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: var(--border-primary);
+    }
+
+    /* Mobile Responsive - Stack columns */
+    @media (max-width: 768px) {
+        .search-columns {
+            flex-direction: column;
+        }
+
+        .column-1, .column-2 {
+            flex: 1;
+            max-width: 100%;
+        }
+
+        .comparison-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="container-fluid search-container">
+    <!-- Top Bar: Search Controls -->
+    <div class="search-top-bar">
+        <!-- Search Input -->
+        <div class="mb-3">
+            <div class="input-group input-group-lg">
+                <input type="text" id="searchKeywords" class="form-control" placeholder="Search across all platforms (e.g., Pokemon Charizard PSA 10, Rolex Submariner)" />
+                <button class="btn btn-danger" id="searchButton">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </div>
+        </div>
+
+        <!-- Platform Toggles -->
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <label class="form-label small text-muted mb-0">PLATFORMS</label>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary" id="selectAllPlatforms">Select All</button>
+                    <button class="btn btn-sm btn-outline-secondary" id="deselectAllPlatforms">Deselect All</button>
+                </div>
+            </div>
+            <div class="platform-toggles" id="platformToggles">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-row">
+            <div class="filter-group">
+                <label class="form-label small text-muted">ITEM TYPE</label>
+                <select id="filterItemType" class="form-select form-select-sm">
+                    <option value="">All Types</option>
+                    <option value="Card">Card</option>
+                    <option value="Coin">Coin</option>
+                    <option value="Slabbed">Slabbed</option>
+                    <option value="Raw">Raw</option>
+                    <option value="Sealed">Sealed</option>
+                    <option value="Watch">Watch</option>
+                    <option value="Sneakers">Sneakers</option>
+                    <option value="Apparel">Apparel</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label class="form-label small text-muted">CONDITION</label>
+                <select id="filterCondition" class="form-select form-select-sm">
+                    <option value="">All Conditions</option>
+                    <option value="New">New</option>
+                    <option value="NM">Near Mint</option>
+                    <option value="LP">Lightly Played</option>
+                    <option value="MP">Moderately Played</option>
+                    <option value="HP">Heavily Played</option>
+                    <option value="Used">Used</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label class="form-label small text-muted">PRICE RANGE</label>
+                <div class="d-flex gap-2">
+                    <input type="number" id="filterMinPrice" class="form-control form-control-sm" placeholder="Min" />
+                    <input type="number" id="filterMaxPrice" class="form-control form-control-sm" placeholder="Max" />
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label class="form-label small text-muted">SORT BY</label>
+                <select id="filterSort" class="form-select form-select-sm">
+                    <option value="newest">Newest Listing</option>
+                    <option value="lowest_price">Lowest Price</option>
+                    <option value="best_value">Best Value</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2-Column Layout -->
+    <div class="search-columns">
+        <!-- Column 1: Listings Stream -->
+        <div class="search-column column-1">
+            <h5 class="mb-3">
+                <i class="fas fa-stream"></i> Listings Stream
+                <span class="badge bg-secondary" id="resultCount">0</span>
+            </h5>
+            <div id="listingsStream">
+                <div class="empty-state">
+                    <i class="fas fa-search"></i>
+                    <p>Enter search terms and click Search to find items across all platforms</p>
+                    <small class="text-muted">We'll search eBay, Etsy, Mercari, Poshmark, TCGplayer, and 39+ more platforms</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 2: Comparison & Analysis -->
+        <div class="search-column column-2">
+            <h5 class="mb-3">
+                <i class="fas fa-balance-scale"></i> Comparison & Analysis
+            </h5>
+            <div id="comparisonPanel">
+                <div class="empty-state">
+                    <i class="fas fa-hand-pointer"></i>
+                    <p>Select a listing to see detailed comparison</p>
+                    <small class="text-muted">We'll show you similar listings, price comparisons, and help you find the best deal</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let availablePlatforms = [];
+let currentResults = [];
+let normalizedResults = [];
+let selectedListing = null;
+let marketIntelligence = null;
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    loadAvailablePlatforms();
+    setupEventListeners();
+});
+
+// Load available platforms from API
+async function loadAvailablePlatforms() {
+    try {
+        const response = await fetch('/api/search/platforms');
+        const data = await response.json();
+
+        if (data.success) {
+            availablePlatforms = data.platforms;
+            renderPlatformToggles();
+        }
+    } catch (error) {
+        console.error('Error loading platforms:', error);
+    }
+}
+
+// Render platform toggle buttons
+function renderPlatformToggles() {
+    const container = document.getElementById('platformToggles');
+    container.innerHTML = '';
+
+    availablePlatforms.forEach(platform => {
+        const toggle = document.createElement('div');
+        toggle.className = 'platform-toggle';
+
+        if (platform.available) {
+            toggle.classList.add('active');
+        } else {
+            toggle.classList.add('disabled');
+        }
+
+        toggle.innerHTML = `
+            <input type="checkbox" id="platform_${platform.id}"
+                   ${platform.available ? 'checked' : ''}
+                   ${!platform.available ? 'disabled' : ''}>
+            <label for="platform_${platform.id}" style="cursor: pointer; margin: 0;">
+                ${platform.name}
+            </label>
+        `;
+
+        if (!platform.available) {
+            toggle.title = platform.requires_auth ? 'API credentials required' : 'Not available yet';
+        }
+
+        toggle.addEventListener('click', function(e) {
+            if (!platform.available) return;
+
+            const checkbox = this.querySelector('input[type="checkbox"]');
+            if (checkbox && !checkbox.disabled) {
+                checkbox.checked = !checkbox.checked;
+                this.classList.toggle('active', checkbox.checked);
+            }
+        });
+
+        container.appendChild(toggle);
+    });
+}
+
+// Setup event listeners
+function setupEventListeners() {
+    // Search button
+    document.getElementById('searchButton').addEventListener('click', executeSearch);
+
+    // Enter key in search input
+    document.getElementById('searchKeywords').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            executeSearch();
+        }
+    });
+
+    // Select/Deselect all platforms
+    document.getElementById('selectAllPlatforms').addEventListener('click', () => {
+        document.querySelectorAll('#platformToggles input[type="checkbox"]:not(:disabled)').forEach(cb => {
+            cb.checked = true;
+            cb.closest('.platform-toggle').classList.add('active');
+        });
+    });
+
+    document.getElementById('deselectAllPlatforms').addEventListener('click', () => {
+        document.querySelectorAll('#platformToggles input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+            cb.closest('.platform-toggle').classList.remove('active');
+        });
+    });
+}
+
+// Execute search
+async function executeSearch() {
+    const keywords = document.getElementById('searchKeywords').value.trim();
+
+    if (!keywords) {
+        alert('Please enter search keywords');
+        return;
+    }
+
+    // Get selected platforms
+    const selectedPlatforms = [];
+    document.querySelectorAll('#platformToggles input[type="checkbox"]:checked').forEach(checkbox => {
+        const platformId = checkbox.id.replace('platform_', '');
+        selectedPlatforms.push(platformId);
+    });
+
+    if (selectedPlatforms.length === 0) {
+        alert('Please select at least one platform');
+        return;
+    }
+
+    // Build search query
+    const conditionVal = document.getElementById('filterCondition').value;
+    const query = {
+        keywords: keywords,
+        item_type: document.getElementById('filterItemType').value || null,
+        condition: conditionVal ? [conditionVal] : null,
+        min_price: parseFloat(document.getElementById('filterMinPrice').value) || null,
+        max_price: parseFloat(document.getElementById('filterMaxPrice').value) || null,
+        sort_by: document.getElementById('filterSort').value,
+        platforms: selectedPlatforms,
+        limit: 100
+    };
+
+    // Show loading
+    document.getElementById('listingsStream').innerHTML = '<div class="loading-spinner"><div class="spinner-border" role="status"></div><p class="mt-2">Searching across ' + selectedPlatforms.length + ' platforms...</p></div>';
+
+    try {
+        const response = await fetch('/api/search/multi-platform', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(query)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            currentResults = data.results;
+            normalizedResults = data.normalized_results;
+            marketIntelligence = data.market_intelligence;
+            renderResults();
+            document.getElementById('resultCount').textContent = data.total_results;
+        } else {
+            throw new Error(data.error || 'Search failed');
+        }
+    } catch (error) {
+        console.error('Search error:', error);
+        document.getElementById('listingsStream').innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>${error.message}</p></div>`;
+    }
+}
+
+// Render search results
+function renderResults() {
+    const container = document.getElementById('listingsStream');
+
+    if (currentResults.length === 0) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>No results found</p><small class="text-muted">Try different keywords or select more platforms</small></div>';
+        return;
+    }
+
+    container.innerHTML = currentResults.map(result => `
+        <div class="listing-card" data-listing-id="${result.listing_id}" onclick="selectListing('${result.listing_id}')">
+            <img src="${result.thumbnail_url || '/static/placeholder.png'}" class="listing-thumbnail" alt="Thumbnail" onerror="this.src='/static/placeholder.png'" />
+            <div class="listing-info">
+                <div class="listing-title">${escapeHtml(result.title)}</div>
+                <div class="mb-1">
+                    <span class="platform-badge platform-${result.platform.toLowerCase().replace(/\s+/g, '')}">${result.platform}</span>
+                </div>
+                <div class="listing-price">$${result.total_price.toFixed(2)}</div>
+                <div class="small text-muted">
+                    ${result.condition || 'Condition not specified'}
+                    ${result.time_posted ? ' • ' + timeAgo(new Date(result.time_posted)) : ''}
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Select a listing
+function selectListing(listingId) {
+    selectedListing = currentResults.find(r => r.listing_id === listingId);
+
+    // Update UI
+    document.querySelectorAll('.listing-card').forEach(card => {
+        card.classList.toggle('selected', card.dataset.listingId === listingId);
+    });
+
+    renderComparison();
+}
+
+// Render comparison panel
+function renderComparison() {
+    const container = document.getElementById('comparisonPanel');
+
+    if (!selectedListing) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-hand-pointer"></i><p>Select a listing to see comparison</p></div>';
+        return;
+    }
+
+    // Find normalized result
+    const normalized = normalizedResults.find(n => n.result.listing_id === selectedListing.listing_id);
+
+    // Find similar listings
+    const similar = currentResults.filter(r =>
+        r.listing_id !== selectedListing.listing_id &&
+        titleSimilarity(r.title, selectedListing.title) > 0.4
+    ).slice(0, 8);
+
+    // Calculate price stats
+    let avgPrice = 0, minPrice = 0, maxPrice = 0;
+    if (similar.length > 0) {
+        const prices = similar.map(s => s.total_price);
+        avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
+        minPrice = Math.min(...prices);
+        maxPrice = Math.max(...prices);
+    }
+
+    container.innerHTML = `
+        <div class="comparison-card">
+            <h6><i class="fas fa-bullseye"></i> Selected Listing</h6>
+            <div class="mb-2"><strong>${escapeHtml(selectedListing.title)}</strong></div>
+            <div class="mb-2">
+                <span class="platform-badge platform-${selectedListing.platform.toLowerCase().replace(/\s+/g, '')}">${selectedListing.platform}</span>
+                <span class="ms-2">${selectedListing.condition || 'N/A'}</span>
+            </div>
+            <div class="listing-price mb-2">$${selectedListing.total_price.toFixed(2)}</div>
+            ${selectedListing.shipping_cost ? `<small class="text-muted">Includes $${selectedListing.shipping_cost.toFixed(2)} shipping</small>` : ''}
+            <div class="mt-3">
+                <a href="${selectedListing.url}" target="_blank" class="btn btn-danger w-100">
+                    <i class="fas fa-external-link-alt"></i> View on ${selectedListing.platform}
+                </a>
+            </div>
+        </div>
+
+        ${similar.length > 0 ? `
+            <div class="comparison-card">
+                <h6><i class="fas fa-chart-bar"></i> Price Comparison</h6>
+                <div class="price-comparison">
+                    <div class="price-stat flex-fill">
+                        <div class="price-stat-label">This Listing</div>
+                        <div class="price-stat-value">$${selectedListing.total_price.toFixed(2)}</div>
+                    </div>
+                    <div class="price-stat flex-fill">
+                        <div class="price-stat-label">Average</div>
+                        <div class="price-stat-value">$${avgPrice.toFixed(2)}</div>
+                    </div>
+                    <div class="price-stat flex-fill">
+                        <div class="price-stat-label">Range</div>
+                        <div class="price-stat-value">$${minPrice.toFixed(2)} - $${maxPrice.toFixed(2)}</div>
+                    </div>
+                </div>
+
+                ${normalized && normalized.comparison_notes.length > 0 ? `
+                    <div class="mt-3">
+                        ${normalized.comparison_notes.map(note => `
+                            <div class="comparison-note">
+                                <i class="fas fa-info-circle"></i> ${note}
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+
+                ${normalized && normalized.is_outlier ? `
+                    <div class="comparison-note outlier-warning">
+                        <i class="fas fa-exclamation-triangle"></i> Price is significantly different from similar listings
+                    </div>
+                ` : ''}
+            </div>
+
+            <div class="comparison-card">
+                <h6><i class="fas fa-layer-group"></i> Similar Listings (${similar.length})</h6>
+                <div class="comparison-grid">
+                    ${similar.map(s => `
+                        <div class="comparison-item">
+                            <div class="small mb-1">
+                                <span class="platform-badge platform-${s.platform.toLowerCase().replace(/\s+/g, '')}">${s.platform}</span>
+                            </div>
+                            <div class="fw-bold mb-1">$${s.total_price.toFixed(2)}</div>
+                            <div class="small text-muted mb-2">${s.condition || 'N/A'}</div>
+                            <a href="${s.url}" target="_blank" class="btn btn-sm btn-outline-secondary w-100">
+                                <i class="fas fa-external-link-alt"></i> View
+                            </a>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        ` : `
+            <div class="comparison-note">
+                <i class="fas fa-info-circle"></i> No similar listings found to compare
+            </div>
+        `}
+
+        ${marketIntelligence ? `
+            <div class="comparison-card">
+                <h6><i class="fas fa-chart-line"></i> Market Snapshot</h6>
+                <div class="intel-stat mb-2">
+                    <small class="text-muted">Total Results Found</small>
+                    <div class="fw-bold">${marketIntelligence.total_results} listings</div>
+                </div>
+                <div class="intel-stat mb-2">
+                    <small class="text-muted">Average Price</small>
+                    <div class="fw-bold text-danger">$${marketIntelligence.average_price.toFixed(2)}</div>
+                </div>
+                <div class="intel-stat mb-2">
+                    <small class="text-muted">Market Volume</small>
+                    <div>
+                        <span class="badge ${marketIntelligence.volume_indicator === 'rare' ? 'bg-success' : marketIntelligence.volume_indicator === 'moderate' ? 'bg-warning' : 'bg-danger'}">
+                            ${marketIntelligence.volume_indicator.toUpperCase()}
+                        </span>
+                    </div>
+                </div>
+                <div class="intel-stat">
+                    <small class="text-muted">Platforms Found</small>
+                    <div class="small">${marketIntelligence.platforms_found.join(', ')}</div>
+                </div>
+            </div>
+        ` : ''}
+    `;
+}
+
+// Calculate title similarity (Jaccard similarity)
+function titleSimilarity(title1, title2) {
+    const words1 = new Set(title1.toLowerCase().split(/\s+/));
+    const words2 = new Set(title2.toLowerCase().split(/\s+/));
+
+    const intersection = new Set([...words1].filter(x => words2.has(x)));
+    const union = new Set([...words1, ...words2]);
+
+    return intersection.size / union.size;
+}
+
+// Utility: Escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Utility: Time ago
+function timeAgo(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+
+    if (seconds < 60) return 'Just now';
+    if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+    if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+    return Math.floor(seconds / 86400) + 'd ago';
+}
+</script>
+
+{% endblock %}

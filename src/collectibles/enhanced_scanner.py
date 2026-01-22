@@ -64,14 +64,20 @@ class CollectableScanner:
 
         NOW USES CHATGPT AS PRIMARY SCANNER with Claude as fallback.
 
+        This scanner focuses on:
+        - Collectible identification and authentication
+        - Historical context and franchise information
+        - Collector value factors (what increases/decreases value)
+        - Does NOT provide pricing (use AiAnalyzer for pricing)
+
         Args:
             photos: List of Photo objects to analyze
 
         Returns:
             {
-                'type': 'collectible' | 'card' | 'standard_item',
+                'type': 'collectible' | 'card' | 'not_collectible',
                 'data': {...collectible data...},
-                'market_prices': {...pricing info...},
+                'message': str (if not a collectible),
                 'ai_provider': 'chatgpt' | 'claude',
                 'error': str (if error occurred)
             }
@@ -206,11 +212,17 @@ I need you to perform a COMPREHENSIVE DEEP ANALYSIS of this collectible item, wi
    - Note any concerns or red flags
    - Identify authentication markers visible in photos
 
-9. **MARKET VALUE ANALYSIS**
-   - Current market value range
-   - Recent sales data (if known)
-   - Market trend (Rising, Stable, Declining)
-   - How do the above factors (mint marks, serial numbers, signatures, errors) affect value?
+9. **FRANCHISE HISTORY & FUN FACTS**
+   - Provide a short, engaging history of the franchise/series this item belongs to
+   - Include 1-2 cool facts about the franchise that collectors would find interesting
+   - Explain why this franchise has collector appeal
+   - Keep it concise but fascinating (2-3 sentences)
+
+10. **COLLECTOR VALUE FACTORS**
+   - List specific factors that would INCREASE value for collectors
+   - List specific factors that would DECREASE value for collectors
+   - Explain how condition, rarity, errors, signatures, etc. affect desirability
+   - Do NOT include actual prices - focus on the FACTORS that affect value
 
 **OUTPUT FORMAT:**
 
@@ -307,15 +319,23 @@ You MUST respond with ONLY valid JSON (no markdown, no explanations). Use this e
     "preservation_notes": "preservation notes"
   },
 
-  "market_analysis": {
-    "current_market_value_low": 0.0,
-    "current_market_value_high": 0.0,
-    "estimated_value": 0.0,
-    "market_trend": "Rising / Stable / Declining",
-    "demand_level": "High / Medium / Low",
-    "value_factors": ["factors affecting value"],
-    "market_notes": "market notes"
+  "franchise_history": {
+    "history": "Short engaging history of the franchise/series",
+    "fun_facts": ["Cool fact 1", "Cool fact 2"],
+    "collector_appeal": "Why collectors love this franchise"
   },
+
+  "collector_value_factors": {
+    "increases_value": ["Factor 1 that increases value", "Factor 2 that increases value"],
+    "decreases_value": ["Factor 1 that decreases value", "Factor 2 that decreases value"],
+    "condition_impact": "How condition affects collector value",
+    "rarity_impact": "How rarity affects collector value",
+    "other_factors": "Other important value considerations"
+  },
+
+  "is_collectible": true,
+  "collectible_confidence": 0.95,
+  "non_collectible_reason": "Only fill if is_collectible is false",
 
   "collector_notes": "summary of what makes this special"
 }
@@ -516,11 +536,17 @@ I need you to perform a COMPREHENSIVE DEEP ANALYSIS of this collectible item, wi
    - Note any concerns or red flags
    - Identify authentication markers visible in photos
 
-7. **MARKET VALUE ANALYSIS**
-   - Current market value range
-   - Recent sales data (if known)
-   - Market trend
-   - How do the above factors (mint marks, serial numbers, signatures, errors) affect value?
+7. **FRANCHISE HISTORY & FUN FACTS**
+   - Provide a short, engaging history of the franchise/series this item belongs to
+   - Include 1-2 cool facts about the franchise that collectors would find interesting
+   - Explain why this franchise has collector appeal
+   - Keep it concise but fascinating (2-3 sentences)
+
+8. **COLLECTOR VALUE FACTORS**
+   - List specific factors that would INCREASE value for collectors
+   - List specific factors that would DECREASE value for collectors
+   - Explain how condition, rarity, errors, signatures, etc. affect desirability
+   - Do NOT include actual prices - focus on the FACTORS that affect value
 
 **OUTPUT FORMAT:**
 
@@ -616,17 +642,25 @@ You MUST respond with ONLY valid JSON (no markdown, no explanations). Use this e
     "damage": ["list any damage items"],
     "preservation_notes": "how well preserved it is"
   }},
-  
-  "market_analysis": {{
-    "current_market_value_low": 0.0,
-    "current_market_value_high": 0.0,
-    "estimated_value": 0.0,
-    "market_trend": "Rising / Stable / Declining",
-    "demand_level": "High / Medium / Low",
-    "value_factors": ["list of factors affecting value including mint marks, serial numbers, signatures, errors"],
-    "market_notes": "market analysis notes"
+
+  "franchise_history": {{
+    "history": "Short engaging history of the franchise/series",
+    "fun_facts": ["Cool fact 1", "Cool fact 2"],
+    "collector_appeal": "Why collectors love this franchise"
   }},
-  
+
+  "collector_value_factors": {{
+    "increases_value": ["Factor 1 that increases value", "Factor 2 that increases value"],
+    "decreases_value": ["Factor 1 that decreases value", "Factor 2 that decreases value"],
+    "condition_impact": "How condition affects collector value",
+    "rarity_impact": "How rarity affects collector value",
+    "other_factors": "Other important value considerations"
+  }},
+
+  "is_collectible": true,
+  "collectible_confidence": 0.95,
+  "non_collectible_reason": "Only fill if is_collectible is false",
+
   "collector_notes": "summary of what makes this item special for collectors, highlighting mint marks, serial numbers, signatures, errors, and historical significance"
 }}
 
@@ -1215,11 +1249,17 @@ I need you to perform a COMPREHENSIVE DEEP ANALYSIS of this collectible item, wi
    - Note any concerns or red flags
    - Identify authentication markers visible in photos
 
-8. **MARKET VALUE ANALYSIS**
-   - Current market value range
-   - Recent sales data (if known)
-   - Market trend
-   - How do the above factors (mint marks, serial numbers, signatures, errors) affect value?
+8. **FRANCHISE HISTORY & FUN FACTS**
+   - Provide a short, engaging history of the franchise/series this item belongs to
+   - Include 1-2 cool facts about the franchise that collectors would find interesting
+   - Explain why this franchise has collector appeal
+   - Keep it concise but fascinating (2-3 sentences)
+
+9. **COLLECTOR VALUE FACTORS**
+   - List specific factors that would INCREASE value for collectors
+   - List specific factors that would DECREASE value for collectors
+   - Explain how condition, rarity, errors, signatures, etc. affect desirability
+   - Do NOT include actual prices - focus on the FACTORS that affect value
 
 **OUTPUT FORMAT:**
 
@@ -1316,15 +1356,23 @@ You MUST respond with ONLY valid JSON (no markdown, no explanations). Use this e
     "preservation_notes": "how well preserved it is"
   }},
 
-  "market_analysis": {{
-    "current_market_value_low": 0.0,
-    "current_market_value_high": 0.0,
-    "estimated_value": 0.0,
-    "market_trend": "Rising / Stable / Declining",
-    "demand_level": "High / Medium / Low",
-    "value_factors": ["list of factors affecting value including mint marks, serial numbers, signatures, errors"],
-    "market_notes": "market analysis notes"
+  "franchise_history": {{
+    "history": "Short engaging history of the franchise/series",
+    "fun_facts": ["Cool fact 1", "Cool fact 2"],
+    "collector_appeal": "Why collectors love this franchise"
   }},
+
+  "collector_value_factors": {{
+    "increases_value": ["Factor 1 that increases value", "Factor 2 that increases value"],
+    "decreases_value": ["Factor 1 that decreases value", "Factor 2 that decreases value"],
+    "condition_impact": "How condition affects collector value",
+    "rarity_impact": "How rarity affects collector value",
+    "other_factors": "Other important value considerations"
+  }},
+
+  "is_collectible": true,
+  "collectible_confidence": 0.95,
+  "non_collectible_reason": "Only fill if is_collectible is false",
 
   "collector_notes": "summary of what makes this item special for collectors, highlighting mint marks, serial numbers, signatures, errors, and historical significance"
 }}
@@ -1400,18 +1448,20 @@ You MUST respond with ONLY valid JSON (no markdown, no explanations). Use this e
         basic_analysis: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Format deep analysis as collectible response"""
-        
-        # Extract market prices
-        market_analysis = deep_analysis.get('market_analysis', {})
-        market_prices = {
-            'retail': market_analysis.get('estimated_value') or market_analysis.get('current_market_value_high'),
-            'actual_selling': market_analysis.get('estimated_value'),
-            'quick_sale': market_analysis.get('current_market_value_low'),
-            'value_range': {
-                'low': market_analysis.get('current_market_value_low', 0),
-                'high': market_analysis.get('current_market_value_high', 0)
+
+        # Check if this is actually a collectible
+        is_collectible = deep_analysis.get('is_collectible', True)
+        collectible_confidence = deep_analysis.get('collectible_confidence', 1.0)
+
+        # If not a collectible, return a helpful message
+        if not is_collectible or collectible_confidence < 0.5:
+            return {
+                'type': 'not_collectible',
+                'message': 'Sorry, this does not appear to be a collectible item.',
+                'reason': deep_analysis.get('non_collectible_reason', 'This item does not have the characteristics of a collectible.'),
+                'suggestion': 'Try using the standard "Analyze with AI" feature instead for general items.',
+                'ai_provider': 'chatgpt'
             }
-        }
 
         # Build collectible data object
         collectible_data = {
@@ -1435,21 +1485,25 @@ You MUST respond with ONLY valid JSON (no markdown, no explanations). Use this e
             'condition': deep_analysis.get('condition', {}),
             'authentication': deep_analysis.get('authentication', {}),
 
+            # Franchise history and fun facts
+            'franchise_history': deep_analysis.get('franchise_history', {}),
+
+            # Collector value factors (what increases/decreases value)
+            'collector_value_factors': deep_analysis.get('collector_value_factors', {}),
+
             # Display-friendly fields
             'item_significance': deep_analysis.get('historical_context', {}).get('backstory', ''),
             'rarity_info': deep_analysis.get('collector_notes', ''),
             'authentication_markers': deep_analysis.get('authentication', {}).get('authentication_markers', []),
 
-            # Market info
-            'market_analysis': market_analysis,
+            # Collector notes
             'collector_notes': deep_analysis.get('collector_notes', '')
         }
 
         return {
             'type': 'collectible',
             'data': collectible_data,
-            'market_prices': market_prices,
-            'ai_provider': 'claude'
+            'ai_provider': 'chatgpt'
         }
 
     def _format_card_response(
@@ -1458,15 +1512,20 @@ You MUST respond with ONLY valid JSON (no markdown, no explanations). Use this e
         basic_analysis: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Format deep analysis as card response"""
-        
-        # Extract market prices
-        market_analysis = deep_analysis.get('market_analysis', {})
-        market_prices = {
-            'tcgplayer': {'market': market_analysis.get('estimated_value')},
-            'ebay': {'avg': market_analysis.get('estimated_value')},
-            'actual_selling': market_analysis.get('estimated_value'),
-            'quick_sale': market_analysis.get('current_market_value_low')
-        }
+
+        # Check if this is actually a collectible
+        is_collectible = deep_analysis.get('is_collectible', True)
+        collectible_confidence = deep_analysis.get('collectible_confidence', 1.0)
+
+        # If not a collectible, return a helpful message
+        if not is_collectible or collectible_confidence < 0.5:
+            return {
+                'type': 'not_collectible',
+                'message': 'Sorry, this does not appear to be a collectible card.',
+                'reason': deep_analysis.get('non_collectible_reason', 'This item does not have the characteristics of a collectible card.'),
+                'suggestion': 'Try using the standard "Analyze with AI" feature instead for general items.',
+                'ai_provider': 'chatgpt'
+            }
 
         # Determine card type and franchise from analysis
         franchise = deep_analysis.get('franchise') or basic_analysis.get('franchise', '')
@@ -1543,7 +1602,7 @@ You MUST respond with ONLY valid JSON (no markdown, no explanations). Use this e
             'signature': deep_analysis.get('signature', {}),
             'errors_variations': deep_analysis.get('errors_variations', {}),
             'historical_context': deep_analysis.get('historical_context', {}),
-            
+
             # Condition and authentication
             'condition': deep_analysis.get('condition', {}),
             'authentication': deep_analysis.get('authentication', {}),
@@ -1551,9 +1610,13 @@ You MUST respond with ONLY valid JSON (no markdown, no explanations). Use this e
             'grading_company': basic_analysis.get('grading_company', ''),
             'grading_score': basic_analysis.get('grading_score'),
             'is_rookie_card': basic_analysis.get('is_rookie_card', False),
-            
-            'estimated_value_low': market_analysis.get('current_market_value_low', 0),
-            'estimated_value_high': market_analysis.get('current_market_value_high', 0),
+
+            # Franchise history and fun facts
+            'franchise_history': deep_analysis.get('franchise_history', {}),
+
+            # Collector value factors (what increases/decreases value)
+            'collector_value_factors': deep_analysis.get('collector_value_factors', {}),
+
             'collector_notes': deep_analysis.get('collector_notes', ''),
             'is_card': True  # Mark as card for vault saving
         }
@@ -1561,7 +1624,6 @@ You MUST respond with ONLY valid JSON (no markdown, no explanations). Use this e
         return {
             'type': 'card',
             'data': card_data,
-            'market_prices': market_prices,
-            'ai_provider': 'claude'
+            'ai_provider': 'chatgpt'
         }
 

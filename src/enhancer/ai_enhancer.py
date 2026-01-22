@@ -46,18 +46,22 @@ class AiAnalyzer:
         use_ollama: bool = True,
         ollama_model: str = "llama3.2-vision:11b",
         ollama_host: str = "http://localhost:11434",
+        openai_base_url: str = "https://api.openai.com/v1",
+        openai_model: str = "gpt-4o",
     ):
         """
         Initialize AI enhancer.
 
         Args:
-            openai_api_key: OpenAI API key
+            openai_api_key: OpenAI API key (or Nebius/compatible API key)
             anthropic_api_key: Anthropic API key
             use_openai: Enable OpenAI enhancement
             use_anthropic: Enable Anthropic enhancement
             use_ollama: Enable Ollama (local) enhancement
             ollama_model: Ollama model to use (default: llama3.2-vision:11b)
             ollama_host: Ollama server URL (default: http://localhost:11434)
+            openai_base_url: OpenAI-compatible API base URL (default: OpenAI, can use Nebius)
+            openai_model: Model to use (default: gpt-4o, can use Nebius models)
         """
         # Strip whitespace from API keys (common issue with env vars)
         openai_key = openai_api_key or os.getenv("OPENAI_API_KEY")
@@ -69,6 +73,8 @@ class AiAnalyzer:
         self.use_ollama = use_ollama
         self.ollama_model = ollama_model
         self.ollama_host = ollama_host
+        self.openai_base_url = openai_base_url
+        self.openai_model = openai_model
 
         if not (self.use_openai or self.use_anthropic or self.use_ollama):
             raise ValueError(
@@ -454,21 +460,21 @@ Format as JSON:
             }
         ]
 
-        # Call OpenAI API
+        # Call OpenAI-compatible API (OpenAI, Nebius, etc.)
         headers = {
             "Authorization": f"Bearer {self.openai_api_key}",
             "Content-Type": "application/json",
         }
 
         payload = {
-            "model": "gpt-4o",  # GPT-4 Vision
+            "model": self.openai_model,  # Configurable model (gpt-4o, Nebius models, etc.)
             "messages": messages,
             "max_tokens": 1500,
             "temperature": 0.7,
         }
 
         response = requests.post(
-            "https://api.openai.com/v1/chat/completions",
+            f"{self.openai_base_url}/chat/completions",
             headers=headers,
             json=payload,
         )
@@ -692,7 +698,9 @@ Format as JSON:
         Create enhancer from environment variables.
 
         Expected variables:
-            - OPENAI_API_KEY (optional)
+            - OPENAI_API_KEY (optional) - can be OpenAI or Nebius API key
+            - OPENAI_BASE_URL (optional) - for Nebius: https://api.studio.nebius.ai/v1
+            - OPENAI_MODEL (optional) - for Nebius: meta-llama/Llama-3.2-90B-Vision-Instruct, etc.
             - ANTHROPIC_API_KEY (optional)
             - USE_OPENAI (optional, default: false if OPENAI_API_KEY not set)
             - USE_ANTHROPIC (optional, default: false if ANTHROPIC_API_KEY not set)
@@ -705,6 +713,8 @@ Format as JSON:
         use_anthropic = os.getenv("USE_ANTHROPIC", "true").lower() in ("true", "1", "yes")
         ollama_model = os.getenv("OLLAMA_MODEL", "llama3.2-vision:11b")
         ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+        openai_base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+        openai_model = os.getenv("OPENAI_MODEL", "gpt-4o")
 
         return cls(
             openai_api_key=os.getenv("OPENAI_API_KEY"),
@@ -714,6 +724,8 @@ Format as JSON:
             use_ollama=use_ollama,
             ollama_model=ollama_model,
             ollama_host=ollama_host,
+            openai_base_url=openai_base_url,
+            openai_model=openai_model,
         )
 
 

@@ -304,10 +304,6 @@
             <span class="stat-label">Avg Completeness</span>
             <span class="stat-value" id="statCompleteness">0%</span>
         </div>
-        <div class="stat-item">
-            <span class="stat-label">AI Enhanced</span>
-            <span class="stat-value" id="statAI">0</span>
-        </div>
     </div>
 
     <!-- Table -->
@@ -315,33 +311,14 @@
         <table class="csv-table" id="draftsTable">
             <thead>
                 <tr>
-                    <th>DraftID</th>
-                    <th>MasterItemID</th>
+                    <th>ID</th>
                     <th>Title</th>
-                    <th>Description</th>
                     <th>Price</th>
-                    <th>Quantity</th>
-                    <th>Category</th>
-                    <th>Brand</th>
-                    <th>Model</th>
-                    <th>Size</th>
-                    <th>Color</th>
                     <th>Condition</th>
-                    <th>Target Platforms</th>
-                    <th>Primary Platform</th>
+                    <th>Brand</th>
                     <th>Completeness</th>
                     <th>Status</th>
-                    <th>Ready For</th>
-                    <th>Photos</th>
-                    <th>Keywords</th>
-                    <th>Shipping Price</th>
-                    <th>Ships From</th>
-                    <th>Handling Days</th>
-                    <th>Returns</th>
-                    <th>AI Enhanced</th>
-                    <th>AI Provider</th>
                     <th>Created</th>
-                    <th>Updated</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -381,10 +358,6 @@
         <button class="btn btn-outline-primary" onclick="exportReadyDrafts()">
             <i class="fas fa-check-circle"></i>
             Export Ready Drafts Only
-        </button>
-        <button class="btn btn-outline-success" onclick="bulkEnhanceWithAI()">
-            <i class="fas fa-magic"></i>
-            Bulk AI Enhancement
         </button>
         <button class="btn btn-outline-secondary" onclick="refreshData()">
             <i class="fas fa-sync-alt"></i>
@@ -560,39 +533,36 @@ function renderTable(data) {
 
     data.forEach(draft => {
         const tr = document.createElement('tr');
-        tr.onclick = () => window.location.href = `/drafts/${draft.id}`;
+        tr.onclick = () => window.location.href = `/create?draft_id=${draft.id}`;
+        tr.style.cursor = 'pointer';
 
-        // DraftID
+        // ID
         const idCell = document.createElement('td');
         idCell.className = 'id-cell';
-        idCell.textContent = draft.draft_id || `DRAFT-${draft.id}`;
+        idCell.textContent = draft.id || '-';
         tr.appendChild(idCell);
 
         // Title
         const titleCell = document.createElement('td');
         titleCell.textContent = draft.title || 'Untitled';
-        titleCell.style.maxWidth = '250px';
+        titleCell.style.maxWidth = '300px';
         tr.appendChild(titleCell);
-
-        // Target Platforms
-        const platformsCell = document.createElement('td');
-        const platforms = JSON.parse(draft.target_platforms || '[]');
-        const pillsDiv = document.createElement('div');
-        pillsDiv.className = 'platform-pills';
-        platforms.forEach(p => {
-            const pill = document.createElement('span');
-            pill.className = 'platform-pill';
-            pill.textContent = p;
-            pillsDiv.appendChild(pill);
-        });
-        platformsCell.appendChild(pillsDiv);
-        tr.appendChild(platformsCell);
 
         // Price
         const priceCell = document.createElement('td');
         priceCell.className = 'money';
         priceCell.textContent = draft.price ? '$' + parseFloat(draft.price).toFixed(2) : '-';
         tr.appendChild(priceCell);
+
+        // Condition
+        const conditionCell = document.createElement('td');
+        conditionCell.textContent = draft.condition || '-';
+        tr.appendChild(conditionCell);
+
+        // Brand
+        const brandCell = document.createElement('td');
+        brandCell.textContent = draft.brand || '-';
+        tr.appendChild(brandCell);
 
         // Completeness
         const completenessCell = document.createElement('td');
@@ -623,18 +593,6 @@ function renderTable(data) {
         statusCell.appendChild(statusBadge);
         tr.appendChild(statusCell);
 
-        // AI Enhanced
-        const aiCell = document.createElement('td');
-        if (draft.ai_enhanced) {
-            const aiBadge = document.createElement('span');
-            aiBadge.className = 'ai-badge';
-            aiBadge.innerHTML = '<i class="fas fa-robot"></i> AI';
-            aiCell.appendChild(aiBadge);
-        } else {
-            aiCell.textContent = '-';
-        }
-        tr.appendChild(aiCell);
-
         // Created
         const dateCell = document.createElement('td');
         dateCell.textContent = draft.created_at ? new Date(draft.created_at).toLocaleDateString() : '-';
@@ -645,9 +603,6 @@ function renderTable(data) {
         actionsCell.innerHTML = `
             <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); editDraft(${draft.id})">
                 <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn btn-sm btn-outline-success" onclick="event.stopPropagation(); publishDraft(${draft.id})">
-                <i class="fas fa-rocket"></i>
             </button>
         `;
         tr.appendChild(actionsCell);
@@ -667,9 +622,6 @@ function updateStats(data) {
         ? data.reduce((sum, d) => sum + (d.completeness_score || 0), 0) / data.length
         : 0;
     document.getElementById('statCompleteness').textContent = Math.round(avgCompleteness) + '%';
-
-    const aiEnhanced = data.filter(d => d.ai_enhanced).length;
-    document.getElementById('statAI').textContent = aiEnhanced;
 }
 
 // Export functions
@@ -681,18 +633,13 @@ function exportReadyDrafts() {
     window.location.href = '/api/ledgers/export/drafts?min_completeness=90&status=ready';
 }
 
-function bulkEnhanceWithAI() {
-    if (confirm('Enhance all drafts with AI? This may take a few minutes.')) {
-        alert('Bulk AI enhancement coming soon!');
-    }
-}
-
 function editDraft(id) {
-    window.location.href = `/drafts/${id}/edit`;
+    window.location.href = `/create?draft_id=${id}`;
 }
 
 function publishDraft(id) {
-    window.location.href = `/drafts/${id}/publish`;
+    // Publish functionality - navigate to create page with draft loaded
+    window.location.href = `/create?draft_id=${id}`;
 }
 
 function refreshData() {

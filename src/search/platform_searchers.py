@@ -708,6 +708,378 @@ class BonanzaSearcher(BasePlatformSearcher):
         return results
 
 
+class ReverbSearcher(BasePlatformSearcher):
+    """
+    Reverb API searcher.
+
+    Reverb has an official public API for music gear.
+    Requires personal access token.
+    https://reverb.com/page/api
+    """
+
+    BASE_URL = "https://api.reverb.com/api/listings"
+
+    def get_platform_name(self) -> str:
+        return "Reverb"
+
+    def get_search_capability(self) -> SearchCapability:
+        return SearchCapability.API_SEARCH
+
+    def requires_auth(self) -> bool:
+        return True
+
+    def search(self, query: SearchQuery) -> List[SearchResult]:
+        """Search Reverb using API"""
+        results = []
+
+        if not self.credentials.get('api_token'):
+            print("Reverb search requires API token")
+            return []
+
+        try:
+            headers = {
+                'Authorization': f'Bearer {self.credentials["api_token"]}',
+                'Accept': 'application/hal+json',
+                'Accept-Version': '3.0'
+            }
+
+            params = {
+                'query': query.keywords,
+                'per_page': min(query.limit, 100),
+            }
+
+            # Add price filters
+            if query.min_price:
+                params['price_min'] = int(query.min_price)
+            if query.max_price:
+                params['price_max'] = int(query.max_price)
+
+            response = requests.get(self.BASE_URL, headers=headers, params=params, timeout=15)
+            response.raise_for_status()
+
+            data = response.json()
+            listings = data.get('listings', [])
+
+            for listing in listings:
+                results.append(self._parse_item(listing))
+
+        except Exception as e:
+            print(f"Reverb search error: {e}")
+
+        return results
+
+    def _parse_item(self, item: Dict) -> SearchResult:
+        """Parse Reverb listing"""
+        return SearchResult(
+            platform="Reverb",
+            listing_id=str(item.get('id', '')),
+            url=item.get('_links', {}).get('web', {}).get('href', ''),
+            title=item.get('title', ''),
+            price=float(item.get('price', {}).get('amount', 0)),
+            shipping_cost=float(item.get('shipping', {}).get('us_rate', 0)) if item.get('shipping') else None,
+            condition=item.get('condition', {}).get('display_name'),
+            thumbnail_url=item.get('photos', [{}])[0].get('_links', {}).get('thumbnail', {}).get('href') if item.get('photos') else None,
+        )
+
+
+class DiscogsSearcher(BasePlatformSearcher):
+    """
+    Discogs API searcher.
+
+    Discogs has an official API for vinyl, CDs, and music collectibles.
+    https://www.discogs.com/developers
+    """
+
+    BASE_URL = "https://api.discogs.com/database/search"
+
+    def get_platform_name(self) -> str:
+        return "Discogs"
+
+    def get_search_capability(self) -> SearchCapability:
+        return SearchCapability.API_SEARCH
+
+    def requires_auth(self) -> bool:
+        return False  # Can use without auth, but has lower rate limits
+
+    def search(self, query: SearchQuery) -> List[SearchResult]:
+        """Search Discogs database"""
+        results = []
+
+        try:
+            headers = {
+                'User-Agent': 'RebelOperator/1.0 +https://rebeloperator.com'
+            }
+
+            # Add auth if available
+            if self.credentials.get('consumer_key') and self.credentials.get('consumer_secret'):
+                headers['Authorization'] = f"Discogs key={self.credentials['consumer_key']}, secret={self.credentials['consumer_secret']}"
+
+            params = {
+                'q': query.keywords,
+                'per_page': min(query.limit, 100),
+            }
+
+            response = requests.get(self.BASE_URL, headers=headers, params=params, timeout=15)
+            response.raise_for_status()
+
+            data = response.json()
+            items = data.get('results', [])
+
+            for item in items:
+                results.append(self._parse_item(item))
+
+        except Exception as e:
+            print(f"Discogs search error: {e}")
+
+        return results
+
+    def _parse_item(self, item: Dict) -> SearchResult:
+        """Parse Discogs search result"""
+        return SearchResult(
+            platform="Discogs",
+            listing_id=str(item.get('id', '')),
+            url=item.get('uri', ''),
+            title=item.get('title', ''),
+            price=0.0,  # Discogs search doesn't include prices, need marketplace API
+            thumbnail_url=item.get('thumb', ''),
+        )
+
+
+class RubyLaneSearcher(BasePlatformSearcher):
+    """
+    Ruby Lane public search.
+
+    Ruby Lane is an antiques and collectibles marketplace with public listings.
+    """
+
+    def get_platform_name(self) -> str:
+        return "Ruby Lane"
+
+    def get_search_capability(self) -> SearchCapability:
+        return SearchCapability.SCRAPER_FRIENDLY
+
+    def search(self, query: SearchQuery) -> List[SearchResult]:
+        """Search Ruby Lane public listings"""
+        if not HAS_BS4:
+            print("BeautifulSoup4 required for Ruby Lane search")
+            return []
+
+        results = []
+
+        try:
+            # Build search URL
+            search_url = f"https://www.rubylane.com/search/all?q={quote_plus(query.keywords)}"
+
+            headers = {
+                'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'
+            }
+
+            response = requests.get(search_url, headers=headers, timeout=15)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            # Find listing items
+            items = soup.find_all('div', class_='item-box')[:query.limit]
+
+            for item_div in items:
+                try:
+                    link = item_div.find('a', href=True)
+                    if not link:
+                        continue
+
+                    url = link['href']
+                    if not url.startswith('http'):
+                        url = f"https://www.rubylane.com{url}"
+
+                    # Extract ID from URL
+                    listing_id = re.search(r'/item/(\d+)', url)
+                    listing_id = listing_id.group(1) if listing_id else ''
+
+                    # Title
+                    title_elem = item_div.find('div', class_='item-title')
+                    title = title_elem.text.strip() if title_elem else ''
+
+                    # Price
+                    price_elem = item_div.find('span', class_='item-price')
+                    if price_elem:
+                        price_text = price_elem.text.strip()
+                        price = float(re.sub(r'[^\d.]', '', price_text))
+                    else:
+                        price = 0.0
+
+                    # Image
+                    img = item_div.find('img')
+                    thumbnail = img.get('src') or img.get('data-src') if img else None
+
+                    results.append(SearchResult(
+                        platform="Ruby Lane",
+                        listing_id=listing_id,
+                        url=url,
+                        title=title,
+                        price=price,
+                        thumbnail_url=thumbnail,
+                    ))
+
+                except Exception as e:
+                    print(f"Error parsing Ruby Lane listing: {e}")
+                    continue
+
+        except Exception as e:
+            print(f"Ruby Lane search error: {e}")
+
+        return results
+
+
+class VintedSearcher(BasePlatformSearcher):
+    """
+    Vinted public search.
+
+    Vinted is a secondhand fashion marketplace with public listings.
+    """
+
+    def get_platform_name(self) -> str:
+        return "Vinted"
+
+    def get_search_capability(self) -> SearchCapability:
+        return SearchCapability.SCRAPER_FRIENDLY
+
+    def search(self, query: SearchQuery) -> List[SearchResult]:
+        """Search Vinted public listings"""
+        results = []
+
+        try:
+            # Vinted has a public API endpoint
+            api_url = "https://www.vinted.com/api/v2/catalog/items"
+
+            params = {
+                'search_text': query.keywords,
+                'per_page': min(query.limit, 96),
+            }
+
+            # Add price filters
+            if query.min_price:
+                params['price_from'] = int(query.min_price)
+            if query.max_price:
+                params['price_to'] = int(query.max_price)
+
+            headers = {
+                'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'
+            }
+
+            response = requests.get(api_url, params=params, headers=headers, timeout=15)
+            response.raise_for_status()
+
+            data = response.json()
+            items = data.get('items', [])
+
+            for item in items:
+                results.append(self._parse_item(item))
+
+        except Exception as e:
+            print(f"Vinted search error: {e}")
+
+        return results
+
+    def _parse_item(self, item: Dict) -> SearchResult:
+        """Parse Vinted item"""
+        return SearchResult(
+            platform="Vinted",
+            listing_id=str(item.get('id', '')),
+            url=item.get('url', ''),
+            title=item.get('title', ''),
+            price=float(item.get('price', 0)),
+            condition=item.get('status', ''),
+            thumbnail_url=item.get('photo', {}).get('url') if item.get('photo') else None,
+        )
+
+
+class TheRealRealSearcher(BasePlatformSearcher):
+    """
+    The RealReal public search.
+
+    The RealReal is a luxury consignment marketplace with public listings.
+    """
+
+    def get_platform_name(self) -> str:
+        return "The RealReal"
+
+    def get_search_capability(self) -> SearchCapability:
+        return SearchCapability.SCRAPER_FRIENDLY
+
+    def search(self, query: SearchQuery) -> List[SearchResult]:
+        """Search The RealReal public listings"""
+        if not HAS_BS4:
+            print("BeautifulSoup4 required for The RealReal search")
+            return []
+
+        results = []
+
+        try:
+            # Build search URL
+            search_url = f"https://www.therealreal.com/products?query={quote_plus(query.keywords)}"
+
+            headers = {
+                'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'
+            }
+
+            response = requests.get(search_url, headers=headers, timeout=15)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            # Find product cards
+            items = soup.find_all('div', {'data-test': 'product-card'})[:query.limit]
+
+            for item_div in items:
+                try:
+                    link = item_div.find('a', href=True)
+                    if not link:
+                        continue
+
+                    url = link['href']
+                    if not url.startswith('http'):
+                        url = f"https://www.therealreal.com{url}"
+
+                    # Extract ID from URL
+                    listing_id = re.search(r'/products/([^/]+)', url)
+                    listing_id = listing_id.group(1) if listing_id else ''
+
+                    # Title
+                    title_elem = item_div.find('h3') or item_div.find('div', {'data-test': 'product-title'})
+                    title = title_elem.text.strip() if title_elem else ''
+
+                    # Price
+                    price_elem = item_div.find('span', {'data-test': 'product-price'})
+                    if price_elem:
+                        price_text = price_elem.text.strip()
+                        price = float(re.sub(r'[^\d.]', '', price_text))
+                    else:
+                        price = 0.0
+
+                    # Image
+                    img = item_div.find('img')
+                    thumbnail = img.get('src') or img.get('data-src') if img else None
+
+                    results.append(SearchResult(
+                        platform="The RealReal",
+                        listing_id=listing_id,
+                        url=url,
+                        title=title,
+                        price=price,
+                        thumbnail_url=thumbnail,
+                    ))
+
+                except Exception as e:
+                    print(f"Error parsing The RealReal listing: {e}")
+                    continue
+
+        except Exception as e:
+            print(f"The RealReal search error: {e}")
+
+        return results
+
+
 class FacebookMarketplaceSearcher(BasePlatformSearcher):
     """
     Facebook Marketplace - No external search allowed.
@@ -747,17 +1119,22 @@ class ShopifySearcher(BasePlatformSearcher):
 
 # Searcher registry
 SEARCHER_REGISTRY = {
-    # Official APIs (3)
+    # Official APIs (5)
     'ebay': eBaySearcher,
     'etsy': EtsySearcher,
     'tcgplayer': TCGplayerSearcher,
+    'reverb': ReverbSearcher,
+    'discogs': DiscogsSearcher,
 
-    # Public Search (5)
+    # Public Search (8)
     'mercari': MercariSearcher,
     'poshmark': PoshmarkSearcher,
     'grailed': GrailedSearcher,
     'depop': DepopSearcher,
     'bonanza': BonanzaSearcher,
+    'rubylane': RubyLaneSearcher,
+    'vinted': VintedSearcher,
+    'therealreal': TheRealRealSearcher,
 
     # Unavailable
     'facebook': FacebookMarketplaceSearcher,

@@ -1,0 +1,720 @@
+📘 PLATFORM DATA INGEST CAPABILITY REGISTRY
+
+(What the system CAN pull with user approval; not what it must or will pull)
+
+🟢 FULL / NEAR-FULL API PLATFORMS
+
+(Structured APIs, stable, designed for software access)
+
+eBay
+
+CAN PULL:
+
+Active listings
+
+Listing metadata (title, description, price, condition, photos)
+
+SKU / listing IDs
+
+Inventory quantity
+
+Sales events (real-time / near real-time)
+
+Order details
+
+Buyer-paid price
+
+Platform fees
+
+Shipping label info
+
+Payout / settlement data
+
+Listing status changes (ended, sold, revised)
+
+Etsy
+
+CAN PULL:
+
+Listings
+
+Listing metadata
+
+Photos
+
+Variants
+
+SKU (if present)
+
+Inventory status
+
+Sales events
+
+Order details
+
+Fees
+
+Shipping info
+
+Payout summaries
+
+Shopify
+
+CAN PULL:
+
+Products
+
+Variants
+
+Inventory quantities
+
+SKUs
+
+Orders
+
+Taxes
+
+Shipping info
+
+Fees
+
+Payouts
+
+Fulfillment status
+
+WooCommerce
+
+CAN PULL:
+
+Products
+
+Variants
+
+Inventory
+
+SKUs
+
+Orders
+
+Taxes
+
+Shipping
+
+Fees
+
+Fulfillment state
+
+Square
+
+CAN PULL:
+
+Items / catalog
+
+Inventory counts
+
+Sales transactions
+
+Fees
+
+Taxes
+
+Payment settlements
+
+Refunds
+
+TCGplayer
+
+CAN PULL:
+
+Inventory listings
+
+Condition data
+
+Quantity
+
+Price
+
+Sales
+
+Fees
+
+Order details
+
+Payout data
+
+Reverb
+
+CAN PULL:
+
+Listings
+
+Listing metadata
+
+Photos
+
+Inventory status
+
+Sales
+
+Fees
+
+Shipping info
+
+Payouts
+
+Discogs
+
+CAN PULL:
+
+Listings
+
+Inventory
+
+Sales
+
+Order details
+
+Buyer-paid price
+
+Fees
+
+🟡 NO PUBLIC API, BUT USER-CONTEXT DATA EXISTS
+
+(Credentials + consent allow read-only ingestion, slow / user-initiated / low-frequency)
+
+Poshmark
+
+CAN PULL:
+
+Active listings (from account view)
+
+Listing metadata
+
+Listing status
+
+Sale detection
+
+Sold price
+
+Timestamp of sale
+
+Payout amount (summary level)
+
+Mercari
+
+CAN PULL:
+
+Listings
+
+Listing metadata
+
+Sale detection
+
+Sold price
+
+Fees (summary)
+
+Payout status
+
+Grailed
+
+CAN PULL:
+
+Active listings
+
+Listing metadata
+
+Sale detection
+
+Final sale price
+
+Fees (summary)
+
+Depop
+
+CAN PULL:
+
+Listings
+
+Listing metadata
+
+Sale detection
+
+Sold price
+
+Timestamp
+
+Payout status
+
+Vinted
+
+CAN PULL:
+
+Listings
+
+Listing metadata
+
+Sale detection
+
+Sold price
+
+Order state
+
+The RealReal
+
+CAN PULL:
+
+Item intake status
+
+Sale confirmation
+
+Payout amount
+
+Sale date
+
+Settlement state
+
+Vestiaire Collective
+
+CAN PULL:
+
+Listing status
+
+Sale confirmation
+
+Final payout
+
+Fees (summary)
+
+🟠 MARKET-CONTROLLED / READ-SIDE ONLY
+
+(Inventory models are tightly controlled; still useful)
+
+StockX
+
+CAN PULL:
+
+Sale confirmations
+
+Final payout amounts
+
+Market price history
+
+Ask / bid data
+
+Inventory status
+
+GOAT
+
+CAN PULL:
+
+Sale confirmations
+
+Authentication status
+
+Payout data
+
+Listing state
+
+Whatnot
+
+CAN PULL:
+
+Completed sale events
+
+Sold price
+
+Buyer quantity
+
+Payout totals
+
+Show-based sales summaries
+
+Chrono24
+
+CAN PULL:
+
+Listing status
+
+Sale confirmation
+
+Final price
+
+Payout state
+
+Swappa
+
+CAN PULL:
+
+Listings
+
+Sale detection
+
+Sold price
+
+Fees
+
+Order status
+
+🔴 LOCAL / MANUAL / NON-AUTOMATABLE
+
+(No stable programmatic access; still ingestible as user-reported or verified data)
+
+Facebook Marketplace
+
+CAN PULL:
+
+❌ direct automation
+CAN INGEST:
+
+User-entered sale
+
+Invoice-based confirmation
+
+Payment confirmation uploads
+
+Craigslist
+
+CAN INGEST:
+
+Manual sale entry
+
+Price
+
+Date
+
+Notes
+
+OfferUp
+
+CAN INGEST:
+
+Sale confirmation
+
+Sold price
+
+Date
+
+Nextdoor
+
+CAN INGEST:
+
+Manual sale entry
+
+VarageSale
+
+CAN INGEST:
+
+Manual sale entry
+
+📘 PLATFORM DATA INGEST CAPABILITY REGISTRY
+CHUNK 2 (Additional Platforms – Active Only)
+👕 FASHION / LUXURY / APPAREL (ADDITIONAL)
+Curtsy
+
+CAN PULL:
+
+Listings
+
+Listing metadata
+
+Sale detection
+
+Sold price
+
+Timestamp
+
+Payout summary
+
+Rebag
+
+CAN PULL:
+
+Item intake status
+
+Quote / payout amount
+
+Sale confirmation
+
+Settlement state
+
+Fashionphile
+
+CAN PULL:
+
+Item intake confirmation
+
+Sale completion
+
+Final payout amount
+
+Date of settlement
+
+ThredUp
+
+CAN PULL:
+
+Consignment intake status
+
+Sale confirmation
+
+Payout amount
+
+Settlement timeline
+
+Vestiaire Collective
+
+CAN PULL:
+
+Listings
+
+Listing metadata
+
+Sale detection
+
+Final payout
+
+Fees (summary)
+
+🛒 GENERAL MARKETPLACES (ADDITIONAL)
+Bonanza
+
+CAN PULL:
+
+Listings
+
+Listing metadata
+
+Sale detection
+
+Sold price
+
+Order summary
+
+eCrater
+
+CAN PULL:
+
+Listings
+
+Listing metadata
+
+Sale detection
+
+Order summary
+
+Ruby Lane
+
+CAN PULL:
+
+Listings
+
+Listing metadata
+
+Sale detection
+
+Sold price
+
+Fees (summary)
+
+Chairish
+
+CAN PULL:
+
+Listings
+
+Listing metadata
+
+Sale confirmation
+
+Final payout
+
+Settlement status
+
+Nextdoor
+
+CAN INGEST:
+
+Manual sale entry
+
+Sale date
+
+Sold price
+
+Notes
+
+VarageSale
+
+CAN INGEST:
+
+Manual sale entry
+
+Sold price
+
+Date
+
+🎨 HANDMADE / CREATIVE (ADDITIONAL)
+ArtFire
+
+CAN PULL:
+
+Listings
+
+Listing metadata
+
+Sale detection
+
+Sold price
+
+Folksy
+
+CAN PULL:
+
+Listings
+
+Sale detection
+
+Sold price
+
+Order summary
+
+Zibbet
+
+CAN PULL:
+
+Listings
+
+Listing metadata
+
+Sale detection
+
+Sold price
+
+🃏 COLLECTIBLES / HOBBIES (ADDITIONAL)
+Cardmarket
+
+CAN PULL:
+
+Inventory
+
+Listing metadata
+
+Sales
+
+Fees
+
+Payout data
+
+COMC
+
+CAN PULL:
+
+Inventory status
+
+Sale confirmations
+
+Credit balance
+
+Payout events
+
+Sportlots
+
+CAN PULL:
+
+Inventory listings
+
+Sale detection
+
+Sold price
+
+Order summaries
+
+MySlabs
+
+CAN PULL:
+
+Listings
+
+Sale confirmations
+
+Sold price
+
+Fees (summary)
+
+📚 BOOKS / MEDIA (ADDITIONAL)
+Amazon
+
+CAN PULL:
+
+Orders
+
+Sold price
+
+Fees
+
+Settlement data
+
+Inventory quantity (where permitted)
+
+AbeBooks
+
+CAN PULL:
+
+Listings
+
+Sale detection
+
+Sold price
+
+Order details
+
+Fees
+
+Biblio
+
+CAN PULL:
+
+Listings
+
+Sale detection
+
+Sold price
+
+Order summaries
+
+🌍 INTERNATIONAL MARKETPLACES (ADDITIONAL)
+Shpock
+
+CAN PULL:
+
+Listings
+
+Sale detection
+
+Sold price
+
+Order status
+
+Wallapop
+
+CAN PULL:
+
+Listings
+
+Sale detection
+
+Sold price
+
+Order confirmation
+
+Carousell
+
+CAN PULL:
+
+Listings
+
+Sale detection
+
+Sold price
+
+Order status

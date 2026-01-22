@@ -319,7 +319,6 @@
                     <th>Completeness</th>
                     <th>Status</th>
                     <th>Created</th>
-                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="tableBody">
@@ -533,8 +532,9 @@ function renderTable(data) {
 
     data.forEach(draft => {
         const tr = document.createElement('tr');
-        tr.onclick = () => window.location.href = `/create?draft_id=${draft.id}`;
         tr.style.cursor = 'pointer';
+        tr.onclick = () => window.location.href = `/create?draft_id=${draft.id}`;
+        tr.title = 'Click to edit this draft';
 
         // ID
         const idCell = document.createElement('td');
@@ -598,15 +598,6 @@ function renderTable(data) {
         dateCell.textContent = draft.created_at ? new Date(draft.created_at).toLocaleDateString() : '-';
         tr.appendChild(dateCell);
 
-        // Actions
-        const actionsCell = document.createElement('td');
-        actionsCell.innerHTML = `
-            <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); editDraft(${draft.id})">
-                <i class="fas fa-edit"></i>
-            </button>
-        `;
-        tr.appendChild(actionsCell);
-
         tbody.appendChild(tr);
     });
 }
@@ -631,15 +622,6 @@ function exportDrafts() {
 
 function exportReadyDrafts() {
     window.location.href = '/api/ledgers/export/drafts?min_completeness=90&status=ready';
-}
-
-function editDraft(id) {
-    window.location.href = `/create?draft_id=${id}`;
-}
-
-function publishDraft(id) {
-    // Publish functionality - navigate to create page with draft loaded
-    window.location.href = `/create?draft_id=${id}`;
 }
 
 function refreshData() {

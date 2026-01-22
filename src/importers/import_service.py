@@ -18,7 +18,7 @@ import json
 from .platform_importers import get_importer, PLATFORM_IMPORTERS
 from .csv_importer import CSVImporter
 from ..schema.unified_listing import UnifiedListing
-from ..database.db import get_connection
+from ..database.db import get_db
 
 
 class ImportService:
@@ -174,7 +174,7 @@ class ImportService:
         Returns:
             True if duplicate exists, False otherwise
         """
-        conn = get_connection()
+        conn = get_db()
         cursor = conn.cursor()
 
         try:
@@ -228,7 +228,7 @@ class ImportService:
         Returns:
             Listing ID if successful, None otherwise
         """
-        conn = get_connection()
+        conn = get_db()
         cursor = conn.cursor()
 
         try:

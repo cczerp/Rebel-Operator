@@ -59,8 +59,11 @@ class AiAnalyzer:
             ollama_model: Ollama model to use (default: llama3.2-vision:11b)
             ollama_host: Ollama server URL (default: http://localhost:11434)
         """
-        self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
-        self.anthropic_api_key = anthropic_api_key or os.getenv("ANTHROPIC_API_KEY")
+        # Strip whitespace from API keys (common issue with env vars)
+        openai_key = openai_api_key or os.getenv("OPENAI_API_KEY")
+        anthropic_key = anthropic_api_key or os.getenv("ANTHROPIC_API_KEY")
+        self.openai_api_key = openai_key.strip() if openai_key else None
+        self.anthropic_api_key = anthropic_key.strip() if anthropic_key else None
         self.use_openai = use_openai and self.openai_api_key is not None
         self.use_anthropic = use_anthropic and self.anthropic_api_key is not None
         self.use_ollama = use_ollama
@@ -334,14 +337,18 @@ Format as JSON:
             "prompt": prompt,
             "images": image_contents,
             "stream": False,
-            "format": "json"
+            "format": "json",
+            "keep_alive": "1h"  # Keep model loaded for 1 hour (avoid reload time)
         }
 
         try:
+            # Add header to bypass ngrok warning page (for free tier tunnels)
+            headers = {"ngrok-skip-browser-warning": "true"}
             response = requests.post(
                 f"{self.ollama_host}/api/generate",
                 json=payload,
-                timeout=60  # Ollama can be slow on first run
+                headers=headers,
+                timeout=300  # Ollama can be slow (5 minutes for model load + inference)
             )
 
             if response.status_code == 200:
@@ -358,9 +365,11 @@ Format as JSON:
                         response_text = response_text.split("```")[1].split("```")[0].strip()
 
                     analysis = json.loads(response_text)
+                    print(f"🔍 Ollama returned: {analysis}")  # Debug logging
                     return analysis
                 except json.JSONDecodeError:
                     # Fallback if JSON parsing fails
+                    print(f"⚠️ JSON parse failed, raw response: {response_text[:200]}")  # Debug logging
                     return {"raw_response": response_text}
             else:
                 raise Exception(f"Ollama API error (HTTP {response.status_code}): {response.text}")
@@ -572,7 +581,7 @@ Format as JSON:
                     final_data = ollama_analysis
                     ai_providers_used.append("Ollama (local)")
                 else:
-                    print("⚠️  Ollama analysis incomplete - will try paid APIs as fallback")
+                    print(f"⚠️  Ollama analysis incomplete - missing fields. Has title: {bool(ollama_analysis.get('title'))}, description: {bool(ollama_analysis.get('description'))}, category: {bool(ollama_analysis.get('category'))}")
                     # Keep Ollama's partial data
                     final_data = ollama_analysis
 
@@ -685,17 +694,23 @@ Format as JSON:
         Expected variables:
             - OPENAI_API_KEY (optional)
             - ANTHROPIC_API_KEY (optional)
+            - USE_OPENAI (optional, default: false if OPENAI_API_KEY not set)
+            - USE_ANTHROPIC (optional, default: false if ANTHROPIC_API_KEY not set)
             - USE_OLLAMA (optional, default: true)
             - OLLAMA_MODEL (optional, default: llama3.2-vision:11b)
             - OLLAMA_HOST (optional, default: http://localhost:11434)
         """
         use_ollama = os.getenv("USE_OLLAMA", "true").lower() in ("true", "1", "yes")
+        use_openai = os.getenv("USE_OPENAI", "true").lower() in ("true", "1", "yes")
+        use_anthropic = os.getenv("USE_ANTHROPIC", "true").lower() in ("true", "1", "yes")
         ollama_model = os.getenv("OLLAMA_MODEL", "llama3.2-vision:11b")
         ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 
         return cls(
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
+            use_openai=use_openai,
+            use_anthropic=use_anthropic,
             use_ollama=use_ollama,
             ollama_model=ollama_model,
             ollama_host=ollama_host,

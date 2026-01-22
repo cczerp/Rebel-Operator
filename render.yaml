@@ -15,6 +15,16 @@ services:
     envVars:
       - key: FLASK_SECRET_KEY
         generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: USE_LOCAL_STORAGE
+        value: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GEMINI_API_KEY

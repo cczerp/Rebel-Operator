@@ -17,7 +17,7 @@ from ..ledgers import (
     DraftListingsExporter,
     export_ledger,
 )
-from ..database.db import get_connection
+from ..database.db import get_db
 
 
 ledger_bp = Blueprint('ledger_bp', __name__)
@@ -197,7 +197,7 @@ def get_ledger_stats():
         }
     """
     try:
-        conn = get_connection()
+        conn = get_db()
         cursor = conn.cursor()
 
         stats = {}
@@ -308,7 +308,7 @@ def get_ledger_count(ledger_type: str):
         if not table:
             return jsonify({"error": "Invalid ledger type"}), 400
 
-        conn = get_connection()
+        conn = get_db()
         cursor = conn.cursor()
 
         cursor.execute(f"SELECT COUNT(*) FROM {table} WHERE user_id = %s", (current_user.id,))
@@ -352,7 +352,7 @@ def generate_ledger_id(id_type: str):
         if not func_name:
             return jsonify({"error": "Invalid ID type"}), 400
 
-        conn = get_connection()
+        conn = get_db()
         cursor = conn.cursor()
 
         cursor.execute(f"SELECT {func_name}(%s)", (current_user.id,))
@@ -393,7 +393,7 @@ def get_profit_by_platform():
         }
     """
     try:
-        conn = get_connection()
+        conn = get_db()
         cursor = conn.cursor()
 
         query = """
@@ -457,7 +457,7 @@ def get_monthly_profit():
     try:
         months = int(request.args.get('months', 12))
 
-        conn = get_connection()
+        conn = get_db()
         cursor = conn.cursor()
 
         query = """

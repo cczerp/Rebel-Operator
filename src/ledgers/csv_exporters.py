@@ -11,7 +11,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from decimal import Decimal
 
-from ..database.db import get_connection
+from ..database.db import get_db
 
 
 class LedgerCSVExporter:
@@ -97,7 +97,7 @@ class InventoryMasterExporter(LedgerCSVExporter):
         Returns:
             CSV string
         """
-        conn = get_connection()
+        conn = get_db()
         cursor = conn.cursor()
 
         # Build query with filters
@@ -240,7 +240,7 @@ class SalesLedgerExporter(LedgerCSVExporter):
         Returns:
             CSV string
         """
-        conn = get_connection()
+        conn = get_db()
         cursor = conn.cursor()
 
         query = """
@@ -389,7 +389,7 @@ class ShippingLedgerExporter(LedgerCSVExporter):
         Returns:
             CSV string
         """
-        conn = get_connection()
+        conn = get_db()
         cursor = conn.cursor()
 
         query = """
@@ -541,7 +541,7 @@ class DraftListingsExporter(LedgerCSVExporter):
         Returns:
             CSV string
         """
-        conn = get_connection()
+        conn = get_db()
         cursor = conn.cursor()
 
         query = """

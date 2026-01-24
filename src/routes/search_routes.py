@@ -202,7 +202,7 @@ def _get_user_credentials(user_id: int) -> Dict[str, Dict]:
         return {}
 
     try:
-        cursor = db.get_cursor()
+        cursor = db._get_cursor()
         cursor.execute("""
             SELECT platform, credentials
             FROM marketplace_credentials
@@ -211,8 +211,8 @@ def _get_user_credentials(user_id: int) -> Dict[str, Dict]:
 
         credentials_store = {}
         for row in cursor.fetchall():
-            platform = row[0].lower()
-            credentials = row[1]  # Assuming stored as JSON
+            platform = row['platform'].lower() if isinstance(row, dict) else row[0].lower()
+            credentials = row['credentials'] if isinstance(row, dict) else row[1]
             if isinstance(credentials, str):
                 credentials = json.loads(credentials)
             credentials_store[platform] = credentials
@@ -231,7 +231,7 @@ def _save_search_history(user_id: int, query: SearchQuery, result_count: int):
         return
 
     try:
-        cursor = db.get_cursor()
+        cursor = db._get_cursor()
         cursor.execute("""
             INSERT INTO search_history (user_id, keywords, filters, result_count, created_at)
             VALUES (%s, %s, %s, %s, NOW())
@@ -245,7 +245,7 @@ def _save_search_history(user_id: int, query: SearchQuery, result_count: int):
             }),
             result_count
         ))
-        db.connection.commit()
+        db.conn.commit()
         cursor.close()
     except Exception as e:
         print(f"Error saving search history: {e}")

@@ -185,6 +185,23 @@
     font-family: 'Courier New', monospace;
 }
 
+.cost-value {
+    color: #dc3545;
+}
+
+/* Photo count */
+.photo-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+.photo-count i {
+    color: #6c757d;
+}
+
 /* Actions */
 .csv-actions {
     padding: 1rem 1.5rem;
@@ -312,13 +329,22 @@
             <thead>
                 <tr>
                     <th>ID</th>
+                    <th>Photos</th>
                     <th>Title</th>
+                    <th>Description</th>
                     <th>Price</th>
+                    <th>Cost</th>
                     <th>Condition</th>
+                    <th>Item Type</th>
                     <th>Brand</th>
+                    <th>Size</th>
+                    <th>Color</th>
+                    <th>SKU</th>
+                    <th>Shipping</th>
                     <th>Completeness</th>
                     <th>Status</th>
                     <th>Created</th>
+                    <th>Updated</th>
                 </tr>
             </thead>
             <tbody id="tableBody">
@@ -536,17 +562,43 @@ function renderTable(data) {
         tr.onclick = () => window.location.href = `/create?draft_id=${draft.id}`;
         tr.title = 'Click to edit this draft';
 
+        // Extract attributes (brand, size, color may be stored in attributes JSON)
+        const attrs = draft.attributes || {};
+        const brand = draft.brand || attrs.brand || '-';
+        const size = draft.size || attrs.size || '-';
+        const color = draft.color || attrs.color || '-';
+        const shippingCost = draft.shipping_cost || attrs.shipping_cost;
+
         // ID
         const idCell = document.createElement('td');
         idCell.className = 'id-cell';
         idCell.textContent = draft.id || '-';
         tr.appendChild(idCell);
 
+        // Photos (count with thumbnail)
+        const photosCell = document.createElement('td');
+        const photos = draft.photos || [];
+        const photoCount = Array.isArray(photos) ? photos.length : 0;
+        if (photoCount > 0 && photos[0]) {
+            photosCell.innerHTML = `<span class="photo-count" title="${photoCount} photo(s)"><i class="fas fa-image"></i> ${photoCount}</span>`;
+        } else {
+            photosCell.innerHTML = `<span class="text-muted"><i class="fas fa-image"></i> 0</span>`;
+        }
+        tr.appendChild(photosCell);
+
         // Title
         const titleCell = document.createElement('td');
         titleCell.textContent = draft.title || 'Untitled';
-        titleCell.style.maxWidth = '300px';
+        titleCell.style.maxWidth = '200px';
         tr.appendChild(titleCell);
+
+        // Description (truncated)
+        const descCell = document.createElement('td');
+        const desc = draft.description || '';
+        descCell.textContent = desc.length > 40 ? desc.substring(0, 40) + '...' : (desc || '-');
+        descCell.style.maxWidth = '150px';
+        descCell.title = desc;
+        tr.appendChild(descCell);
 
         // Price
         const priceCell = document.createElement('td');
@@ -554,19 +606,55 @@ function renderTable(data) {
         priceCell.textContent = draft.price ? '$' + parseFloat(draft.price).toFixed(2) : '-';
         tr.appendChild(priceCell);
 
+        // Cost
+        const costCell = document.createElement('td');
+        costCell.className = draft.cost ? 'money cost-value' : '';
+        costCell.textContent = draft.cost ? '$' + parseFloat(draft.cost).toFixed(2) : '-';
+        tr.appendChild(costCell);
+
         // Condition
         const conditionCell = document.createElement('td');
-        conditionCell.textContent = draft.condition || '-';
+        conditionCell.textContent = formatCondition(draft.condition) || '-';
         tr.appendChild(conditionCell);
+
+        // Item Type
+        const typeCell = document.createElement('td');
+        typeCell.textContent = formatItemType(draft.item_type) || '-';
+        tr.appendChild(typeCell);
 
         // Brand
         const brandCell = document.createElement('td');
-        brandCell.textContent = draft.brand || '-';
+        brandCell.textContent = brand;
         tr.appendChild(brandCell);
 
-        // Completeness
+        // Size
+        const sizeCell = document.createElement('td');
+        sizeCell.textContent = size;
+        tr.appendChild(sizeCell);
+
+        // Color
+        const colorCell = document.createElement('td');
+        colorCell.textContent = color;
+        tr.appendChild(colorCell);
+
+        // SKU
+        const skuCell = document.createElement('td');
+        skuCell.className = 'id-cell';
+        skuCell.textContent = draft.sku || '-';
+        tr.appendChild(skuCell);
+
+        // Shipping Cost
+        const shippingCell = document.createElement('td');
+        if (shippingCost !== undefined && shippingCost !== null) {
+            shippingCell.textContent = parseFloat(shippingCost) === 0 ? 'Free' : '$' + parseFloat(shippingCost).toFixed(2);
+        } else {
+            shippingCell.textContent = '-';
+        }
+        tr.appendChild(shippingCell);
+
+        // Completeness (calculated)
         const completenessCell = document.createElement('td');
-        const score = draft.completeness_score || 0;
+        const score = calculateCompleteness(draft);
         const barDiv = document.createElement('div');
         barDiv.className = 'completeness-bar';
         if (score < 50) barDiv.classList.add('completeness-low');
@@ -594,23 +682,113 @@ function renderTable(data) {
         tr.appendChild(statusCell);
 
         // Created
-        const dateCell = document.createElement('td');
-        dateCell.textContent = draft.created_at ? new Date(draft.created_at).toLocaleDateString() : '-';
-        tr.appendChild(dateCell);
+        const createdCell = document.createElement('td');
+        createdCell.textContent = draft.created_at ? new Date(draft.created_at).toLocaleDateString() : '-';
+        tr.appendChild(createdCell);
+
+        // Updated
+        const updatedCell = document.createElement('td');
+        updatedCell.textContent = draft.updated_at ? new Date(draft.updated_at).toLocaleDateString() : '-';
+        tr.appendChild(updatedCell);
 
         tbody.appendChild(tr);
     });
+}
+
+// Format condition for display
+function formatCondition(condition) {
+    if (!condition) return '-';
+    const conditionMap = {
+        'new': 'New',
+        'new_with_tags': 'New w/ Tags',
+        'new_without_tags': 'New w/o Tags',
+        'like_new': 'Like New',
+        'excellent': 'Excellent',
+        'good': 'Good',
+        'fair': 'Fair',
+        'poor': 'Poor',
+        'for_parts': 'For Parts'
+    };
+    return conditionMap[condition.toLowerCase()] || condition;
+}
+
+// Format item type for display
+function formatItemType(itemType) {
+    if (!itemType) return '-';
+    const typeMap = {
+        'general': 'General',
+        'clothing': 'Clothing',
+        'electronics': 'Electronics',
+        'trading_card': 'Trading Cards',
+        'collectible': 'Collectibles',
+        'home_garden': 'Home & Garden',
+        'toys_games': 'Toys & Games',
+        'books_media': 'Books & Media',
+        'jewelry': 'Jewelry',
+        'antiques': 'Antiques'
+    };
+    return typeMap[itemType.toLowerCase()] || itemType;
+}
+
+// Calculate completeness score based on filled fields
+function calculateCompleteness(draft) {
+    const attrs = draft.attributes || {};
+
+    // Required fields (weighted more heavily)
+    const requiredFields = [
+        { name: 'title', value: draft.title, weight: 15 },
+        { name: 'description', value: draft.description, weight: 15 },
+        { name: 'price', value: draft.price, weight: 15 },
+        { name: 'photos', value: (draft.photos && draft.photos.length > 0), weight: 15 },
+        { name: 'condition', value: draft.condition, weight: 10 }
+    ];
+
+    // Optional but important fields
+    const optionalFields = [
+        { name: 'cost', value: draft.cost, weight: 5 },
+        { name: 'item_type', value: draft.item_type, weight: 5 },
+        { name: 'brand', value: draft.brand || attrs.brand, weight: 5 },
+        { name: 'size', value: draft.size || attrs.size, weight: 3 },
+        { name: 'color', value: draft.color || attrs.color, weight: 3 },
+        { name: 'sku', value: draft.sku, weight: 3 },
+        { name: 'shipping_cost', value: draft.shipping_cost || attrs.shipping_cost, weight: 3 },
+        { name: 'category', value: draft.category, weight: 3 }
+    ];
+
+    let totalWeight = 0;
+    let earnedWeight = 0;
+
+    // Check required fields
+    requiredFields.forEach(field => {
+        totalWeight += field.weight;
+        if (field.value && field.value !== '' && field.value !== null && field.value !== undefined) {
+            earnedWeight += field.weight;
+        }
+    });
+
+    // Check optional fields
+    optionalFields.forEach(field => {
+        totalWeight += field.weight;
+        if (field.value && field.value !== '' && field.value !== null && field.value !== undefined && field.value !== '-') {
+            earnedWeight += field.weight;
+        }
+    });
+
+    return Math.round((earnedWeight / totalWeight) * 100);
 }
 
 // Update stats
 function updateStats(data) {
     document.getElementById('statTotal').textContent = data.length;
 
-    const ready = data.filter(d => (d.completeness_score || 0) >= 90).length;
+    // Calculate completeness for each draft
+    const completenessScores = data.map(d => calculateCompleteness(d));
+
+    const ready = completenessScores.filter(score => score >= 90).length;
     document.getElementById('statReady').textContent = ready;
 
     const avgCompleteness = data.length > 0
-        ? data.reduce((sum, d) => sum + (d.completeness_score || 0), 0) / data.length
+        ? completenessScores.reduce((sum, score) => sum + score, 0) / data.length
         : 0;
     document.getElementById('statCompleteness').textContent = Math.round(avgCompleteness) + '%';
 }

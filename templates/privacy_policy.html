@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy & Terms{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-shield-alt"></i> Privacy Policy & Terms of Service</h2>
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Home
+        </a>
+    </div>
+
+    <!-- Quick Navigation -->
+    <div class="card mb-4 bg-dark">
+        <div class="card-body">
+            <strong>Jump to:</strong>
+            <a href="#section-1" class="badge bg-secondary text-decoration-none mx-1">Introduction</a>
+            <a href="#section-5a" class="badge bg-warning text-dark text-decoration-none mx-1">Integration Methods</a>
+            <a href="#section-5b" class="badge bg-info text-decoration-none mx-1">Throttling</a>
+            <a href="#section-9a" class="badge bg-primary text-decoration-none mx-1">GDPR/CCPA</a>
+            <a href="#appendix-a" class="badge bg-danger text-decoration-none mx-1">Platform Consent</a>
+        </div>
+    </div>
+
+    <!-- 1. Introduction -->
+    <div class="card mb-4" id="section-1">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-info-circle"></i> 1. Introduction</h5>
+        </div>
+        <div class="card-body">
+            <p>This Privacy Policy describes how we collect, use, store, and share information when you use our website, services, tools, and automation features (collectively, the "Service").</p>
+            <p>Our Service integrates with third-party platforms to assist users with listing management, inventory synchronization, analytics, and automation. Use of those third-party platforms remains governed by their respective privacy policies and terms.</p>
+        </div>
+    </div>
+
+    <!-- 2. Information We Collect -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-database"></i> 2. Information We Collect</h5>
+        </div>
+        <div class="card-body">
+            <h6 class="text-primary">A. Information You Provide Directly</h6>
+            <ul>
+                <li>Account information (name, email, username)</li>
+                <li>Platform credentials or API tokens (when voluntarily provided)</li>
+                <li>Inventory data, listing metadata, pricing, descriptions</li>
+                <li>Uploaded CSV files or structured data</li>
+                <li>Support messages and communications</li>
+            </ul>
+            <div class="alert alert-info">
+                <i class="fas fa-lock"></i> <strong>Note:</strong> Credentials are stored encrypted and used only to perform actions explicitly authorized by the user.
+            </div>
+
+            <h6 class="text-primary mt-4">B. Information Collected Automatically</h6>
+            <ul>
+                <li>IP address</li>
+                <li>Browser and device metadata</li>
+                <li>Usage logs and timestamps</li>
+                <li>Automation execution logs (non-content based)</li>
+            </ul>
+            <p class="text-muted"><small>No biometric data collection. No surveillance.</small></p>
+        </div>
+    </div>
+
+    <!-- 3. How We Use Your Information -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-cogs"></i> 3. How We Use Your Information</h5>
+        </div>
+        <div class="card-body">
+            <p>We use collected data solely to:</p>
+            <ul>
+                <li>Execute user-requested automation</li>
+                <li>Sync listings, prices, and inventory across platforms</li>
+                <li>Detect duplicate listings</li>
+                <li>Provide analytics and estimates</li>
+                <li>Maintain system integrity and security</li>
+                <li>Comply with legal obligations</li>
+            </ul>
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i> <strong>We do not sell user data.</strong>
+            </div>
+            <div class="alert alert-warning">
+                <i class="fas fa-robot"></i> <strong>We do not train AI models on private user data unless explicitly disclosed and opted into.</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Third-Party Platform Integrations -->
+    <div class="card mb-4 border-warning">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0"><i class="fas fa-plug"></i> 4. Third-Party Platform Integrations</h5>
+        </div>
+        <div class="card-body">
+            <p>Our Service connects to third-party platforms at the direction and authorization of the user. When you connect a platform account, you authorize us to access and process data as permitted by that platform and your account permissions.</p>
+
+            <h6 class="mt-3">Important Clarifications:</h6>
+            <ul>
+                <li>Each platform retains independent control over its data</li>
+                <li>Each platform's privacy policy continues to apply</li>
+                <li>We do not modify, override, or reinterpret platform rules</li>
+                <li>We act only as a technical intermediary</li>
+            </ul>
+
+            <div class="alert alert-secondary">
+                <i class="fas fa-exclamation-triangle"></i> You acknowledge that actions performed through automation are subject to the rules, limitations, and enforcement mechanisms of the connected platform.
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Automation & User Responsibility -->
+    <div class="card mb-4 border-danger">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0"><i class="fas fa-robot"></i> 5. Automation & User Responsibility</h5>
+        </div>
+        <div class="card-body">
+            <p>By enabling automation features, you acknowledge and agree that:</p>
+            <ul>
+                <li>You are authorized to access the connected accounts</li>
+                <li>You understand the platform's terms of service</li>
+                <li>You accept responsibility for actions initiated through automation</li>
+                <li>Automation executes exactly as configured by you</li>
+            </ul>
+            <div class="alert alert-danger">
+                <i class="fas fa-gavel"></i> <strong>We are not responsible for platform penalties resulting from user-configured automation.</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5A. Integration Methods -->
+    <div class="card mb-4 border-warning" id="section-5a">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0"><i class="fas fa-code-branch"></i> 5A. Integration Methods</h5>
+        </div>
+        <div class="card-body">
+            <p>The Service may interact with third-party platforms using one or more of the following methods:</p>
+
+            <h6 class="text-primary mt-3">A. API-Based Integrations</h6>
+            <p>Where available, the Service uses official APIs provided by third-party platforms, subject to rate limits, permissions, and platform availability.</p>
+
+            <h6 class="text-primary mt-3">B. CSV-Based Imports & Exports</h6>
+            <p>CSV tools rely on user-supplied data and do not establish persistent access to third-party accounts. Data accuracy is the user's responsibility.</p>
+
+            <h6 class="text-primary mt-3">C. Browser or Session-Based Automation</h6>
+            <p>Certain features may simulate user actions through browser sessions or automation tools.</p>
+
+            <p class="mt-3"><strong>You acknowledge that:</strong></p>
+            <ul>
+                <li>Browser automation may be more sensitive to platform changes</li>
+                <li>Platform detection or blocking may occur</li>
+                <li>Availability and reliability are not guaranteed</li>
+            </ul>
+
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle"></i> <strong>The Service makes no representation that browser automation is supported or permitted by any third-party platform.</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5B. Automation Throttling -->
+    <div class="card mb-4 border-info" id="section-5b">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-tachometer-alt"></i> 5B. Automation Throttling, Rate Limits & Safeguards</h5>
+        </div>
+        <div class="card-body">
+            <p>The Service may apply automated safeguards to manage system stability, platform compatibility, and risk exposure, including but not limited to:</p>
+            <ul>
+                <li>Rate limits</li>
+                <li>Execution delays</li>
+                <li>Batch processing</li>
+                <li>Temporary pauses</li>
+                <li>Feature-specific throttles</li>
+                <li>Platform-specific caps</li>
+            </ul>
+
+            <h6 class="mt-3">Throttles may be applied:</h6>
+            <ul>
+                <li>Automatically by the system</li>
+                <li>Dynamically based on platform behavior</li>
+                <li>Per user, account, platform, or tier</li>
+            </ul>
+
+            <h6 class="mt-3">You acknowledge that:</h6>
+            <ul>
+                <li>Throttling may delay execution</li>
+                <li>Throttling may prevent certain actions</li>
+                <li>Throttles may change without notice</li>
+                <li>Throttling does not guarantee platform acceptance</li>
+            </ul>
+
+            <div class="alert alert-info">
+                <i class="fas fa-clock"></i> <strong>The Service does not guarantee real-time execution or completion of automated actions.</strong>
+            </div>
+
+            <div class="alert alert-secondary mt-3">
+                <i class="fas fa-layer-group"></i> <strong>Tier Notice:</strong> Free tiers may be subject to stricter automation throttles, reduced execution frequency, or delayed processing.
+            </div>
+
+            <!-- Advanced Disclosure -->
+            <details class="mt-3">
+                <summary class="btn btn-sm btn-outline-secondary"><i class="fas fa-cog"></i> Advanced: Execution Behavior Details</summary>
+                <div class="mt-3 p-3 border rounded">
+                    <p><strong>Automation Execution Behavior</strong></p>
+                    <p>Automation execution is subject to internal throttling designed to:</p>
+                    <ul>
+                        <li>Reduce platform detection risk</li>
+                        <li>Prevent accidental rapid actions</li>
+                        <li>Maintain system stability</li>
+                        <li>Respect platform rate constraints</li>
+                    </ul>
+                    <p><strong>Execution timing may vary based on:</strong></p>
+                    <ul>
+                        <li>Platform type</li>
+                        <li>Action frequency</li>
+                        <li>Account history</li>
+                        <li>System load</li>
+                        <li>Feature tier</li>
+                    </ul>
+                    <p class="text-muted mb-0"><em>Automation is best-effort, not guaranteed.</em></p>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    <!-- 6. Data Sharing -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-share-alt"></i> 6. Data Sharing</h5>
+        </div>
+        <div class="card-body">
+            <p>We may share data only with:</p>
+            <ul>
+                <li>Connected platforms (as instructed by the user)</li>
+                <li>Infrastructure providers (hosting, databases, logging)</li>
+                <li>Legal authorities when required by law</li>
+            </ul>
+            <div class="alert alert-info">
+                <i class="fas fa-user-shield"></i> <strong>We never share credentials with other users or third parties.</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. Data Retention -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-clock"></i> 7. Data Retention</h5>
+        </div>
+        <div class="card-body">
+            <p>We retain user data only for as long as necessary to provide the Service or comply with legal requirements.</p>
+            <p><strong>Users can:</strong></p>
+            <ul>
+                <li>Disconnect platforms</li>
+                <li>Delete data</li>
+                <li>Request account deletion</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 8. Security -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-lock"></i> 8. Security</h5>
+        </div>
+        <div class="card-body">
+            <p>We implement industry-standard safeguards including:</p>
+            <ul>
+                <li>Encryption at rest and in transit</li>
+                <li>Access controls</li>
+                <li>Audit logging</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 9. User Rights -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-user-check"></i> 9. User Rights</h5>
+        </div>
+        <div class="card-body">
+            <p>Depending on your jurisdiction (GDPR / CCPA), you may:</p>
+            <ul>
+                <li>Access your data</li>
+                <li>Correct inaccuracies</li>
+                <li>Delete your data</li>
+                <li>Withdraw consent</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 9A. Privacy Rights & Regional Disclosures -->
+    <div class="card mb-4 border-primary" id="section-9a">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-globe"></i> 9A. Privacy Rights & Regional Disclosures</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-primary"><i class="fas fa-flag"></i> GDPR (EU/EEA Users)</h6>
+                    <p>If you are located in the European Economic Area, you have the right to:</p>
+                    <ul>
+                        <li>Access your personal data</li>
+                        <li>Correct inaccurate data</li>
+                        <li>Request deletion</li>
+                        <li>Restrict or object to processing</li>
+                        <li>Data portability</li>
+                        <li>Withdraw consent</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-warning"><i class="fas fa-sun"></i> CCPA (California Residents)</h6>
+                    <p>California residents may:</p>
+                    <ul>
+                        <li>Request disclosure of collected data</li>
+                        <li>Request deletion</li>
+                        <li>Opt out of data sharing (if applicable)</li>
+                        <li>Not be discriminated against for exercising rights</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="alert alert-secondary mt-3">
+                <i class="fas fa-envelope"></i> <strong>To submit a request:</strong> Contact us through support channels. We respond within legally required timeframes.
+            </div>
+        </div>
+    </div>
+
+    <!-- 10. Children's Data -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-child"></i> 10. Children's Data</h5>
+        </div>
+        <div class="card-body">
+            <p>Our Service is not intended for users under 18.</p>
+        </div>
+    </div>
+
+    <!-- 11. Changes to This Policy -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-edit"></i> 11. Changes to This Policy</h5>
+        </div>
+        <div class="card-body">
+            <p>We may update this Privacy Policy. Continued use of the Service constitutes acceptance of changes.</p>
+        </div>
+    </div>
+
+    <!-- 12. Contact -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-envelope"></i> 12. Contact</h5>
+        </div>
+        <div class="card-body">
+            <p>Questions about this Privacy Policy? Contact us through the support channels available in your account settings.</p>
+        </div>
+    </div>
+
+    <hr class="my-5">
+
+    <!-- Appendix A - Platform Consent -->
+    <div class="card mb-4 border-danger" id="appendix-a">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0"><i class="fas fa-file-contract"></i> Appendix A – Third-Party Platform Authorization & Consent</h5>
+        </div>
+        <div class="card-body">
+            <p class="lead">By connecting a third-party platform to the Service, you expressly acknowledge and agree that:</p>
+
+            <h6 class="mt-4"><i class="fas fa-building"></i> Independent Platform Control</h6>
+            <p>Each connected platform operates independently and maintains its own terms, privacy policy, and enforcement mechanisms.</p>
+
+            <h6 class="mt-4"><i class="fas fa-key"></i> Authorization Scope</h6>
+            <p>You authorize the Service to access, read, write, modify, and transmit data to and from the connected platform strictly as required to perform the actions you configure.</p>
+
+            <h6 class="mt-4"><i class="fas fa-ban"></i> No Platform Endorsement</h6>
+            <p>The Service is not affiliated with, endorsed by, or sponsored by any third-party platform unless explicitly stated.</p>
+
+            <h6 class="mt-4"><i class="fas fa-user-tie"></i> User Responsibility</h6>
+            <p>You are solely responsible for ensuring that your use of the Service complies with the connected platform's rules.</p>
+
+            <h6 class="mt-4"><i class="fas fa-exclamation-triangle"></i> Automation Risk Acceptance</h6>
+            <p>You understand that automated actions may trigger platform safeguards, limits, suspensions, or account restrictions.</p>
+
+            <h6 class="mt-4"><i class="fas fa-unlink"></i> Revocation</h6>
+            <p>You may revoke access at any time by disconnecting the platform or deleting credentials.</p>
+
+            <div class="alert alert-dark mt-4">
+                <i class="fas fa-gavel"></i> <strong>This appendix documents your acknowledgment of platform risks and responsibilities at the time of connection.</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center text-muted mt-4 mb-5">
+        <small>Last updated: January 2026</small>
+    </div>
+</div>
+{% endblock %}

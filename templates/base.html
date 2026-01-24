@@ -1793,6 +1793,80 @@
 </nav>
 {% endif %}
 
+<!-- Minimal Footer -->
+<div class="text-center py-2 mb-5" style="opacity: 0.6;">
+    <small><a href="{{ url_for('privacy_policy') }}" class="text-muted text-decoration-none">Privacy Policy</a></small>
+</div>
+
+<!-- Platform Authorization Consent Modal -->
+<div class="modal fade" id="platformConsentModal" tabindex="-1" aria-labelledby="platformConsentModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="platformConsentModalLabel">
+                    <i class="fas fa-plug"></i> Authorize Platform Connection
+                </h5>
+            </div>
+            <div class="modal-body">
+                <p>You are about to connect a third-party platform to this Service.</p>
+                <p>By continuing, you authorize automated access to this account to perform actions you configure, subject to the platform's own terms and privacy policy.</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> <small>Automation may execute repeatedly or rapidly and may affect listings, pricing, visibility, or account status.</small>
+                </div>
+                <p><small>You confirm that you are authorized to access this account and accept responsibility for actions performed.</small></p>
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" id="platformConsentCheckbox">
+                    <label class="form-check-label" for="platformConsentCheckbox">
+                        <strong>I understand and authorize this connection.</strong>
+                    </label>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <a href="{{ url_for('privacy_policy') }}#appendix-a" target="_blank">View full platform authorization terms</a>
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" onclick="platformConsentDeclined()">Cancel</button>
+                <button type="button" class="btn btn-warning" id="platformConsentBtn" disabled onclick="platformConsentAccepted()">
+                    <i class="fas fa-link"></i> Authorize & Connect
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- High-Risk Automation Consent Modal -->
+<div class="modal fade" id="automationConsentModal" tabindex="-1" aria-labelledby="automationConsentModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="automationConsentModalLabel">
+                    <i class="fas fa-robot"></i> Automation Acknowledgment
+                </h5>
+            </div>
+            <div class="modal-body">
+                <p>You are enabling automation that will perform actions on your connected platforms.</p>
+                <div class="alert alert-info">
+                    <i class="fas fa-tachometer-alt"></i> <small>Automation actions may be rate-limited, delayed, or paused to reduce platform risk.</small>
+                </div>
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" id="automationConsentCheckbox">
+                    <label class="form-check-label" for="automationConsentCheckbox">
+                        <strong>I understand that automation may be throttled, delayed, or paused and does not guarantee platform acceptance.</strong>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" onclick="automationConsentDeclined()">Cancel</button>
+                <button type="button" class="btn btn-danger" id="automationConsentBtn" disabled onclick="automationConsentAccepted()">
+                    <i class="fas fa-play"></i> Enable Automation
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
     <script>
         // Loading spinner functions
         function showLoading() {
@@ -1877,6 +1951,69 @@
 
         // Initialize theme toggle when DOM is loaded
         document.addEventListener('DOMContentLoaded', initThemeToggle);
+
+        // Platform Consent Modal Functions
+        let platformConsentCallback = null;
+        let platformConsentDeclineCallback = null;
+
+        function showPlatformConsent(onAccept, onDecline) {
+            platformConsentCallback = onAccept;
+            platformConsentDeclineCallback = onDecline;
+            document.getElementById('platformConsentCheckbox').checked = false;
+            document.getElementById('platformConsentBtn').disabled = true;
+            const modal = new bootstrap.Modal(document.getElementById('platformConsentModal'));
+            modal.show();
+        }
+
+        function platformConsentAccepted() {
+            bootstrap.Modal.getInstance(document.getElementById('platformConsentModal')).hide();
+            if (platformConsentCallback) platformConsentCallback();
+        }
+
+        function platformConsentDeclined() {
+            if (platformConsentDeclineCallback) platformConsentDeclineCallback();
+        }
+
+        // Automation Consent Modal Functions
+        let automationConsentCallback = null;
+        let automationConsentDeclineCallback = null;
+
+        function showAutomationConsent(onAccept, onDecline) {
+            automationConsentCallback = onAccept;
+            automationConsentDeclineCallback = onDecline;
+            document.getElementById('automationConsentCheckbox').checked = false;
+            document.getElementById('automationConsentBtn').disabled = true;
+            const modal = new bootstrap.Modal(document.getElementById('automationConsentModal'));
+            modal.show();
+        }
+
+        function automationConsentAccepted() {
+            bootstrap.Modal.getInstance(document.getElementById('automationConsentModal')).hide();
+            if (automationConsentCallback) automationConsentCallback();
+        }
+
+        function automationConsentDeclined() {
+            if (automationConsentDeclineCallback) automationConsentDeclineCallback();
+        }
+
+        // Enable/disable consent buttons based on checkbox
+        document.addEventListener('DOMContentLoaded', function() {
+            const platformCheckbox = document.getElementById('platformConsentCheckbox');
+            const platformBtn = document.getElementById('platformConsentBtn');
+            if (platformCheckbox && platformBtn) {
+                platformCheckbox.addEventListener('change', function() {
+                    platformBtn.disabled = !this.checked;
+                });
+            }
+
+            const automationCheckbox = document.getElementById('automationConsentCheckbox');
+            const automationBtn = document.getElementById('automationConsentBtn');
+            if (automationCheckbox && automationBtn) {
+                automationCheckbox.addEventListener('change', function() {
+                    automationBtn.disabled = !this.checked;
+                });
+            }
+        });
     </script>
 
     <!-- Bootstrap JS Bundle (needed for modals, dropdowns, etc.) -->

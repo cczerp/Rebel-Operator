@@ -327,6 +327,11 @@ def hall_of_records():
         artifacts = []
     return render_template('hall_of_records.html', artifacts=artifacts)
 
+@app.route('/privacy')
+def privacy_policy():
+    """Privacy Policy - public access"""
+    return render_template('privacy_policy.html')
+
 @app.route('/post-listing')
 @login_required
 def post_listing_page():

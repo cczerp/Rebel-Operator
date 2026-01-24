@@ -706,8 +706,17 @@ def update_drafts():
             
             if "condition" in fields:
                 update_data["condition"] = fields["condition"]
-            
-            # Handle attributes (brand, size, color)
+
+            if "description" in fields:
+                update_data["description"] = fields["description"]
+
+            if "item_type" in fields:
+                update_data["item_type"] = fields["item_type"]
+
+            if "sku" in fields:
+                update_data["sku"] = fields["sku"]
+
+            # Handle attributes (brand, size, color, shipping_cost)
             attributes = listing.get("attributes")
             if attributes:
                 try:
@@ -716,14 +725,19 @@ def update_drafts():
                     attrs = {}
             else:
                 attrs = {}
-            
+
             if "brand" in fields:
                 attrs["brand"] = fields["brand"]
             if "size" in fields:
                 attrs["size"] = fields["size"]
             if "color" in fields:
                 attrs["color"] = fields["color"]
-            
+            if "shipping_cost" in fields:
+                try:
+                    attrs["shipping_cost"] = float(fields["shipping_cost"]) if fields["shipping_cost"] is not None else None
+                except (ValueError, TypeError):
+                    pass
+
             if attrs:
                 update_data["attributes"] = json.dumps(attrs)
             

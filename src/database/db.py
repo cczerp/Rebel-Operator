@@ -750,6 +750,53 @@ class Database:
             ON search_history(user_id, created_at DESC)
         """)
 
+        # eBay OAuth tokens - for Inventory API access
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ebay_tokens (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+
+                -- OAuth tokens (encrypted)
+                access_token TEXT NOT NULL,
+                refresh_token TEXT NOT NULL,
+
+                -- Token metadata
+                expires_at TIMESTAMP NOT NULL,
+                token_type VARCHAR(50) DEFAULT 'Bearer',
+
+                -- Environment tracking
+                environment VARCHAR(20) NOT NULL DEFAULT 'sandbox',
+
+                -- Scopes granted
+                scopes TEXT,
+
+                -- eBay user info (optional, for display)
+                ebay_user_id VARCHAR(255),
+                ebay_username VARCHAR(255),
+
+                -- Timestamps
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+                -- Foreign key to users table
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+
+                -- Ensure one active connection per user per environment
+                UNIQUE(user_id, environment)
+            )
+        """)
+
+        # Create indexes for ebay_tokens
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_ebay_tokens_user_id
+            ON ebay_tokens(user_id)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_ebay_tokens_expires_at
+            ON ebay_tokens(expires_at)
+        """)
+
         self.conn.commit()
         print("[SUCCESS] PostgreSQL tables created successfully")
 

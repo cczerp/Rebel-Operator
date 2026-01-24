@@ -4,13 +4,13 @@
 
 {% block extra_css %}
 <style>
-/* CSV-Style Table */
+/* Dark CSV-Style Table */
 .csv-container {
-    background: #fff;
-    border: 2px solid #dee2e6;
+    background: #1a1a2e;
+    border: 2px solid #f093fb;
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 20px rgba(240, 147, 251, 0.3);
 }
 
 .csv-header {
@@ -25,6 +25,7 @@
 .csv-table-wrapper {
     overflow-x: auto;
     max-height: calc(100vh - 250px);
+    background: #1a1a2e;
 }
 
 .csv-table {
@@ -33,24 +34,26 @@
     font-family: 'Courier New', monospace;
     font-size: 0.9rem;
     margin: 0;
+    background: #1a1a2e;
+    color: #e8e8e8;
 }
 
 .csv-table thead {
     position: sticky;
     top: 0;
     z-index: 10;
-    background: #f8f9fa;
-    border-bottom: 2px solid #dee2e6;
+    background: #16213e;
+    border-bottom: 2px solid #f093fb;
 }
 
 .csv-table th {
     padding: 0.75rem 1rem;
     text-align: left;
     font-weight: 700;
-    color: #495057;
-    border-right: 1px solid #dee2e6;
+    color: #f093fb;
+    border-right: 1px solid #3a3a5c;
     white-space: nowrap;
-    background: #f8f9fa;
+    background: #16213e;
 }
 
 .csv-table th:last-child {
@@ -58,41 +61,88 @@
 }
 
 .csv-table tbody tr {
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid #3a3a5c;
     transition: background-color 0.15s;
-    cursor: pointer;
 }
 
 .csv-table tbody tr:hover {
-    background-color: #fff3cd;
+    background-color: #2d2d4a;
 }
 
 .csv-table tbody tr:nth-child(even) {
-    background-color: #fafbfc;
+    background-color: #1f1f3a;
 }
 
 .csv-table tbody tr:nth-child(even):hover {
-    background-color: #fff3cd;
+    background-color: #2d2d4a;
 }
 
 .csv-table td {
     padding: 0.5rem 1rem;
-    border-right: 1px solid #e9ecef;
+    border-right: 1px solid #3a3a5c;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 300px;
+    color: #e8e8e8;
 }
 
 .csv-table td:last-child {
     border-right: none;
 }
 
+/* Editable cells */
+.csv-table td.editable {
+    cursor: text;
+    position: relative;
+}
+
+.csv-table td.editable:hover {
+    background-color: #3a3a5c;
+    outline: 1px dashed #f093fb;
+}
+
+.csv-table td.editing {
+    padding: 0;
+}
+
+.csv-table td.editing input,
+.csv-table td.editing select {
+    width: 100%;
+    height: 100%;
+    padding: 0.5rem;
+    border: 2px solid #f093fb;
+    background: #16213e;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.csv-table td.editing input:focus,
+.csv-table td.editing select:focus {
+    box-shadow: 0 0 8px rgba(240, 147, 251, 0.5);
+}
+
+/* Unsaved changes indicator */
+.has-changes {
+    background-color: #2a2a4a !important;
+}
+
+.has-changes::after {
+    content: '*';
+    color: #ffc107;
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-weight: bold;
+}
+
 /* Completeness progress bar */
 .completeness-bar {
     width: 100px;
     height: 20px;
-    background: #e9ecef;
+    background: #3a3a5c;
     border-radius: 10px;
     overflow: hidden;
     position: relative;
@@ -115,7 +165,7 @@
     justify-content: center;
     font-size: 0.75rem;
     font-weight: 700;
-    color: #495057;
+    color: #fff;
 }
 
 .completeness-low .completeness-fill {
@@ -124,23 +174,6 @@
 
 .completeness-medium .completeness-fill {
     background: linear-gradient(90deg, #ffc107 0%, #fd7e14 100%);
-}
-
-/* Target platforms pills */
-.platform-pills {
-    display: flex;
-    gap: 0.25rem;
-    flex-wrap: wrap;
-}
-
-.platform-pill {
-    display: inline-block;
-    padding: 0.2rem 0.5rem;
-    background: #e7f3ff;
-    color: #0056b3;
-    border-radius: 12px;
-    font-size: 0.7rem;
-    font-weight: 600;
 }
 
 /* Status badges */
@@ -158,35 +191,22 @@
 .status-published { background: #d1ecf1; color: #0c5460; }
 .status-archived { background: #e2e3e5; color: #383d41; }
 
-/* AI Enhanced indicator */
-.ai-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.2rem 0.5rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 12px;
-    font-size: 0.7rem;
-    font-weight: 600;
-}
-
 /* ID cells */
 .id-cell {
     font-family: 'Courier New', monospace;
-    color: #6c757d;
+    color: #aaa;
     font-size: 0.85rem;
 }
 
 /* Money values */
 .money {
     font-weight: 600;
-    color: #28a745;
+    color: #4ade80;
     font-family: 'Courier New', monospace;
 }
 
 .cost-value {
-    color: #dc3545;
+    color: #f87171;
 }
 
 /* Photo count */
@@ -194,22 +214,23 @@
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    color: #0d6efd;
+    color: #60a5fa;
     font-weight: 600;
 }
 
 .photo-count i {
-    color: #6c757d;
+    color: #9ca3af;
 }
 
-/* Actions */
+/* Actions bar */
 .csv-actions {
     padding: 1rem 1.5rem;
-    background: #f8f9fa;
-    border-top: 1px solid #dee2e6;
+    background: #16213e;
+    border-top: 1px solid #3a3a5c;
     display: flex;
     gap: 1rem;
     flex-wrap: wrap;
+    align-items: center;
 }
 
 .export-btn {
@@ -232,13 +253,38 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
+/* Save changes button */
+.save-changes-btn {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    border: none;
+    padding: 0.5rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: none;
+}
+
+.save-changes-btn.visible {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(240, 147, 251, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(240, 147, 251, 0); }
+}
+
 /* Stats bar */
 .stats-bar {
     display: flex;
     gap: 2rem;
     padding: 1rem 1.5rem;
-    background: #f8f9fa;
-    border-bottom: 1px solid #dee2e6;
+    background: #16213e;
+    border-bottom: 1px solid #3a3a5c;
 }
 
 .stat-item {
@@ -248,7 +294,7 @@
 
 .stat-label {
     font-size: 0.75rem;
-    color: #6c757d;
+    color: #9ca3af;
     text-transform: uppercase;
     font-weight: 600;
 }
@@ -256,7 +302,7 @@
 .stat-value {
     font-size: 1.25rem;
     font-weight: 700;
-    color: #495057;
+    color: #f093fb;
 }
 
 /* Loading */
@@ -266,7 +312,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(255,255,255,0.9);
+    background: rgba(26, 26, 46, 0.9);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -283,13 +329,18 @@
 .empty-state {
     text-align: center;
     padding: 4rem 2rem;
-    color: #6c757d;
+    color: #9ca3af;
 }
 
 .empty-state i {
     font-size: 4rem;
     margin-bottom: 1rem;
     opacity: 0.3;
+}
+
+/* Last updated text */
+.csv-actions .text-muted {
+    color: #9ca3af !important;
 }
 </style>
 {% endblock %}
@@ -372,6 +423,10 @@
 
     <!-- Actions -->
     <div class="csv-actions">
+        <button class="save-changes-btn" id="saveChangesBtn" onclick="saveAllChanges()">
+            <i class="fas fa-save"></i>
+            Save Changes (<span id="changeCount">0</span>)
+        </button>
         <button class="btn btn-primary" onclick="showImportModal()">
             <i class="fas fa-upload"></i>
             Import from CSV
@@ -514,11 +569,23 @@
 
 <script>
 let draftsData = [];
+let pendingChanges = {}; // { draftId: { field: newValue, ... }, ... }
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     loadDrafts();
 });
+
+// Parse JSON safely (photos and attributes come as JSON strings from DB)
+function parseJSON(value) {
+    if (!value) return null;
+    if (typeof value === 'object') return value;
+    try {
+        return JSON.parse(value);
+    } catch (e) {
+        return null;
+    }
+}
 
 // Load drafts from API
 async function loadDrafts() {
@@ -529,7 +596,13 @@ async function loadDrafts() {
         const response = await fetch('/api/drafts');
         const data = await response.json();
 
-        draftsData = data.drafts || [];
+        // Parse JSON fields for each draft
+        draftsData = (data.drafts || []).map(draft => {
+            draft.photos = parseJSON(draft.photos) || [];
+            draft.attributes = parseJSON(draft.attributes) || {};
+            return draft;
+        });
+
         renderTable(draftsData);
         updateStats(draftsData);
 
@@ -539,6 +612,169 @@ async function loadDrafts() {
         showError('Failed to load drafts');
     } finally {
         hideLoading();
+    }
+}
+
+// Editable field configurations
+const editableFields = {
+    'title': { type: 'text', dbField: 'title' },
+    'description': { type: 'text', dbField: 'description' },
+    'price': { type: 'number', dbField: 'price' },
+    'cost': { type: 'number', dbField: 'cost' },
+    'condition': { type: 'select', dbField: 'condition', options: ['new', 'like_new', 'excellent', 'good', 'fair', 'poor'] },
+    'item_type': { type: 'select', dbField: 'item_type', options: ['general', 'clothing', 'electronics', 'trading_card', 'collectible', 'home_garden', 'toys_games', 'books_media', 'jewelry', 'antiques'] },
+    'brand': { type: 'text', dbField: 'brand', isAttr: true },
+    'size': { type: 'text', dbField: 'size', isAttr: true },
+    'color': { type: 'text', dbField: 'color', isAttr: true },
+    'sku': { type: 'text', dbField: 'sku' },
+    'shipping_cost': { type: 'number', dbField: 'shipping_cost', isAttr: true }
+};
+
+// Make a cell editable
+function makeEditable(cell, draftId, fieldName, currentValue) {
+    const config = editableFields[fieldName];
+    if (!config) return;
+
+    cell.classList.add('editable');
+    cell.ondblclick = (e) => {
+        e.stopPropagation();
+        startEditing(cell, draftId, fieldName, currentValue, config);
+    };
+    cell.title = 'Double-click to edit';
+}
+
+// Start editing a cell
+function startEditing(cell, draftId, fieldName, currentValue, config) {
+    if (cell.classList.contains('editing')) return;
+
+    cell.classList.add('editing');
+    const originalHTML = cell.innerHTML;
+    const displayValue = currentValue === '-' || currentValue === null || currentValue === undefined ? '' : currentValue;
+
+    if (config.type === 'select') {
+        const select = document.createElement('select');
+        select.innerHTML = '<option value="">-</option>' +
+            config.options.map(opt => `<option value="${opt}" ${displayValue === opt ? 'selected' : ''}>${formatCondition(opt) || formatItemType(opt) || opt}</option>`).join('');
+
+        select.onblur = () => finishEditing(cell, draftId, fieldName, select.value, originalHTML);
+        select.onkeydown = (e) => {
+            if (e.key === 'Enter') select.blur();
+            if (e.key === 'Escape') { cell.innerHTML = originalHTML; cell.classList.remove('editing'); }
+        };
+
+        cell.innerHTML = '';
+        cell.appendChild(select);
+        select.focus();
+    } else {
+        const input = document.createElement('input');
+        input.type = config.type === 'number' ? 'number' : 'text';
+        input.value = displayValue.toString().replace('$', '');
+        if (config.type === 'number') input.step = '0.01';
+
+        input.onblur = () => finishEditing(cell, draftId, fieldName, input.value, originalHTML);
+        input.onkeydown = (e) => {
+            if (e.key === 'Enter') input.blur();
+            if (e.key === 'Escape') { cell.innerHTML = originalHTML; cell.classList.remove('editing'); }
+        };
+
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        input.focus();
+        input.select();
+    }
+}
+
+// Finish editing and record changes
+function finishEditing(cell, draftId, fieldName, newValue, originalHTML) {
+    cell.classList.remove('editing');
+
+    const config = editableFields[fieldName];
+    const draft = draftsData.find(d => d.id === draftId);
+    if (!draft) { cell.innerHTML = originalHTML; return; }
+
+    // Get original value for comparison
+    let originalValue;
+    if (config.isAttr) {
+        originalValue = draft.attributes?.[fieldName] || draft[fieldName] || '';
+    } else {
+        originalValue = draft[fieldName] || '';
+    }
+
+    // Normalize values for comparison
+    const normalizedNew = newValue === '' ? null : (config.type === 'number' ? parseFloat(newValue) : newValue);
+    const normalizedOrig = originalValue === '' || originalValue === '-' ? null : (config.type === 'number' ? parseFloat(originalValue) : originalValue);
+
+    // Check if value actually changed
+    if (normalizedNew === normalizedOrig) {
+        cell.innerHTML = originalHTML;
+        return;
+    }
+
+    // Record the change
+    if (!pendingChanges[draftId]) pendingChanges[draftId] = {};
+    pendingChanges[draftId][config.dbField] = normalizedNew;
+
+    // Update display
+    let displayValue = normalizedNew;
+    if (config.type === 'number' && normalizedNew !== null) {
+        displayValue = fieldName === 'shipping_cost' && normalizedNew === 0 ? 'Free' : '$' + parseFloat(normalizedNew).toFixed(2);
+    } else if (fieldName === 'condition') {
+        displayValue = formatCondition(normalizedNew) || '-';
+    } else if (fieldName === 'item_type') {
+        displayValue = formatItemType(normalizedNew) || '-';
+    }
+
+    cell.textContent = displayValue || '-';
+    cell.classList.add('has-changes');
+
+    // Update save button visibility
+    updateSaveButton();
+}
+
+// Update the save button visibility
+function updateSaveButton() {
+    const changeCount = Object.keys(pendingChanges).length;
+    const btn = document.getElementById('saveChangesBtn');
+    const countSpan = document.getElementById('changeCount');
+
+    if (changeCount > 0) {
+        btn.classList.add('visible');
+        countSpan.textContent = changeCount;
+    } else {
+        btn.classList.remove('visible');
+    }
+}
+
+// Save all pending changes using the bulk update endpoint
+async function saveAllChanges() {
+    if (Object.keys(pendingChanges).length === 0) return;
+
+    showLoading();
+
+    try {
+        const response = await fetch('/api/update-drafts', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ changes: pendingChanges })
+        });
+
+        const result = await response.json();
+
+        hideLoading();
+
+        if (response.ok) {
+            alert(`Saved ${result.updated_count || Object.keys(pendingChanges).length} draft(s) successfully!`);
+            pendingChanges = {};
+            updateSaveButton();
+            // Reload to get fresh data
+            loadDrafts();
+        } else {
+            alert(`Save failed: ${result.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        hideLoading();
+        console.error('Error saving changes:', error);
+        alert(`Error saving changes: ${error.message}`);
     }
 }
 
@@ -558,98 +794,106 @@ function renderTable(data) {
 
     data.forEach(draft => {
         const tr = document.createElement('tr');
-        tr.style.cursor = 'pointer';
-        tr.onclick = () => window.location.href = `/create?draft_id=${draft.id}`;
-        tr.title = 'Click to edit this draft';
+        tr.dataset.draftId = draft.id;
 
         // Extract attributes (brand, size, color may be stored in attributes JSON)
         const attrs = draft.attributes || {};
         const brand = draft.brand || attrs.brand || '-';
         const size = draft.size || attrs.size || '-';
         const color = draft.color || attrs.color || '-';
-        const shippingCost = draft.shipping_cost || attrs.shipping_cost;
+        const shippingCost = draft.shipping_cost ?? attrs.shipping_cost;
 
-        // ID
+        // ID (clickable to go to edit page)
         const idCell = document.createElement('td');
         idCell.className = 'id-cell';
-        idCell.textContent = draft.id || '-';
+        idCell.innerHTML = `<a href="/create?draft_id=${draft.id}" style="color: #60a5fa; text-decoration: none;" title="Open in full editor">${draft.id || '-'}</a>`;
         tr.appendChild(idCell);
 
-        // Photos (count with thumbnail)
+        // Photos (count with icon) - photos are now properly parsed
         const photosCell = document.createElement('td');
         const photos = draft.photos || [];
         const photoCount = Array.isArray(photos) ? photos.length : 0;
-        if (photoCount > 0 && photos[0]) {
+        if (photoCount > 0) {
             photosCell.innerHTML = `<span class="photo-count" title="${photoCount} photo(s)"><i class="fas fa-image"></i> ${photoCount}</span>`;
         } else {
-            photosCell.innerHTML = `<span class="text-muted"><i class="fas fa-image"></i> 0</span>`;
+            photosCell.innerHTML = `<span style="color: #6b7280;"><i class="fas fa-image"></i> 0</span>`;
         }
         tr.appendChild(photosCell);
 
-        // Title
+        // Title (editable)
         const titleCell = document.createElement('td');
         titleCell.textContent = draft.title || 'Untitled';
         titleCell.style.maxWidth = '200px';
+        makeEditable(titleCell, draft.id, 'title', draft.title);
         tr.appendChild(titleCell);
 
-        // Description (truncated)
+        // Description (editable)
         const descCell = document.createElement('td');
         const desc = draft.description || '';
         descCell.textContent = desc.length > 40 ? desc.substring(0, 40) + '...' : (desc || '-');
         descCell.style.maxWidth = '150px';
-        descCell.title = desc;
+        makeEditable(descCell, draft.id, 'description', draft.description);
         tr.appendChild(descCell);
 
-        // Price
+        // Price (editable)
         const priceCell = document.createElement('td');
         priceCell.className = 'money';
         priceCell.textContent = draft.price ? '$' + parseFloat(draft.price).toFixed(2) : '-';
+        makeEditable(priceCell, draft.id, 'price', draft.price);
         tr.appendChild(priceCell);
 
-        // Cost
+        // Cost (editable)
         const costCell = document.createElement('td');
         costCell.className = draft.cost ? 'money cost-value' : '';
         costCell.textContent = draft.cost ? '$' + parseFloat(draft.cost).toFixed(2) : '-';
+        makeEditable(costCell, draft.id, 'cost', draft.cost);
         tr.appendChild(costCell);
 
-        // Condition
+        // Condition (editable dropdown)
         const conditionCell = document.createElement('td');
         conditionCell.textContent = formatCondition(draft.condition) || '-';
+        makeEditable(conditionCell, draft.id, 'condition', draft.condition);
         tr.appendChild(conditionCell);
 
-        // Item Type
+        // Item Type (editable dropdown)
         const typeCell = document.createElement('td');
         typeCell.textContent = formatItemType(draft.item_type) || '-';
+        makeEditable(typeCell, draft.id, 'item_type', draft.item_type);
         tr.appendChild(typeCell);
 
-        // Brand
+        // Brand (editable)
         const brandCell = document.createElement('td');
         brandCell.textContent = brand;
+        makeEditable(brandCell, draft.id, 'brand', brand === '-' ? '' : brand);
         tr.appendChild(brandCell);
 
-        // Size
+        // Size (editable)
         const sizeCell = document.createElement('td');
         sizeCell.textContent = size;
+        makeEditable(sizeCell, draft.id, 'size', size === '-' ? '' : size);
         tr.appendChild(sizeCell);
 
-        // Color
+        // Color (editable)
         const colorCell = document.createElement('td');
         colorCell.textContent = color;
+        makeEditable(colorCell, draft.id, 'color', color === '-' ? '' : color);
         tr.appendChild(colorCell);
 
-        // SKU
+        // SKU (editable)
         const skuCell = document.createElement('td');
         skuCell.className = 'id-cell';
         skuCell.textContent = draft.sku || '-';
+        makeEditable(skuCell, draft.id, 'sku', draft.sku);
         tr.appendChild(skuCell);
 
-        // Shipping Cost
+        // Shipping Cost (editable)
         const shippingCell = document.createElement('td');
         if (shippingCost !== undefined && shippingCost !== null) {
             shippingCell.textContent = parseFloat(shippingCost) === 0 ? 'Free' : '$' + parseFloat(shippingCost).toFixed(2);
         } else {
             shippingCell.textContent = '-';
         }
+        makeEditable(shippingCell, draft.id, 'shipping_cost', shippingCost);
         tr.appendChild(shippingCell);
 
         // Completeness (calculated)
@@ -734,12 +978,16 @@ function formatItemType(itemType) {
 function calculateCompleteness(draft) {
     const attrs = draft.attributes || {};
 
+    // Photos are now properly parsed as an array
+    const photos = Array.isArray(draft.photos) ? draft.photos : [];
+    const hasPhotos = photos.length > 0;
+
     // Required fields (weighted more heavily)
     const requiredFields = [
         { name: 'title', value: draft.title, weight: 15 },
         { name: 'description', value: draft.description, weight: 15 },
         { name: 'price', value: draft.price, weight: 15 },
-        { name: 'photos', value: (draft.photos && draft.photos.length > 0), weight: 15 },
+        { name: 'photos', value: hasPhotos, weight: 15 },
         { name: 'condition', value: draft.condition, weight: 10 }
     ];
 
@@ -751,7 +999,7 @@ function calculateCompleteness(draft) {
         { name: 'size', value: draft.size || attrs.size, weight: 3 },
         { name: 'color', value: draft.color || attrs.color, weight: 3 },
         { name: 'sku', value: draft.sku, weight: 3 },
-        { name: 'shipping_cost', value: draft.shipping_cost || attrs.shipping_cost, weight: 3 },
+        { name: 'shipping_cost', value: draft.shipping_cost ?? attrs.shipping_cost, weight: 3 },
         { name: 'category', value: draft.category, weight: 3 }
     ];
 

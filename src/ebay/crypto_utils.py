@@ -10,7 +10,7 @@ import os
 import base64
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
 from cryptography.hazmat.backends import default_backend
 
 
@@ -43,7 +43,7 @@ class TokenEncryption:
             )
 
         # Derive a proper Fernet key from SECRET_KEY using PBKDF2
-        kdf = PBKDF2HMAC(
+        kdf = PBKDF2(
             algorithm=hashes.SHA256(),
             length=32,
             salt=b'rebel_operator_ebay_tokens',  # Static salt for consistency

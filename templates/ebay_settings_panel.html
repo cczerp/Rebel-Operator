@@ -1,0 +1,218 @@
+<!-- eBay OAuth Settings Panel -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-shopping-cart"></i> eBay Integration
+        </h5>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">
+            Connect your eBay account to enable inventory sync and listing management.
+        </p>
+
+        <!-- Environment Toggle -->
+        <div class="mb-4">
+            <label class="form-label"><strong>Environment:</strong></label>
+            <div class="btn-group w-100" role="group">
+                <input type="radio" class="btn-check" name="ebayEnv" id="envSandbox" value="sandbox" {% if current_env == 'sandbox' %}checked{% endif %}>
+                <label class="btn btn-outline-primary" for="envSandbox">
+                    <i class="fas fa-flask"></i> Sandbox (Testing)
+                </label>
+
+                <input type="radio" class="btn-check" name="ebayEnv" id="envProduction" value="production" {% if current_env == 'production' %}checked{% endif %}>
+                <label class="btn btn-outline-success" for="envProduction">
+                    <i class="fas fa-check-circle"></i> Production (Live)
+                </label>
+            </div>
+            <small class="text-muted d-block mt-2">
+                <i class="fas fa-info-circle"></i>
+                Start with Sandbox to test, then switch to Production for live listings.
+            </small>
+        </div>
+
+        <hr>
+
+        <!-- Sandbox Connection -->
+        <div id="sandboxSection" class="mb-4" {% if current_env != 'sandbox' %}style="display:none;"{% endif %}>
+            <h6 class="mb-3">
+                <i class="fas fa-flask"></i> Sandbox Environment
+            </h6>
+
+            {% if sandbox_connected %}
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    Connected as: <strong>{{ sandbox_info.ebay_username or 'eBay User' }}</strong>
+                    {% if sandbox_info.ebay_user_id %}
+                        <br><small class="text-muted">User ID: {{ sandbox_info.ebay_user_id }}</small>
+                    {% endif %}
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary" onclick="testEBayConnection('sandbox')">
+                        <i class="fas fa-sync"></i> Test Connection
+                    </button>
+                    <button class="btn btn-danger" onclick="disconnectEBay('sandbox')">
+                        <i class="fas fa-unlink"></i> Disconnect Sandbox
+                    </button>
+                </div>
+            {% else %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Not connected to eBay Sandbox
+                </div>
+
+                <div class="d-grid">
+                    <a href="/ebay/connect?env=sandbox" class="btn btn-primary">
+                        <i class="fas fa-link"></i> Connect to eBay Sandbox
+                    </a>
+                </div>
+
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <strong>Sandbox Testing:</strong> Use this to test without affecting real listings.
+                        You'll need eBay Sandbox credentials from the
+                        <a href="https://developer.ebay.com" target="_blank">eBay Developer Program</a>.
+                    </small>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Production Connection -->
+        <div id="productionSection" class="mb-4" {% if current_env != 'production' %}style="display:none;"{% endif %}>
+            <h6 class="mb-3">
+                <i class="fas fa-check-circle"></i> Production Environment
+            </h6>
+
+            {% if production_connected %}
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    Connected as: <strong>{{ production_info.ebay_username or 'eBay User' }}</strong>
+                    {% if production_info.ebay_user_id %}
+                        <br><small class="text-muted">User ID: {{ production_info.ebay_user_id }}</small>
+                    {% endif %}
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-success" onclick="testEBayConnection('production')">
+                        <i class="fas fa-sync"></i> Test Connection
+                    </button>
+                    <button class="btn btn-danger" onclick="disconnectEBay('production')">
+                        <i class="fas fa-unlink"></i> Disconnect Production
+                    </button>
+                </div>
+            {% else %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Not connected to eBay Production
+                </div>
+
+                <div class="d-grid">
+                    <a href="/ebay/connect?env=production" class="btn btn-success">
+                        <i class="fas fa-link"></i> Connect to eBay Production
+                    </a>
+                </div>
+
+                <div class="mt-3">
+                    <small class="text-danger">
+                        <strong>⚠️ Production Mode:</strong> This will connect to your real eBay account.
+                        Make sure you've tested in Sandbox first!
+                    </small>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Features Info -->
+        <hr>
+        <div class="mt-3">
+            <h6 class="mb-2">Features:</h6>
+            <ul class="small text-muted">
+                <li>✅ Inventory sync from eBay to Rebel Operator</li>
+                <li>✅ Automatic listing updates</li>
+                <li>✅ Real-time stock management</li>
+                <li>✅ Secure OAuth 2.0 authentication</li>
+                <li>✅ Automatic token refresh</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for eBay Settings -->
+<script>
+// Environment toggle
+document.querySelectorAll('input[name="ebayEnv"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const env = this.value;
+        document.getElementById('sandboxSection').style.display = (env === 'sandbox') ? 'block' : 'none';
+        document.getElementById('productionSection').style.display = (env === 'production') ? 'block' : 'none';
+    });
+});
+
+// Test eBay connection
+function testEBayConnection(env) {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+
+    fetch(`/ebay/test-connection?env=${env}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`✅ Connection successful!\n\neBay Username: ${data.ebay_username}\nEnvironment: ${data.environment}`);
+            } else {
+                alert(`❌ Connection failed:\n\n${data.error}`);
+            }
+        })
+        .catch(error => {
+            alert(`❌ Error testing connection:\n\n${error.message}`);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
+}
+
+// Disconnect from eBay
+function disconnectEBay(env) {
+    if (!confirm(`Are you sure you want to disconnect from eBay ${env}?\n\nYou will need to re-authenticate to use eBay features.`)) {
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('env', env);
+
+    fetch('/ebay/disconnect', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ Disconnected from eBay!');
+            location.reload();
+        } else {
+            alert(`❌ Failed to disconnect:\n\n${data.error}`);
+        }
+    })
+    .catch(error => {
+        alert(`❌ Error:\n\n${error.message}`);
+    });
+}
+</script>
+
+<style>
+/* eBay brand colors */
+.btn-check:checked + .btn-outline-primary {
+    background-color: #0064d2;
+    border-color: #0064d2;
+}
+
+.btn-check:checked + .btn-outline-success {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.card-header h5 {
+    color: #0064d2;
+}
+</style>

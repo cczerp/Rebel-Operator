@@ -160,22 +160,27 @@ def api_get_available_platforms():
         platforms = []
 
         for platform_id, searcher_class in SEARCHER_REGISTRY.items():
-            credentials = credentials_store.get(platform_id, {})
-            searcher = searcher_class(credentials)
+            try:
+                credentials = credentials_store.get(platform_id, {})
+                searcher = searcher_class(credentials)
 
-            is_available = searcher.is_available()
-            requires_auth = searcher.requires_auth()
+                is_available = searcher.is_available()
+                requires_auth = searcher.requires_auth()
 
-            # If it requires auth, check if user has credentials
-            has_credentials = bool(credentials) if requires_auth else True
+                # If it requires auth, check if user has credentials
+                has_credentials = bool(credentials) if requires_auth else True
 
-            platforms.append({
-                'name': searcher.platform_name,
-                'id': platform_id,
-                'available': is_available and has_credentials,
-                'requires_auth': requires_auth,
-                'has_credentials': has_credentials,
-            })
+                platforms.append({
+                    'name': searcher.platform_name,
+                    'id': platform_id,
+                    'available': is_available and has_credentials,
+                    'requires_auth': requires_auth,
+                    'has_credentials': has_credentials,
+                })
+            except Exception as searcher_error:
+                print(f"Error loading {platform_id} searcher: {searcher_error}")
+                # Skip this platform but continue with others
+                continue
 
         return jsonify({
             'success': True,
@@ -184,6 +189,8 @@ def api_get_available_platforms():
 
     except Exception as e:
         print(f"Platform list error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 

@@ -1291,6 +1291,438 @@ class FashionphileSearcher(BasePlatformSearcher):
         return results
 
 
+class RebagSearcher(BasePlatformSearcher):
+    """Rebag public search - luxury handbags"""
+
+    def get_platform_name(self) -> str:
+        return "Rebag"
+
+    def get_search_capability(self) -> SearchCapability:
+        return SearchCapability.SCRAPER_FRIENDLY
+
+    def search(self, query: SearchQuery) -> List[SearchResult]:
+        if not HAS_BS4:
+            return []
+        results = []
+        try:
+            search_url = f"https://shop.rebag.com/search?q={quote_plus(query.keywords)}"
+            headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
+            response = requests.get(search_url, headers=headers, timeout=15)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            items = soup.find_all('div', class_='product-tile')[:query.limit]
+            for item_div in items:
+                try:
+                    link = item_div.find('a', href=True)
+                    if not link:
+                        continue
+                    url = link['href']
+                    if not url.startswith('http'):
+                        url = f"https://shop.rebag.com{url}"
+                    listing_id = re.search(r'/products/([^/]+)', url)
+                    listing_id = listing_id.group(1) if listing_id else ''
+                    title_elem = item_div.find('div', class_='product-name')
+                    title = title_elem.text.strip() if title_elem else ''
+                    price_elem = item_div.find('span', class_='price')
+                    price = float(re.sub(r'[^\d.]', '', price_elem.text.strip())) if price_elem else 0.0
+                    img = item_div.find('img')
+                    thumbnail = img.get('src') or img.get('data-src') if img else None
+                    results.append(SearchResult(
+                        platform="Rebag", listing_id=listing_id, url=url,
+                        title=title, price=price, thumbnail_url=thumbnail
+                    ))
+                except Exception as e:
+                    print(f"Error parsing Rebag listing: {e}")
+                    continue
+        except Exception as e:
+            print(f"Rebag search error: {e}")
+        return results
+
+
+class ThredUpSearcher(BasePlatformSearcher):
+    """ThredUp public search - secondhand fashion"""
+
+    def get_platform_name(self) -> str:
+        return "ThredUp"
+
+    def get_search_capability(self) -> SearchCapability:
+        return SearchCapability.SCRAPER_FRIENDLY
+
+    def search(self, query: SearchQuery) -> List[SearchResult]:
+        if not HAS_BS4:
+            return []
+        results = []
+        try:
+            search_url = f"https://www.thredup.com/search?search_tags={quote_plus(query.keywords)}"
+            headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
+            response = requests.get(search_url, headers=headers, timeout=15)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            items = soup.find_all('article', class_='product-card')[:query.limit]
+            for item_div in items:
+                try:
+                    link = item_div.find('a', href=True)
+                    if not link:
+                        continue
+                    url = link['href']
+                    if not url.startswith('http'):
+                        url = f"https://www.thredup.com{url}"
+                    listing_id = re.search(r'/product/(\d+)', url)
+                    listing_id = listing_id.group(1) if listing_id else ''
+                    title_elem = item_div.find('div', class_='product-title')
+                    title = title_elem.text.strip() if title_elem else ''
+                    price_elem = item_div.find('span', class_='sale-price')
+                    price = float(re.sub(r'[^\d.]', '', price_elem.text.strip())) if price_elem else 0.0
+                    img = item_div.find('img')
+                    thumbnail = img.get('src') or img.get('data-src') if img else None
+                    results.append(SearchResult(
+                        platform="ThredUp", listing_id=listing_id, url=url,
+                        title=title, price=price, thumbnail_url=thumbnail
+                    ))
+                except Exception as e:
+                    print(f"Error parsing ThredUp listing: {e}")
+                    continue
+        except Exception as e:
+            print(f"ThredUp search error: {e}")
+        return results
+
+
+class CurtsySearcher(BasePlatformSearcher):
+    """Curtsy public search - women's fashion"""
+
+    def get_platform_name(self) -> str:
+        return "Curtsy"
+
+    def get_search_capability(self) -> SearchCapability:
+        return SearchCapability.SCRAPER_FRIENDLY
+
+    def search(self, query: SearchQuery) -> List[SearchResult]:
+        results = []
+        try:
+            # Curtsy has a public API
+            api_url = "https://api.curtsy.com/v2/items/search"
+            params = {'q': query.keywords, 'limit': min(query.limit, 50)}
+            headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
+            response = requests.get(api_url, params=params, headers=headers, timeout=15)
+            response.raise_for_status()
+            data = response.json()
+            items = data.get('items', [])
+            for item in items:
+                results.append(SearchResult(
+                    platform="Curtsy",
+                    listing_id=str(item.get('id', '')),
+                    url=f"https://www.curtsy.com/items/{item.get('id')}",
+                    title=item.get('title', ''),
+                    price=float(item.get('price', 0)),
+                    thumbnail_url=item.get('thumbnail_url')
+                ))
+        except Exception as e:
+            print(f"Curtsy search error: {e}")
+        return results
+
+
+class COMCSearcher(BasePlatformSearcher):
+    """COMC public search - sports cards"""
+
+    def get_platform_name(self) -> str:
+        return "COMC"
+
+    def get_search_capability(self) -> SearchCapability:
+        return SearchCapability.SCRAPER_FRIENDLY
+
+    def search(self, query: SearchQuery) -> List[SearchResult]:
+        if not HAS_BS4:
+            return []
+        results = []
+        try:
+            search_url = f"https://www.comc.com/Cards/Search/{quote_plus(query.keywords)}"
+            headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
+            response = requests.get(search_url, headers=headers, timeout=15)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            items = soup.find_all('div', class_='card-item')[:query.limit]
+            for item_div in items:
+                try:
+                    link = item_div.find('a', href=True)
+                    if not link:
+                        continue
+                    url = link['href']
+                    if not url.startswith('http'):
+                        url = f"https://www.comc.com{url}"
+                    listing_id = re.search(r'/(\d+)', url)
+                    listing_id = listing_id.group(1) if listing_id else ''
+                    title = link.get('title', '') or item_div.find('span', class_='card-title').text.strip() if item_div.find('span', class_='card-title') else ''
+                    price_elem = item_div.find('span', class_='price')
+                    price = float(re.sub(r'[^\d.]', '', price_elem.text.strip())) if price_elem else 0.0
+                    img = item_div.find('img')
+                    thumbnail = img.get('src') or img.get('data-src') if img else None
+                    results.append(SearchResult(
+                        platform="COMC", listing_id=listing_id, url=url,
+                        title=title, price=price, thumbnail_url=thumbnail
+                    ))
+                except Exception as e:
+                    print(f"Error parsing COMC listing: {e}")
+                    continue
+        except Exception as e:
+            print(f"COMC search error: {e}")
+        return results
+
+
+class SportlotsSearcher(BasePlatformSearcher):
+    """Sportlots public search - vintage sports cards"""
+
+    def get_platform_name(self) -> str:
+        return "Sportlots"
+
+    def get_search_capability(self) -> SearchCapability:
+        return SearchCapability.SCRAPER_FRIENDLY
+
+    def search(self, query: SearchQuery) -> List[SearchResult]:
+        if not HAS_BS4:
+            return []
+        results = []
+        try:
+            search_url = f"https://www.sportlots.com/search/{quote_plus(query.keywords)}"
+            headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
+            response = requests.get(search_url, headers=headers, timeout=15)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            items = soup.find_all('tr', class_='listing-row')[:query.limit]
+            for item_tr in items:
+                try:
+                    link = item_tr.find('a', href=True)
+                    if not link:
+                        continue
+                    url = link['href']
+                    if not url.startswith('http'):
+                        url = f"https://www.sportlots.com{url}"
+                    listing_id = re.search(r'lot=(\d+)', url)
+                    listing_id = listing_id.group(1) if listing_id else ''
+                    title = link.text.strip()
+                    price_elem = item_tr.find('td', class_='price')
+                    price = float(re.sub(r'[^\d.]', '', price_elem.text.strip())) if price_elem else 0.0
+                    results.append(SearchResult(
+                        platform="Sportlots", listing_id=listing_id, url=url,
+                        title=title, price=price, thumbnail_url=None
+                    ))
+                except Exception as e:
+                    print(f"Error parsing Sportlots listing: {e}")
+                    continue
+        except Exception as e:
+            print(f"Sportlots search error: {e}")
+        return results
+
+
+class MySlabsSearcher(BasePlatformSearcher):
+    """MySlabs public search - graded cards"""
+
+    def get_platform_name(self) -> str:
+        return "MySlabs"
+
+    def get_search_capability(self) -> SearchCapability:
+        return SearchCapability.SCRAPER_FRIENDLY
+
+    def search(self, query: SearchQuery) -> List[SearchResult]:
+        if not HAS_BS4:
+            return []
+        results = []
+        try:
+            search_url = f"https://myslabs.com/search?q={quote_plus(query.keywords)}"
+            headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
+            response = requests.get(search_url, headers=headers, timeout=15)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            items = soup.find_all('div', class_='slab-card')[:query.limit]
+            for item_div in items:
+                try:
+                    link = item_div.find('a', href=True)
+                    if not link:
+                        continue
+                    url = link['href']
+                    if not url.startswith('http'):
+                        url = f"https://myslabs.com{url}"
+                    listing_id = re.search(r'/(\d+)', url)
+                    listing_id = listing_id.group(1) if listing_id else ''
+                    title_elem = item_div.find('div', class_='slab-title')
+                    title = title_elem.text.strip() if title_elem else ''
+                    price_elem = item_div.find('span', class_='slab-price')
+                    price = float(re.sub(r'[^\d.]', '', price_elem.text.strip())) if price_elem else 0.0
+                    img = item_div.find('img')
+                    thumbnail = img.get('src') or img.get('data-src') if img else None
+                    results.append(SearchResult(
+                        platform="MySlabs", listing_id=listing_id, url=url,
+                        title=title, price=price, thumbnail_url=thumbnail
+                    ))
+                except Exception as e:
+                    print(f"Error parsing MySlabs listing: {e}")
+                    continue
+        except Exception as e:
+            print(f"MySlabs search error: {e}")
+        return results
+
+
+class AbeBooksSearcher(BasePlatformSearcher):
+    """AbeBooks public search - rare books"""
+
+    def get_platform_name(self) -> str:
+        return "AbeBooks"
+
+    def get_search_capability(self) -> SearchCapability:
+        return SearchCapability.SCRAPER_FRIENDLY
+
+    def search(self, query: SearchQuery) -> List[SearchResult]:
+        if not HAS_BS4:
+            return []
+        results = []
+        try:
+            search_url = f"https://www.abebooks.com/servlet/SearchResults?kn={quote_plus(query.keywords)}"
+            headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
+            response = requests.get(search_url, headers=headers, timeout=15)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            items = soup.find_all('div', class_='result-item')[:query.limit]
+            for item_div in items:
+                try:
+                    link = item_div.find('a', class_='title', href=True)
+                    if not link:
+                        continue
+                    url = link['href']
+                    if not url.startswith('http'):
+                        url = f"https://www.abebooks.com{url}"
+                    listing_id = re.search(r'tn=(\d+)', url)
+                    listing_id = listing_id.group(1) if listing_id else ''
+                    title = link.text.strip()
+                    price_elem = item_div.find('p', class_='item-price')
+                    price = float(re.sub(r'[^\d.]', '', price_elem.text.strip())) if price_elem else 0.0
+                    img = item_div.find('img', class_='book-img')
+                    thumbnail = img.get('src') or img.get('data-src') if img else None
+                    results.append(SearchResult(
+                        platform="AbeBooks", listing_id=listing_id, url=url,
+                        title=title, price=price, thumbnail_url=thumbnail
+                    ))
+                except Exception as e:
+                    print(f"Error parsing AbeBooks listing: {e}")
+                    continue
+        except Exception as e:
+            print(f"AbeBooks search error: {e}")
+        return results
+
+
+class BiblioSearcher(BasePlatformSearcher):
+    """Biblio public search - books"""
+
+    def get_platform_name(self) -> str:
+        return "Biblio"
+
+    def get_search_capability(self) -> SearchCapability:
+        return SearchCapability.SCRAPER_FRIENDLY
+
+    def search(self, query: SearchQuery) -> List[SearchResult]:
+        if not HAS_BS4:
+            return []
+        results = []
+        try:
+            search_url = f"https://www.biblio.com/search.php?keyisbn={quote_plus(query.keywords)}"
+            headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
+            response = requests.get(search_url, headers=headers, timeout=15)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            items = soup.find_all('div', class_='book-item')[:query.limit]
+            for item_div in items:
+                try:
+                    link = item_div.find('a', class_='title', href=True)
+                    if not link:
+                        continue
+                    url = link['href']
+                    if not url.startswith('http'):
+                        url = f"https://www.biblio.com{url}"
+                    listing_id = re.search(r'/(\d+)/', url)
+                    listing_id = listing_id.group(1) if listing_id else ''
+                    title = link.text.strip()
+                    price_elem = item_div.find('span', class_='price')
+                    price = float(re.sub(r'[^\d.]', '', price_elem.text.strip())) if price_elem else 0.0
+                    img = item_div.find('img')
+                    thumbnail = img.get('src') or img.get('data-src') if img else None
+                    results.append(SearchResult(
+                        platform="Biblio", listing_id=listing_id, url=url,
+                        title=title, price=price, thumbnail_url=thumbnail
+                    ))
+                except Exception as e:
+                    print(f"Error parsing Biblio listing: {e}")
+                    continue
+        except Exception as e:
+            print(f"Biblio search error: {e}")
+        return results
+
+
+class CarousellSearcher(BasePlatformSearcher):
+    """Carousell public search - Southeast Asia marketplace"""
+
+    def get_platform_name(self) -> str:
+        return "Carousell"
+
+    def get_search_capability(self) -> SearchCapability:
+        return SearchCapability.SCRAPER_FRIENDLY
+
+    def search(self, query: SearchQuery) -> List[SearchResult]:
+        results = []
+        try:
+            # Carousell has a public API
+            api_url = "https://www.carousell.com/api-service/filter/cf/4.0/search/"
+            params = {'query': query.keywords, 'count': min(query.limit, 50)}
+            headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
+            response = requests.get(api_url, params=params, headers=headers, timeout=15)
+            response.raise_for_status()
+            data = response.json()
+            items = data.get('data', {}).get('results', [])
+            for item in items:
+                results.append(SearchResult(
+                    platform="Carousell",
+                    listing_id=str(item.get('id', '')),
+                    url=f"https://www.carousell.com/p/{item.get('id')}",
+                    title=item.get('title', ''),
+                    price=float(item.get('price', 0)),
+                    thumbnail_url=item.get('photos', [{}])[0].get('thumbnail_url') if item.get('photos') else None
+                ))
+        except Exception as e:
+            print(f"Carousell search error: {e}")
+        return results
+
+
+class WallapopSearcher(BasePlatformSearcher):
+    """Wallapop public search - European classifieds"""
+
+    def get_platform_name(self) -> str:
+        return "Wallapop"
+
+    def get_search_capability(self) -> SearchCapability:
+        return SearchCapability.SCRAPER_FRIENDLY
+
+    def search(self, query: SearchQuery) -> List[SearchResult]:
+        results = []
+        try:
+            # Wallapop has a public search API
+            api_url = "https://api.wallapop.com/api/v3/general/search"
+            params = {'keywords': query.keywords, 'start': 0, 'end': min(query.limit, 40)}
+            headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
+            response = requests.get(api_url, params=params, headers=headers, timeout=15)
+            response.raise_for_status()
+            data = response.json()
+            items = data.get('search_objects', [])
+            for item in items:
+                results.append(SearchResult(
+                    platform="Wallapop",
+                    listing_id=str(item.get('id', '')),
+                    url=f"https://us.wallapop.com/item/{item.get('web_slug')}",
+                    title=item.get('title', ''),
+                    price=float(item.get('price', 0)),
+                    thumbnail_url=item.get('images', [{}])[0].get('medium') if item.get('images') else None
+                ))
+        except Exception as e:
+            print(f"Wallapop search error: {e}")
+        return results
+
+
 class FacebookMarketplaceSearcher(BasePlatformSearcher):
     """
     Facebook Marketplace - No external search allowed.
@@ -1338,7 +1770,7 @@ SEARCHER_REGISTRY = {
     'discogs': DiscogsSearcher,
     'amazon': AmazonSearcher,  # Requires PA-API credentials
 
-    # Public Search (10)
+    # Public Search (20)
     'mercari': MercariSearcher,
     'poshmark': PoshmarkSearcher,
     'grailed': GrailedSearcher,
@@ -1349,6 +1781,16 @@ SEARCHER_REGISTRY = {
     'therealreal': TheRealRealSearcher,
     'chairish': ChairishSearcher,
     'fashionphile': FashionphileSearcher,
+    'rebag': RebagSearcher,
+    'thredup': ThredUpSearcher,
+    'curtsy': CurtsySearcher,
+    'comc': COMCSearcher,
+    'sportlots': SportlotsSearcher,
+    'myslabs': MySlabsSearcher,
+    'abebooks': AbeBooksSearcher,
+    'biblio': BiblioSearcher,
+    'carousell': CarousellSearcher,
+    'wallapop': WallapopSearcher,
 
     # Unavailable
     'facebook': FacebookMarketplaceSearcher,

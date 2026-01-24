@@ -17,6 +17,15 @@ from datetime import datetime
 from urllib.parse import quote_plus
 import json
 import re
+import os
+
+# Disable proxy to allow direct connections
+os.environ['NO_PROXY'] = '*'
+os.environ['no_proxy'] = '*'
+
+# Configure requests session to bypass proxy
+session = requests.Session()
+session.trust_env = False  # Don't use environment proxy settings
 
 try:
     from bs4 import BeautifulSoup
@@ -77,7 +86,7 @@ class eBaySearcher(BasePlatformSearcher):
             params[f'itemFilter({filter_idx}).value'] = str(query.max_price)
 
         try:
-            response = requests.get(self.BASE_URL, params=params, timeout=10)
+            response = session.get(self.BASE_URL, params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
 
@@ -194,7 +203,7 @@ class EtsySearcher(BasePlatformSearcher):
             params['max_price'] = query.max_price
 
         try:
-            response = requests.get(self.BASE_URL, headers=headers, params=params, timeout=10)
+            response = session.get(self.BASE_URL, headers=headers, params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
 
@@ -269,7 +278,7 @@ class TCGplayerSearcher(BasePlatformSearcher):
         }
 
         try:
-            response = requests.get(self.BASE_URL, headers=headers, params=params, timeout=10)
+            response = session.get(self.BASE_URL, headers=headers, params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
 
@@ -342,7 +351,7 @@ class MercariSearcher(BasePlatformSearcher):
                 'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'
             }
 
-            response = requests.get(search_url, headers=headers, timeout=15)
+            response = session.get(search_url, headers=headers, timeout=15)
             response.raise_for_status()
 
             # Parse HTML
@@ -423,7 +432,7 @@ class PoshmarkSearcher(BasePlatformSearcher):
                 'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'
             }
 
-            response = requests.get(search_url, headers=headers, timeout=15)
+            response = session.get(search_url, headers=headers, timeout=15)
             response.raise_for_status()
 
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -522,7 +531,7 @@ class GrailedSearcher(BasePlatformSearcher):
                 'Accept': 'application/json'
             }
 
-            response = requests.get(graphql_url, params=params, headers=headers, timeout=15)
+            response = session.get(graphql_url, params=params, headers=headers, timeout=15)
             response.raise_for_status()
 
             data = response.json()
@@ -587,7 +596,7 @@ class DepopSearcher(BasePlatformSearcher):
                 'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'
             }
 
-            response = requests.get(api_url, params=params, headers=headers, timeout=15)
+            response = session.get(api_url, params=params, headers=headers, timeout=15)
             response.raise_for_status()
 
             data = response.json()
@@ -652,7 +661,7 @@ class BonanzaSearcher(BasePlatformSearcher):
                 'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'
             }
 
-            response = requests.get(search_url, headers=headers, timeout=15)
+            response = session.get(search_url, headers=headers, timeout=15)
             response.raise_for_status()
 
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -754,7 +763,7 @@ class ReverbSearcher(BasePlatformSearcher):
             if query.max_price:
                 params['price_max'] = int(query.max_price)
 
-            response = requests.get(self.BASE_URL, headers=headers, params=params, timeout=15)
+            response = session.get(self.BASE_URL, headers=headers, params=params, timeout=15)
             response.raise_for_status()
 
             data = response.json()
@@ -819,7 +828,7 @@ class DiscogsSearcher(BasePlatformSearcher):
                 'per_page': min(query.limit, 100),
             }
 
-            response = requests.get(self.BASE_URL, headers=headers, params=params, timeout=15)
+            response = session.get(self.BASE_URL, headers=headers, params=params, timeout=15)
             response.raise_for_status()
 
             data = response.json()
@@ -874,7 +883,7 @@ class RubyLaneSearcher(BasePlatformSearcher):
                 'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'
             }
 
-            response = requests.get(search_url, headers=headers, timeout=15)
+            response = session.get(search_url, headers=headers, timeout=15)
             response.raise_for_status()
 
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -967,7 +976,7 @@ class VintedSearcher(BasePlatformSearcher):
                 'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'
             }
 
-            response = requests.get(api_url, params=params, headers=headers, timeout=15)
+            response = session.get(api_url, params=params, headers=headers, timeout=15)
             response.raise_for_status()
 
             data = response.json()
@@ -1023,7 +1032,7 @@ class TheRealRealSearcher(BasePlatformSearcher):
                 'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'
             }
 
-            response = requests.get(search_url, headers=headers, timeout=15)
+            response = session.get(search_url, headers=headers, timeout=15)
             response.raise_for_status()
 
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -1109,7 +1118,7 @@ class ChairishSearcher(BasePlatformSearcher):
                 'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'
             }
 
-            response = requests.get(search_url, headers=headers, timeout=15)
+            response = session.get(search_url, headers=headers, timeout=15)
             response.raise_for_status()
 
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -1234,7 +1243,7 @@ class FashionphileSearcher(BasePlatformSearcher):
                 'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'
             }
 
-            response = requests.get(search_url, headers=headers, timeout=15)
+            response = session.get(search_url, headers=headers, timeout=15)
             response.raise_for_status()
 
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -1307,7 +1316,7 @@ class RebagSearcher(BasePlatformSearcher):
         try:
             search_url = f"https://shop.rebag.com/search?q={quote_plus(query.keywords)}"
             headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
-            response = requests.get(search_url, headers=headers, timeout=15)
+            response = session.get(search_url, headers=headers, timeout=15)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
             items = soup.find_all('div', class_='product-tile')[:query.limit]
@@ -1355,7 +1364,7 @@ class ThredUpSearcher(BasePlatformSearcher):
         try:
             search_url = f"https://www.thredup.com/search?search_tags={quote_plus(query.keywords)}"
             headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
-            response = requests.get(search_url, headers=headers, timeout=15)
+            response = session.get(search_url, headers=headers, timeout=15)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
             items = soup.find_all('article', class_='product-card')[:query.limit]
@@ -1403,7 +1412,7 @@ class CurtsySearcher(BasePlatformSearcher):
             api_url = "https://api.curtsy.com/v2/items/search"
             params = {'q': query.keywords, 'limit': min(query.limit, 50)}
             headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
-            response = requests.get(api_url, params=params, headers=headers, timeout=15)
+            response = session.get(api_url, params=params, headers=headers, timeout=15)
             response.raise_for_status()
             data = response.json()
             items = data.get('items', [])
@@ -1437,7 +1446,7 @@ class COMCSearcher(BasePlatformSearcher):
         try:
             search_url = f"https://www.comc.com/Cards/Search/{quote_plus(query.keywords)}"
             headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
-            response = requests.get(search_url, headers=headers, timeout=15)
+            response = session.get(search_url, headers=headers, timeout=15)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
             items = soup.find_all('div', class_='card-item')[:query.limit]
@@ -1484,7 +1493,7 @@ class SportlotsSearcher(BasePlatformSearcher):
         try:
             search_url = f"https://www.sportlots.com/search/{quote_plus(query.keywords)}"
             headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
-            response = requests.get(search_url, headers=headers, timeout=15)
+            response = session.get(search_url, headers=headers, timeout=15)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
             items = soup.find_all('tr', class_='listing-row')[:query.limit]
@@ -1529,7 +1538,7 @@ class MySlabsSearcher(BasePlatformSearcher):
         try:
             search_url = f"https://myslabs.com/search?q={quote_plus(query.keywords)}"
             headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
-            response = requests.get(search_url, headers=headers, timeout=15)
+            response = session.get(search_url, headers=headers, timeout=15)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
             items = soup.find_all('div', class_='slab-card')[:query.limit]
@@ -1577,7 +1586,7 @@ class AbeBooksSearcher(BasePlatformSearcher):
         try:
             search_url = f"https://www.abebooks.com/servlet/SearchResults?kn={quote_plus(query.keywords)}"
             headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
-            response = requests.get(search_url, headers=headers, timeout=15)
+            response = session.get(search_url, headers=headers, timeout=15)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
             items = soup.find_all('div', class_='result-item')[:query.limit]
@@ -1624,7 +1633,7 @@ class BiblioSearcher(BasePlatformSearcher):
         try:
             search_url = f"https://www.biblio.com/search.php?keyisbn={quote_plus(query.keywords)}"
             headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
-            response = requests.get(search_url, headers=headers, timeout=15)
+            response = session.get(search_url, headers=headers, timeout=15)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
             items = soup.find_all('div', class_='book-item')[:query.limit]
@@ -1671,7 +1680,7 @@ class CarousellSearcher(BasePlatformSearcher):
             api_url = "https://www.carousell.com/api-service/filter/cf/4.0/search/"
             params = {'query': query.keywords, 'count': min(query.limit, 50)}
             headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
-            response = requests.get(api_url, params=params, headers=headers, timeout=15)
+            response = session.get(api_url, params=params, headers=headers, timeout=15)
             response.raise_for_status()
             data = response.json()
             items = data.get('data', {}).get('results', [])
@@ -1705,7 +1714,7 @@ class WallapopSearcher(BasePlatformSearcher):
             api_url = "https://api.wallapop.com/api/v3/general/search"
             params = {'keywords': query.keywords, 'start': 0, 'end': min(query.limit, 40)}
             headers = {'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'}
-            response = requests.get(api_url, params=params, headers=headers, timeout=15)
+            response = session.get(api_url, params=params, headers=headers, timeout=15)
             response.raise_for_status()
             data = response.json()
             items = data.get('search_objects', [])

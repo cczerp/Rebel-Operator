@@ -33,7 +33,8 @@ class TokenEncryption:
             ValueError: If SECRET_KEY not set in environment
         """
         # Use Flask SECRET_KEY as base for encryption key
-        secret_key = os.getenv('SECRET_KEY')
+        # Check both common env var names
+        secret_key = os.getenv('SECRET_KEY') or os.getenv('FLASK_SECRET_KEY')
 
         if not secret_key:
             raise ValueError(

@@ -13,6 +13,7 @@ from flask import Blueprint, request, jsonify, render_template
 from flask_login import login_required, current_user
 from typing import Dict, List, Optional
 import json
+import os
 import requests
 
 from ..search import (
@@ -137,6 +138,25 @@ def api_search_multi_platform():
 # AVAILABLE PLATFORMS API
 # =============================================================================
 
+def _has_app_level_credentials(platform_id: str) -> bool:
+    """
+    Check if app-level credentials are configured via environment variables.
+
+    These platforms should be selected by default since they work without
+    user-specific credentials.
+    """
+    env_checks = {
+        'ebay': lambda: bool(os.environ.get('EBAY_PROD_B64') or
+                            (os.environ.get('EBAY_PROD_APP_ID') and os.environ.get('EBAY_PROD_CERT_ID'))),
+        'etsy': lambda: bool(os.environ.get('ETSY_API_KEY')),
+        'discogs': lambda: bool(os.environ.get('DISCOGS_CONSUMER_KEY') and os.environ.get('DISCOGS_CONSUMER_SECRET')),
+        'reverb': lambda: bool(os.environ.get('REVERB_TOKEN')),
+    }
+
+    check_fn = env_checks.get(platform_id.lower())
+    return check_fn() if check_fn else False
+
+
 @search_bp.route('/api/search/platforms', methods=['GET'])
 @login_required
 def api_get_available_platforms():
@@ -171,12 +191,16 @@ def api_get_available_platforms():
                 # If it requires auth, check if user has credentials
                 has_credentials = bool(credentials) if requires_auth else True
 
+                # Check if platform has app-level credentials (should be selected by default)
+                has_app_creds = _has_app_level_credentials(platform_id)
+
                 platforms.append({
                     'name': searcher.platform_name,
                     'id': platform_id,
                     'available': is_available and has_credentials,
                     'requires_auth': requires_auth,
                     'has_credentials': has_credentials,
+                    'default_selected': has_app_creds and is_available,
                 })
             except Exception as searcher_error:
                 print(f"Error loading {platform_id} searcher: {searcher_error}")

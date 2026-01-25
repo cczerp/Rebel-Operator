@@ -435,15 +435,20 @@ function renderPlatformToggles() {
         const toggle = document.createElement('div');
         toggle.className = 'platform-toggle';
 
-        if (platform.available) {
+        // Use default_selected for initial state (platforms with app-level API credentials)
+        // Fall back to available if default_selected not set (backwards compatibility)
+        const isSelected = platform.default_selected !== undefined ? platform.default_selected : platform.available;
+
+        if (isSelected && platform.available) {
             toggle.classList.add('active');
-        } else {
+        }
+        if (!platform.available) {
             toggle.classList.add('disabled');
         }
 
         toggle.innerHTML = `
             <input type="checkbox" id="platform_${platform.id}"
-                   ${platform.available ? 'checked' : ''}
+                   ${isSelected && platform.available ? 'checked' : ''}
                    ${!platform.available ? 'disabled' : ''}>
             <label for="platform_${platform.id}" style="cursor: pointer; margin: 0;">
                 ${platform.name}
@@ -451,7 +456,7 @@ function renderPlatformToggles() {
         `;
 
         if (!platform.available) {
-            toggle.title = platform.requires_auth ? 'API credentials required' : 'Not available yet';
+            toggle.title = platform.requires_auth ? 'Requires credentials in Settings' : 'Not available yet';
         }
 
         toggle.addEventListener('click', function(e) {

@@ -4,9 +4,11 @@ Platform Search Implementations
 Concrete searcher implementations for each supported platform.
 
 COMPLIANCE:
-- eBay: Official Finding API (public, no auth required for basic search)
+- eBay: Official Browse API (requires API key)
 - Etsy: Official Open API v3 (requires API key)
-- TCGplayer: Public catalog API
+- Discogs: Official API (optional key/secret for higher rate limits)
+- Reverb: Official API (requires API token)
+- TCGplayer: API DEPRECATED - no longer granting new API access (legacy only)
 - Mercari: Public listings (no official API, scraper-friendly)
 - Facebook Marketplace: No external search allowed
 """
@@ -187,9 +189,14 @@ class EtsySearcher(BasePlatformSearcher):
 
 class TCGplayerSearcher(BasePlatformSearcher):
     """
-    TCGplayer public catalog API.
+    TCGplayer catalog API (LEGACY - NO LONGER AVAILABLE TO NEW USERS).
 
-    Great for trading cards search.
+    IMPORTANT: TCGplayer is no longer granting new API access as of 2024.
+    Existing users with API keys can continue using them, but new applications
+    cannot obtain API access. This searcher is maintained for legacy users only.
+
+    See: https://docs.tcgplayer.com/docs/getting-started
+    "We are no longer granting new API access at this time."
     """
 
     BASE_URL = "https://api.tcgplayer.com/catalog/products"
@@ -198,17 +205,18 @@ class TCGplayerSearcher(BasePlatformSearcher):
         return "TCGplayer"
 
     def get_search_capability(self) -> SearchCapability:
+        # API exists but is not available to new users
         return SearchCapability.API_SEARCH
 
     def requires_auth(self) -> bool:
-        return True  # Requires bearer token
+        return True  # Requires bearer token (legacy users only)
 
     def search(self, query: SearchQuery) -> List[SearchResult]:
-        """Search TCGplayer catalog"""
+        """Search TCGplayer catalog (requires legacy API access)"""
         results = []
 
         if not self.credentials.get('bearer_token'):
-            print("TCGplayer search requires bearer token")
+            print("TCGplayer search requires bearer token (API no longer available to new users)")
             return results
 
         headers = {
@@ -736,10 +744,17 @@ class ReverbSearcher(BasePlatformSearcher):
 
 class DiscogsSearcher(BasePlatformSearcher):
     """
-    Discogs API searcher.
+    Discogs API searcher (Database Search).
 
-    Discogs has an official API for vinyl, CDs, and music collectibles.
+    Official API for vinyl, CDs, and music collectibles.
     https://www.discogs.com/developers
+
+    Authentication: Consumer Key + Secret via query params (not header).
+    - With auth: 60 requests/minute
+    - Without auth: 25 requests/minute
+
+    NOTE: This searches the Discogs DATABASE (catalog of releases).
+    Marketplace search (items for sale with prices) requires OAuth.
     """
 
     BASE_URL = "https://api.discogs.com/database/search"
@@ -751,27 +766,46 @@ class DiscogsSearcher(BasePlatformSearcher):
         return SearchCapability.API_SEARCH
 
     def requires_auth(self) -> bool:
-        return False  # Can use without auth, but has lower rate limits
+        return False  # Can use without auth, but has lower rate limits (25/min vs 60/min)
 
     def search(self, query: SearchQuery) -> List[SearchResult]:
-        """Search Discogs database"""
+        """
+        Search Discogs database.
+
+        Supports filtering by format (Vinyl, CD, Cassette, etc.) via query.condition field.
+        """
         results = []
 
         try:
+            # CRITICAL: Must use unique User-Agent or Discogs blocks you
             headers = {
                 'User-Agent': 'RebelOperator/1.0 +https://rebeloperator.com'
             }
 
-            # Add auth if available
-            if self.credentials.get('consumer_key') and self.credentials.get('consumer_secret'):
-                headers['Authorization'] = f"Discogs key={self.credentials['consumer_key']}, secret={self.credentials['consumer_secret']}"
-
+            # Build query params
             params = {
                 'q': query.keywords,
-                'per_page': min(query.limit, 100),
+                'type': 'release',  # Search releases (not masters, artists, labels)
+                'per_page': min(query.limit, 100),  # Max 100 per page
             }
 
+            # Add auth via query params if available (NOT header for key/secret auth)
+            if self.credentials.get('consumer_key') and self.credentials.get('consumer_secret'):
+                params['key'] = self.credentials['consumer_key']
+                params['secret'] = self.credentials['consumer_secret']
+
+            # Support format filtering (e.g., "Vinyl" for vinyl records)
+            # Can be passed via query.condition or a custom field
+            if hasattr(query, 'format') and query.format:
+                params['format'] = query.format
+
             response = session.get(self.BASE_URL, headers=headers, params=params, timeout=15)
+
+            # Handle rate limiting
+            if response.status_code == 429:
+                print("Discogs rate limit exceeded. Try again later.")
+                return results
+
             response.raise_for_status()
 
             data = response.json()
@@ -787,12 +821,21 @@ class DiscogsSearcher(BasePlatformSearcher):
 
     def _parse_item(self, item: Dict) -> SearchResult:
         """Parse Discogs search result"""
+        # Build full URL from uri path (uri is relative like "/Artist-Title/release/123456")
+        uri = item.get('uri', '')
+        full_url = f"https://www.discogs.com{uri}" if uri else ''
+
+        # Format info (e.g., ["Vinyl", "LP", "Album"])
+        formats = item.get('format', [])
+        format_str = ', '.join(formats) if formats else None
+
         return SearchResult(
             platform="Discogs",
             listing_id=str(item.get('id', '')),
-            url=item.get('uri', ''),
+            url=full_url,
             title=item.get('title', ''),
-            price=0.0,  # Discogs search doesn't include prices, need marketplace API
+            price=0.0,  # Database search doesn't include prices (need Marketplace API + OAuth)
+            condition=format_str,  # Store format info in condition field
             thumbnail_url=item.get('thumb', ''),
         )
 

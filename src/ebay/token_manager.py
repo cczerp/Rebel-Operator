@@ -22,7 +22,14 @@ class eBayTokenManager:
             db: Database instance
         """
         self.db = db
-        self.crypto = get_token_crypto()
+        self._crypto = None  # Lazy initialization
+
+    @property
+    def crypto(self):
+        """Lazy-load crypto to avoid startup crash if SECRET_KEY not set"""
+        if self._crypto is None:
+            self._crypto = get_token_crypto()
+        return self._crypto
 
     def save_tokens(
         self,

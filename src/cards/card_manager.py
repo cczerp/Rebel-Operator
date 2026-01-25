@@ -168,26 +168,34 @@ class CardCollectionManager:
         Returns:
             List of UnifiedCard objects
         """
-        cursor = self.db._get_cursor()
+        cursor = None
+        try:
+            cursor = self.db._get_cursor()
 
-        query = "SELECT * FROM card_collections WHERE user_id = %s"
-        params = [user_id]
+            query = "SELECT * FROM card_collections WHERE user_id::text = %s::text"
+            params = [user_id]
 
-        if card_type:
-            query += " AND card_type = %s"
-            params.append(card_type)
+            if card_type:
+                query += " AND card_type = %s"
+                params.append(card_type)
 
-        if organization_mode:
-            query += " AND organization_mode = %s"
-            params.append(organization_mode)
+            if organization_mode:
+                query += " AND organization_mode = %s"
+                params.append(organization_mode)
 
-        query += " ORDER BY created_at DESC LIMIT %s OFFSET %s"
-        params.extend([limit, offset])
+            query += " ORDER BY created_at DESC LIMIT %s OFFSET %s"
+            params.extend([limit, offset])
 
-        cursor.execute(query, params)
-        rows = cursor.fetchall()
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
 
-        return [UnifiedCard.from_dict(dict(row)) for row in rows]
+            return [UnifiedCard.from_dict(dict(row)) for row in rows]
+        finally:
+            if cursor:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
 
     def get_cards_by_organization(
         self,
@@ -242,30 +250,38 @@ class CardCollectionManager:
         Returns:
             List of matching cards
         """
-        cursor = self.db._get_cursor()
+        cursor = None
+        try:
+            cursor = self.db._get_cursor()
 
-        sql = """
-            SELECT * FROM card_collections
-            WHERE user_id = %s
-            AND (
-                title ILIKE %s OR
-                player_name ILIKE %s OR
-                set_name ILIKE %s OR
-                notes ILIKE %s
-            )
-        """
-        params = [user_id, f"%{query}%", f"%{query}%", f"%{query}%", f"%{query}%"]
+            sql = """
+                SELECT * FROM card_collections
+                WHERE user_id::text = %s::text
+                AND (
+                    title ILIKE %s OR
+                    player_name ILIKE %s OR
+                    set_name ILIKE %s OR
+                    notes ILIKE %s
+                )
+            """
+            params = [user_id, f"%{query}%", f"%{query}%", f"%{query}%", f"%{query}%"]
 
-        if card_type:
-            sql += " AND card_type = %s"
-            params.append(card_type)
+            if card_type:
+                sql += " AND card_type = %s"
+                params.append(card_type)
 
-        sql += " ORDER BY created_at DESC LIMIT 100"
+            sql += " ORDER BY created_at DESC LIMIT 100"
 
-        cursor.execute(sql, params)
-        rows = cursor.fetchall()
+            cursor.execute(sql, params)
+            rows = cursor.fetchall()
 
-        return [UnifiedCard.from_dict(dict(row)) for row in rows]
+            return [UnifiedCard.from_dict(dict(row)) for row in rows]
+        finally:
+            if cursor:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
 
     # ==========================================
     # CSV IMPORT/EXPORT
@@ -395,19 +411,27 @@ class CardCollectionManager:
         Returns:
             Dict with stats
         """
-        cursor = self.db._get_cursor()
+        cursor = None
+        try:
+            cursor = self.db._get_cursor()
 
-        cursor.execute("""
-            SELECT
-                COUNT(*) as total_cards,
-                SUM(quantity) as total_quantity,
-                COUNT(DISTINCT card_type) as card_types,
-                SUM(estimated_value) as total_value,
-                COUNT(CASE WHEN grading_company IS NOT NULL THEN 1 END) as graded_cards
-            FROM card_collections
-            WHERE user_id = %s
-        """, (user_id,))
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as total_cards,
+                    SUM(quantity) as total_quantity,
+                    COUNT(DISTINCT card_type) as card_types,
+                    SUM(estimated_value) as total_value,
+                    COUNT(CASE WHEN grading_company IS NOT NULL THEN 1 END) as graded_cards
+                FROM card_collections
+                WHERE user_id::text = %s::text
+            """, (user_id,))
 
-        row = cursor.fetchone()
+            row = cursor.fetchone()
 
-        return dict(row) if row else {}
+            return dict(row) if row else {}
+        finally:
+            if cursor:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass

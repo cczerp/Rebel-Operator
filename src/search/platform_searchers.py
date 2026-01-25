@@ -63,11 +63,17 @@ class eBaySearcher(BasePlatformSearcher):
         """Search eBay using Finding API"""
         results = []
 
+        # Get App ID from credentials or environment variable
+        app_id = self.credentials.get('app_id') or os.environ.get('EBAY_PROD_APP_ID')
+        if not app_id:
+            print("eBay search error: No App ID found in credentials or EBAY_PROD_APP_ID env var")
+            return results
+
         # eBay Finding API parameters
         params = {
             'OPERATION-NAME': 'findItemsAdvanced',
             'SERVICE-VERSION': '1.0.0',
-            'SECURITY-APPNAME': self.credentials.get('app_id', 'TESTAPPID'),  # Use credentials or test ID
+            'SECURITY-APPNAME': app_id,
             'RESPONSE-DATA-FORMAT': 'JSON',
             'REST-PAYLOAD': '',
             'keywords': query.keywords,

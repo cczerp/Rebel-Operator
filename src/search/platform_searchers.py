@@ -768,6 +768,26 @@ class DiscogsSearcher(BasePlatformSearcher):
     def requires_auth(self) -> bool:
         return False  # Can use without auth, but has lower rate limits (25/min vs 60/min)
 
+    def _get_credentials(self):
+        """
+        Get Discogs API credentials.
+
+        Priority: Environment variables > User credentials
+        Returns tuple of (consumer_key, consumer_secret) or (None, None)
+        """
+        # First check environment variables (app-level credentials)
+        consumer_key = os.environ.get('DISCOGS_CONSUMER_KEY')
+        consumer_secret = os.environ.get('DISCOGS_CONSUMER_SECRET')
+
+        if consumer_key and consumer_secret:
+            return consumer_key, consumer_secret
+
+        # Fall back to user credentials
+        if self.credentials.get('consumer_key') and self.credentials.get('consumer_secret'):
+            return self.credentials['consumer_key'], self.credentials['consumer_secret']
+
+        return None, None
+
     def search(self, query: SearchQuery) -> List[SearchResult]:
         """
         Search Discogs database.
@@ -790,9 +810,11 @@ class DiscogsSearcher(BasePlatformSearcher):
             }
 
             # Add auth via query params if available (NOT header for key/secret auth)
-            if self.credentials.get('consumer_key') and self.credentials.get('consumer_secret'):
-                params['key'] = self.credentials['consumer_key']
-                params['secret'] = self.credentials['consumer_secret']
+            # Env vars take priority, then user credentials
+            consumer_key, consumer_secret = self._get_credentials()
+            if consumer_key and consumer_secret:
+                params['key'] = consumer_key
+                params['secret'] = consumer_secret
 
             # Support format filtering (e.g., "Vinyl" for vinyl records)
             # Can be passed via query.condition or a custom field

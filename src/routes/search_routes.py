@@ -198,7 +198,7 @@ def api_get_available_platforms():
 # HELPER FUNCTIONS
 # =============================================================================
 
-def _get_user_credentials(user_id: int) -> Dict[str, Dict]:
+def _get_user_credentials(user_id) -> Dict[str, Dict]:
     """
     Fetch user's platform credentials from database.
 
@@ -208,10 +208,11 @@ def _get_user_credentials(user_id: int) -> Dict[str, Dict]:
     if not db:
         return {}
 
+    cursor = None
     try:
         cursor = db._get_cursor()
         cursor.execute("""
-            SELECT platform, credentials
+            SELECT platform, credentials_json
             FROM marketplace_credentials
             WHERE user_id = %s
         """, (user_id,))
@@ -219,17 +220,23 @@ def _get_user_credentials(user_id: int) -> Dict[str, Dict]:
         credentials_store = {}
         for row in cursor.fetchall():
             platform = row['platform'].lower() if isinstance(row, dict) else row[0].lower()
-            credentials = row['credentials'] if isinstance(row, dict) else row[1]
-            if isinstance(credentials, str):
-                credentials = json.loads(credentials)
-            credentials_store[platform] = credentials
+            credentials = row['credentials_json'] if isinstance(row, dict) else row[1]
+            if credentials:
+                if isinstance(credentials, str):
+                    credentials = json.loads(credentials)
+                credentials_store[platform] = credentials
 
-        cursor.close()
         return credentials_store
 
     except Exception as e:
         print(f"Error fetching credentials: {e}")
         return {}
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except Exception:
+                pass
 
 
 def _save_search_history(user_id: int, query: SearchQuery, result_count: int):

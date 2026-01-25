@@ -301,6 +301,126 @@ def settings_panel():
 
 
 # =============================================================================
+# DIAGNOSTIC ENDPOINTS
+# =============================================================================
+
+@ebay_bp.route('/diagnose')
+@login_required
+def diagnose():
+    """
+    Diagnose eBay API connectivity and configuration.
+
+    Tests both Browse API (client_credentials) and user OAuth tokens.
+    Returns detailed diagnostic information.
+    """
+    import base64
+
+    diagnostics = {
+        "credentials": {},
+        "browse_api": {},
+        "finding_api": {},
+        "user_oauth": {},
+        "recommendations": []
+    }
+
+    # Check environment variables
+    app_id = os.environ.get("EBAY_PROD_APP_ID")
+    cert_id = os.environ.get("EBAY_PROD_CERT_ID")
+    b64_upper = os.environ.get("EBAY_PROD_B64")
+    b64_lower = os.environ.get("EBAY_PROD_b64")
+
+    diagnostics["credentials"]["EBAY_PROD_APP_ID"] = "set" if app_id else "not set"
+    diagnostics["credentials"]["EBAY_PROD_CERT_ID"] = "set" if cert_id else "not set"
+    diagnostics["credentials"]["EBAY_PROD_B64"] = "set" if b64_upper else "not set"
+    diagnostics["credentials"]["EBAY_PROD_b64_lowercase"] = "set" if b64_lower else "not set"
+
+    if b64_lower and not b64_upper:
+        diagnostics["recommendations"].append(
+            "EBAY_PROD_b64 is set with lowercase - this will work but consider renaming to EBAY_PROD_B64"
+        )
+
+    # Test Browse API token
+    try:
+        from ..ebay.ebay_auth import get_ebay_token
+        token = get_ebay_token()
+        diagnostics["browse_api"]["token"] = "obtained successfully"
+        diagnostics["browse_api"]["token_preview"] = token[:20] + "..." if token else None
+
+        # Test a simple search
+        from ..ebay.ebay_search import search_ebay
+        test_result = search_ebay("iPhone", limit=3)
+        diagnostics["browse_api"]["test_search_query"] = "iPhone"
+        diagnostics["browse_api"]["test_search_total"] = test_result.get("total", 0)
+        diagnostics["browse_api"]["test_search_items_returned"] = len(test_result.get("items", []))
+
+        if test_result.get("total", 0) == 0:
+            diagnostics["browse_api"]["status"] = "working but no results"
+            diagnostics["recommendations"].append(
+                "Browse API returns 0 results. Check if Browse API is enabled in your eBay Developer Portal."
+            )
+        else:
+            diagnostics["browse_api"]["status"] = "fully working"
+
+    except Exception as e:
+        diagnostics["browse_api"]["status"] = "error"
+        diagnostics["browse_api"]["error"] = str(e)
+        diagnostics["recommendations"].append(f"Browse API error: {str(e)}")
+
+    # Test Finding API (uses app_id directly)
+    try:
+        from ..search.platform_searchers import eBaySearcher
+        from ..search.base_searcher import SearchQuery
+
+        credentials = {"app_id": app_id} if app_id else {}
+        searcher = eBaySearcher(credentials)
+        query = SearchQuery(keywords="iPhone", limit=3)
+        results = searcher.search(query)
+
+        diagnostics["finding_api"]["status"] = "working" if results else "no results"
+        diagnostics["finding_api"]["test_search_items"] = len(results)
+
+        if results:
+            diagnostics["finding_api"]["sample_title"] = results[0].title[:50] if results[0].title else None
+
+        if not results and app_id:
+            diagnostics["recommendations"].append(
+                "Finding API returned no results. Check if your App ID is correct and app is approved."
+            )
+
+    except Exception as e:
+        diagnostics["finding_api"]["status"] = "error"
+        diagnostics["finding_api"]["error"] = str(e)
+
+    # Check user OAuth tokens
+    try:
+        production_connected = token_manager.has_valid_tokens(current_user.id, 'production')
+        sandbox_connected = token_manager.has_valid_tokens(current_user.id, 'sandbox')
+
+        diagnostics["user_oauth"]["production_connected"] = production_connected
+        diagnostics["user_oauth"]["sandbox_connected"] = sandbox_connected
+
+        if production_connected:
+            info = token_manager.get_ebay_user_info(current_user.id, 'production')
+            diagnostics["user_oauth"]["production_username"] = info.get("ebay_username") if info else None
+
+    except Exception as e:
+        diagnostics["user_oauth"]["error"] = str(e)
+
+    # Summary
+    if diagnostics["browse_api"].get("status") == "fully working":
+        diagnostics["summary"] = "Everything is working correctly!"
+    elif diagnostics["finding_api"].get("status") == "working":
+        diagnostics["summary"] = "Finding API works. Browse API may need to be enabled in eBay Developer Portal."
+        diagnostics["recommendations"].append(
+            "Consider using multi-platform search (/api/search/multi-platform) which uses the Finding API."
+        )
+    else:
+        diagnostics["summary"] = "Both APIs have issues. Check your credentials and eBay app settings."
+
+    return jsonify(diagnostics)
+
+
+# =============================================================================
 # ACCOUNT EVENTS WEBHOOK
 # =============================================================================
 
@@ -308,7 +428,7 @@ def settings_panel():
 def ebay_account_events():
     """
     Handle eBay account events webhook.
-    
+
     Simply returns 200 OK as requested.
     """
     return "", 200

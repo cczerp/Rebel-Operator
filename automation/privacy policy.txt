@@ -1,0 +1,129 @@
+1. Introduction
+
+This Privacy Policy describes how [Your Company / Site Name] (“we,” “us,” “our”) collects, uses, stores, and shares information when you use our website, services, tools, and automation features (collectively, the “Service”).
+
+Our Service integrates with third-party platforms to assist users with listing management, inventory synchronization, analytics, and automation. Use of those third-party platforms remains governed by their respective privacy policies and terms.
+
+2. Information We Collect
+A. Information You Provide Directly
+
+• Account information (name, email, username)
+• Platform credentials or API tokens (when voluntarily provided)
+• Inventory data, listing metadata, pricing, descriptions
+• Uploaded CSV files or structured data
+• Support messages and communications
+
+Credentials are stored encrypted and used only to perform actions explicitly authorized by the user.
+
+B. Information Collected Automatically
+
+• IP address
+• Browser and device metadata
+• Usage logs and timestamps
+• Automation execution logs (non-content based)
+
+No biometric, no surveillance vibes.
+
+3. How We Use Your Information
+
+We use collected data solely to:
+
+• Execute user-requested automation
+• Sync listings, prices, and inventory across platforms
+• Detect duplicate listings
+• Provide analytics and estimates
+• Maintain system integrity and security
+• Comply with legal obligations
+
+We do not sell user data.
+We do not train AI models on private user data unless explicitly disclosed and opted into.
+
+That sentence matters.
+
+4. Third-Party Platform Integrations
+
+This is the critical section.
+
+Our Service connects to third-party platforms at the direction and authorization of the user. When you connect a platform account, you authorize us to access and process data as permitted by that platform and your account permissions.
+
+Important Clarifications:
+
+• Each platform retains independent control over its data
+• Each platform’s privacy policy continues to apply
+• We do not modify, override, or reinterpret platform rules
+• We act only as a technical intermediary
+
+You acknowledge that actions performed through automation are subject to the rules, limitations, and enforcement mechanisms of the connected platform.
+
+This protects you from bans, throttling, suspensions, etc.
+
+5. Automation & User Responsibility
+
+By enabling automation features, you acknowledge and agree that:
+• You are authorized to access the connected accounts
+• You understand the platform’s terms of service
+• You accept responsibility for actions initiated through automation
+• Automation executes exactly as configured by you
+
+We are not responsible for platform penalties resulting from user-configured automation.
+
+This is non-negotiable.
+
+6. Data Sharing
+
+We may share data only with:
+
+• Connected platforms (as instructed by the user)
+• Infrastructure providers (hosting, databases, logging)
+• Legal authorities when required by law
+
+We never share credentials with other users or third parties.
+
+7. Data Retention
+
+We retain user data only for as long as necessary to provide the Service or comply with legal requirements.
+
+Users can:
+• Disconnect platforms
+• Delete data
+• Request account deletion
+
+8. Security
+
+We implement industry-standard safeguards including encryption at rest and in transit, access controls, and audit logging.
+
+No promises of “perfect security.” Never say that.
+
+9. User Rights
+
+Depending on jurisdiction (GDPR / CCPA):
+
+• Access your data
+• Correct inaccuracies
+• Delete your data
+• Withdraw consent
+
+Provide a contact email.
+
+10. Children’s Data
+
+Our Service is not intended for users under 18.
+
+Simple.
+
+11. Changes to This Policy
+
+We may update this Privacy Policy. Continued use of the Service constitutes acceptance of changes.
+
+12. Contact
+
+Questions?
+privacy@[yourdomain].com
+
+OPTIONAL BUT SMART: PLATFORM CONSENT SCREEN
+
+Before users connect any platform, show a checkbox:
+
+☐ I understand that connecting this platform authorizes automated access subject to the platform’s own terms and privacy policy.
+
+This checkbox saves lives.

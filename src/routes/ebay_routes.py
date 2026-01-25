@@ -298,3 +298,17 @@ def settings_panel():
     except Exception as e:
         print(f"[ERROR] eBay settings panel error: {e}")
         return f'<div class="alert alert-danger">Error loading eBay settings: {str(e)}</div>'
+
+
+# =============================================================================
+# ACCOUNT EVENTS WEBHOOK
+# =============================================================================
+
+@ebay_bp.route('/account-events', methods=['POST'])
+def ebay_account_events():
+    """
+    Handle eBay account events webhook.
+    
+    Simply returns 200 OK as requested.
+    """
+    return "", 200

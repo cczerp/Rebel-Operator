@@ -195,6 +195,157 @@ def api_get_available_platforms():
 
 
 # =============================================================================
+# EBAY SEARCH API
+# =============================================================================
+
+@search_bp.route('/api/search/ebay')
+@limiter.limit("30 per minute")
+@login_required
+def api_search_ebay():
+    """
+    Search eBay using Buy Browse API with pagination and filters.
+
+    Query parameters:
+    - q: Search query (required)
+    - limit: Number of results (1-200, default 10)
+    - offset: Results offset (default 0)
+    - min_price: Minimum price filter
+    - max_price: Maximum price filter
+    - condition: Condition filter ("new", "used", etc.)
+
+    Response:
+    {
+        "query": "search term",
+        "total": 1234,
+        "limit": 10,
+        "offset": 0,
+        "next_offset": 10,
+        "items": [
+            {
+                "platform": "ebay",
+                "platform_item_id": "123456789",
+                "title": "Item Title",
+                "price": 29.99,
+                "currency": "USD",
+                "condition": "New",
+                "image": "https://...",
+                "url": "https://...",
+                "seller": "sellername",
+                "location": "US",
+                "shipping_cost": 5.99
+            }
+        ]
+    }
+    """
+    try:
+        from ...ebay.ebay_search import search_ebay
+
+        q = request.args.get("q", "").strip()
+        if not q:
+            return jsonify({"error": "missing query parameter 'q'"}), 400
+
+        limit = request.args.get("limit", 10, type=int)
+        offset = request.args.get("offset", 0, type=int)
+        min_price = request.args.get("min_price", type=float)
+        max_price = request.args.get("max_price", type=float)
+        condition = request.args.get("condition", type=str)
+
+        results = search_ebay(
+            q,
+            limit=limit,
+            offset=offset,
+            min_price=min_price,
+            max_price=max_price,
+            condition=condition
+        )
+        return jsonify(results)
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except requests.RequestException as e:
+        print(f"eBay API error: {e}")
+        return jsonify({"error": "eBay API request failed"}), 502
+    except Exception as e:
+        print(f"eBay search error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Internal server error"}), 500
+
+
+# =============================================================================
+# ETSY SEARCH API
+# =============================================================================
+
+@search_bp.route('/api/search/etsy')
+@limiter.limit("30 per minute")
+@login_required
+def api_search_etsy():
+    """
+    Search Etsy using Etsy API with pagination and filters.
+
+    Query parameters:
+    - q: Search query (required)
+    - limit: Number of results (1-100, default 10)
+    - offset: Results offset (default 0)
+    - min_price: Minimum price filter (in dollars)
+    - max_price: Maximum price filter (in dollars)
+
+    Response:
+    {
+        "query": "search term",
+        "total": 1234,
+        "limit": 10,
+        "offset": 0,
+        "next_offset": 10,
+        "items": [
+            {
+                "platform": "etsy",
+                "platform_item_id": "123456789",
+                "title": "Handmade Item",
+                "price": 29.99,
+                "currency": "USD",
+                "image": "https://...",
+                "url": "https://...",
+                "seller": "shopname",
+                "shop_name": "shopname"
+            }
+        ]
+    }
+    """
+    try:
+        from ...etsy.etsy_search import search_etsy
+
+        q = request.args.get("q", "").strip()
+        if not q:
+            return jsonify({"error": "missing query parameter 'q'"}), 400
+
+        limit = request.args.get("limit", 10, type=int)
+        offset = request.args.get("offset", 0, type=int)
+        min_price = request.args.get("min_price", type=float)
+        max_price = request.args.get("max_price", type=float)
+
+        results = search_etsy(
+            q,
+            limit=limit,
+            offset=offset,
+            min_price=min_price,
+            max_price=max_price
+        )
+        return jsonify(results)
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except requests.RequestException as e:
+        print(f"Etsy API error: {e}")
+        return jsonify({"error": "Etsy API request failed"}), 502
+    except Exception as e:
+        print(f"Etsy search error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Internal server error"}), 500
+
+
+# =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
 

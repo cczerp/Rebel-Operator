@@ -527,6 +527,38 @@ PLATFORM_CREDENTIALS_CONFIG = {
     }
 }
 
+# Platform capabilities registry
+PLATFORM_CAPABILITIES = {
+    "ebay": {
+        "search": "platform_api",
+        "auth": "app_only"
+    },
+    "etsy": {
+        "search": "platform_api",
+        "auth": "app_only"
+    },
+    "mercari": {
+        "search": "blocked",
+        "reason": "no_public_api"
+    },
+    "poshmark": {
+        "search": "web_scraping",
+        "auth": "user_credentials"
+    },
+    "facebook_marketplace": {
+        "search": "web_scraping",
+        "auth": "user_credentials"
+    },
+    "offerup": {
+        "search": "web_scraping",
+        "auth": "user_credentials"
+    },
+    "depop": {
+        "search": "web_scraping",
+        "auth": "user_credentials"
+    }
+}
+
 # Platform categories for organization
 PLATFORM_CATEGORIES = {
     "marketplace": "General Marketplaces",

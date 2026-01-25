@@ -48,7 +48,16 @@ These rules are proven patterns that must be followed exactly. They're distilled
 ✅ Gemini: API key in query param (?key=...)
 ✅ Claude: x-api-key header
 ✅ Supabase: Authorization Bearer header
+✅ eBay: Bearer token from Browse API (client_credentials)
 ❌ NEVER mix them up
+```
+
+### 6. eBay Integration
+```python
+✅ USE Browse API (https://api.ebay.com/buy/browse/v1/...)
+❌ NEVER use Finding API (svcs.ebay.com) - returns 500 errors, deprecated
+✅ Env var: EBAY_PROD_B64 (uppercase) or EBAY_PROD_APP_ID + EBAY_PROD_CERT_ID
+✅ Must enable Browse API in eBay Developer Portal
 ```
 
 ---

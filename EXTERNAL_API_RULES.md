@@ -355,3 +355,94 @@ response = requests.post(url, json=payload, timeout=30)
 8. **Strip all API keys** - Hidden whitespace causes silent failures
 9. **Different headers for different APIs** - Don't mix them up
 10. **Always set timeouts** - Requests can hang forever without them
+11. **eBay uses Browse API only** - Finding API is deprecated and returns 500 errors
+
+---
+
+## eBay API Integration
+
+### ✅ USE BROWSE API (Working)
+```
+Endpoint: https://api.ebay.com/buy/browse/v1/item_summary/search
+Auth: Bearer token (client_credentials)
+```
+
+### ❌ DO NOT USE FINDING API (Broken)
+```
+Endpoint: https://svcs.ebay.com/services/search/FindingService/v1
+Status: Returns 500 errors from eBay's servers - DEPRECATED
+```
+
+### ✅ REQUIRED ENVIRONMENT VARIABLES
+```bash
+# Option 1: Provide B64 directly (uppercase only!)
+EBAY_PROD_B64=base64_encoded_appid_colon_certid
+
+# Option 2: Let code auto-generate B64
+EBAY_PROD_APP_ID=your-app-id
+EBAY_PROD_CERT_ID=your-cert-id
+
+# The B64 value is: base64(APP_ID:CERT_ID)
+# Example: base64("Christop-rebelope-PRD-123:abc-def-456")
+```
+
+### ✅ BROWSE API SETUP REQUIREMENTS
+1. **Enable Browse API** in eBay Developer Portal (https://developer.ebay.com/my/keys)
+2. Click your Production keyset → API Access → Enable "Buy API - Browse"
+3. Uses `client_credentials` grant type (no user login required)
+4. Scope: `https://api.ebay.com/oauth/api_scope`
+
+### ✅ TOKEN REQUEST
+```python
+# Token endpoint
+POST https://api.ebay.com/identity/v1/oauth2/token
+
+# Headers
+Authorization: Basic {base64(APP_ID:CERT_ID)}
+Content-Type: application/x-www-form-urlencoded
+
+# Body
+grant_type=client_credentials
+scope=https://api.ebay.com/oauth/api_scope
+```
+
+### ✅ SEARCH REQUEST
+```python
+# Search endpoint
+GET https://api.ebay.com/buy/browse/v1/item_summary/search
+
+# Headers
+Authorization: Bearer {access_token}
+
+# Query params
+q=search+keywords
+limit=10
+offset=0
+```
+
+### ❌ CRITICAL MISTAKES
+- **WRONG**: `EBAY_PROD_b64` (lowercase) - Code expects `EBAY_PROD_B64` (uppercase)
+- **WRONG**: Using Finding API - Returns 500 errors, completely broken
+- **WRONG**: Skipping Browse API enablement in Developer Portal
+- **WRONG**: Using sandbox credentials in production or vice versa
+
+### ✅ CODE ARCHITECTURE
+```
+Multi-platform search page (/search)
+    └── eBaySearcher (platform_searchers.py)
+            └── search_ebay() (ebay_search.py)  ← Uses Browse API
+                    └── get_ebay_token() (ebay_auth.py)  ← Gets OAuth token
+
+Direct eBay search API (/api/search/ebay)
+    └── search_ebay() (ebay_search.py)  ← Same Browse API
+            └── get_ebay_token() (ebay_auth.py)
+```
+
+### ✅ DIAGNOSTIC ENDPOINT
+```
+GET /ebay/diagnose
+Returns: JSON with credentials status, API test results, recommendations
+Use this to troubleshoot eBay connectivity issues
+```
+
+---

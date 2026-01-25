@@ -124,7 +124,8 @@ def delete_csv_rows(filepath, headers, row_ids):
 # Universal CSV schema (same for drafts, vault, post_queue)
 UNIVERSAL_HEADERS = [
     'title', 'description', 'price', 'cost', 'condition', 'item_type',
-    'brand', 'size', 'color', 'shipping_cost', 'photos', 'created_at', 'updated_at'
+    'brand', 'size', 'color', 'shipping_cost', 'photos', 'created_at', 'updated_at',
+    'sku', 'bin_location'
 ]
 
 POST_QUEUE_HEADERS = UNIVERSAL_HEADERS + ['platform']
@@ -162,7 +163,9 @@ def save_draft_csv():
             'shipping_cost': str(data.get('shipping_cost', '0')),
             'photos': photos_str,
             'created_at': datetime.now().isoformat(),
-            'updated_at': datetime.now().isoformat()
+            'updated_at': datetime.now().isoformat(),
+            'sku': str(data.get('sku', '')),
+            'bin_location': str(data.get('bin_location', ''))
         }
 
         # 1. Save to CSV
@@ -204,7 +207,7 @@ def save_draft_csv():
                 attributes=attributes,
                 photos=photos if isinstance(photos, list) else [],
                 quantity=1,
-                storage_location='',
+                storage_location=data.get('bin_location', ''),
                 sku=data.get('sku', ''),
                 upc='',
                 status='draft'
@@ -253,7 +256,7 @@ def save_vault_csv():
         # Convert photos array to comma-separated string
         photos = data.get('photos', [])
         photos_str = ','.join(photos) if isinstance(photos, list) else str(photos) if photos else ''
-        
+
         # Prepare CSV row with all required fields
         csv_row = {
             'title': str(data.get('title', '')),
@@ -268,9 +271,11 @@ def save_vault_csv():
             'shipping_cost': str(data.get('shipping_cost', '0')),
             'photos': photos_str,
             'created_at': datetime.now().isoformat(),
-            'updated_at': datetime.now().isoformat()
+            'updated_at': datetime.now().isoformat(),
+            'sku': str(data.get('sku', '')),
+            'bin_location': str(data.get('bin_location', ''))
         }
-        
+
         # Append to CSV
         append_to_csv(VAULT_CSV, UNIVERSAL_HEADERS, csv_row)
         
@@ -313,11 +318,13 @@ def post_listing():
             'color': data.get('color', ''),
             'shipping_cost': data.get('shipping_cost', '0'),
             'photos': photos_str,
-            'platform': platform,
             'created_at': datetime.now().isoformat(),
-            'updated_at': datetime.now().isoformat()
+            'updated_at': datetime.now().isoformat(),
+            'sku': data.get('sku', ''),
+            'bin_location': data.get('bin_location', ''),
+            'platform': platform
         }
-        
+
         # Append to CSV
         append_to_csv(POST_QUEUE_CSV, POST_QUEUE_HEADERS, csv_row)
         

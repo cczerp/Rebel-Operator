@@ -326,18 +326,11 @@ def diagnose():
     # Check environment variables
     app_id = os.environ.get("EBAY_PROD_APP_ID")
     cert_id = os.environ.get("EBAY_PROD_CERT_ID")
-    b64_upper = os.environ.get("EBAY_PROD_B64")
-    b64_lower = os.environ.get("EBAY_PROD_b64")
+    b64 = os.environ.get("EBAY_PROD_B64")
 
     diagnostics["credentials"]["EBAY_PROD_APP_ID"] = "set" if app_id else "not set"
     diagnostics["credentials"]["EBAY_PROD_CERT_ID"] = "set" if cert_id else "not set"
-    diagnostics["credentials"]["EBAY_PROD_B64"] = "set" if b64_upper else "not set"
-    diagnostics["credentials"]["EBAY_PROD_b64_lowercase"] = "set" if b64_lower else "not set"
-
-    if b64_lower and not b64_upper:
-        diagnostics["recommendations"].append(
-            "EBAY_PROD_b64 is set with lowercase - this will work but consider renaming to EBAY_PROD_B64"
-        )
+    diagnostics["credentials"]["EBAY_PROD_B64"] = "set" if b64 else "auto-generated from APP_ID+CERT_ID" if (app_id and cert_id) else "not set"
 
     # Test Browse API token
     try:

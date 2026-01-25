@@ -39,10 +39,7 @@ def _get_ebay_b64_credentials():
     """
     Get base64-encoded eBay credentials for API authentication.
 
-    Tries multiple sources in order:
-    1. EBAY_PROD_B64 (uppercase)
-    2. EBAY_PROD_b64 (lowercase - common user error)
-    3. Auto-generate from EBAY_PROD_APP_ID and EBAY_PROD_CERT_ID
+    Uses EBAY_PROD_B64 or auto-generates from EBAY_PROD_APP_ID + EBAY_PROD_CERT_ID.
 
     Returns:
         str: Base64-encoded credentials string
@@ -50,14 +47,7 @@ def _get_ebay_b64_credentials():
     Raises:
         ValueError: If no credentials can be obtained
     """
-    # Try uppercase first (documented standard)
     auth_b64 = os.environ.get("EBAY_PROD_B64")
-
-    # Try lowercase (common user error)
-    if not auth_b64:
-        auth_b64 = os.environ.get("EBAY_PROD_b64")
-        if auth_b64:
-            print("[eBay Auth] Note: Using EBAY_PROD_b64 (lowercase). Consider renaming to EBAY_PROD_B64.")
 
     # Auto-generate from APP_ID and CERT_ID if B64 not provided
     if not auth_b64:
@@ -67,7 +57,6 @@ def _get_ebay_b64_credentials():
         if app_id and cert_id:
             credentials = f"{app_id}:{cert_id}"
             auth_b64 = base64.b64encode(credentials.encode()).decode()
-            print("[eBay Auth] Auto-generated B64 credentials from EBAY_PROD_APP_ID and EBAY_PROD_CERT_ID")
         else:
             raise ValueError(
                 "eBay credentials not found. Set either:\n"

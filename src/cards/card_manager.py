@@ -172,7 +172,7 @@ class CardCollectionManager:
         try:
             cursor = self.db._get_cursor()
 
-            query = "SELECT * FROM card_collections WHERE user_id::text = %s::text"
+            query = "SELECT * FROM card_collections WHERE user_id = %s"
             params = [user_id]
 
             if card_type:
@@ -256,7 +256,7 @@ class CardCollectionManager:
 
             sql = """
                 SELECT * FROM card_collections
-                WHERE user_id::text = %s::text
+                WHERE user_id = %s
                 AND (
                     title ILIKE %s OR
                     player_name ILIKE %s OR
@@ -423,7 +423,7 @@ class CardCollectionManager:
                     SUM(estimated_value) as total_value,
                     COUNT(CASE WHEN grading_company IS NOT NULL THEN 1 END) as graded_cards
                 FROM card_collections
-                WHERE user_id::text = %s::text
+                WHERE user_id = %s
             """, (user_id,))
 
             row = cursor.fetchone()

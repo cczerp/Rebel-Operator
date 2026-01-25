@@ -105,6 +105,8 @@ def search_ebay(
             except ValueError:
                 raise ValueError(f"Invalid condition: {condition}. Use 'new', 'used', or condition ID.")
 
+    print(f"[eBay Search] Searching for: '{query}' (limit={params['limit']}, offset={params['offset']})")
+
     response = _get_ebay_search_session().get(
         "https://api.ebay.com/buy/browse/v1/item_summary/search",
         headers={"Authorization": f"Bearer {token}"},
@@ -112,8 +114,32 @@ def search_ebay(
         timeout=10
     )
 
-    response.raise_for_status()
+    # Log response status
+    print(f"[eBay Search] Response status: {response.status_code}")
+
+    if response.status_code != 200:
+        print(f"[eBay Search] Error response: {response.text[:500]}")
+        response.raise_for_status()
+
     data = response.json()
+
+    # Log result counts for debugging
+    total = data.get("total", 0)
+    item_count = len(data.get("itemSummaries", []))
+    print(f"[eBay Search] API returned total={total}, items in response={item_count}")
+
+    # Check for warnings or errors in response
+    if "warnings" in data:
+        print(f"[eBay Search] Warnings: {data['warnings']}")
+    if "errors" in data:
+        print(f"[eBay Search] Errors: {data['errors']}")
+
+    # If no results, log helpful diagnostic info
+    if total == 0:
+        print(f"[eBay Search] No results found. This could mean:")
+        print(f"[eBay Search]   - No items match the query '{query}'")
+        print(f"[eBay Search]   - Browse API may not be enabled for your app")
+        print(f"[eBay Search]   - Try a common search term like 'iPhone' to test")
 
     # Normalize results
     normalized_items = []
@@ -128,8 +154,14 @@ def search_ebay(
         "limit": limit,
         "offset": offset,
         "items": normalized_items,
-        "raw_response": data  # Keep raw data for debugging
+        "api": "browse",  # Indicate which API was used
     }
+
+    # Add warnings/errors from API response if any
+    if "warnings" in data:
+        result["api_warnings"] = data["warnings"]
+    if "errors" in data:
+        result["api_errors"] = data["errors"]
 
     # Add next page URL if more results available
     if data.get("total", 0) > offset + limit:

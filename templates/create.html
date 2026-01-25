@@ -138,14 +138,32 @@
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <label class="form-label mb-0">SKU (Stock Keeping Unit)</label>
                     <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="autoGenerateSku" checked>
+                        <input class="form-check-input" type="checkbox" id="autoGenerateSku">
                         <label class="form-check-label" for="autoGenerateSku">
                             <small>Auto-generate</small>
                         </label>
                     </div>
                 </div>
-                <input type="text" class="form-control" id="sku" name="sku" placeholder="Auto-generated when saving" readonly>
-                <small class="text-muted" id="skuHelp">Toggle off to enter your own SKU</small>
+                <input type="text" class="form-control" id="sku" name="sku" placeholder="Enter your custom SKU">
+                <small class="text-muted" id="skuHelp">Toggle on to auto-generate SKU</small>
+            </div>
+
+            <!-- Storage Organization Toggle -->
+            <div class="mb-3 mt-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label mb-0">Storage Organization</label>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="storageOrganization">
+                        <label class="form-check-label" for="storageOrganization">
+                            <small>Track bin location</small>
+                        </label>
+                    </div>
+                </div>
+                <div id="binLocationContainer" style="display: none;">
+                    <input type="text" class="form-control" id="binLocation" name="bin_location" value="A1" placeholder="Enter bin label (e.g., A1, B2)">
+                    <small class="text-muted" id="binLocationHelp">Enter your storage bin label for easy finding</small>
+                </div>
+                <small class="text-muted" id="storageHelp">Toggle on to track where items are stored</small>
             </div>
         </div>
     </div>
@@ -2100,6 +2118,16 @@ function collectFormData() {
         data.sku = '';  // No SKU
     }
 
+    // Handle Storage Organization - check if bin location tracking is enabled
+    const storageOrganization = document.getElementById('storageOrganization');
+    const binLocationInput = document.getElementById('binLocation');
+
+    if (storageOrganization && storageOrganization.checked && binLocationInput) {
+        data.bin_location = binLocationInput.value.trim() || 'A1';
+    } else {
+        data.bin_location = '';  // No bin location tracking
+    }
+
     // Include draft_id if editing
     if (editingDraftId) {
         data.draft_id = editingDraftId;
@@ -2162,7 +2190,23 @@ async function loadDraftData() {
                     autoGenerateToggle.checked = false;
                 }
                 const skuHelp = document.getElementById('skuHelp');
-                if (skuHelp) skuHelp.textContent = 'Enter your own unique identifier';
+                if (skuHelp) skuHelp.textContent = 'Toggle on to auto-generate SKU';
+            }
+
+            // Load bin location - if draft has storage_location, show it and enable toggle
+            const binLocation = listing.storage_location || listing.bin_location;
+            if (binLocation && binLocation.trim()) {
+                const storageToggle = document.getElementById('storageOrganization');
+                const binLocationInput = document.getElementById('binLocation');
+                const binLocationContainer = document.getElementById('binLocationContainer');
+                const storageHelp = document.getElementById('storageHelp');
+
+                if (storageToggle && binLocationInput && binLocationContainer) {
+                    storageToggle.checked = true;
+                    binLocationInput.value = binLocation;
+                    binLocationContainer.style.display = 'block';
+                    if (storageHelp) storageHelp.style.display = 'none';
+                }
             }
 
             // Load photos
@@ -2300,13 +2344,35 @@ function setupSkuToggle() {
         } else {
             skuInput.readOnly = false;
             skuInput.placeholder = 'Enter your custom SKU';
-            skuHelp.textContent = 'Enter your own unique identifier';
+            skuHelp.textContent = 'Toggle on to auto-generate SKU';
         }
     });
 }
 
-// Initialize SKU toggle on page load
-document.addEventListener('DOMContentLoaded', setupSkuToggle);
+// Toggle Storage Organization
+function setupStorageOrganizationToggle() {
+    const toggle = document.getElementById('storageOrganization');
+    const binLocationContainer = document.getElementById('binLocationContainer');
+    const storageHelp = document.getElementById('storageHelp');
+
+    if (!toggle || !binLocationContainer) return;
+
+    toggle.addEventListener('change', function() {
+        if (this.checked) {
+            binLocationContainer.style.display = 'block';
+            storageHelp.style.display = 'none';
+        } else {
+            binLocationContainer.style.display = 'none';
+            storageHelp.style.display = 'block';
+        }
+    });
+}
+
+// Initialize toggles on page load
+document.addEventListener('DOMContentLoaded', function() {
+    setupSkuToggle();
+    setupStorageOrganizationToggle();
+});
 
 // Load draft data when page loads
 if (editingDraftId) {

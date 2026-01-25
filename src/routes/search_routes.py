@@ -13,6 +13,7 @@ from flask import Blueprint, request, jsonify, render_template
 from flask_login import login_required, current_user
 from typing import Dict, List, Optional
 import json
+import requests
 
 from ..search import (
     SearchAggregator,
@@ -199,7 +200,6 @@ def api_get_available_platforms():
 # =============================================================================
 
 @search_bp.route('/api/search/ebay')
-@limiter.limit("30 per minute")
 @login_required
 def api_search_ebay():
     """
@@ -238,7 +238,7 @@ def api_search_ebay():
     }
     """
     try:
-        from ...ebay.ebay_search import search_ebay
+        from ..ebay.ebay_search import search_ebay
 
         q = request.args.get("q", "").strip()
         if not q:
@@ -277,7 +277,6 @@ def api_search_ebay():
 # =============================================================================
 
 @search_bp.route('/api/search/etsy')
-@limiter.limit("30 per minute")
 @login_required
 def api_search_etsy():
     """
@@ -313,7 +312,7 @@ def api_search_etsy():
     }
     """
     try:
-        from ...etsy.etsy_search import search_etsy
+        from ..etsy.etsy_search import search_etsy
 
         q = request.args.get("q", "").strip()
         if not q:

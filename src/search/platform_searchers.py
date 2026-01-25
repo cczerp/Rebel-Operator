@@ -45,13 +45,10 @@ from .base_searcher import (
 
 class eBaySearcher(BasePlatformSearcher):
     """
-    eBay Finding API searcher.
+    eBay Browse API searcher.
 
-    Uses official eBay Finding API (public, no auth required for basic search).
-    https://developer.ebay.com/devzone/finding/Concepts/FindingAPIGuide.html
+    Uses official eBay Browse API for searching items.
     """
-
-    BASE_URL = "https://svcs.ebay.com/services/search/FindingService/v1"
 
     def get_platform_name(self) -> str:
         return "eBay"
@@ -60,99 +57,39 @@ class eBaySearcher(BasePlatformSearcher):
         return SearchCapability.API_SEARCH
 
     def search(self, query: SearchQuery) -> List[SearchResult]:
-        """Search eBay using Finding API"""
+        """Search eBay using Browse API"""
         results = []
 
-        # Get App ID from credentials or environment variable
-        app_id = self.credentials.get('app_id') or os.environ.get('EBAY_PROD_APP_ID')
-        if not app_id:
-            print("eBay search error: No App ID found in credentials or EBAY_PROD_APP_ID env var")
-            return results
-
-        # eBay Finding API parameters
-        params = {
-            'OPERATION-NAME': 'findItemsAdvanced',
-            'SERVICE-VERSION': '1.0.0',
-            'SECURITY-APPNAME': app_id,
-            'RESPONSE-DATA-FORMAT': 'JSON',
-            'REST-PAYLOAD': '',
-            'keywords': query.keywords,
-            'paginationInput.entriesPerPage': min(query.limit, 100),
-            'sortOrder': self._map_sort(query.sort_by),
-        }
-
-        # Add price filters if specified
-        if query.min_price is not None:
-            params['itemFilter(0).name'] = 'MinPrice'
-            params['itemFilter(0).value'] = str(query.min_price)
-
-        if query.max_price is not None:
-            filter_idx = 1 if query.min_price is not None else 0
-            params[f'itemFilter({filter_idx}).name'] = 'MaxPrice'
-            params[f'itemFilter({filter_idx}).value'] = str(query.max_price)
-
         try:
-            response = session.get(self.BASE_URL, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
+            # Import and use the working Browse API
+            from ..ebay.ebay_search import search_ebay
 
-            # Parse eBay response
-            search_result = data.get('findItemsAdvancedResponse', [{}])[0]
-            items = search_result.get('searchResult', [{}])[0].get('item', [])
+            # Call the Browse API search
+            api_results = search_ebay(
+                query.keywords,
+                limit=min(query.limit, 100),
+                min_price=query.min_price,
+                max_price=query.max_price
+            )
 
-            for item in items:
-                results.append(self._parse_item(item))
+            # Convert to SearchResult objects
+            for item in api_results.get("items", []):
+                results.append(SearchResult(
+                    platform="eBay",
+                    listing_id=item.get("platform_item_id", ""),
+                    url=item.get("url", ""),
+                    title=item.get("title", ""),
+                    price=float(item.get("price", 0)),
+                    shipping_cost=float(item.get("shipping_cost", 0)) if item.get("shipping_cost") else None,
+                    condition=item.get("condition"),
+                    thumbnail_url=item.get("image"),
+                    location=item.get("location"),
+                ))
 
         except Exception as e:
             print(f"eBay search error: {e}")
 
         return results
-
-    def _parse_item(self, item: Dict) -> SearchResult:
-        """Parse eBay Finding API item into SearchResult"""
-        item_id = item.get('itemId', [''])[0]
-        title = item.get('title', [''])[0]
-
-        # Price parsing
-        price_info = item.get('sellingStatus', [{}])[0].get('currentPrice', [{}])[0]
-        price = float(price_info.get('__value__', 0))
-
-        # Shipping
-        shipping_info = item.get('shippingInfo', [{}])[0]
-        shipping_cost_info = shipping_info.get('shippingServiceCost', [{}])[0]
-        shipping_cost = float(shipping_cost_info.get('__value__', 0)) if shipping_cost_info else 0.0
-
-        # Image
-        thumbnail = item.get('galleryURL', [''])[0]
-
-        # URL
-        url = item.get('viewItemURL', [''])[0]
-
-        # Condition
-        condition_info = item.get('condition', [{}])[0]
-        condition = condition_info.get('conditionDisplayName', [''])[0]
-
-        # Time
-        time_str = item.get('listingInfo', [{}])[0].get('startTime', [''])[0]
-        time_posted = None
-        if time_str:
-            try:
-                time_posted = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
-            except:
-                pass
-
-        return SearchResult(
-            platform="eBay",
-            listing_id=item_id,
-            url=url,
-            title=title,
-            price=price,
-            shipping_cost=shipping_cost if shipping_cost > 0 else None,
-            condition=condition,
-            thumbnail_url=thumbnail,
-            time_posted=time_posted,
-            location=item.get('location', [''])[0],
-        )
 
     def _map_sort(self, sort_by: str) -> str:
         """Map generic sort to eBay sort"""

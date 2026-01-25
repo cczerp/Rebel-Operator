@@ -675,6 +675,9 @@ class ReverbSearcher(BasePlatformSearcher):
     Reverb has an official public API for music gear.
     Requires personal access token.
     https://reverb.com/page/api
+
+    Get token from: https://reverb.com/my/api_settings
+    Tokens don't expire. Select search-related scopes for read-only access.
     """
 
     BASE_URL = "https://api.reverb.com/api/listings"
@@ -688,17 +691,32 @@ class ReverbSearcher(BasePlatformSearcher):
     def requires_auth(self) -> bool:
         return True
 
+    def _get_token(self):
+        """
+        Get Reverb API token.
+
+        Priority: Environment variable > User credentials
+        """
+        # First check environment variable (app-level token)
+        token = os.environ.get('REVERB_TOKEN')
+        if token:
+            return token
+
+        # Fall back to user credentials
+        return self.credentials.get('api_token')
+
     def search(self, query: SearchQuery) -> List[SearchResult]:
         """Search Reverb using API"""
         results = []
 
-        if not self.credentials.get('api_token'):
-            print("Reverb search requires API token")
+        token = self._get_token()
+        if not token:
+            print("Reverb search requires API token (set REVERB_TOKEN env var)")
             return []
 
         try:
             headers = {
-                'Authorization': f'Bearer {self.credentials["api_token"]}',
+                'Authorization': f'Bearer {token}',
                 'Accept': 'application/hal+json',
                 'Accept-Version': '3.0'
             }

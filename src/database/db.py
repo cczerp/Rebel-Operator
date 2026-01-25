@@ -94,6 +94,12 @@ class Database:
                 self._connect()
                 return
 
+            # First, rollback any aborted transactions
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass  # Ignore rollback errors
+
             # Test with a simple query (ensure cursor is closed)
             cursor = None
             try:
@@ -106,9 +112,17 @@ class Database:
                     except Exception:
                         pass
 
-        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+        except (psycopg2.OperationalError, psycopg2.InterfaceError, psycopg2.errors.InFailedSqlTransaction) as e:
             print(f"[WARNING] Connection error detected: {e}, reconnecting...")
             self._connect()
+        except psycopg2.Error as e:
+            # Catch any other psycopg2 errors and try to rollback
+            print(f"[WARNING] Database error in _ensure_connection: {e}, rolling back...")
+            try:
+                self.conn.rollback()
+            except Exception:
+                # If rollback fails, reconnect
+                self._connect()
 
     def _get_cursor(self):
         """Get PostgreSQL cursor with RealDictCursor for dict-like row access"""

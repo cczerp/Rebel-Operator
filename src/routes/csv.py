@@ -205,7 +205,7 @@ def save_draft_csv():
                 photos=photos if isinstance(photos, list) else [],
                 quantity=1,
                 storage_location='',
-                sku='',
+                sku=data.get('sku', ''),
                 upc='',
                 status='draft'
             )

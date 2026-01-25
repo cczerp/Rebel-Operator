@@ -132,6 +132,21 @@
                 <input type="number" class="form-control" id="shipping_cost" name="shipping_cost" step="0.01" value="0">
                 <small class="text-muted">0 for free shipping</small>
             </div>
+
+            <!-- SKU Field with Auto-Generate Toggle -->
+            <div class="mb-3 mt-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label mb-0">SKU (Stock Keeping Unit)</label>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="autoGenerateSku" checked>
+                        <label class="form-check-label" for="autoGenerateSku">
+                            <small>Auto-generate</small>
+                        </label>
+                    </div>
+                </div>
+                <input type="text" class="form-control" id="sku" name="sku" placeholder="Auto-generated when saving" readonly>
+                <small class="text-muted" id="skuHelp">Toggle off to enter your own SKU</small>
+            </div>
         </div>
     </div>
 
@@ -2071,6 +2086,20 @@ function collectFormData() {
         photos: uploadedPhotos  // CRITICAL: Include photos array
     };
 
+    // Handle SKU - check if auto-generate is enabled
+    const autoGenerateSku = document.getElementById('autoGenerateSku');
+    const skuInput = document.getElementById('sku');
+
+    if (autoGenerateSku && autoGenerateSku.checked) {
+        // Auto-generate SKU
+        data.sku = generateSku();
+    } else if (skuInput && skuInput.value.trim()) {
+        // Use manual SKU
+        data.sku = skuInput.value.trim();
+    } else {
+        data.sku = '';  // No SKU
+    }
+
     // Include draft_id if editing
     if (editingDraftId) {
         data.draft_id = editingDraftId;
@@ -2121,6 +2150,20 @@ async function loadDraftData() {
             document.getElementById('size').value = listing.size || '';
             document.getElementById('color').value = listing.color || '';
             document.getElementById('shipping_cost').value = listing.shipping_cost || 0;
+
+            // Load SKU - if draft has SKU, show it and disable auto-generate
+            const skuInput = document.getElementById('sku');
+            const autoGenerateToggle = document.getElementById('autoGenerateSku');
+            if (listing.sku && listing.sku.trim()) {
+                skuInput.value = listing.sku;
+                skuInput.readOnly = false;
+                skuInput.placeholder = 'Enter your custom SKU';
+                if (autoGenerateToggle) {
+                    autoGenerateToggle.checked = false;
+                }
+                const skuHelp = document.getElementById('skuHelp');
+                if (skuHelp) skuHelp.textContent = 'Enter your own unique identifier';
+            }
 
             // Load photos
             if (listing.photos && listing.photos.length > 0) {
@@ -2202,6 +2245,68 @@ async function loadDraftData() {
         hideLoading();
     }
 }
+
+// ========================================================================
+// SKU AUTO-GENERATION
+// ========================================================================
+
+// Generate a unique SKU based on item details
+function generateSku() {
+    const itemType = document.getElementById('item_type').value || 'GEN';
+    const brand = document.getElementById('brand').value || '';
+    const title = document.getElementById('title').value || '';
+
+    // Get type prefix (first 3 chars of item_type)
+    const typeMap = {
+        'general': 'GEN',
+        'clothing': 'CLO',
+        'electronics': 'ELE',
+        'trading_card': 'TCG',
+        'collectible': 'COL',
+        'home_garden': 'HOM',
+        'toys_games': 'TOY',
+        'books_media': 'BOK',
+        'jewelry': 'JWL',
+        'antiques': 'ANT'
+    };
+    const typePrefix = typeMap[itemType] || 'GEN';
+
+    // Get brand prefix (first 3 chars, uppercase)
+    const brandPrefix = brand ? brand.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '') : 'XXX';
+
+    // Generate timestamp component (base36 for compactness)
+    const timestamp = Date.now().toString(36).toUpperCase().slice(-4);
+
+    // Random component for uniqueness
+    const random = Math.random().toString(36).substring(2, 5).toUpperCase();
+
+    return `${typePrefix}-${brandPrefix}-${timestamp}${random}`;
+}
+
+// Toggle SKU auto-generation
+function setupSkuToggle() {
+    const toggle = document.getElementById('autoGenerateSku');
+    const skuInput = document.getElementById('sku');
+    const skuHelp = document.getElementById('skuHelp');
+
+    if (!toggle || !skuInput) return;
+
+    toggle.addEventListener('change', function() {
+        if (this.checked) {
+            skuInput.readOnly = true;
+            skuInput.placeholder = 'Auto-generated when saving';
+            skuInput.value = '';
+            skuHelp.textContent = 'Toggle off to enter your own SKU';
+        } else {
+            skuInput.readOnly = false;
+            skuInput.placeholder = 'Enter your custom SKU';
+            skuHelp.textContent = 'Enter your own unique identifier';
+        }
+    });
+}
+
+// Initialize SKU toggle on page load
+document.addEventListener('DOMContentLoaded', setupSkuToggle);
 
 // Load draft data when page loads
 if (editingDraftId) {

@@ -345,6 +345,9 @@ class PoshmarkSearcher(BasePlatformSearcher):
     Poshmark public search.
 
     Poshmark has public listings accessible via search URLs.
+    No official API - uses web scraping.
+
+    Available data: title, price, brand, size, seller, condition, images
     """
 
     def get_platform_name(self) -> str:
@@ -371,7 +374,7 @@ class PoshmarkSearcher(BasePlatformSearcher):
             if query.max_price:
                 search_url += f"&price_to={int(query.max_price)}"
 
-            # Sort
+            # Sort options
             sort_map = {
                 'newest': 'just_in',
                 'lowest_price': 'price_low_to_high',
@@ -380,7 +383,9 @@ class PoshmarkSearcher(BasePlatformSearcher):
                 search_url += f"&sort_by={sort_map[query.sort_by]}"
 
             headers = {
-                'User-Agent': 'RebelOperator/1.0 (Search Aggregator; +https://rebeloperator.com)'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
             }
 
             response = session.get(search_url, headers=headers, timeout=15)
@@ -388,44 +393,18 @@ class PoshmarkSearcher(BasePlatformSearcher):
 
             soup = BeautifulSoup(response.text, 'html.parser')
 
-            # Find listing cards
-            listing_cards = soup.find_all('div', {'data-test': 'tile'})[:query.limit]
+            # Try multiple selectors for listing cards (Poshmark updates their HTML frequently)
+            listing_cards = (
+                soup.find_all('div', {'data-test': 'tile'}) or
+                soup.find_all('div', class_=re.compile(r'tile|card', re.I)) or
+                soup.find_all('div', {'data-et-name': 'listing'})
+            )[:query.limit]
 
             for card in listing_cards:
                 try:
-                    # Extract data from card
-                    link = card.find('a', href=True)
-                    if not link:
-                        continue
-
-                    url = f"https://poshmark.com{link['href']}"
-
-                    # Extract listing ID from URL
-                    listing_id = re.search(r'/listing/([^/]+)', url)
-                    listing_id = listing_id.group(1) if listing_id else ''
-
-                    # Title
-                    title_elem = card.find('div', {'data-test': 'tile-title'})
-                    title = title_elem.text.strip() if title_elem else ''
-
-                    # Price
-                    price_elem = card.find('div', {'data-test': 'tile-price'})
-                    price_text = price_elem.text.strip() if price_elem else '$0'
-                    price = float(re.sub(r'[^\d.]', '', price_text))
-
-                    # Image
-                    img = card.find('img')
-                    thumbnail = img.get('src') or img.get('data-src') if img else None
-
-                    results.append(SearchResult(
-                        platform="Poshmark",
-                        listing_id=listing_id,
-                        url=url,
-                        title=title,
-                        price=price,
-                        thumbnail_url=thumbnail,
-                    ))
-
+                    result = self._parse_listing_card(card)
+                    if result:
+                        results.append(result)
                 except Exception as e:
                     print(f"Error parsing Poshmark listing: {e}")
                     continue
@@ -434,6 +413,100 @@ class PoshmarkSearcher(BasePlatformSearcher):
             print(f"Poshmark search error: {e}")
 
         return results
+
+    def _parse_listing_card(self, card) -> Optional[SearchResult]:
+        """Parse a Poshmark listing card and extract all available data"""
+        # Find link
+        link = card.find('a', href=True)
+        if not link:
+            return None
+
+        href = link.get('href', '')
+        url = f"https://poshmark.com{href}" if href.startswith('/') else href
+
+        # Extract listing ID from URL
+        listing_id_match = re.search(r'/listing/([^/?]+)', url)
+        listing_id = listing_id_match.group(1) if listing_id_match else ''
+
+        if not listing_id:
+            return None
+
+        # Title - try multiple selectors
+        title = ''
+        title_elem = (
+            card.find('div', {'data-test': 'tile-title'}) or
+            card.find('a', {'data-test': 'tile-title'}) or
+            card.find(class_=re.compile(r'title', re.I))
+        )
+        if title_elem:
+            title = title_elem.get_text(strip=True)
+
+        # Price - try multiple selectors
+        price = 0.0
+        price_elem = (
+            card.find('div', {'data-test': 'tile-price'}) or
+            card.find('span', {'data-test': 'tile-price'}) or
+            card.find(class_=re.compile(r'price', re.I))
+        )
+        if price_elem:
+            price_text = price_elem.get_text(strip=True)
+            # Extract first price (current price, not original)
+            price_match = re.search(r'\$?([\d,]+(?:\.\d{2})?)', price_text)
+            if price_match:
+                price = float(price_match.group(1).replace(',', ''))
+
+        # Brand - often shown separately
+        brand = ''
+        brand_elem = (
+            card.find('div', {'data-test': 'tile-brand'}) or
+            card.find(class_=re.compile(r'brand', re.I))
+        )
+        if brand_elem:
+            brand = brand_elem.get_text(strip=True)
+
+        # Size
+        size = ''
+        size_elem = (
+            card.find('div', {'data-test': 'tile-size'}) or
+            card.find(class_=re.compile(r'size', re.I))
+        )
+        if size_elem:
+            size = size_elem.get_text(strip=True)
+
+        # Seller/Creator
+        seller = ''
+        seller_elem = (
+            card.find('a', {'data-test': 'tile-creator'}) or
+            card.find('div', {'data-test': 'tile-creator'}) or
+            card.find(class_=re.compile(r'creator|seller|username', re.I))
+        )
+        if seller_elem:
+            seller = seller_elem.get_text(strip=True).lstrip('@')
+
+        # Image
+        thumbnail = None
+        img = card.find('img')
+        if img:
+            thumbnail = img.get('src') or img.get('data-src') or img.get('srcset', '').split()[0]
+
+        # Build condition string from available metadata
+        condition_parts = []
+        if brand:
+            condition_parts.append(brand)
+        if size:
+            condition_parts.append(f"Size: {size}")
+        condition = ' | '.join(condition_parts) if condition_parts else None
+
+        return SearchResult(
+            platform="Poshmark",
+            listing_id=listing_id,
+            url=url,
+            title=title,
+            price=price,
+            condition=condition,
+            thumbnail_url=thumbnail,
+            seller_name=seller if seller else None,
+        )
 
 
 class GrailedSearcher(BasePlatformSearcher):

@@ -4323,12 +4323,15 @@ def preview_csv_export(platform):
         cursor = db._get_cursor()
         
         if listing_ids:
-            query = """
+            # Take up to 3 listing IDs for preview
+            preview_ids = listing_ids[:3]
+            placeholders = ','.join(['%s'] * len(preview_ids))
+            query = f"""
                 SELECT * FROM listings
-                WHERE id IN (%s, %s, %s) AND user_id = %s
+                WHERE id IN ({placeholders}) AND user_id = %s
                 LIMIT 3
             """
-            cursor.execute(query, (*listing_ids[:3], current_user.id))
+            cursor.execute(query, (*preview_ids, current_user.id))
         else:
             cursor.execute("""
                 SELECT * FROM listings

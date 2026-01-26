@@ -2208,11 +2208,12 @@ class Database:
         cursor = self._get_cursor()
 
         # If credentials_json is provided, use flexible storage
+        # Cast user_id to INTEGER to handle potential type mismatches
         if credentials_json:
             cursor.execute("""
                 INSERT INTO marketplace_credentials
                 (user_id, platform, username, password, credentials_json, credential_type, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                VALUES (%s::INTEGER, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
                 ON CONFLICT (user_id, platform) DO UPDATE SET
                     username = EXCLUDED.username,
                     password = EXCLUDED.password,
@@ -2225,7 +2226,7 @@ class Database:
             cursor.execute("""
                 INSERT INTO marketplace_credentials
                 (user_id, platform, username, password, updated_at)
-                VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+                VALUES (%s::INTEGER, %s, %s, %s, CURRENT_TIMESTAMP)
                 ON CONFLICT (user_id, platform) DO UPDATE SET
                     username = EXCLUDED.username,
                     password = EXCLUDED.password,
@@ -2237,9 +2238,10 @@ class Database:
     def get_marketplace_credentials(self, user_id: int, platform: str) -> Optional[Dict]:
         """Get marketplace credentials for a specific platform"""
         cursor = self._get_cursor()
+        # Cast user_id to INTEGER to handle potential type mismatches
         cursor.execute("""
             SELECT * FROM marketplace_credentials
-            WHERE user_id = %s AND platform = %s
+            WHERE user_id = %s::INTEGER AND platform = %s
         """, (user_id, platform))
         row = cursor.fetchone()
         return dict(row) if row else None
@@ -2247,9 +2249,10 @@ class Database:
     def get_all_marketplace_credentials(self, user_id: int) -> List[Dict]:
         """Get all marketplace credentials for a user"""
         cursor = self._get_cursor()
+        # Cast user_id to INTEGER to handle potential type mismatches
         cursor.execute("""
             SELECT * FROM marketplace_credentials
-            WHERE user_id = %s
+            WHERE user_id = %s::INTEGER
             ORDER BY platform
         """, (user_id,))
         return [dict(row) for row in cursor.fetchall()]
@@ -2257,9 +2260,10 @@ class Database:
     def delete_marketplace_credentials(self, user_id: int, platform: str):
         """Delete marketplace credentials for a platform"""
         cursor = self._get_cursor()
+        # Cast user_id to INTEGER to handle potential type mismatches
         cursor.execute("""
             DELETE FROM marketplace_credentials
-            WHERE user_id = %s AND platform = %s
+            WHERE user_id = %s::INTEGER AND platform = %s
         """, (user_id, platform))
         self.conn.commit()
 
@@ -2396,11 +2400,11 @@ class Database:
     def delete_user(self, user_id: int):
         """Delete a user and all their data"""
         cursor = self._get_cursor()
-
-        cursor.execute("DELETE FROM marketplace_credentials WHERE user_id = %s", (user_id,))
-        cursor.execute("DELETE FROM listings WHERE user_id = %s", (user_id,))
-        cursor.execute("DELETE FROM activity_logs WHERE user_id = %s", (user_id,))
-        cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+        # Cast user_id to INTEGER to handle potential type mismatches
+        cursor.execute("DELETE FROM marketplace_credentials WHERE user_id = %s::INTEGER", (user_id,))
+        cursor.execute("DELETE FROM listings WHERE user_id = %s::INTEGER", (user_id,))
+        cursor.execute("DELETE FROM activity_logs WHERE user_id = %s::INTEGER", (user_id,))
+        cursor.execute("DELETE FROM users WHERE id = %s::INTEGER", (user_id,))
 
         self.conn.commit()
 

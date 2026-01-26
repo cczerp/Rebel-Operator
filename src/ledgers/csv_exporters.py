@@ -846,3 +846,147 @@ def export_ledger(ledger_type: str, user_id: int, filters: Optional[Dict] = None
         raise ValueError(f"Invalid ledger type: {ledger_type}. Must be one of: {list(exporters.keys())}")
 
     return exporter_class.export_to_csv(user_id, filters)
+
+
+def export_ledger_for_platform(ledger_type: str, user_id: int, platform: str, filters: Optional[Dict] = None) -> str:
+    """
+    Export ledger data formatted for a specific platform's CSV schema.
+
+    Args:
+        ledger_type: 'inventory', 'sales', 'shipping', 'drafts', or 'invoices'
+        user_id: User ID
+        platform: Platform key (e.g., 'ebay', 'poshmark', 'discogs')
+        filters: Optional filters
+
+    Returns:
+        CSV string in platform-specific format
+
+    Raises:
+        ValueError: If ledger_type or platform is invalid
+    """
+    from ..csv_exporters import get_exporter
+
+    # Get the platform exporter
+    try:
+        exporter = get_exporter(platform)
+    except ValueError as e:
+        raise ValueError(f"Invalid platform: {platform}. {str(e)}")
+
+    # Get ledger data in raw format
+    db = get_db()
+    cursor = db._get_cursor()
+
+    # Build query based on ledger type
+    if ledger_type == 'inventory':
+        query = """
+            SELECT
+                id,
+                master_item_id as listing_uuid,
+                sku,
+                title,
+                description,
+                price,
+                cost_basis as cost,
+                category,
+                subcategory,
+                brand,
+                model,
+                color,
+                size,
+                condition,
+                measurements,
+                quantity,
+                storage_location,
+                status,
+                photos,
+                notes,
+                created_at,
+                updated_at
+            FROM inventory_master
+            WHERE user_id = %s
+        """
+    elif ledger_type == 'drafts':
+        query = """
+            SELECT
+                id,
+                draft_id as listing_uuid,
+                COALESCE(master_item_id, draft_id) as sku,
+                title,
+                description,
+                price,
+                0 as cost,
+                category,
+                subcategory,
+                brand,
+                model,
+                color,
+                size,
+                condition,
+                '{}' as measurements,
+                quantity,
+                ships_from_location as storage_location,
+                status,
+                photos,
+                notes,
+                created_at,
+                updated_at
+            FROM draft_listings
+            WHERE user_id = %s
+        """
+    else:
+        # For other ledger types, fall back to internal format
+        # since they don't map well to product listings
+        return export_ledger(ledger_type, user_id, filters)
+
+    params = [user_id]
+
+    # Apply filters
+    if filters:
+        if filters.get('status'):
+            query += " AND status = %s"
+            params.append(filters['status'])
+        if filters.get('category'):
+            query += " AND category = %s"
+            params.append(filters['category'])
+
+    query += " ORDER BY created_at DESC"
+
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    cursor.close()
+
+    if not rows:
+        # Return empty CSV with just headers
+        return exporter.export_to_csv([])
+
+    # Convert rows to list of dicts for the platform exporter
+    columns = [desc[0] for desc in cursor.description] if hasattr(cursor, 'description') else []
+
+    # Build column list manually based on query
+    if ledger_type == 'inventory':
+        columns = ['id', 'listing_uuid', 'sku', 'title', 'description', 'price', 'cost',
+                   'category', 'subcategory', 'brand', 'model', 'color', 'size', 'condition',
+                   'measurements', 'quantity', 'storage_location', 'status', 'photos', 'notes',
+                   'created_at', 'updated_at']
+    elif ledger_type == 'drafts':
+        columns = ['id', 'listing_uuid', 'sku', 'title', 'description', 'price', 'cost',
+                   'category', 'subcategory', 'brand', 'model', 'color', 'size', 'condition',
+                   'measurements', 'quantity', 'storage_location', 'status', 'photos', 'notes',
+                   'created_at', 'updated_at']
+
+    listings = []
+    for row in rows:
+        listing = {}
+        for i, col in enumerate(columns):
+            val = row[i]
+            # Handle datetime objects
+            if isinstance(val, datetime):
+                val = val.isoformat()
+            # Handle Decimal
+            elif isinstance(val, Decimal):
+                val = float(val)
+            listing[col] = val
+        listings.append(listing)
+
+    # Use the platform exporter to generate CSV
+    return exporter.export_to_csv(listings)

@@ -17,6 +17,7 @@ from ..ledgers import (
     DraftListingsExporter,
     export_ledger,
 )
+from ..ledgers.csv_exporters import export_ledger_for_platform
 from ..database.db import get_db
 
 
@@ -38,12 +39,17 @@ def export_ledger_api(ledger_type: str):
 
     Query params:
         format: 'download' (default) or 'inline'
+        platform: Optional platform key for platform-specific CSV format
+                  (e.g., 'ebay', 'poshmark', 'discogs')
         Filters vary by ledger type (see docs)
 
     Response:
         CSV file download
     """
     try:
+        # Check if platform-specific export is requested
+        platform = request.args.get('platform')
+
         # Get filters from query params
         filters = {}
 
@@ -63,8 +69,8 @@ def export_ledger_api(ledger_type: str):
                 filters['storage_location'] = request.args.get('storage_location')
 
         elif ledger_type == 'sales':
-            if request.args.get('platform'):
-                filters['platform'] = request.args.get('platform')
+            if request.args.get('filter_platform'):
+                filters['platform'] = request.args.get('filter_platform')
             if request.args.get('payout_status'):
                 filters['payout_status'] = request.args.get('payout_status')
 
@@ -92,12 +98,18 @@ def export_ledger_api(ledger_type: str):
             if request.args.get('payment_method'):
                 filters['payment_method'] = request.args.get('payment_method')
 
-        # Export CSV
-        csv_content = export_ledger(ledger_type, current_user.id, filters)
+        # If platform specified, use platform-specific exporter
+        if platform:
+            csv_content = export_ledger_for_platform(ledger_type, current_user.id, platform, filters)
+            filename_prefix = f"{platform}_{ledger_type}"
+        else:
+            # Standard internal format export
+            csv_content = export_ledger(ledger_type, current_user.id, filters)
+            filename_prefix = f"{ledger_type}_ledger"
 
         # Create filename with timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{ledger_type}_ledger_{timestamp}.csv"
+        filename = f"{filename_prefix}_{timestamp}.csv"
 
         # Return as download
         return send_file(

@@ -528,13 +528,42 @@
             <i class="fas fa-upload"></i>
             Import from CSV
         </button>
-        <button class="export-btn" onclick="exportDrafts()">
-            <i class="fas fa-download"></i>
-            Export to CSV
-        </button>
+
+        <!-- Platform Selection + Export -->
+        <div class="d-flex align-items-center gap-2">
+            <select class="form-select platform-select" id="exportPlatformSelect" style="background: #16213e; color: #e8e8e8; border-color: #3a3a5c; min-width: 180px;">
+                <option value="internal">Rebel Operator Format</option>
+                <optgroup label="Marketplaces">
+                    <option value="ebay">eBay</option>
+                    <option value="mercari">Mercari</option>
+                    <option value="bonanza">Bonanza</option>
+                    <option value="ecrater">eCrater</option>
+                </optgroup>
+                <optgroup label="Fashion">
+                    <option value="poshmark">Poshmark</option>
+                    <option value="depop">Depop</option>
+                    <option value="grailed">Grailed</option>
+                    <option value="vinted">Vinted</option>
+                </optgroup>
+                <optgroup label="Collectibles">
+                    <option value="discogs">Discogs</option>
+                    <option value="tcgplayer">TCGplayer</option>
+                </optgroup>
+                <optgroup label="E-commerce">
+                    <option value="shopify">Shopify</option>
+                    <option value="woocommerce">WooCommerce</option>
+                    <option value="google">Google Shopping</option>
+                </optgroup>
+            </select>
+            <button class="export-btn" onclick="exportDrafts()">
+                <i class="fas fa-download"></i>
+                Export
+            </button>
+        </div>
+
         <button class="btn btn-outline-primary" onclick="exportReadyDrafts()">
             <i class="fas fa-check-circle"></i>
-            Export Ready Drafts Only
+            Export Ready Only
         </button>
         <button class="btn btn-outline-secondary" onclick="refreshData()">
             <i class="fas fa-sync-alt"></i>
@@ -545,6 +574,25 @@
         </div>
     </div>
 </div>
+
+<style>
+.platform-select {
+    cursor: pointer;
+}
+.platform-select:focus {
+    border-color: #f093fb;
+    box-shadow: 0 0 0 3px rgba(240, 147, 251, 0.2);
+}
+.platform-select option {
+    background: #16213e;
+    color: #e8e8e8;
+}
+.platform-select optgroup {
+    background: #1a1a2e;
+    color: #f093fb;
+    font-weight: 600;
+}
+</style>
 
 <!-- Import CSV Modal -->
 <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
@@ -1156,13 +1204,31 @@ function updateStats(data) {
     document.getElementById('statCompleteness').textContent = Math.round(avgCompleteness) + '%';
 }
 
-// Export functions
+// Export functions - uses inline platform dropdown
 function exportDrafts() {
-    window.location.href = '/api/ledgers/export/drafts';
+    const platform = document.getElementById('exportPlatformSelect').value;
+    let url;
+
+    if (platform === 'internal') {
+        url = '/api/ledgers/export/drafts';
+    } else {
+        url = `/api/ledgers/export/drafts?platform=${platform}`;
+    }
+
+    window.location.href = url;
 }
 
 function exportReadyDrafts() {
-    window.location.href = '/api/ledgers/export/drafts?min_completeness=90&status=ready';
+    const platform = document.getElementById('exportPlatformSelect').value;
+    let url;
+
+    if (platform === 'internal') {
+        url = '/api/ledgers/export/drafts?min_completeness=90&status=ready';
+    } else {
+        url = `/api/ledgers/export/drafts?platform=${platform}&min_completeness=90&status=ready`;
+    }
+
+    window.location.href = url;
 }
 
 function refreshData() {

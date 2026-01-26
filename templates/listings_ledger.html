@@ -303,10 +303,38 @@
 
     <!-- Actions -->
     <div class="csv-actions">
-        <button class="export-btn" onclick="exportCurrentLedger()">
-            <i class="fas fa-download"></i>
-            Export to CSV
-        </button>
+        <!-- Platform Selection + Export -->
+        <div class="d-flex align-items-center gap-2">
+            <select class="form-select" id="exportPlatformSelect" style="min-width: 180px;">
+                <option value="internal">Rebel Operator Format</option>
+                <optgroup label="Marketplaces">
+                    <option value="ebay">eBay</option>
+                    <option value="mercari">Mercari</option>
+                    <option value="bonanza">Bonanza</option>
+                    <option value="ecrater">eCrater</option>
+                </optgroup>
+                <optgroup label="Fashion">
+                    <option value="poshmark">Poshmark</option>
+                    <option value="depop">Depop</option>
+                    <option value="grailed">Grailed</option>
+                    <option value="vinted">Vinted</option>
+                </optgroup>
+                <optgroup label="Collectibles">
+                    <option value="discogs">Discogs</option>
+                    <option value="tcgplayer">TCGplayer</option>
+                </optgroup>
+                <optgroup label="E-commerce">
+                    <option value="shopify">Shopify</option>
+                    <option value="woocommerce">WooCommerce</option>
+                    <option value="google">Google Shopping</option>
+                </optgroup>
+            </select>
+            <button class="export-btn" onclick="exportCurrentLedger()">
+                <i class="fas fa-download"></i>
+                Export
+            </button>
+        </div>
+
         <button class="btn btn-outline-primary" onclick="exportAllLedgers()">
             <i class="fas fa-file-archive"></i>
             Export All Ledgers (ZIP)
@@ -547,10 +575,19 @@ function updateStats(ledgerType, data) {
     }
 }
 
-// Export current ledger
-async function exportCurrentLedger() {
+// Export current ledger - uses inline platform dropdown
+function exportCurrentLedger() {
+    const platform = document.getElementById('exportPlatformSelect').value;
     const config = ledgerConfigs[currentLedger];
-    window.location.href = config.endpoint;
+    let url;
+
+    if (platform === 'internal') {
+        url = config.endpoint;
+    } else {
+        url = `${config.endpoint}?platform=${platform}`;
+    }
+
+    window.location.href = url;
 }
 
 // Export all ledgers

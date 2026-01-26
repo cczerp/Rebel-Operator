@@ -399,6 +399,31 @@
     </div>
     <div class="card-body">
         <div class="row">
+            <!-- Discogs -->
+            <div class="col-md-6 mb-3 platform-item" data-platform="discogs">
+                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
+                    <h6 class="d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-compact-disc text-dark"></i> Discogs</span>
+                        <span class="badge bg-secondary platform-status" data-platform="discogs">Not Configured</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Vinyl & Music. Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
+                    <form class="platform-form" data-platform="discogs">
+                        <div class="mb-2">
+                            <label class="form-label small">Personal Access Token</label>
+                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="Your Discogs Token" required>
+                            <small class="text-muted">
+                                <a href="https://www.discogs.com/settings/developers" target="_blank">Get token here</a> (free, 30 seconds)
+                            </small>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Your Discogs username" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
             <!-- TCGplayer -->
             <div class="col-md-6 mb-3 platform-item" data-platform="tcgplayer">
                 <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">

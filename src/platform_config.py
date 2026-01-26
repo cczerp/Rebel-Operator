@@ -43,6 +43,18 @@ PLATFORM_CREDENTIALS_CONFIG = {
             "password": {"required": True, "label": "Password"}
         }
     },
+    "discogs": {
+        "name": "Discogs",
+        "icon": "fas fa-compact-disc",
+        "color": "dark",
+        "category": "collectibles",
+        "supports_api": True,
+        "supports_csv": True,
+        "credentials": {
+            "api_key": {"required": True, "label": "Personal Access Token"},
+            "username": {"required": True, "label": "Username"}
+        }
+    },
     "etsy": {
         "name": "Etsy",
         "icon": "fas fa-shopping-bag",

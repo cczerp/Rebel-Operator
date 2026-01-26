@@ -488,3 +488,120 @@ def _serialize_market_intel(intel) -> Dict:
         'best_value': _serialize_result(intel.best_value_result) if intel.best_value_result else None,
         'condition_breakdown': intel.condition_breakdown,
     }
+
+
+# =============================================================================
+# PLATFORM USER DATA SYNC (Discogs Collection, eBay Inventory, etc.)
+# =============================================================================
+
+@search_bp.route('/api/platform/<platform>/user-data', methods=['GET'])
+@login_required
+def get_platform_user_data(platform):
+    """
+    Fetch user's data from a connected platform.
+
+    For Discogs: collection, wantlist, inventory
+    For eBay: active listings, sold items
+    """
+    try:
+        platform = platform.lower()
+        credentials = _get_user_credentials(current_user.id).get(platform, {})
+
+        if not credentials:
+            return jsonify({'error': f'No credentials found for {platform}. Please add your credentials in Settings.'}), 400
+
+        if platform == 'discogs':
+            return _fetch_discogs_user_data(credentials)
+        elif platform == 'ebay':
+            return jsonify({'error': 'eBay user data sync coming soon. Use OAuth connection in Settings.'}), 501
+        else:
+            return jsonify({'error': f'User data sync not yet implemented for {platform}'}), 501
+
+    except Exception as e:
+        import traceback
+        print(f"Error fetching user data for {platform}: {e}\n{traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+
+def _fetch_discogs_user_data(credentials: Dict) -> tuple:
+    """Fetch user's Discogs collection and inventory."""
+    token = credentials.get('api_key') or credentials.get('token')
+    username = credentials.get('username')
+
+    if not token or not username:
+        return jsonify({'error': 'Discogs requires both token and username'}), 400
+
+    headers = {
+        'Authorization': f'Discogs token={token}',
+        'User-Agent': 'RebelOperator/1.0'
+    }
+
+    result = {
+        'platform': 'discogs',
+        'username': username,
+        'collection': [],
+        'inventory': [],
+        'wantlist': []
+    }
+
+    # Fetch collection
+    try:
+        collection_url = f'https://api.discogs.com/users/{username}/collection/folders/0/releases'
+        resp = requests.get(collection_url, headers=headers, params={'per_page': 100}, timeout=15)
+        if resp.status_code == 200:
+            data = resp.json()
+            result['collection'] = [{
+                'id': item.get('id'),
+                'instance_id': item.get('instance_id'),
+                'title': item.get('basic_information', {}).get('title'),
+                'artist': ', '.join([a.get('name', '') for a in item.get('basic_information', {}).get('artists', [])]),
+                'year': item.get('basic_information', {}).get('year'),
+                'format': ', '.join([f.get('name', '') for f in item.get('basic_information', {}).get('formats', [])]),
+                'cover_image': item.get('basic_information', {}).get('cover_image'),
+                'rating': item.get('rating'),
+            } for item in data.get('releases', [])]
+            result['collection_count'] = data.get('pagination', {}).get('items', len(result['collection']))
+    except Exception as e:
+        result['collection_error'] = str(e)
+
+    # Fetch inventory (items for sale)
+    try:
+        inventory_url = f'https://api.discogs.com/users/{username}/inventory'
+        resp = requests.get(inventory_url, headers=headers, params={'per_page': 100}, timeout=15)
+        if resp.status_code == 200:
+            data = resp.json()
+            result['inventory'] = [{
+                'id': item.get('id'),
+                'listing_id': item.get('id'),
+                'title': item.get('release', {}).get('title'),
+                'artist': item.get('release', {}).get('artist'),
+                'price': item.get('price', {}).get('value'),
+                'currency': item.get('price', {}).get('currency'),
+                'condition': item.get('condition'),
+                'sleeve_condition': item.get('sleeve_condition'),
+                'status': item.get('status'),
+                'posted': item.get('posted'),
+            } for item in data.get('listings', [])]
+            result['inventory_count'] = data.get('pagination', {}).get('items', len(result['inventory']))
+    except Exception as e:
+        result['inventory_error'] = str(e)
+
+    # Fetch wantlist
+    try:
+        wantlist_url = f'https://api.discogs.com/users/{username}/wants'
+        resp = requests.get(wantlist_url, headers=headers, params={'per_page': 100}, timeout=15)
+        if resp.status_code == 200:
+            data = resp.json()
+            result['wantlist'] = [{
+                'id': item.get('id'),
+                'title': item.get('basic_information', {}).get('title'),
+                'artist': ', '.join([a.get('name', '') for a in item.get('basic_information', {}).get('artists', [])]),
+                'year': item.get('basic_information', {}).get('year'),
+                'cover_image': item.get('basic_information', {}).get('cover_image'),
+                'notes': item.get('notes'),
+            } for item in data.get('wants', [])]
+            result['wantlist_count'] = data.get('pagination', {}).get('items', len(result['wantlist']))
+    except Exception as e:
+        result['wantlist_error'] = str(e)
+
+    return jsonify(result)

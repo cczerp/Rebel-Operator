@@ -305,28 +305,55 @@
     <div class="csv-actions">
         <!-- Platform Selection + Export -->
         <div class="d-flex align-items-center gap-2">
-            <select class="form-select" id="exportPlatformSelect" style="min-width: 180px;">
+            <select class="form-select" id="exportPlatformSelect" style="min-width: 200px;">
                 <option value="internal">Rebel Operator Format</option>
                 <optgroup label="Marketplaces">
                     <option value="ebay">eBay</option>
                     <option value="mercari">Mercari</option>
+                    <option value="etsy">Etsy</option>
                     <option value="bonanza">Bonanza</option>
                     <option value="ecrater">eCrater</option>
+                    <option value="ebid">eBid</option>
+                    <option value="offerup">OfferUp</option>
                 </optgroup>
                 <optgroup label="Fashion">
                     <option value="poshmark">Poshmark</option>
                     <option value="depop">Depop</option>
                     <option value="grailed">Grailed</option>
                     <option value="vinted">Vinted</option>
+                    <option value="thredup">ThredUp</option>
                 </optgroup>
-                <optgroup label="Collectibles">
+                <optgroup label="Luxury">
+                    <option value="therealreal">The RealReal</option>
+                    <option value="vestiaire">Vestiaire Collective</option>
+                    <option value="tradesy">Tradesy</option>
+                    <option value="rebag">Rebag</option>
+                </optgroup>
+                <optgroup label="Cards & Collectibles">
                     <option value="discogs">Discogs</option>
                     <option value="tcgplayer">TCGplayer</option>
+                    <option value="cardmarket">Cardmarket (EU)</option>
+                    <option value="comc">COMC</option>
+                    <option value="pwcc">PWCC</option>
+                    <option value="myslabs">MySlabs</option>
+                    <option value="goldin">Goldin Auctions</option>
+                </optgroup>
+                <optgroup label="Home & Vintage">
+                    <option value="chairish">Chairish</option>
                 </optgroup>
                 <optgroup label="E-commerce">
                     <option value="shopify">Shopify</option>
                     <option value="woocommerce">WooCommerce</option>
+                    <option value="squarespace">Squarespace</option>
+                    <option value="bigcommerce">BigCommerce</option>
+                    <option value="ecwid">Ecwid</option>
                     <option value="google">Google Shopping</option>
+                </optgroup>
+                <optgroup label="International">
+                    <option value="rakuten">Rakuten</option>
+                    <option value="allegro">Allegro</option>
+                    <option value="carousell">Carousell</option>
+                    <option value="shopee">Shopee</option>
                 </optgroup>
             </select>
             <button class="export-btn" onclick="exportCurrentLedger()">

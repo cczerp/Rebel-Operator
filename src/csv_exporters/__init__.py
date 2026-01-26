@@ -9,6 +9,9 @@ from .rubylane_exporter import RubyLaneExporter
 from .ecrater_exporter import EcraterExporter
 from .bonanza_exporter import BonanzaExporter
 from .google_shopping_exporter import GoogleShoppingExporter
+from .ebay_exporter import EbayExporter
+from .mercari_exporter import MercariExporter
+from .discogs_exporter import DiscogsExporter
 
 __all__ = [
     'BaseCSVExporter',
@@ -17,6 +20,9 @@ __all__ = [
     'EcraterExporter',
     'BonanzaExporter',
     'GoogleShoppingExporter',
+    'EbayExporter',
+    'MercariExporter',
+    'DiscogsExporter',
     'get_exporter'
 ]
 
@@ -29,6 +35,9 @@ EXPORTERS = {
     'bonanza': BonanzaExporter,
     'google_shopping': GoogleShoppingExporter,
     'google': GoogleShoppingExporter,
+    'ebay': EbayExporter,
+    'mercari': MercariExporter,
+    'discogs': DiscogsExporter,
 }
 
 def get_exporter(platform: str):

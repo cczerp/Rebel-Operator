@@ -303,7 +303,7 @@
 
     <!-- Actions -->
     <div class="csv-actions">
-        <button class="export-btn" onclick="exportCurrentLedger()">
+        <button class="export-btn" onclick="showPlatformModal()">
             <i class="fas fa-download"></i>
             Export to CSV
         </button>
@@ -320,6 +320,80 @@
         </div>
     </div>
 </div>
+
+<!-- Platform Selection Modal -->
+<div class="modal fade" id="platformModal" tabindex="-1" aria-labelledby="platformModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h5 class="modal-title" id="platformModalLabel">
+                    <i class="fas fa-file-export"></i> Select Export Format
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">Choose the platform format for your CSV export. Each platform has specific column requirements.</p>
+
+                <!-- Internal Format Option -->
+                <div class="mb-3">
+                    <h6 class="text-secondary"><i class="fas fa-database"></i> Internal Format</h6>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <div class="platform-option border rounded p-3" data-platform="internal" onclick="selectPlatformOption('internal')">
+                                <div class="d-flex align-items-center">
+                                    <div class="platform-icon me-3" style="width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-table text-white"></i>
+                                    </div>
+                                    <div>
+                                        <strong>Rebel Operator Format</strong>
+                                        <br><small class="text-muted">Full ledger data for backup/import</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Platform-Specific Formats -->
+                <h6 class="text-secondary"><i class="fas fa-store"></i> Platform-Specific Formats</h6>
+                <div class="row g-2" id="platformGrid">
+                    <!-- Platforms loaded dynamically -->
+                    <div class="col-12 text-center py-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading platforms...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmExportBtn" onclick="exportWithSelectedPlatform()" disabled>
+                    <i class="fas fa-download"></i> Export CSV
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.platform-option {
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+}
+.platform-option:hover {
+    border-color: #667eea !important;
+    background: #f8f9ff;
+}
+.platform-option.selected {
+    border-color: #667eea !important;
+    background: #f0f2ff;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+.platform-icon {
+    flex-shrink: 0;
+}
+</style>
 
 <script>
 // Current ledger state
@@ -547,10 +621,198 @@ function updateStats(ledgerType, data) {
     }
 }
 
-// Export current ledger
+// Platform selection state
+let selectedPlatform = null;
+let platformModal = null;
+
+// Show platform selection modal
+async function showPlatformModal() {
+    if (!platformModal) {
+        platformModal = new bootstrap.Modal(document.getElementById('platformModal'));
+    }
+
+    // Load available platforms
+    await loadPlatformOptions();
+
+    platformModal.show();
+}
+
+// Load platform options from API
+async function loadPlatformOptions() {
+    const platformGrid = document.getElementById('platformGrid');
+    platformGrid.innerHTML = '<div class="col-12 text-center py-3"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+
+    try {
+        const response = await fetch('/api/export/platforms');
+        const data = await response.json();
+
+        if (data.success && data.platforms) {
+            let html = '';
+
+            // Platform icons mapping
+            const platformIcons = {
+                'ebay': 'fas fa-gavel',
+                'poshmark': 'fas fa-shopping-bag',
+                'mercari': 'fas fa-store',
+                'discogs': 'fas fa-compact-disc',
+                'etsy': 'fas fa-shopping-bag',
+                'bonanza': 'fas fa-gem',
+                'google_shopping': 'fab fa-google',
+                'google': 'fab fa-google',
+                'rubylane': 'fas fa-gem',
+                'ruby_lane': 'fas fa-gem',
+                'ecrater': 'fas fa-shopping-cart',
+                'depop': 'fas fa-tshirt',
+                'grailed': 'fas fa-user-tie',
+                'vinted': 'fas fa-recycle',
+                'tcgplayer': 'fas fa-dice-d20',
+                'shopify': 'fas fa-shopping-cart',
+                'woocommerce': 'fab fa-wordpress'
+            };
+
+            // Platform colors
+            const platformColors = {
+                'ebay': '#0064D2',
+                'poshmark': '#7F0353',
+                'mercari': '#FF0211',
+                'discogs': '#333333',
+                'etsy': '#F45800',
+                'bonanza': '#99CC00',
+                'google_shopping': '#4285F4',
+                'google': '#4285F4',
+                'rubylane': '#C41230',
+                'ruby_lane': '#C41230',
+                'ecrater': '#FF6600',
+                'depop': '#FF2300',
+                'grailed': '#000000',
+                'vinted': '#09B1BA',
+                'tcgplayer': '#1A75BC',
+                'shopify': '#96BF48',
+                'woocommerce': '#96588A'
+            };
+
+            data.platforms.forEach(platform => {
+                const icon = platformIcons[platform.key] || 'fas fa-file-csv';
+                const color = platformColors[platform.key] || '#667eea';
+
+                html += `
+                    <div class="col-md-6 col-lg-4">
+                        <div class="platform-option border rounded p-3" data-platform="${platform.key}" onclick="selectPlatformOption('${platform.key}')">
+                            <div class="d-flex align-items-center">
+                                <div class="platform-icon me-3" style="width: 40px; height: 40px; background: ${color}; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="${icon} text-white"></i>
+                                </div>
+                                <div>
+                                    <strong>${platform.name}</strong>
+                                    <br><small class="text-muted">${platform.description}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            platformGrid.innerHTML = html;
+        } else {
+            platformGrid.innerHTML = '<div class="col-12 text-center py-3 text-danger">Failed to load platforms</div>';
+        }
+    } catch (error) {
+        console.error('Error loading platforms:', error);
+        platformGrid.innerHTML = '<div class="col-12 text-center py-3 text-danger">Error loading platforms</div>';
+    }
+}
+
+// Select a platform option
+function selectPlatformOption(platformKey) {
+    selectedPlatform = platformKey;
+
+    // Update UI - remove selected class from all
+    document.querySelectorAll('.platform-option').forEach(opt => {
+        opt.classList.remove('selected');
+    });
+
+    // Add selected class to clicked option
+    const selectedOption = document.querySelector(`.platform-option[data-platform="${platformKey}"]`);
+    if (selectedOption) {
+        selectedOption.classList.add('selected');
+    }
+
+    // Enable export button
+    document.getElementById('confirmExportBtn').disabled = false;
+}
+
+// Export with selected platform format
+async function exportWithSelectedPlatform() {
+    if (!selectedPlatform) {
+        alert('Please select a platform format');
+        return;
+    }
+
+    // Close modal
+    if (platformModal) {
+        platformModal.hide();
+    }
+
+    showLoading();
+
+    try {
+        if (selectedPlatform === 'internal') {
+            // Use the internal ledger export
+            const config = ledgerConfigs[currentLedger];
+            window.location.href = config.endpoint;
+        } else {
+            // Use platform-specific export
+            // First, get the listing IDs from current ledger data
+            const listingIds = ledgerData.map(item => item.id || item.master_item_id).filter(id => id);
+
+            if (listingIds.length === 0) {
+                // If no specific IDs, export all from drafts
+                window.location.href = `/api/ledgers/export/${currentLedger}?platform=${selectedPlatform}`;
+            } else {
+                // Export specific listings with platform format
+                const response = await fetch(`/api/export/csv/${selectedPlatform}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        listing_ids: listingIds,
+                        include_drafts: true,
+                        source_ledger: currentLedger
+                    })
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${selectedPlatform}_${currentLedger}_export.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    const error = await response.json();
+                    alert('Export failed: ' + (error.error || 'Unknown error'));
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Export error:', error);
+        alert('Export failed: ' + error.message);
+    } finally {
+        hideLoading();
+        // Reset selection for next time
+        selectedPlatform = null;
+        document.getElementById('confirmExportBtn').disabled = true;
+        document.querySelectorAll('.platform-option').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+    }
+}
+
+// Legacy function - now shows modal instead
 async function exportCurrentLedger() {
-    const config = ledgerConfigs[currentLedger];
-    window.location.href = config.endpoint;
+    showPlatformModal();
 }
 
 // Export all ledgers

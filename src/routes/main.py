@@ -804,12 +804,18 @@ def save_platform_credentials():
     """Save platform credentials - supports API keys, OAuth tokens, and email/password"""
     try:
         data = request.json
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
         platform = data.get("platform", "").lower()
         cred_type = data.get("type", "username_password")
         credentials = data.get("credentials", {})
 
+        logging.info(f"Saving credentials for platform: {platform}, user: {current_user.id}")
+
         if platform not in VALID_MARKETPLATFORMS:
-            return jsonify({"error": "Invalid platform"}), 400
+            logging.warning(f"Invalid platform attempted: {platform}")
+            return jsonify({"error": f"Invalid platform: {platform}"}), 400
         if not credentials:
             return jsonify({"error": "Credentials required"}), 400
 
@@ -826,10 +832,13 @@ def save_platform_credentials():
             credentials_json=json.dumps(credentials),
             credential_type=cred_type
         )
+        logging.info(f"Successfully saved credentials for {platform}")
         return jsonify({"success": True})
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        logging.error(f"Error saving credentials: {e}\n{traceback.format_exc()}")
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 
 @main_bp.route("/api/settings/marketplace-credentials", methods=["POST"])

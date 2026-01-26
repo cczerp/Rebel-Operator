@@ -1092,7 +1092,13 @@ document.getElementById('categoryFilter').addEventListener('change', function(e)
 document.querySelectorAll('.platform-form').forEach(form => {
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
-        showLoading();
+
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.innerHTML;
+
+        // Disable button and show saving state
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
         const platform = this.dataset.platform;
         const formData = new FormData(this);
@@ -1107,10 +1113,13 @@ document.querySelectorAll('.platform-form').forEach(form => {
 
         // Validate required fields
         if (Object.keys(credentials).length === 0) {
-            hideLoading();
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
             showAlert('Please fill in at least one field', 'warning');
             return;
         }
+
+        console.log('Saving credentials for platform:', platform, credentials);
 
         try {
             const response = await fetch('/api/settings/platform-credentials', {
@@ -1123,8 +1132,13 @@ document.querySelectorAll('.platform-form').forEach(form => {
                 })
             });
 
+            console.log('Response status:', response.status);
             const data = await response.json();
-            hideLoading();
+            console.log('Response data:', data);
+
+            // Re-enable button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
 
             if (response.ok && data.success) {
                 showAlert(`${platform.charAt(0).toUpperCase() + platform.slice(1)} credentials saved successfully!`, 'success');
@@ -1139,7 +1153,8 @@ document.querySelectorAll('.platform-form').forEach(form => {
                 showAlert(data.error || `Failed to save credentials (HTTP ${response.status})`, 'danger');
             }
         } catch (error) {
-            hideLoading();
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
             console.error('Credential save error:', error);
             showAlert('Network error: ' + error.message, 'danger');
         }

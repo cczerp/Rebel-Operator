@@ -528,13 +528,42 @@
             <i class="fas fa-upload"></i>
             Import from CSV
         </button>
-        <button class="export-btn" onclick="showPlatformModal()">
-            <i class="fas fa-download"></i>
-            Export to CSV
-        </button>
-        <button class="btn btn-outline-primary" onclick="showPlatformModal('ready')">
+
+        <!-- Platform Selection + Export -->
+        <div class="d-flex align-items-center gap-2">
+            <select class="form-select platform-select" id="exportPlatformSelect" style="background: #16213e; color: #e8e8e8; border-color: #3a3a5c; min-width: 180px;">
+                <option value="internal">Rebel Operator Format</option>
+                <optgroup label="Marketplaces">
+                    <option value="ebay">eBay</option>
+                    <option value="mercari">Mercari</option>
+                    <option value="bonanza">Bonanza</option>
+                    <option value="ecrater">eCrater</option>
+                </optgroup>
+                <optgroup label="Fashion">
+                    <option value="poshmark">Poshmark</option>
+                    <option value="depop">Depop</option>
+                    <option value="grailed">Grailed</option>
+                    <option value="vinted">Vinted</option>
+                </optgroup>
+                <optgroup label="Collectibles">
+                    <option value="discogs">Discogs</option>
+                    <option value="tcgplayer">TCGplayer</option>
+                </optgroup>
+                <optgroup label="E-commerce">
+                    <option value="shopify">Shopify</option>
+                    <option value="woocommerce">WooCommerce</option>
+                    <option value="google">Google Shopping</option>
+                </optgroup>
+            </select>
+            <button class="export-btn" onclick="exportDrafts()">
+                <i class="fas fa-download"></i>
+                Export
+            </button>
+        </div>
+
+        <button class="btn btn-outline-primary" onclick="exportReadyDrafts()">
             <i class="fas fa-check-circle"></i>
-            Export Ready Drafts Only
+            Export Ready Only
         </button>
         <button class="btn btn-outline-secondary" onclick="refreshData()">
             <i class="fas fa-sync-alt"></i>
@@ -546,73 +575,22 @@
     </div>
 </div>
 
-<!-- Platform Selection Modal -->
-<div class="modal fade" id="platformExportModal" tabindex="-1" aria-labelledby="platformExportModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content" style="background: #1a1a2e; color: #e8e8e8;">
-            <div class="modal-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-bottom: none;">
-                <h5 class="modal-title" id="platformExportModalLabel" style="color: white;">
-                    <i class="fas fa-file-export"></i> Select Export Format
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p class="text-muted mb-3">Choose the platform format for your CSV export. Each platform has specific column requirements.</p>
-
-                <!-- Internal Format Option -->
-                <div class="mb-3">
-                    <h6 style="color: #9ca3af;"><i class="fas fa-database"></i> Internal Format</h6>
-                    <div class="row g-2">
-                        <div class="col-md-6">
-                            <div class="platform-option border rounded p-3" data-platform="internal" onclick="selectExportPlatform('internal')" style="border-color: #3a3a5c !important; background: #16213e;">
-                                <div class="d-flex align-items-center">
-                                    <div class="platform-icon me-3" style="width: 40px; height: 40px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                                        <i class="fas fa-table text-white"></i>
-                                    </div>
-                                    <div>
-                                        <strong>Rebel Operator Format</strong>
-                                        <br><small class="text-muted">Full ledger data for backup/import</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Platform-Specific Formats -->
-                <h6 style="color: #9ca3af;"><i class="fas fa-store"></i> Platform-Specific Formats</h6>
-                <div class="row g-2" id="platformExportGrid">
-                    <!-- Platforms loaded dynamically -->
-                    <div class="col-12 text-center py-3">
-                        <div class="spinner-border" style="color: #f093fb;" role="status">
-                            <span class="visually-hidden">Loading platforms...</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer" style="border-top: 1px solid #3a3a5c;">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn" id="confirmExportPlatformBtn" onclick="exportWithPlatform()" disabled style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
-                    <i class="fas fa-download"></i> Export CSV
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <style>
-.platform-option {
+.platform-select {
     cursor: pointer;
-    transition: all 0.2s;
 }
-.platform-option:hover {
-    border-color: #f093fb !important;
-    background: #2a2a4a !important;
-}
-.platform-option.selected {
-    border-color: #f093fb !important;
-    background: rgba(240, 147, 251, 0.15) !important;
+.platform-select:focus {
+    border-color: #f093fb;
     box-shadow: 0 0 0 3px rgba(240, 147, 251, 0.2);
+}
+.platform-select option {
+    background: #16213e;
+    color: #e8e8e8;
+}
+.platform-select optgroup {
+    background: #1a1a2e;
+    color: #f093fb;
+    font-weight: 600;
 }
 </style>
 
@@ -1226,188 +1204,31 @@ function updateStats(data) {
     document.getElementById('statCompleteness').textContent = Math.round(avgCompleteness) + '%';
 }
 
-// Export functions - Platform Selection
-let selectedExportPlatform = null;
-let platformExportModal = null;
-let exportReadyOnly = false;
-
-// Show platform selection modal
-async function showPlatformModal(mode = 'all') {
-    exportReadyOnly = (mode === 'ready');
-
-    if (!platformExportModal) {
-        platformExportModal = new bootstrap.Modal(document.getElementById('platformExportModal'));
-    }
-
-    // Update modal title based on mode
-    const modalTitle = document.getElementById('platformExportModalLabel');
-    if (exportReadyOnly) {
-        modalTitle.innerHTML = '<i class="fas fa-file-export"></i> Export Ready Drafts - Select Format';
-    } else {
-        modalTitle.innerHTML = '<i class="fas fa-file-export"></i> Select Export Format';
-    }
-
-    // Load available platforms
-    await loadExportPlatforms();
-
-    platformExportModal.show();
-}
-
-// Load platform options from API
-async function loadExportPlatforms() {
-    const platformGrid = document.getElementById('platformExportGrid');
-    platformGrid.innerHTML = '<div class="col-12 text-center py-3"><div class="spinner-border" style="color: #f093fb;" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-
-    try {
-        const response = await fetch('/api/export/platforms');
-        const data = await response.json();
-
-        if (data.success && data.platforms) {
-            let html = '';
-
-            // Platform icons mapping
-            const platformIcons = {
-                'ebay': 'fas fa-gavel',
-                'poshmark': 'fas fa-shopping-bag',
-                'mercari': 'fas fa-store',
-                'discogs': 'fas fa-compact-disc',
-                'etsy': 'fas fa-shopping-bag',
-                'bonanza': 'fas fa-gem',
-                'google_shopping': 'fab fa-google',
-                'google': 'fab fa-google',
-                'rubylane': 'fas fa-gem',
-                'ruby_lane': 'fas fa-gem',
-                'ecrater': 'fas fa-shopping-cart',
-                'depop': 'fas fa-tshirt',
-                'grailed': 'fas fa-user-tie',
-                'vinted': 'fas fa-recycle',
-                'tcgplayer': 'fas fa-dice-d20',
-                'shopify': 'fas fa-shopping-cart',
-                'woocommerce': 'fab fa-wordpress'
-            };
-
-            // Platform colors
-            const platformColors = {
-                'ebay': '#0064D2',
-                'poshmark': '#7F0353',
-                'mercari': '#FF0211',
-                'discogs': '#333333',
-                'etsy': '#F45800',
-                'bonanza': '#99CC00',
-                'google_shopping': '#4285F4',
-                'google': '#4285F4',
-                'rubylane': '#C41230',
-                'ruby_lane': '#C41230',
-                'ecrater': '#FF6600',
-                'depop': '#FF2300',
-                'grailed': '#000000',
-                'vinted': '#09B1BA',
-                'tcgplayer': '#1A75BC',
-                'shopify': '#96BF48',
-                'woocommerce': '#96588A'
-            };
-
-            data.platforms.forEach(platform => {
-                const icon = platformIcons[platform.key] || 'fas fa-file-csv';
-                const color = platformColors[platform.key] || '#f093fb';
-
-                html += `
-                    <div class="col-md-6 col-lg-4">
-                        <div class="platform-option border rounded p-3" data-platform="${platform.key}" onclick="selectExportPlatform('${platform.key}')" style="border-color: #3a3a5c !important; background: #16213e;">
-                            <div class="d-flex align-items-center">
-                                <div class="platform-icon me-3" style="width: 40px; height: 40px; background: ${color}; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="${icon} text-white"></i>
-                                </div>
-                                <div>
-                                    <strong>${platform.name}</strong>
-                                    <br><small class="text-muted">${platform.description}</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-
-            platformGrid.innerHTML = html;
-        } else {
-            platformGrid.innerHTML = '<div class="col-12 text-center py-3 text-danger">Failed to load platforms</div>';
-        }
-    } catch (error) {
-        console.error('Error loading platforms:', error);
-        platformGrid.innerHTML = '<div class="col-12 text-center py-3 text-danger">Error loading platforms</div>';
-    }
-}
-
-// Select a platform option
-function selectExportPlatform(platformKey) {
-    selectedExportPlatform = platformKey;
-
-    // Update UI - remove selected class from all
-    document.querySelectorAll('#platformExportModal .platform-option').forEach(opt => {
-        opt.classList.remove('selected');
-    });
-
-    // Add selected class to clicked option
-    const selectedOption = document.querySelector(`#platformExportModal .platform-option[data-platform="${platformKey}"]`);
-    if (selectedOption) {
-        selectedOption.classList.add('selected');
-    }
-
-    // Enable export button
-    document.getElementById('confirmExportPlatformBtn').disabled = false;
-}
-
-// Export with selected platform format
-async function exportWithPlatform() {
-    if (!selectedExportPlatform) {
-        alert('Please select a platform format');
-        return;
-    }
-
-    // Close modal
-    if (platformExportModal) {
-        platformExportModal.hide();
-    }
-
-    showLoading();
-
-    try {
-        let url;
-        if (selectedExportPlatform === 'internal') {
-            // Use the internal ledger export
-            url = exportReadyOnly
-                ? '/api/ledgers/export/drafts?min_completeness=90&status=ready'
-                : '/api/ledgers/export/drafts';
-            window.location.href = url;
-        } else {
-            // Use platform-specific export
-            url = exportReadyOnly
-                ? `/api/ledgers/export/drafts?platform=${selectedExportPlatform}&min_completeness=90&status=ready`
-                : `/api/ledgers/export/drafts?platform=${selectedExportPlatform}`;
-            window.location.href = url;
-        }
-    } catch (error) {
-        console.error('Export error:', error);
-        alert('Export failed: ' + error.message);
-    } finally {
-        hideLoading();
-        // Reset selection for next time
-        selectedExportPlatform = null;
-        exportReadyOnly = false;
-        document.getElementById('confirmExportPlatformBtn').disabled = true;
-        document.querySelectorAll('#platformExportModal .platform-option').forEach(opt => {
-            opt.classList.remove('selected');
-        });
-    }
-}
-
-// Legacy functions - now redirects to platform modal
+// Export functions - uses inline platform dropdown
 function exportDrafts() {
-    showPlatformModal('all');
+    const platform = document.getElementById('exportPlatformSelect').value;
+    let url;
+
+    if (platform === 'internal') {
+        url = '/api/ledgers/export/drafts';
+    } else {
+        url = `/api/ledgers/export/drafts?platform=${platform}`;
+    }
+
+    window.location.href = url;
 }
 
 function exportReadyDrafts() {
-    showPlatformModal('ready');
+    const platform = document.getElementById('exportPlatformSelect').value;
+    let url;
+
+    if (platform === 'internal') {
+        url = '/api/ledgers/export/drafts?min_completeness=90&status=ready';
+    } else {
+        url = `/api/ledgers/export/drafts?platform=${platform}&min_completeness=90&status=ready`;
+    }
+
+    window.location.href = url;
 }
 
 function refreshData() {

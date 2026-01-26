@@ -197,8 +197,8 @@ def get_ledger_stats():
         }
     """
     try:
-        conn = get_db()
-        cursor = conn.cursor()
+        db = get_db()
+        cursor = db._get_cursor()
 
         stats = {}
 
@@ -275,7 +275,6 @@ def get_ledger_stats():
         }
 
         cursor.close()
-        conn.close()
 
         return jsonify(stats)
 
@@ -308,14 +307,13 @@ def get_ledger_count(ledger_type: str):
         if not table:
             return jsonify({"error": "Invalid ledger type"}), 400
 
-        conn = get_db()
-        cursor = conn.cursor()
+        db = get_db()
+        cursor = db._get_cursor()
 
         cursor.execute(f"SELECT COUNT(*) FROM {table} WHERE user_id = %s", (current_user.id,))
         count = cursor.fetchone()[0]
 
         cursor.close()
-        conn.close()
 
         return jsonify({"count": count})
 
@@ -352,14 +350,13 @@ def generate_ledger_id(id_type: str):
         if not func_name:
             return jsonify({"error": "Invalid ID type"}), 400
 
-        conn = get_db()
-        cursor = conn.cursor()
+        db = get_db()
+        cursor = db._get_cursor()
 
         cursor.execute(f"SELECT {func_name}(%s)", (current_user.id,))
         generated_id = cursor.fetchone()[0]
 
         cursor.close()
-        conn.close()
 
         return jsonify({"id": generated_id})
 
@@ -393,8 +390,8 @@ def get_profit_by_platform():
         }
     """
     try:
-        conn = get_db()
-        cursor = conn.cursor()
+        db = get_db()
+        cursor = db._get_cursor()
 
         query = """
             SELECT
@@ -429,7 +426,6 @@ def get_profit_by_platform():
             }
 
         cursor.close()
-        conn.close()
 
         return jsonify(result)
 
@@ -457,8 +453,8 @@ def get_monthly_profit():
     try:
         months = int(request.args.get('months', 12))
 
-        conn = get_db()
-        cursor = conn.cursor()
+        db = get_db()
+        cursor = db._get_cursor()
 
         query = """
             SELECT
@@ -487,7 +483,6 @@ def get_monthly_profit():
         ]
 
         cursor.close()
-        conn.close()
 
         return jsonify(result)
 

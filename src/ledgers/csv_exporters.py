@@ -97,8 +97,8 @@ class InventoryMasterExporter(LedgerCSVExporter):
         Returns:
             CSV string
         """
-        conn = get_db()
-        cursor = conn.cursor()
+        db = get_db()
+        cursor = db._get_cursor()
 
         # Build query with filters
         query = """
@@ -186,7 +186,6 @@ class InventoryMasterExporter(LedgerCSVExporter):
             ])
 
         cursor.close()
-        conn.close()
 
         return output.getvalue()
 
@@ -240,8 +239,8 @@ class SalesLedgerExporter(LedgerCSVExporter):
         Returns:
             CSV string
         """
-        conn = get_db()
-        cursor = conn.cursor()
+        db = get_db()
+        cursor = db._get_cursor()
 
         query = """
             SELECT
@@ -333,7 +332,6 @@ class SalesLedgerExporter(LedgerCSVExporter):
             ])
 
         cursor.close()
-        conn.close()
 
         return output.getvalue()
 
@@ -389,8 +387,8 @@ class ShippingLedgerExporter(LedgerCSVExporter):
         Returns:
             CSV string
         """
-        conn = get_db()
-        cursor = conn.cursor()
+        db = get_db()
+        cursor = db._get_cursor()
 
         query = """
             SELECT
@@ -478,7 +476,6 @@ class ShippingLedgerExporter(LedgerCSVExporter):
             ])
 
         cursor.close()
-        conn.close()
 
         return output.getvalue()
 
@@ -541,8 +538,8 @@ class DraftListingsExporter(LedgerCSVExporter):
         Returns:
             CSV string
         """
-        conn = get_db()
-        cursor = conn.cursor()
+        db = get_db()
+        cursor = db._get_cursor()
 
         query = """
             SELECT
@@ -649,7 +646,6 @@ class DraftListingsExporter(LedgerCSVExporter):
             ])
 
         cursor.close()
-        conn.close()
 
         return output.getvalue()
 
@@ -706,8 +702,8 @@ class InvoicesExporter(LedgerCSVExporter):
         Returns:
             CSV string
         """
-        conn = get_connection()
-        cursor = conn.cursor()
+        db = get_db()
+        cursor = db._get_cursor()
 
         # Build query with filters
         query = """
@@ -814,7 +810,6 @@ class InvoicesExporter(LedgerCSVExporter):
             ])
 
         cursor.close()
-        conn.close()
 
         return output.getvalue()
 

@@ -15,11 +15,11 @@
             <label class="form-label"><strong>Environment:</strong></label>
             <div class="btn-group w-100" role="group">
                 <input type="radio" class="btn-check" name="ebayEnv" id="envSandbox" value="sandbox" {% if current_env == 'sandbox' %}checked{% endif %}>
-                <label class="btn btn-outline-primary" for="envSandbox">
+                <label class="btn btn-outline-secondary" for="envSandbox">
                     <i class="fas fa-flask"></i> Sandbox (Testing)
                 </label>
 
-                <input type="radio" class="btn-check" name="ebayEnv" id="envProduction" value="production" {% if current_env == 'production' %}checked{% endif %}>
+                <input type="radio" class="btn-check" name="ebayEnv" id="envProduction" value="production" {% if current_env != 'sandbox' %}checked{% endif %}>
                 <label class="btn btn-outline-success" for="envProduction">
                     <i class="fas fa-check-circle"></i> Production (Live)
                 </label>
@@ -33,7 +33,7 @@
         <hr>
 
         <!-- Sandbox Connection -->
-        <div id="sandboxSection" class="mb-4" {% if current_env != 'sandbox' %}style="display:none;"{% endif %}>
+        <div id="sandboxSection" class="mb-4" {% if current_env == 'sandbox' %}{% else %}style="display:none;"{% endif %}>
             <h6 class="mb-3">
                 <i class="fas fa-flask"></i> Sandbox Environment
             </h6>
@@ -78,7 +78,7 @@
         </div>
 
         <!-- Production Connection -->
-        <div id="productionSection" class="mb-4" {% if current_env != 'production' %}style="display:none;"{% endif %}>
+        <div id="productionSection" class="mb-4" {% if current_env == 'sandbox' %}style="display:none;"{% endif %}>
             <h6 class="mb-3">
                 <i class="fas fa-check-circle"></i> Production Environment
             </h6>

@@ -130,7 +130,7 @@ class InventoryMasterExporter(LedgerCSVExporter):
                 created_at,
                 updated_at
             FROM inventory_master
-            WHERE user_id = %s
+            WHERE user_id = %s::INTEGER
         """
         params = [user_id]
 
@@ -272,7 +272,7 @@ class SalesLedgerExporter(LedgerCSVExporter):
                 auto_delisted,
                 notes
             FROM sales_ledger
-            WHERE user_id = %s
+            WHERE user_id = %s::INTEGER
         """
         params = [user_id]
 
@@ -420,7 +420,7 @@ class ShippingLedgerExporter(LedgerCSVExporter):
                 ship_from_address,
                 notes
             FROM shipping_ledger
-            WHERE user_id = %s
+            WHERE user_id = %s::INTEGER
         """
         params = [user_id]
 
@@ -580,7 +580,7 @@ class DraftListingsExporter(LedgerCSVExporter):
                 updated_at,
                 published_at
             FROM draft_listings
-            WHERE user_id = %s
+            WHERE user_id = %s::INTEGER
         """
         params = [user_id]
 
@@ -739,7 +739,7 @@ class InvoicesExporter(LedgerCSVExporter):
                 created_at,
                 updated_at
             FROM invoices
-            WHERE user_id = %s
+            WHERE user_id = %s::INTEGER
         """
 
         params = [user_id]
@@ -877,6 +877,7 @@ def export_ledger_for_platform(ledger_type: str, user_id: int, platform: str, fi
     cursor = db._get_cursor()
 
     # Build query based on ledger type
+    # Cast user_id to INTEGER to handle potential type mismatches
     if ledger_type == 'inventory':
         query = """
             SELECT
@@ -903,7 +904,7 @@ def export_ledger_for_platform(ledger_type: str, user_id: int, platform: str, fi
                 created_at,
                 updated_at
             FROM inventory_master
-            WHERE user_id = %s
+            WHERE user_id = %s::INTEGER
         """
     elif ledger_type == 'drafts':
         query = """
@@ -931,7 +932,7 @@ def export_ledger_for_platform(ledger_type: str, user_id: int, platform: str, fi
                 created_at,
                 updated_at
             FROM draft_listings
-            WHERE user_id = %s
+            WHERE user_id = %s::INTEGER
         """
     else:
         # For other ledger types, fall back to internal format

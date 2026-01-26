@@ -385,10 +385,12 @@ def _get_user_credentials(user_id) -> Dict[str, Dict]:
     cursor = None
     try:
         cursor = db._get_cursor()
+        # Cast user_id to INTEGER to handle potential UUID/INTEGER type mismatches
+        # The database column may be INTEGER but the value could come as different types
         cursor.execute("""
             SELECT platform, credentials_json
             FROM marketplace_credentials
-            WHERE user_id = %s
+            WHERE user_id = %s::INTEGER
         """, (user_id,))
 
         credentials_store = {}
@@ -420,9 +422,10 @@ def _save_search_history(user_id: int, query: SearchQuery, result_count: int):
 
     try:
         cursor = db._get_cursor()
+        # Cast user_id to INTEGER to handle potential type mismatches
         cursor.execute("""
             INSERT INTO search_history (user_id, keywords, filters, result_count, created_at)
-            VALUES (%s, %s, %s, %s, NOW())
+            VALUES (%s::INTEGER, %s, %s, %s, NOW())
         """, (
             user_id,
             query.keywords,

@@ -54,19 +54,26 @@ class BaseCSVExporter(ABC):
             listings: List of universal format listings
 
         Returns:
-            CSV file content as string
+            CSV file content as string (includes headers even if no data)
         """
+        # Get all field names for this exporter
+        all_fields = self.required_fields + self.optional_fields
+
         if not listings:
-            return ""
+            # Return CSV with just headers when no listings
+            output = io.StringIO()
+            writer = csv.writer(output)
+            writer.writerow(all_fields)
+            return output.getvalue()
 
         # Transform all listings
         transformed = [self.transform_listing(listing) for listing in listings]
 
-        # Get field names from first transformed listing
-        if not transformed:
-            return ""
-
-        fieldnames = list(transformed[0].keys())
+        # Get field names from first transformed listing, or use defined fields
+        if transformed:
+            fieldnames = list(transformed[0].keys())
+        else:
+            fieldnames = all_fields
 
         # Write CSV to string buffer
         output = io.StringIO()

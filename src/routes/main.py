@@ -3215,6 +3215,13 @@ def platforms_page():
     return render_template("platforms.html", connections=connections)
 
 
+@main_bp.route("/settings")
+@login_required
+def settings():
+    """Platform credentials settings page"""
+    return render_template("settings.html")
+
+
 @main_bp.route("/api/platform/<platform>/connect", methods=["POST"])
 @login_required
 def connect_platform(platform):

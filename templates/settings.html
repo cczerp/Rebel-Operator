@@ -47,31 +47,7 @@
     </div>
     <div class="card-body">
         <div class="row">
-            <!-- eBay -->
-            <div class="col-md-6 mb-3 platform-item" data-platform="ebay">
-                <div class="border rounded p-3" style="border-color: var(--cold-steel-dark);">
-                    <h6 class="d-flex justify-content-between align-items-center">
-                        <span><i class="fas fa-gavel text-primary"></i> eBay</span>
-                        <span class="badge bg-secondary platform-status" data-platform="ebay">Not Configured</span>
-                    </h6>
-                    <p class="small text-muted mb-2">Supports: <span class="badge bg-success">API</span> <span class="badge bg-info">CSV</span></p>
-                    <form class="platform-form" data-platform="ebay">
-                        <div class="mb-2">
-                            <label class="form-label small">API Key</label>
-                            <input type="password" class="form-control form-control-sm" name="api_key" placeholder="Your eBay API Key">
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label small">Username (optional)</label>
-                            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username">
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label small">Password (optional)</label>
-                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Password">
-                        </div>
-                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Save</button>
-                    </form>
-                </div>
-            </div>
+            <!-- eBay uses OAuth - see panel above -->
 
             <!-- Mercari -->
             <div class="col-md-6 mb-3 platform-item" data-platform="mercari">
@@ -1125,7 +1101,7 @@ document.querySelectorAll('.platform-form').forEach(form => {
             const data = await response.json();
             hideLoading();
 
-            if (data.success) {
+            if (response.ok && data.success) {
                 showAlert(`${platform.charAt(0).toUpperCase() + platform.slice(1)} credentials saved successfully!`, 'success');
                 // Update status badge
                 const statusBadge = document.querySelector(`.platform-status[data-platform="${platform}"]`);
@@ -1135,11 +1111,12 @@ document.querySelectorAll('.platform-form').forEach(form => {
                     statusBadge.textContent = 'Configured';
                 }
             } else {
-                showAlert(data.error || 'Failed to save credentials', 'danger');
+                showAlert(data.error || `Failed to save credentials (HTTP ${response.status})`, 'danger');
             }
         } catch (error) {
             hideLoading();
-            showAlert('Error: ' + error.message, 'danger');
+            console.error('Credential save error:', error);
+            showAlert('Network error: ' + error.message, 'danger');
         }
     });
 });

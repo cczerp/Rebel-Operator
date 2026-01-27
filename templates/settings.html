@@ -1164,19 +1164,31 @@ document.querySelectorAll('.platform-form').forEach(form => {
 // Load existing credentials on page load
 window.addEventListener('load', async function() {
     try {
+        console.log('Loading platform credentials...');
         const response = await fetch('/api/settings/platform-credentials');
+        console.log('Response status:', response.status);
         const data = await response.json();
+        console.log('Credentials API response:', data);
 
         if (data.success && data.credentials) {
+            const platforms = Object.keys(data.credentials);
+            console.log('Found configured platforms:', platforms);
             // Update status badges for configured platforms
-            Object.keys(data.credentials).forEach(platform => {
+            platforms.forEach(platform => {
+                console.log('Looking for badge with data-platform:', platform);
                 const statusBadge = document.querySelector(`.platform-status[data-platform="${platform}"]`);
+                console.log('Found badge:', statusBadge);
                 if (statusBadge) {
                     statusBadge.className = 'badge bg-success platform-status';
                     statusBadge.setAttribute('data-platform', platform);
                     statusBadge.textContent = 'Configured';
+                    console.log('Updated badge for:', platform);
+                } else {
+                    console.warn('No badge found for platform:', platform);
                 }
             });
+        } else {
+            console.log('No credentials found or error:', data);
         }
     } catch (error) {
         console.error('Error loading credentials:', error);

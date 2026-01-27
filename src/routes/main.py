@@ -870,19 +870,27 @@ def save_marketplace_credentials():
 def get_all_platform_credentials():
     """Retrieve all platform credentials for current user"""
     try:
+        user_id = current_user.id
+        logging.info(f"Getting credentials for user_id: {user_id} (type: {type(user_id).__name__})")
+
         # Use the db method which handles type casting properly
-        all_creds = db.get_all_marketplace_credentials(current_user.id)
+        all_creds = db.get_all_marketplace_credentials(user_id)
+        logging.info(f"Retrieved {len(all_creds)} credentials from database")
 
         credentials = {}
         for row in all_creds:
-            credentials[row['platform']] = {
+            platform = row.get('platform', '')
+            logging.info(f"Processing credential for platform: {platform}")
+            credentials[platform] = {
                 'username': row.get('username', ''),
                 'configured': True
             }
 
+        logging.info(f"Returning credentials for platforms: {list(credentials.keys())}")
         return jsonify({"success": True, "credentials": credentials})
     except Exception as e:
-        logging.error(f"Error getting platform credentials: {e}")
+        import traceback
+        logging.error(f"Error getting platform credentials: {e}\n{traceback.format_exc()}")
         return jsonify({"error": str(e)}), 500
 
 

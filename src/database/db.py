@@ -2205,6 +2205,8 @@ class Database:
 
         Supports both legacy (username/password) and new flexible JSON credential storage
         """
+        import logging
+        logging.info(f"DB: Saving credentials for user_id={user_id} (type: {type(user_id).__name__}), platform={platform}")
         cursor = self._get_cursor()
 
         # If credentials_json is provided, use flexible storage
@@ -2234,6 +2236,7 @@ class Database:
             """, (user_id, platform, username, password))
 
         self.conn.commit()
+        logging.info(f"DB: Successfully committed credentials for {platform}")
 
     def get_marketplace_credentials(self, user_id: int, platform: str) -> Optional[Dict]:
         """Get marketplace credentials for a specific platform"""
@@ -2248,6 +2251,8 @@ class Database:
 
     def get_all_marketplace_credentials(self, user_id: int) -> List[Dict]:
         """Get all marketplace credentials for a user"""
+        import logging
+        logging.info(f"DB: Getting all credentials for user_id={user_id} (type: {type(user_id).__name__})")
         cursor = self._get_cursor()
         # Cast user_id to INTEGER to handle potential type mismatches
         cursor.execute("""
@@ -2255,7 +2260,11 @@ class Database:
             WHERE user_id = %s::INTEGER
             ORDER BY platform
         """, (user_id,))
-        return [dict(row) for row in cursor.fetchall()]
+        results = [dict(row) for row in cursor.fetchall()]
+        logging.info(f"DB: Found {len(results)} credentials for user_id={user_id}")
+        if results:
+            logging.info(f"DB: Platforms found: {[r.get('platform') for r in results]}")
+        return results
 
     def delete_marketplace_credentials(self, user_id: int, platform: str):
         """Delete marketplace credentials for a platform"""

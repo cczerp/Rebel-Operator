@@ -870,23 +870,19 @@ def save_marketplace_credentials():
 def get_all_platform_credentials():
     """Retrieve all platform credentials for current user"""
     try:
-        # Get all marketplace credentials
-        cursor = db._get_cursor()
-        cursor.execute("""
-            SELECT platform, username FROM marketplace_credentials
-            WHERE user_id = %s
-        """, (current_user.id,))
+        # Use the db method which handles type casting properly
+        all_creds = db.get_all_marketplace_credentials(current_user.id)
 
         credentials = {}
-        for row in cursor.fetchall():
+        for row in all_creds:
             credentials[row['platform']] = {
-                'username': row['username'],
+                'username': row.get('username', ''),
                 'configured': True
             }
 
-        cursor.close()
         return jsonify({"success": True, "credentials": credentials})
     except Exception as e:
+        logging.error(f"Error getting platform credentials: {e}")
         return jsonify({"error": str(e)}), 500
 
 
